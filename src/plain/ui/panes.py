@@ -1,0 +1,79 @@
+"""Reusable widgets for the initial three-pane shell."""
+
+from collections.abc import Sequence
+
+from textual.app import ComposeResult
+from textual.containers import Vertical
+from textual.widgets import DataTable, Label, ListItem, ListView
+
+from plain.models.shell_data import PaneEntry
+
+
+class SidePane(Vertical):
+    """Lightweight pane used for parent and child directory listings."""
+
+    def __init__(
+        self,
+        title: str,
+        entries: Sequence[PaneEntry],
+        *,
+        id: str | None = None,
+        classes: str | None = None,
+    ) -> None:
+        super().__init__(id=id, classes=classes)
+        self._title = title
+        self._entries = tuple(entries)
+
+    @property
+    def list_view_id(self) -> str | None:
+        """Return the derived list view identifier for tests and styling."""
+        return f"{self.id}-list" if self.id else None
+
+    def compose(self) -> ComposeResult:
+        items = [
+            ListItem(Label(entry.name, classes="pane-entry-label"), classes="pane-entry")
+            for entry in self._entries
+        ]
+        yield Label(self._title, classes="pane-title")
+        yield ListView(*items, id=self.list_view_id, classes="pane-list")
+
+
+class MainPane(Vertical):
+    """Center pane with detailed columns for the current directory."""
+
+    COLUMN_LABELS = ("種別", "名前", "サイズ", "更新日時")
+
+    def __init__(
+        self,
+        title: str,
+        entries: Sequence[PaneEntry],
+        *,
+        id: str | None = None,
+        classes: str | None = None,
+    ) -> None:
+        super().__init__(id=id, classes=classes)
+        self._title = title
+        self._entries = tuple(entries)
+
+    @property
+    def table_id(self) -> str | None:
+        """Return the derived table identifier for tests and styling."""
+        return f"{self.id}-table" if self.id else None
+
+    def compose(self) -> ComposeResult:
+        yield Label(self._title, classes="pane-title")
+        yield DataTable(id=self.table_id, classes="pane-table")
+
+    def on_mount(self) -> None:
+        """Populate the table after the widget is attached to an app."""
+        table = self.query_one(DataTable)
+        table.cursor_type = "row"
+        table.zebra_stripes = True
+        table.add_columns(*self.COLUMN_LABELS)
+        for entry in self._entries:
+            table.add_row(
+                entry.kind_label,
+                entry.name,
+                entry.size_label,
+                entry.modified_label,
+            )

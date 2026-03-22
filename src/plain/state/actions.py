@@ -2,7 +2,14 @@
 
 from dataclasses import dataclass
 
-from .models import AppState, SortField, UiMode
+from .models import (
+    AppState,
+    BrowserSnapshot,
+    NotificationState,
+    PaneState,
+    SortField,
+    UiMode,
+)
 
 
 @dataclass(frozen=True)
@@ -94,10 +101,53 @@ class SetSort:
 
 
 @dataclass(frozen=True)
-class SetStatusMessage:
-    """Update the transient status line message."""
+class SetNotification:
+    """Update the transient notification rendered in the shell."""
 
-    message: str | None
+    notification: NotificationState | None
+
+
+@dataclass(frozen=True)
+class RequestBrowserSnapshot:
+    """Request asynchronous pane data for a directory path."""
+
+    path: str
+    cursor_path: str | None = None
+    blocking: bool = False
+
+
+@dataclass(frozen=True)
+class BrowserSnapshotLoaded:
+    """Apply a loaded browser snapshot to reducer state."""
+
+    request_id: int
+    snapshot: BrowserSnapshot
+    blocking: bool = False
+
+
+@dataclass(frozen=True)
+class BrowserSnapshotFailed:
+    """Apply an error raised while loading a browser snapshot."""
+
+    request_id: int
+    message: str
+    blocking: bool = False
+
+
+@dataclass(frozen=True)
+class ChildPaneSnapshotLoaded:
+    """Apply a loaded child-pane snapshot to reducer state."""
+
+    request_id: int
+    pane: PaneState
+
+
+@dataclass(frozen=True)
+class ChildPaneSnapshotFailed:
+    """Apply an error raised while loading the child pane."""
+
+    request_id: int
+    message: str
 
 
 Action = (
@@ -114,5 +164,10 @@ Action = (
     | SetFilterQuery
     | SetFilterRecursive
     | SetSort
-    | SetStatusMessage
+    | SetNotification
+    | RequestBrowserSnapshot
+    | BrowserSnapshotLoaded
+    | BrowserSnapshotFailed
+    | ChildPaneSnapshotLoaded
+    | ChildPaneSnapshotFailed
 )

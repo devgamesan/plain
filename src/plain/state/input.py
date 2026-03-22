@@ -9,11 +9,11 @@ from .actions import (
     MoveCursor,
     SetFilterQuery,
     SetFilterRecursive,
-    SetStatusMessage,
+    SetNotification,
     SetUiMode,
     ToggleSelectionAndAdvance,
 )
-from .models import AppState
+from .models import AppState, NotificationState
 from .selectors import select_visible_current_entry_states
 
 DispatchedActions = tuple[Action, ...]
@@ -101,7 +101,12 @@ def _dispatch_confirm_input(key: str) -> DispatchedActions:
         return _supported(SetUiMode("BROWSING"))
 
     if key == "enter":
-        return (SetUiMode("BROWSING"), SetStatusMessage("確認ダイアログは未接続です"))
+        return (
+            SetUiMode("BROWSING"),
+            SetNotification(
+                NotificationState(level="warning", message="確認ダイアログは未接続です")
+            ),
+        )
 
     return _warn("確認待ちのためこの入力は無効です")
 
@@ -117,8 +122,8 @@ def _visible_paths(state: AppState) -> tuple[str, ...]:
 
 
 def _supported(*actions: Action) -> DispatchedActions:
-    return (SetStatusMessage(None), *actions)
+    return (SetNotification(None), *actions)
 
 
 def _warn(message: str) -> DispatchedActions:
-    return (SetStatusMessage(message),)
+    return (SetNotification(NotificationState(level="warning", message=message)),)

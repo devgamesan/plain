@@ -6,9 +6,10 @@ from plain.state import (
     ClearSelection,
     ConfirmFilterInput,
     MoveCursor,
+    NotificationState,
     SetFilterQuery,
     SetFilterRecursive,
-    SetStatusMessage,
+    SetNotification,
     SetUiMode,
     ToggleSelectionAndAdvance,
     build_initial_app_state,
@@ -21,7 +22,7 @@ def test_browsing_down_dispatches_move_cursor() -> None:
 
     actions = dispatch_key_input(state, key="down")
 
-    assert actions[0] == SetStatusMessage(None)
+    assert actions[0] == SetNotification(None)
     assert actions[1] == MoveCursor(
         delta=1,
         visible_paths=(
@@ -39,7 +40,7 @@ def test_browsing_space_toggles_selection_and_advances_cursor() -> None:
 
     actions = dispatch_key_input(state, key="space")
 
-    assert actions[0] == SetStatusMessage(None)
+    assert actions[0] == SetNotification(None)
     assert actions[1] == ToggleSelectionAndAdvance(
         path="/home/tadashi/develop/plain/docs",
         visible_paths=(
@@ -57,7 +58,7 @@ def test_browsing_escape_clears_selection() -> None:
 
     actions = dispatch_key_input(state, key="escape")
 
-    assert actions == (SetStatusMessage(None), ClearSelection())
+    assert actions == (SetNotification(None), ClearSelection())
 
 
 def test_browsing_ctrl_f_enters_filter_mode() -> None:
@@ -65,7 +66,7 @@ def test_browsing_ctrl_f_enters_filter_mode() -> None:
 
     actions = dispatch_key_input(state, key="ctrl+f")
 
-    assert actions == (SetStatusMessage(None), BeginFilterInput())
+    assert actions == (SetNotification(None), BeginFilterInput())
 
 
 def test_filter_character_dispatches_query_update() -> None:
@@ -74,7 +75,7 @@ def test_filter_character_dispatches_query_update() -> None:
 
     actions = dispatch_key_input(state, key="r", character="r")
 
-    assert actions == (SetStatusMessage(None), SetFilterQuery("r", active=True))
+    assert actions == (SetNotification(None), SetFilterQuery("r", active=True))
 
 
 def test_filter_backspace_updates_query() -> None:
@@ -87,7 +88,7 @@ def test_filter_backspace_updates_query() -> None:
 
     actions = dispatch_key_input(state, key="backspace")
 
-    assert actions == (SetStatusMessage(None), SetFilterQuery("re", active=True))
+    assert actions == (SetNotification(None), SetFilterQuery("re", active=True))
 
 
 def test_filter_space_toggles_recursive_flag() -> None:
@@ -96,7 +97,7 @@ def test_filter_space_toggles_recursive_flag() -> None:
 
     actions = dispatch_key_input(state, key="space")
 
-    assert actions == (SetStatusMessage(None), SetFilterRecursive(True))
+    assert actions == (SetNotification(None), SetFilterRecursive(True))
 
 
 def test_filter_enter_confirms_filter() -> None:
@@ -105,7 +106,7 @@ def test_filter_enter_confirms_filter() -> None:
 
     actions = dispatch_key_input(state, key="enter")
 
-    assert actions == (SetStatusMessage(None), ConfirmFilterInput())
+    assert actions == (SetNotification(None), ConfirmFilterInput())
 
 
 def test_filter_escape_cancels_filter() -> None:
@@ -114,7 +115,7 @@ def test_filter_escape_cancels_filter() -> None:
 
     actions = dispatch_key_input(state, key="escape")
 
-    assert actions == (SetStatusMessage(None), CancelFilterInput())
+    assert actions == (SetNotification(None), CancelFilterInput())
 
 
 def test_confirm_escape_returns_to_browsing() -> None:
@@ -123,7 +124,7 @@ def test_confirm_escape_returns_to_browsing() -> None:
 
     actions = dispatch_key_input(state, key="escape")
 
-    assert actions == (SetStatusMessage(None), SetUiMode("BROWSING"))
+    assert actions == (SetNotification(None), SetUiMode("BROWSING"))
 
 
 def test_busy_key_shows_warning_message() -> None:
@@ -132,4 +133,8 @@ def test_busy_key_shows_warning_message() -> None:
 
     actions = dispatch_key_input(state, key="x", character="x")
 
-    assert actions == (SetStatusMessage("処理中のため入力を無視しました"),)
+    assert actions == (
+        SetNotification(
+            NotificationState(level="warning", message="処理中のため入力を無視しました")
+        ),
+    )

@@ -30,12 +30,33 @@ class SidePane(Vertical):
         return f"{self.id}-list" if self.id else None
 
     def compose(self) -> ComposeResult:
-        items = [
-            ListItem(Label(entry.name, classes="pane-entry-label"), classes="pane-entry")
-            for entry in self._entries
-        ]
         yield Label(self._title, classes="pane-title")
-        yield ListView(*items, id=self.list_view_id, classes="pane-list")
+        yield ListView(
+            *self._build_items(self._entries),
+            id=self.list_view_id,
+            classes="pane-list",
+        )
+
+    async def set_entries(self, entries: Sequence[PaneEntry]) -> None:
+        """Replace the rendered entries without remounting the pane."""
+
+        next_entries = tuple(entries)
+        if next_entries == self._entries:
+            return
+
+        self._entries = next_entries
+        list_view = self.query_one(ListView)
+        await list_view.clear()
+        items = self._build_items(self._entries)
+        if items:
+            await list_view.extend(items)
+
+    @staticmethod
+    def _build_items(entries: Sequence[PaneEntry]) -> tuple[ListItem, ...]:
+        return tuple(
+            ListItem(Label(entry.name, classes="pane-entry-label"), classes="pane-entry")
+            for entry in entries
+        )
 
 
 class MainPane(Vertical):
@@ -70,6 +91,18 @@ class MainPane(Vertical):
         table.cursor_type = "row"
         table.zebra_stripes = True
         table.add_columns(*self.COLUMN_LABELS)
+        self.set_entries(self._entries)
+
+    def set_entries(self, entries: Sequence[PaneEntry]) -> None:
+        """Replace the rendered rows without remounting the pane."""
+
+        next_entries = tuple(entries)
+        if next_entries == self._entries:
+            return
+
+        self._entries = next_entries
+        table = self.query_one(DataTable)
+        table.clear()
         for entry in self._entries:
             table.add_row(
                 entry.kind_label,

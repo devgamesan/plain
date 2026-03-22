@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 EntryKind = Literal["dir", "file"]
+NotificationLevel = Literal["info", "warning", "error"]
 
 
 @dataclass(frozen=True)
@@ -31,6 +32,7 @@ class StatusBarState:
     sort_label: str
     filter_label: str
     message: str | None = None
+    message_level: NotificationLevel | None = None
 
 
 @dataclass(frozen=True)
@@ -72,5 +74,6 @@ def build_dummy_shell_data() -> ThreePaneShellData:
             sort_label="name asc",
             filter_label="none",
             message=None,
+            message_level=None,
         ),
     )

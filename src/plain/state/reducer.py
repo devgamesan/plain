@@ -5,44 +5,55 @@ from dataclasses import replace
 from .actions import (
     Action,
     BeginFilterInput,
+    BrowserSnapshotFailed,
+    BrowserSnapshotLoaded,
     CancelFilterInput,
+    ChildPaneSnapshotFailed,
+    ChildPaneSnapshotLoaded,
     ClearSelection,
     ConfirmFilterInput,
     InitializeState,
     MoveCursor,
+    RequestBrowserSnapshot,
     SetCursorPath,
     SetFilterQuery,
     SetFilterRecursive,
+    SetNotification,
     SetSort,
-    SetStatusMessage,
     SetUiMode,
     ToggleSelection,
     ToggleSelectionAndAdvance,
 )
-from .models import AppState
+from .effects import Effect, LoadBrowserSnapshotEffect, LoadChildPaneSnapshotEffect, ReduceResult
+from .models import AppState, DirectoryEntryState, NotificationState, PaneState
 
 
-def reduce_app_state(state: AppState, action: Action) -> AppState:
+def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
     """Return a new state after applying a reducer action."""
 
+    def done(next_state: AppState, *effects: Effect) -> ReduceResult:
+        return ReduceResult(state=next_state, effects=effects)
+
     if isinstance(action, InitializeState):
-        return action.state
+        return done(action.state)
 
     if isinstance(action, SetUiMode):
-        return replace(state, ui_mode=action.mode)
+        return done(replace(state, ui_mode=action.mode))
 
     if isinstance(action, BeginFilterInput):
-        return replace(state, ui_mode="FILTER", status_message=None)
+        return done(replace(state, ui_mode="FILTER", notification=None))
 
     if isinstance(action, ConfirmFilterInput):
-        return replace(state, ui_mode="BROWSING", status_message=None)
+        return done(replace(state, ui_mode="BROWSING", notification=None))
 
     if isinstance(action, CancelFilterInput):
-        return replace(
-            state,
-            ui_mode="BROWSING",
-            filter=replace(state.filter, query="", recursive=False, active=False),
-            status_message=None,
+        return done(
+            replace(
+                state,
+                ui_mode="BROWSING",
+                filter=replace(state.filter, query="", recursive=False, active=False),
+                notification=None,
+            )
         )
 
     if isinstance(action, MoveCursor):
@@ -51,90 +62,180 @@ def reduce_app_state(state: AppState, action: Action) -> AppState:
             action.visible_paths,
             action.delta,
         )
-        return replace(
+        next_state = replace(
             state,
             current_pane=replace(state.current_pane, cursor_path=cursor_path),
+            notification=None,
         )
+        return _sync_child_pane(next_state, cursor_path)
 
     if isinstance(action, SetCursorPath):
         if action.path is not None and action.path not in _current_entry_paths(state):
-            return state
-        return replace(
+            return done(state)
+        next_state = replace(
             state,
             current_pane=replace(state.current_pane, cursor_path=action.path),
+            notification=None,
         )
+        return _sync_child_pane(next_state, action.path)
 
     if isinstance(action, ToggleSelection):
         if action.path not in _current_entry_paths(state):
-            return state
+            return done(state)
         selected_paths = set(state.current_pane.selected_paths)
         if action.path in selected_paths:
             selected_paths.remove(action.path)
         else:
             selected_paths.add(action.path)
-        return replace(
-            state,
-            current_pane=replace(
-                state.current_pane,
-                selected_paths=frozenset(selected_paths),
-            ),
+        return done(
+            replace(
+                state,
+                current_pane=replace(
+                    state.current_pane,
+                    selected_paths=frozenset(selected_paths),
+                ),
+            )
         )
 
     if isinstance(action, ToggleSelectionAndAdvance):
         if action.path not in _current_entry_paths(state):
-            return state
+            return done(state)
         selected_paths = set(state.current_pane.selected_paths)
         if action.path in selected_paths:
             selected_paths.remove(action.path)
         else:
             selected_paths.add(action.path)
         cursor_path = _move_cursor(action.path, action.visible_paths, 1)
-        return replace(
+        next_state = replace(
             state,
             current_pane=replace(
                 state.current_pane,
                 cursor_path=cursor_path,
                 selected_paths=frozenset(selected_paths),
             ),
+            notification=None,
         )
+        return _sync_child_pane(next_state, cursor_path)
 
     if isinstance(action, ClearSelection):
-        return replace(
-            state,
-            current_pane=replace(state.current_pane, selected_paths=frozenset()),
+        return done(
+            replace(
+                state,
+                current_pane=replace(state.current_pane, selected_paths=frozenset()),
+            )
         )
 
     if isinstance(action, SetFilterQuery):
         active = bool(action.query) if action.active is None else action.active
-        return replace(
-            state,
-            filter=replace(state.filter, query=action.query, active=active),
+        return done(
+            replace(
+                state,
+                filter=replace(state.filter, query=action.query, active=active),
+            )
         )
 
     if isinstance(action, SetFilterRecursive):
-        return replace(
-            state,
-            filter=replace(state.filter, recursive=action.recursive),
+        return done(
+            replace(
+                state,
+                filter=replace(state.filter, recursive=action.recursive),
+            )
         )
 
     if isinstance(action, SetSort):
         directories_first = state.sort.directories_first
         if action.directories_first is not None:
             directories_first = action.directories_first
-        return replace(
+        return done(
+            replace(
+                state,
+                sort=replace(
+                    state.sort,
+                    field=action.field,
+                    descending=action.descending,
+                    directories_first=directories_first,
+                ),
+            )
+        )
+
+    if isinstance(action, SetNotification):
+        return done(replace(state, notification=action.notification))
+
+    if isinstance(action, RequestBrowserSnapshot):
+        request_id = state.next_request_id
+        next_state = replace(
             state,
-            sort=replace(
-                state.sort,
-                field=action.field,
-                descending=action.descending,
-                directories_first=directories_first,
+            notification=None,
+            pending_browser_snapshot_request_id=request_id,
+            pending_child_pane_request_id=None,
+            next_request_id=request_id + 1,
+            ui_mode="BUSY" if action.blocking else state.ui_mode,
+        )
+        return done(
+            next_state,
+            LoadBrowserSnapshotEffect(
+                request_id=request_id,
+                path=action.path,
+                cursor_path=action.cursor_path,
+                blocking=action.blocking,
             ),
         )
 
-    if isinstance(action, SetStatusMessage):
-        return replace(state, status_message=action.message)
+    if isinstance(action, BrowserSnapshotLoaded):
+        if action.request_id != state.pending_browser_snapshot_request_id:
+            return done(state)
+        return done(
+            replace(
+                state,
+                current_path=action.snapshot.current_path,
+                parent_pane=action.snapshot.parent_pane,
+                current_pane=action.snapshot.current_pane,
+                child_pane=action.snapshot.child_pane,
+                notification=None,
+                pending_browser_snapshot_request_id=None,
+                pending_child_pane_request_id=None,
+                ui_mode="BROWSING" if action.blocking else state.ui_mode,
+            )
+        )
 
-    return state
+    if isinstance(action, BrowserSnapshotFailed):
+        if action.request_id != state.pending_browser_snapshot_request_id:
+            return done(state)
+        return done(
+            replace(
+                state,
+                notification=NotificationState(level="error", message=action.message),
+                pending_browser_snapshot_request_id=None,
+                pending_child_pane_request_id=None,
+                ui_mode="BROWSING" if action.blocking else state.ui_mode,
+            )
+        )
+
+    if isinstance(action, ChildPaneSnapshotLoaded):
+        if action.request_id != state.pending_child_pane_request_id:
+            return done(state)
+        return done(
+            replace(
+                state,
+                child_pane=action.pane,
+                notification=None,
+                pending_child_pane_request_id=None,
+            )
+        )
+
+    if isinstance(action, ChildPaneSnapshotFailed):
+        if action.request_id != state.pending_child_pane_request_id:
+            return done(state)
+        return done(
+            replace(
+                state,
+                child_pane=PaneState(directory_path=state.current_path, entries=()),
+                notification=NotificationState(level="error", message=action.message),
+                pending_child_pane_request_id=None,
+            )
+        )
+
+    return done(state)
 
 
 def _current_entry_paths(state: AppState) -> set[str]:
@@ -156,3 +257,50 @@ def _move_cursor(
 
     next_index = max(0, min(len(visible_paths) - 1, current_index + delta))
     return visible_paths[next_index]
+
+
+def _sync_child_pane(state: AppState, cursor_path: str | None) -> ReduceResult:
+    entry = _current_entry_for_path(state, cursor_path)
+    if entry is None or entry.kind != "dir":
+        return ReduceResult(
+            state=replace(
+                state,
+                child_pane=PaneState(directory_path=state.current_path, entries=()),
+                pending_child_pane_request_id=None,
+            )
+        )
+
+    if (
+        entry.path == state.child_pane.directory_path
+        and state.pending_child_pane_request_id is None
+    ):
+        return ReduceResult(state=state)
+
+    request_id = state.next_request_id
+    next_state = replace(
+        state,
+        pending_child_pane_request_id=request_id,
+        next_request_id=request_id + 1,
+    )
+    return ReduceResult(
+        state=next_state,
+        effects=(
+            LoadChildPaneSnapshotEffect(
+                request_id=request_id,
+                current_path=state.current_path,
+                cursor_path=entry.path,
+            ),
+        ),
+    )
+
+
+def _current_entry_for_path(
+    state: AppState,
+    path: str | None,
+) -> DirectoryEntryState | None:
+    if path is None:
+        return None
+    for entry in state.current_pane.entries:
+        if entry.path == path:
+            return entry
+    return None

@@ -1,7 +1,9 @@
 from plain.state import (
+    NotificationState,
     SetCursorPath,
     SetFilterQuery,
     SetFilterRecursive,
+    SetNotification,
     SetSort,
     ToggleSelection,
     build_initial_app_state,
@@ -12,10 +14,14 @@ from plain.state import (
 )
 
 
+def _reduce_state(state, action):
+    return reduce_app_state(state, action).state
+
+
 def test_select_current_entries_applies_filter_and_sort() -> None:
     state = build_initial_app_state()
-    state = reduce_app_state(state, SetFilterQuery("t"))
-    state = reduce_app_state(
+    state = _reduce_state(state, SetFilterQuery("t"))
+    state = _reduce_state(
         state,
         SetSort(field="name", descending=True, directories_first=False),
     )
@@ -27,8 +33,8 @@ def test_select_current_entries_applies_filter_and_sort() -> None:
 
 def test_select_status_bar_counts_selected_absolute_paths() -> None:
     state = build_initial_app_state()
-    state = reduce_app_state(state, ToggleSelection("/home/tadashi/develop/plain/README.md"))
-    state = reduce_app_state(state, ToggleSelection("/home/tadashi/develop/plain/tests"))
+    state = _reduce_state(state, ToggleSelection("/home/tadashi/develop/plain/README.md"))
+    state = _reduce_state(state, ToggleSelection("/home/tadashi/develop/plain/tests"))
 
     status = select_status_bar_state(state)
 
@@ -38,7 +44,7 @@ def test_select_status_bar_counts_selected_absolute_paths() -> None:
 
 def test_select_child_entries_is_empty_when_cursor_is_file() -> None:
     state = build_initial_app_state()
-    state = reduce_app_state(state, SetCursorPath("/home/tadashi/develop/plain/README.md"))
+    state = _reduce_state(state, SetCursorPath("/home/tadashi/develop/plain/README.md"))
 
     assert select_child_entries(state) == ()
 
@@ -56,9 +62,22 @@ def test_select_status_bar_keeps_existing_format() -> None:
 
 def test_recursive_filter_label_is_reflected_in_status_bar() -> None:
     state = build_initial_app_state()
-    state = reduce_app_state(state, SetFilterQuery("md"))
-    state = reduce_app_state(state, SetFilterRecursive(True))
+    state = _reduce_state(state, SetFilterQuery("md"))
+    state = _reduce_state(state, SetFilterRecursive(True))
 
     status = select_status_bar_state(state)
 
     assert status.filter_label == "md (recursive)"
+
+
+def test_select_status_bar_exposes_notification_level() -> None:
+    state = build_initial_app_state()
+    state = _reduce_state(
+        state,
+        SetNotification(NotificationState(level="error", message="load failed")),
+    )
+
+    status = select_status_bar_state(state)
+
+    assert status.message == "load failed"
+    assert status.message_level == "error"

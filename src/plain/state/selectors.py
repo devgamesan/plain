@@ -49,7 +49,8 @@ def select_status_bar_state(state: AppState) -> StatusBarState:
         selected_count=len(state.current_pane.selected_paths),
         sort_label=_format_sort_label(state.sort),
         filter_label=_format_filter_label(state),
-        message=state.status_message,
+        message=state.notification.message if state.notification else None,
+        message_level=state.notification.level if state.notification else None,
     )
 
 

@@ -2,9 +2,10 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Literal
 
-from plain.models.shell_data import EntryKind
+from plain.models.shell_data import EntryKind, NotificationLevel
 
 UiMode = Literal["BROWSING", "FILTER", "RENAME", "CREATE", "CONFIRM", "BUSY"]
 SortField = Literal["name", "modified", "size"]
@@ -68,6 +69,24 @@ class HistoryState:
 
 
 @dataclass(frozen=True)
+class NotificationState:
+    """Transient notification rendered by the UI shell."""
+
+    level: NotificationLevel
+    message: str
+
+
+@dataclass(frozen=True)
+class BrowserSnapshot:
+    """Pane snapshot payload returned from async loaders."""
+
+    current_path: str
+    parent_pane: PaneState
+    current_pane: PaneState
+    child_pane: PaneState
+
+
+@dataclass(frozen=True)
 class AppState:
     """Single source of truth for reducer-managed application state."""
 
@@ -80,11 +99,14 @@ class AppState:
     clipboard: ClipboardState = ClipboardState()
     history: HistoryState = HistoryState()
     ui_mode: UiMode = "BROWSING"
-    status_message: str | None = None
+    notification: NotificationState | None = None
+    pending_browser_snapshot_request_id: int | None = None
+    pending_child_pane_request_id: int | None = None
+    next_request_id: int = 1
 
 
 def build_initial_app_state() -> AppState:
-    """Return a deterministic initial state used by the static shell UI."""
+    """Return a deterministic initial state used by selector and reducer tests."""
 
     current_path = "/home/tadashi/develop/plain"
     docs_path = f"{current_path}/docs"
@@ -145,4 +167,17 @@ def build_initial_app_state() -> AppState:
         child_pane=PaneState(directory_path=docs_path, entries=child_entries),
         sort=SortState(field="name", descending=False, directories_first=True),
         filter=FilterState(query="", recursive=False, active=False),
+    )
+
+
+def build_placeholder_app_state(current_path: str) -> AppState:
+    """Return an empty browser state used before the first snapshot loads."""
+
+    resolved_path = str(Path(current_path).resolve())
+    parent_path = str(Path(resolved_path).parent)
+    return AppState(
+        current_path=resolved_path,
+        parent_pane=PaneState(directory_path=parent_path, entries=()),
+        current_pane=PaneState(directory_path=resolved_path, entries=()),
+        child_pane=PaneState(directory_path=resolved_path, entries=()),
     )

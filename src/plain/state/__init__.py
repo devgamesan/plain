@@ -48,6 +48,7 @@ from .selectors import (
     select_parent_entries,
     select_shell_data,
     select_status_bar_state,
+    select_target_paths,
     select_visible_current_entry_states,
 )
 
@@ -98,5 +99,6 @@ __all__ = [
     "select_parent_entries",
     "select_shell_data",
     "select_status_bar_state",
+    "select_target_paths",
     "select_visible_current_entry_states",
 ]

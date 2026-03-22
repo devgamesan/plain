@@ -116,7 +116,12 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
     if isinstance(action, ToggleSelection):
         if action.path not in _current_entry_paths(state):
             return done(state)
-        selected_paths = set(state.current_pane.selected_paths)
+        selected_paths = set(
+            _normalize_selected_paths(
+                state.current_pane.selected_paths,
+                state.current_pane.entries,
+            )
+        )
         if action.path in selected_paths:
             selected_paths.remove(action.path)
         else:
@@ -134,7 +139,12 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
     if isinstance(action, ToggleSelectionAndAdvance):
         if action.path not in _current_entry_paths(state):
             return done(state)
-        selected_paths = set(state.current_pane.selected_paths)
+        selected_paths = set(
+            _normalize_selected_paths(
+                state.current_pane.selected_paths,
+                state.current_pane.entries,
+            )
+        )
         if action.path in selected_paths:
             selected_paths.remove(action.path)
         else:
@@ -218,12 +228,21 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
     if isinstance(action, BrowserSnapshotLoaded):
         if action.request_id != state.pending_browser_snapshot_request_id:
             return done(state)
+        selected_paths = frozenset()
+        if action.snapshot.current_path == state.current_path:
+            selected_paths = _normalize_selected_paths(
+                state.current_pane.selected_paths,
+                action.snapshot.current_pane.entries,
+            )
         return done(
             replace(
                 state,
                 current_path=action.snapshot.current_path,
                 parent_pane=action.snapshot.parent_pane,
-                current_pane=action.snapshot.current_pane,
+                current_pane=replace(
+                    action.snapshot.current_pane,
+                    selected_paths=selected_paths,
+                ),
                 child_pane=action.snapshot.child_pane,
                 notification=None,
                 pending_browser_snapshot_request_id=None,
@@ -274,6 +293,14 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
 
 def _current_entry_paths(state: AppState) -> set[str]:
     return {entry.path for entry in state.current_pane.entries}
+
+
+def _normalize_selected_paths(
+    selected_paths: frozenset[str],
+    entries: tuple[DirectoryEntryState, ...],
+) -> frozenset[str]:
+    entry_paths = {entry.path for entry in entries}
+    return frozenset(path for path in selected_paths if path in entry_paths)
 
 
 def _move_cursor(

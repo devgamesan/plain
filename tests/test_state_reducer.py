@@ -8,12 +8,14 @@ from plain.state import (
     ChildPaneSnapshotLoaded,
     ClearSelection,
     ConfirmFilterInput,
+    DirectoryEntryState,
     EnterCursorDirectory,
     GoToParentDirectory,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
     MoveCursor,
     NotificationState,
+    PaneState,
     ReloadDirectory,
     RequestBrowserSnapshot,
     SetCursorPath,
@@ -292,6 +294,85 @@ def test_browser_snapshot_loaded_applies_snapshot_and_clears_error() -> None:
     assert next_state.current_path == "/tmp/example"
     assert next_state.notification is None
     assert next_state.pending_browser_snapshot_request_id is None
+
+
+def test_browser_snapshot_loaded_preserves_remaining_selection_on_reload() -> None:
+    state = build_initial_app_state()
+    state = _reduce_state(
+        state,
+        ToggleSelection("/home/tadashi/develop/plain/docs"),
+    )
+    state = _reduce_state(
+        state,
+        ToggleSelection("/home/tadashi/develop/plain/README.md"),
+    )
+    requested = reduce_app_state(
+        state,
+        RequestBrowserSnapshot("/home/tadashi/develop/plain", blocking=True),
+    ).state
+
+    snapshot = BrowserSnapshot(
+        current_path="/home/tadashi/develop/plain",
+        parent_pane=requested.parent_pane,
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/plain",
+            entries=(
+                DirectoryEntryState("/home/tadashi/develop/plain/docs", "docs", "dir"),
+                DirectoryEntryState("/home/tadashi/develop/plain/src", "src", "dir"),
+            ),
+            cursor_path="/home/tadashi/develop/plain/src",
+        ),
+        child_pane=PaneState(directory_path="/home/tadashi/develop/plain/src", entries=()),
+    )
+
+    next_state = _reduce_state(
+        requested,
+        BrowserSnapshotLoaded(request_id=1, snapshot=snapshot, blocking=True),
+    )
+
+    assert next_state.current_pane.selected_paths == frozenset(
+        {"/home/tadashi/develop/plain/docs"}
+    )
+
+
+def test_browser_snapshot_loaded_clears_selection_when_directory_changes() -> None:
+    state = build_initial_app_state()
+    state = _reduce_state(
+        state,
+        ToggleSelection("/home/tadashi/develop/plain/docs"),
+    )
+    requested = reduce_app_state(
+        state,
+        RequestBrowserSnapshot("/home/tadashi/develop/plain/docs", blocking=True),
+    ).state
+
+    snapshot = BrowserSnapshot(
+        current_path="/home/tadashi/develop/plain/docs",
+        parent_pane=PaneState(
+            directory_path="/home/tadashi/develop/plain",
+            entries=state.current_pane.entries,
+            cursor_path="/home/tadashi/develop/plain/docs",
+        ),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/plain/docs",
+            entries=(
+                DirectoryEntryState(
+                    "/home/tadashi/develop/plain/docs/spec.md",
+                    "spec.md",
+                    "file",
+                ),
+            ),
+            cursor_path="/home/tadashi/develop/plain/docs/spec.md",
+        ),
+        child_pane=PaneState(directory_path="/home/tadashi/develop/plain/docs", entries=()),
+    )
+
+    next_state = _reduce_state(
+        requested,
+        BrowserSnapshotLoaded(request_id=1, snapshot=snapshot, blocking=True),
+    )
+
+    assert next_state.current_pane.selected_paths == frozenset()
 
 
 def test_browser_snapshot_failed_sets_error_notification() -> None:

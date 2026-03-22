@@ -2,6 +2,7 @@ import asyncio
 from pathlib import Path
 
 import pytest
+from rich.text import Text
 from textual.css.query import NoMatches
 from textual.widgets import DataTable, Label, ListView
 
@@ -187,7 +188,7 @@ async def test_app_renders_loaded_three_pane_shell() -> None:
         assert str(current_title.renderable) == "Current Directory"
         assert str(child_title.renderable) == "Child Directory"
         assert parent_entries == ["plain-app", "sibling"]
-        assert headers == ["Type", "Name", "Size", "Modified"]
+        assert headers == ["Sel", "Type", "Name", "Size", "Modified"]
         assert current_table.row_count == 2
         assert child_entries == ["spec.md"]
         assert str(current_path_bar.renderable) == f"Current Path: {path}"
@@ -303,6 +304,14 @@ async def test_app_keyboard_input_updates_selection_and_child_pane() -> None:
         assert child_names == ["main.py"]
         assert str(current_path_bar.renderable) == f"Current Path: {path}"
         assert str(status_bar.renderable) == "3 items | 1 selected | sort: name asc | filter: none"
+
+        current_table = app.query_one("#current-pane-table", DataTable)
+        first_row = current_table.get_row_at(0)
+
+        assert isinstance(first_row[0], Text)
+        assert first_row[0].plain == "*"
+        assert first_row[0].style == "bold green"
+        assert first_row[2].plain == "docs"
 
 
 @pytest.mark.asyncio
@@ -519,6 +528,100 @@ async def test_app_f5_falls_back_to_first_row_when_cursor_disappears() -> None:
         current_table = app.query_one("#current-pane-table", DataTable)
         assert app.app_state.current_pane.cursor_path == f"{path}/docs"
         assert current_table.cursor_row == 0
+
+
+@pytest.mark.asyncio
+async def test_app_f5_drops_selection_for_missing_entries() -> None:
+    path = "/tmp/plain-reload-selection"
+    initial_entries = (
+        DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+        DirectoryEntryState(f"{path}/src", "src", "dir"),
+    )
+    reloaded_entries = (
+        DirectoryEntryState(f"{path}/src", "src", "dir"),
+    )
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                initial_entries,
+                child_path=f"{path}/docs",
+                child_entries=(DirectoryEntryState(f"{path}/docs/spec.md", "spec.md", "file"),),
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("space")
+        await asyncio.sleep(0.05)
+
+        loader.snapshots[path] = _build_snapshot(
+            path,
+            reloaded_entries,
+            child_path=f"{path}/src",
+            child_entries=(DirectoryEntryState(f"{path}/src/main.py", "main.py", "file"),),
+        )
+
+        await pilot.press("f5")
+        await _wait_for_snapshot_loaded(app, path)
+
+        status_bar = await _wait_for_status_bar(app)
+
+        assert app.app_state.current_pane.selected_paths == set()
+        assert app.app_state.current_pane.cursor_path == f"{path}/src"
+        assert str(status_bar.renderable) == "1 items | 0 selected | sort: name asc | filter: none"
+
+
+@pytest.mark.asyncio
+async def test_app_navigation_clears_selection_in_new_directory() -> None:
+    root = "/tmp/plain-selection-nav"
+    docs = f"{root}/docs"
+    root_entries = (
+        DirectoryEntryState(docs, "docs", "dir"),
+    )
+    docs_entries = (
+        DirectoryEntryState(f"{docs}/guide.md", "guide.md", "file", size_bytes=42),
+    )
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            root: _build_snapshot(
+                root,
+                root_entries,
+                child_path=docs,
+                child_entries=docs_entries,
+            ),
+            docs: BrowserSnapshot(
+                current_path=docs,
+                parent_pane=PaneState(
+                    directory_path=root,
+                    entries=root_entries,
+                    cursor_path=docs,
+                ),
+                current_pane=PaneState(
+                    directory_path=docs,
+                    entries=docs_entries,
+                    cursor_path=f"{docs}/guide.md",
+                ),
+                child_pane=PaneState(directory_path=docs, entries=()),
+            ),
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=root)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, root)
+        await pilot.press("space")
+        await asyncio.sleep(0.05)
+        await pilot.press("right")
+        await _wait_for_path(app, docs)
+
+        status_bar = await _wait_for_status_bar(app)
+
+        assert app.app_state.current_pane.selected_paths == set()
+        assert app.app_state.current_path == docs
+        assert str(status_bar.renderable) == "1 items | 0 selected | sort: name asc | filter: none"
 
 
 @pytest.mark.asyncio

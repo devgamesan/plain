@@ -1,5 +1,8 @@
+from dataclasses import replace
+
 from plain.state import (
     NotificationState,
+    PaneState,
     SetCursorPath,
     SetFilterQuery,
     SetFilterRecursive,
@@ -12,6 +15,7 @@ from plain.state import (
     select_current_entries,
     select_shell_data,
     select_status_bar_state,
+    select_target_paths,
 )
 
 
@@ -41,6 +45,46 @@ def test_select_status_bar_counts_selected_absolute_paths() -> None:
 
     assert status.selected_count == 2
     assert status.item_count == 5
+
+
+def test_select_target_paths_prefers_selection_in_entry_order() -> None:
+    state = build_initial_app_state()
+    state = _reduce_state(state, ToggleSelection("/home/tadashi/develop/plain/README.md"))
+    state = _reduce_state(state, ToggleSelection("/home/tadashi/develop/plain/docs"))
+
+    assert select_target_paths(state) == (
+        "/home/tadashi/develop/plain/docs",
+        "/home/tadashi/develop/plain/README.md",
+    )
+
+
+def test_select_target_paths_falls_back_to_cursor() -> None:
+    state = build_initial_app_state()
+    state = _reduce_state(state, SetCursorPath("/home/tadashi/develop/plain/tests"))
+
+    assert select_target_paths(state) == ("/home/tadashi/develop/plain/tests",)
+
+
+def test_select_target_paths_returns_empty_tuple_for_empty_directory() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        current_pane=PaneState(directory_path=state.current_path, entries=(), cursor_path=None),
+    )
+
+    assert select_target_paths(state) == ()
+
+
+def test_select_current_entries_marks_selected_rows() -> None:
+    state = build_initial_app_state()
+    state = _reduce_state(state, ToggleSelection("/home/tadashi/develop/plain/README.md"))
+
+    entries = select_current_entries(state)
+
+    assert entries[0].selected is False
+    assert entries[4].name == "README.md"
+    assert entries[4].selected is True
+    assert entries[4].selection_marker == "*"
 
 
 def test_select_child_entries_is_empty_when_cursor_is_file() -> None:

@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.widgets import DataTable, Label, ListItem, ListView
@@ -64,7 +65,8 @@ class SidePane(Vertical):
 class MainPane(Vertical):
     """Center pane with detailed columns for the current directory."""
 
-    COLUMN_LABELS = ("Type", "Name", "Size", "Modified")
+    COLUMN_LABELS = ("Sel", "Type", "Name", "Size", "Modified")
+    SELECTED_STYLE = "bold green"
 
     def __init__(
         self,
@@ -115,10 +117,11 @@ class MainPane(Vertical):
         table.clear()
         for entry in self._entries:
             table.add_row(
-                entry.kind_label,
-                entry.name,
-                entry.size_label,
-                entry.modified_label,
+                self._render_cell(entry.selection_marker, entry.selected),
+                self._render_cell(entry.kind_label, entry.selected),
+                self._render_cell(entry.name, entry.selected),
+                self._render_cell(entry.size_label, entry.selected),
+                self._render_cell(entry.modified_label, entry.selected),
             )
         self._sync_cursor(table)
 
@@ -127,3 +130,9 @@ class MainPane(Vertical):
             return
         clamped_index = max(0, min(len(self._entries) - 1, self._cursor_index))
         table.move_cursor(row=clamped_index, animate=False, scroll=True)
+
+    @classmethod
+    def _render_cell(cls, value: str, selected: bool) -> Text:
+        if not selected:
+            return Text(value)
+        return Text(value, style=cls.SELECTED_STYLE)

@@ -12,7 +12,13 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
     return ThreePaneShellData(
         current_path=state.current_path,
         parent_entries=select_parent_entries(state),
-        current_entries=tuple(_to_pane_entry(entry) for entry in current_entries),
+        current_entries=tuple(
+            _to_pane_entry(
+                entry,
+                selected=entry.path in state.current_pane.selected_paths,
+            )
+            for entry in current_entries
+        ),
         child_entries=select_child_entries(state),
         current_cursor_index=_find_current_cursor_index(
             current_entries,
@@ -31,7 +37,13 @@ def select_parent_entries(state: AppState) -> tuple[PaneEntry, ...]:
 def select_current_entries(state: AppState) -> tuple[PaneEntry, ...]:
     """Return display entries for the current pane after filter/sort."""
 
-    return tuple(_to_pane_entry(entry) for entry in select_visible_current_entry_states(state))
+    return tuple(
+        _to_pane_entry(
+            entry,
+            selected=entry.path in state.current_pane.selected_paths,
+        )
+        for entry in select_visible_current_entry_states(state)
+    )
 
 
 def select_child_entries(state: AppState) -> tuple[PaneEntry, ...]:
@@ -57,6 +69,23 @@ def select_status_bar_state(state: AppState) -> StatusBarState:
         message=state.notification.message if state.notification else None,
         message_level=state.notification.level if state.notification else None,
     )
+
+
+def select_target_paths(state: AppState) -> tuple[str, ...]:
+    """Return selected paths, or the cursor path when nothing is selected."""
+
+    selected_paths = tuple(
+        entry.path
+        for entry in state.current_pane.entries
+        if entry.path in state.current_pane.selected_paths
+    )
+    if selected_paths:
+        return selected_paths
+
+    cursor_entry = _get_current_cursor_entry(state)
+    if cursor_entry is None:
+        return ()
+    return (cursor_entry.path,)
 
 
 def select_visible_current_entry_states(state: AppState) -> tuple[DirectoryEntryState, ...]:
@@ -139,12 +168,13 @@ def _get_current_cursor_entry(state: AppState) -> DirectoryEntryState | None:
     return None
 
 
-def _to_pane_entry(entry: DirectoryEntryState) -> PaneEntry:
+def _to_pane_entry(entry: DirectoryEntryState, *, selected: bool = False) -> PaneEntry:
     return PaneEntry(
         name=entry.name,
         kind=entry.kind,
         size_label=_format_size_label(entry.size_bytes),
         modified_label=_format_modified_label(entry),
+        selected=selected,
     )
 
 

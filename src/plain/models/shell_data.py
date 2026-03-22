@@ -15,11 +15,17 @@ class PaneEntry:
     kind: EntryKind
     size_label: str = "-"
     modified_label: str = "-"
+    selected: bool = False
 
     @property
     def kind_label(self) -> str:
         """Return the short label shown in the center table."""
         return "DIR" if self.kind == "dir" else "FILE"
+
+    @property
+    def selection_marker(self) -> str:
+        """Return the marker shown for selected rows in the center table."""
+        return "*" if self.selected else " "
 
 
 @dataclass(frozen=True)

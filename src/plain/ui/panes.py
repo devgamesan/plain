@@ -62,7 +62,7 @@ class SidePane(Vertical):
 class MainPane(Vertical):
     """Center pane with detailed columns for the current directory."""
 
-    COLUMN_LABELS = ("種別", "名前", "サイズ", "更新日時")
+    COLUMN_LABELS = ("Type", "Name", "Size", "Modified")
 
     def __init__(
         self,

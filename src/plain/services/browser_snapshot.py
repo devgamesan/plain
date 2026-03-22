@@ -80,13 +80,13 @@ class LiveBrowserSnapshotLoader:
         try:
             return self.filesystem.list_directory(path)
         except PermissionError as error:
-            raise OSError(f"アクセスできません: {path}") from error
+            raise OSError(f"Permission denied: {path}") from error
         except FileNotFoundError as error:
-            raise OSError(f"見つかりません: {path}") from error
+            raise OSError(f"Not found: {path}") from error
         except NotADirectoryError as error:
-            raise OSError(f"ディレクトリではありません: {path}") from error
+            raise OSError(f"Not a directory: {path}") from error
         except OSError as error:
-            raise OSError(str(error) or f"ディレクトリ読み込みに失敗しました: {path}") from error
+            raise OSError(str(error) or f"Failed to load directory: {path}") from error
 
 
 @dataclass(frozen=True)

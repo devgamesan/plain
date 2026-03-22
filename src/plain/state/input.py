@@ -37,7 +37,7 @@ def dispatch_key_input(
         return _dispatch_confirm_input(key)
 
     if state.ui_mode == "BUSY":
-        return _warn("処理中のため入力を無視しました")
+        return _warn("Input ignored while processing")
 
     if state.ui_mode in {"RENAME", "CREATE"}:
         return _dispatch_unwired_input_mode(state.ui_mode, key)
@@ -78,7 +78,7 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
     if key in {"right", "enter"}:
         if cursor_entry is not None and cursor_entry.kind == "dir":
             return _supported(EnterCursorDirectory())
-        return _warn("ファイルオープンは未実装です")
+        return _warn("Opening files is not implemented yet")
 
     return ()
 
@@ -105,7 +105,7 @@ def _dispatch_filter_input(
     if character and character.isprintable() and not character.isspace():
         return _supported(SetFilterQuery(f"{state.filter.query}{character}", active=True))
 
-    return _warn("フィルタ入力ではこのキーを使えません")
+    return _warn("This key is unavailable while editing the filter")
 
 
 def _dispatch_confirm_input(key: str) -> DispatchedActions:
@@ -116,17 +116,17 @@ def _dispatch_confirm_input(key: str) -> DispatchedActions:
         return (
             SetUiMode("BROWSING"),
             SetNotification(
-                NotificationState(level="warning", message="確認ダイアログは未接続です")
+                NotificationState(level="warning", message="Confirmation dialog is not wired yet")
             ),
         )
 
-    return _warn("確認待ちのためこの入力は無効です")
+    return _warn("This input is unavailable while waiting for confirmation")
 
 
 def _dispatch_unwired_input_mode(mode: str, key: str) -> DispatchedActions:
     if key == "escape":
         return _supported(SetUiMode("BROWSING"))
-    return _warn(f"{mode} モードの入力処理は未実装です")
+    return _warn(f"Input handling for {mode} mode is not implemented yet")
 
 
 def _visible_paths(state: AppState) -> tuple[str, ...]:

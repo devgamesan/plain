@@ -146,20 +146,20 @@ class PlainApp(App[None]):
     def _build_body(self, shell: ThreePaneShellData) -> Horizontal:
         return Horizontal(
             SidePane(
-                "親ディレクトリ",
+                "Parent Directory",
                 shell.parent_entries,
                 id="parent-pane",
                 classes="pane side-pane",
             ),
             MainPane(
-                "カレントディレクトリ",
+                "Current Directory",
                 shell.current_entries,
                 cursor_index=shell.current_cursor_index,
                 id="current-pane",
                 classes="pane main-pane",
             ),
             SidePane(
-                "子ディレクトリ",
+                "Child Directory",
                 shell.child_entries,
                 id="child-pane",
                 classes="pane side-pane",
@@ -284,7 +284,7 @@ class PlainApp(App[None]):
             )
             return
 
-        message = str(event.worker.error) or "ディレクトリ読み込みに失敗しました"
+        message = str(event.worker.error) or "Failed to load directory"
         if isinstance(effect, LoadBrowserSnapshotEffect):
             await self.dispatch_actions(
                 (

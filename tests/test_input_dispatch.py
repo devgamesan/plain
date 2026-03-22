@@ -93,7 +93,9 @@ def test_browsing_enter_on_file_shows_warning() -> None:
     actions = dispatch_key_input(state, key="enter")
 
     assert actions == (
-        SetNotification(NotificationState(level="warning", message="ファイルオープンは未実装です")),
+        SetNotification(
+            NotificationState(level="warning", message="Opening files is not implemented yet")
+        ),
     )
 
 
@@ -187,6 +189,6 @@ def test_busy_key_shows_warning_message() -> None:
 
     assert actions == (
         SetNotification(
-            NotificationState(level="warning", message="処理中のため入力を無視しました")
+            NotificationState(level="warning", message="Input ignored while processing")
         ),
     )

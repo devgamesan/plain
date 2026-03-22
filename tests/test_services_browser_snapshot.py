@@ -76,7 +76,7 @@ def test_live_browser_snapshot_loader_normalizes_not_found_error() -> None:
         filesystem=StubFilesystemAdapter(errors_by_path={"/missing": FileNotFoundError("nope")})
     )
 
-    with pytest.raises(OSError, match="見つかりません: /missing"):
+    with pytest.raises(OSError, match="Not found: /missing"):
         loader.load_browser_snapshot("/missing")
 
 
@@ -85,7 +85,7 @@ def test_live_browser_snapshot_loader_normalizes_permission_error() -> None:
         filesystem=StubFilesystemAdapter(errors_by_path={"/secret": PermissionError("blocked")})
     )
 
-    with pytest.raises(OSError, match="アクセスできません: /secret"):
+    with pytest.raises(OSError, match="Permission denied: /secret"):
         loader.load_browser_snapshot("/secret")
 
 

@@ -163,13 +163,19 @@ async def test_app_renders_loaded_three_pane_shell() -> None:
         parent_list = app.query_one("#parent-pane-list", ListView)
         current_table = app.query_one("#current-pane-table", DataTable)
         child_list = app.query_one("#child-pane-list", ListView)
+        parent_title = app.query_one("#parent-pane .pane-title", Label)
+        current_title = app.query_one("#current-pane .pane-title", Label)
+        child_title = app.query_one("#child-pane .pane-title", Label)
         status_bar = await _wait_for_status_bar(app)
         parent_entries = [str(item.query_one(Label).renderable) for item in parent_list.children]
         child_entries = [str(item.query_one(Label).renderable) for item in child_list.children]
         headers = [str(column.label) for column in current_table.ordered_columns]
 
+        assert str(parent_title.renderable) == "Parent Directory"
+        assert str(current_title.renderable) == "Current Directory"
+        assert str(child_title.renderable) == "Child Directory"
         assert parent_entries == ["plain-app", "sibling"]
-        assert headers == ["種別", "名前", "サイズ", "更新日時"]
+        assert headers == ["Type", "Name", "Size", "Modified"]
         assert current_table.row_count == 2
         assert child_entries == ["spec.md"]
         assert str(status_bar.renderable) == (

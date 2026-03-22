@@ -3,6 +3,7 @@ from dataclasses import replace
 from plain.models import PasteConflict, PasteRequest
 from plain.state import (
     BeginCreateInput,
+    CutTargets,
     NotificationState,
     PaneState,
     PasteConflictState,
@@ -92,6 +93,17 @@ def test_select_current_entries_marks_selected_rows() -> None:
     assert entries[4].name == "README.md"
     assert entries[4].selected is True
     assert entries[4].selection_marker == "*"
+
+
+def test_select_current_entries_marks_cut_rows() -> None:
+    state = build_initial_app_state()
+    state = _reduce_state(state, CutTargets(("/home/tadashi/develop/plain/docs",)))
+
+    entries = select_current_entries(state)
+
+    assert entries[0].name == "docs"
+    assert entries[0].cut is True
+    assert entries[1].cut is False
 
 
 def test_select_child_entries_is_empty_when_cursor_is_file() -> None:

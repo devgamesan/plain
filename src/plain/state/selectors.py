@@ -18,6 +18,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
     """Build the display shell data consumed by the UI layer."""
 
     current_entries = select_visible_current_entry_states(state)
+    cut_paths = _select_cut_paths(state)
     return ThreePaneShellData(
         current_path=state.current_path,
         parent_entries=select_parent_entries(state),
@@ -25,6 +26,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
             _to_pane_entry(
                 entry,
                 selected=entry.path in state.current_pane.selected_paths,
+                cut=entry.path in cut_paths,
             )
             for entry in current_entries
         ),
@@ -43,16 +45,22 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
 def select_parent_entries(state: AppState) -> tuple[PaneEntry, ...]:
     """Return display entries for the parent pane."""
 
-    return tuple(_to_pane_entry(entry) for entry in state.parent_pane.entries)
+    cut_paths = _select_cut_paths(state)
+    return tuple(
+        _to_pane_entry(entry, cut=entry.path in cut_paths)
+        for entry in state.parent_pane.entries
+    )
 
 
 def select_current_entries(state: AppState) -> tuple[PaneEntry, ...]:
     """Return display entries for the current pane after filter/sort."""
 
+    cut_paths = _select_cut_paths(state)
     return tuple(
         _to_pane_entry(
             entry,
             selected=entry.path in state.current_pane.selected_paths,
+            cut=entry.path in cut_paths,
         )
         for entry in select_visible_current_entry_states(state)
     )
@@ -66,7 +74,11 @@ def select_child_entries(state: AppState) -> tuple[PaneEntry, ...]:
         return ()
     if cursor_entry.path != state.child_pane.directory_path:
         return ()
-    return tuple(_to_pane_entry(entry) for entry in state.child_pane.entries)
+    cut_paths = _select_cut_paths(state)
+    return tuple(
+        _to_pane_entry(entry, cut=entry.path in cut_paths)
+        for entry in state.child_pane.entries
+    )
 
 
 def select_status_bar_state(state: AppState) -> StatusBarState:
@@ -243,13 +255,25 @@ def _get_current_cursor_entry(state: AppState) -> DirectoryEntryState | None:
     return None
 
 
-def _to_pane_entry(entry: DirectoryEntryState, *, selected: bool = False) -> PaneEntry:
+def _select_cut_paths(state: AppState) -> frozenset[str]:
+    if state.clipboard.mode != "cut":
+        return frozenset()
+    return frozenset(state.clipboard.paths)
+
+
+def _to_pane_entry(
+    entry: DirectoryEntryState,
+    *,
+    selected: bool = False,
+    cut: bool = False,
+) -> PaneEntry:
     return PaneEntry(
         name=entry.name,
         kind=entry.kind,
         size_label=_format_size_label(entry.size_bytes),
         modified_label=_format_modified_label(entry),
         selected=selected,
+        cut=cut,
     )
 
 

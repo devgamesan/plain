@@ -13,6 +13,8 @@ from plain.models.shell_data import PaneEntry
 class SidePane(Vertical):
     """Lightweight pane used for parent and child directory listings."""
 
+    CUT_STYLE = "bright_black dim"
+
     def __init__(
         self,
         title: str,
@@ -57,9 +59,18 @@ class SidePane(Vertical):
     @staticmethod
     def _build_items(entries: Sequence[PaneEntry]) -> tuple[ListItem, ...]:
         return tuple(
-            ListItem(Label(entry.name, classes="pane-entry-label"), classes="pane-entry")
+            ListItem(
+                Label(SidePane._render_label(entry), classes="pane-entry-label"),
+                classes="pane-entry",
+            )
             for entry in entries
         )
+
+    @classmethod
+    def _render_label(cls, entry: PaneEntry) -> Text:
+        if not entry.cut:
+            return Text(entry.name)
+        return Text(entry.name, style=cls.CUT_STYLE)
 
 
 class MainPane(Vertical):
@@ -67,6 +78,8 @@ class MainPane(Vertical):
 
     COLUMN_LABELS = ("Sel", "Type", "Name", "Size", "Modified")
     SELECTED_STYLE = "bold green"
+    CUT_STYLE = "bright_black dim"
+    SELECTED_CUT_STYLE = "bold bright_black"
 
     def __init__(
         self,
@@ -117,11 +130,11 @@ class MainPane(Vertical):
         table.clear()
         for entry in self._entries:
             table.add_row(
-                self._render_cell(entry.selection_marker, entry.selected),
-                self._render_cell(entry.kind_label, entry.selected),
-                self._render_cell(entry.name, entry.selected),
-                self._render_cell(entry.size_label, entry.selected),
-                self._render_cell(entry.modified_label, entry.selected),
+                self._render_cell(entry.selection_marker, entry.selected, entry.cut),
+                self._render_cell(entry.kind_label, entry.selected, entry.cut),
+                self._render_cell(entry.name, entry.selected, entry.cut),
+                self._render_cell(entry.size_label, entry.selected, entry.cut),
+                self._render_cell(entry.modified_label, entry.selected, entry.cut),
             )
         self._sync_cursor(table)
 
@@ -132,7 +145,11 @@ class MainPane(Vertical):
         table.move_cursor(row=clamped_index, animate=False, scroll=True)
 
     @classmethod
-    def _render_cell(cls, value: str, selected: bool) -> Text:
+    def _render_cell(cls, value: str, selected: bool, cut: bool) -> Text:
+        if cut and selected:
+            return Text(value, style=cls.SELECTED_CUT_STYLE)
+        if cut:
+            return Text(value, style=cls.CUT_STYLE)
         if not selected:
             return Text(value)
         return Text(value, style=cls.SELECTED_STYLE)

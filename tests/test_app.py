@@ -336,6 +336,39 @@ async def test_app_keyboard_input_updates_selection_and_child_pane() -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_cut_marks_row_with_dimmed_style() -> None:
+    path = "/tmp/plain-cut"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file", size_bytes=120),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 2)
+        await pilot.press("x")
+        await asyncio.sleep(0.05)
+
+        current_table = app.query_one("#current-pane-table", DataTable)
+        first_row = current_table.get_row_at(0)
+
+        assert app.app_state.clipboard.mode == "cut"
+        assert app.app_state.clipboard.paths == (f"{path}/docs",)
+        assert isinstance(first_row[2], Text)
+        assert first_row[2].plain == "docs"
+        assert first_row[2].style == "bright_black dim"
+
+
+@pytest.mark.asyncio
 async def test_app_right_enters_directory_and_backspace_returns_to_parent() -> None:
     root = "/tmp/plain-nav"
     docs = f"{root}/docs"

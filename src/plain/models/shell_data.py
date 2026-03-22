@@ -16,6 +16,7 @@ class PaneEntry:
     size_label: str = "-"
     modified_label: str = "-"
     selected: bool = False
+    cut: bool = False
 
     @property
     def kind_label(self) -> str:

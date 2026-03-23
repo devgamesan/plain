@@ -111,7 +111,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     if state.ui_mode == "BUSY":
         return HelpBarState("processing...")
     return HelpBarState(
-        "Space select | y copy | x cut | p paste | "
+        "/ filter | Space select | y copy | x cut | p paste | "
         "F2 rename | ctrl+n file | ctrl+shift+n dir"
     )
 
@@ -180,9 +180,10 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
 def select_target_paths(state: AppState) -> tuple[str, ...]:
     """Return selected paths, or the cursor path when nothing is selected."""
 
+    visible_entries = select_visible_current_entry_states(state)
     selected_paths = tuple(
         entry.path
-        for entry in state.current_pane.entries
+        for entry in visible_entries
         if entry.path in state.current_pane.selected_paths
     )
     if selected_paths:
@@ -196,6 +197,9 @@ def select_target_paths(state: AppState) -> tuple[str, ...]:
 
 def select_visible_current_entry_states(state: AppState) -> tuple[DirectoryEntryState, ...]:
     """Return filtered and sorted raw current-pane entries."""
+
+    if state.filter.recursive and state.filter.active:
+        return _sort_entries(state.recursive_entries, state.sort)
 
     entries = tuple(
         _filter_entries(
@@ -268,7 +272,7 @@ def _format_filter_label(state: AppState) -> str:
 
 def _get_current_cursor_entry(state: AppState) -> DirectoryEntryState | None:
     cursor_path = state.current_pane.cursor_path
-    for entry in state.current_pane.entries:
+    for entry in select_visible_current_entry_states(state):
         if entry.path == cursor_path:
             return entry
     return None

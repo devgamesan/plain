@@ -25,6 +25,15 @@ class LoadChildPaneSnapshotEffect:
     current_path: str
     cursor_path: str
 
+
+@dataclass(frozen=True)
+class LoadRecursiveFilterEffect:
+    """Request a recursive filter search outside the reducer."""
+
+    request_id: int
+    path: str
+    query: str
+
 @dataclass(frozen=True)
 class RunClipboardPasteEffect:
     """Execute a clipboard paste outside the reducer."""
@@ -44,6 +53,7 @@ class RunFileMutationEffect:
 Effect = (
     LoadBrowserSnapshotEffect
     | LoadChildPaneSnapshotEffect
+    | LoadRecursiveFilterEffect
     | RunClipboardPasteEffect
     | RunFileMutationEffect
 )

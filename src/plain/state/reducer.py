@@ -41,6 +41,8 @@ from .actions import (
     InitializeState,
     MoveCursor,
     PasteClipboard,
+    RecursiveFilterFailed,
+    RecursiveFilterLoaded,
     ReloadDirectory,
     RequestBrowserSnapshot,
     ResolvePasteConflict,
@@ -59,6 +61,7 @@ from .effects import (
     Effect,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
+    LoadRecursiveFilterEffect,
     ReduceResult,
     RunClipboardPasteEffect,
     RunFileMutationEffect,
@@ -107,9 +110,11 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
                 state,
                 ui_mode="BROWSING",
                 filter=replace(state.filter, query="", recursive=False, active=False),
+                recursive_entries=(),
                 notification=None,
                 pending_input=None,
                 delete_confirmation=None,
+                pending_recursive_filter_request_id=None,
             )
         )
 
@@ -274,10 +279,11 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
     if isinstance(action, ToggleSelection):
         if action.path not in _current_entry_paths(state):
             return done(state)
+        active_entries = _active_current_entries(state)
         selected_paths = set(
             _normalize_selected_paths(
                 state.current_pane.selected_paths,
-                state.current_pane.entries,
+                active_entries,
             )
         )
         if action.path in selected_paths:
@@ -297,10 +303,11 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
     if isinstance(action, ToggleSelectionAndAdvance):
         if action.path not in _current_entry_paths(state):
             return done(state)
+        active_entries = _active_current_entries(state)
         selected_paths = set(
             _normalize_selected_paths(
                 state.current_pane.selected_paths,
-                state.current_pane.entries,
+                active_entries,
             )
         )
         if action.path in selected_paths:
@@ -435,20 +442,26 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
 
     if isinstance(action, SetFilterQuery):
         active = bool(action.query) if action.active is None else action.active
+        next_state = replace(
+            state,
+            filter=replace(state.filter, query=action.query, active=active),
+        )
+        if next_state.filter.recursive:
+            return _update_recursive_filter(next_state)
         return done(
             replace(
-                state,
-                filter=replace(state.filter, query=action.query, active=active),
+                next_state,
+                recursive_entries=(),
+                pending_recursive_filter_request_id=None,
             )
         )
 
     if isinstance(action, SetFilterRecursive):
-        return done(
-            replace(
-                state,
-                filter=replace(state.filter, recursive=action.recursive),
-            )
+        next_state = replace(
+            state,
+            filter=replace(state.filter, recursive=action.recursive),
         )
+        return _update_recursive_filter(next_state)
 
     if isinstance(action, SetSort):
         directories_first = state.sort.directories_first
@@ -474,8 +487,10 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
         next_state = replace(
             state,
             notification=None,
+            recursive_entries=(),
             pending_browser_snapshot_request_id=request_id,
             pending_child_pane_request_id=None,
+            pending_recursive_filter_request_id=None,
             next_request_id=request_id + 1,
             ui_mode="BUSY" if action.blocking else state.ui_mode,
         )
@@ -498,23 +513,26 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
                 state.current_pane.selected_paths,
                 action.snapshot.current_pane.entries,
             )
-        return done(
-            replace(
-                state,
-                current_path=action.snapshot.current_path,
-                parent_pane=action.snapshot.parent_pane,
-                current_pane=replace(
-                    action.snapshot.current_pane,
-                    selected_paths=selected_paths,
-                ),
-                child_pane=action.snapshot.child_pane,
-                notification=state.post_reload_notification,
-                post_reload_notification=None,
-                pending_browser_snapshot_request_id=None,
-                pending_child_pane_request_id=None,
-                ui_mode="BROWSING" if action.blocking else state.ui_mode,
-            )
+        next_state = replace(
+            state,
+            current_path=action.snapshot.current_path,
+            parent_pane=action.snapshot.parent_pane,
+            current_pane=replace(
+                action.snapshot.current_pane,
+                selected_paths=selected_paths,
+            ),
+            child_pane=action.snapshot.child_pane,
+            recursive_entries=(),
+            notification=state.post_reload_notification,
+            post_reload_notification=None,
+            pending_browser_snapshot_request_id=None,
+            pending_child_pane_request_id=None,
+            pending_recursive_filter_request_id=None,
+            ui_mode="BROWSING" if action.blocking else state.ui_mode,
         )
+        if next_state.filter.recursive and next_state.filter.active:
+            return _queue_recursive_filter(next_state)
+        return done(next_state)
 
     if isinstance(action, BrowserSnapshotFailed):
         if action.request_id != state.pending_browser_snapshot_request_id:
@@ -551,6 +569,38 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
                 child_pane=PaneState(directory_path=state.current_path, entries=()),
                 notification=NotificationState(level="error", message=action.message),
                 pending_child_pane_request_id=None,
+            )
+        )
+
+    if isinstance(action, RecursiveFilterLoaded):
+        if action.request_id != state.pending_recursive_filter_request_id:
+            return done(state)
+        selected_paths = _normalize_selected_paths(
+            state.current_pane.selected_paths,
+            action.entries,
+        )
+        cursor_path = _normalize_cursor_path(action.entries, state.current_pane.cursor_path)
+        next_state = replace(
+            state,
+            recursive_entries=action.entries,
+            current_pane=replace(
+                state.current_pane,
+                cursor_path=cursor_path,
+                selected_paths=selected_paths,
+            ),
+            pending_recursive_filter_request_id=None,
+        )
+        return _sync_child_pane(next_state, cursor_path)
+
+    if isinstance(action, RecursiveFilterFailed):
+        if action.request_id != state.pending_recursive_filter_request_id:
+            return done(state)
+        return done(
+            replace(
+                state,
+                recursive_entries=(),
+                pending_recursive_filter_request_id=None,
+                notification=NotificationState(level="error", message=action.message),
             )
         )
 
@@ -649,7 +699,13 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
 
 
 def _current_entry_paths(state: AppState) -> set[str]:
-    return {entry.path for entry in state.current_pane.entries}
+    return {entry.path for entry in _active_current_entries(state)}
+
+
+def _active_current_entries(state: AppState) -> tuple[DirectoryEntryState, ...]:
+    if state.filter.recursive and state.filter.active:
+        return state.recursive_entries
+    return state.current_pane.entries
 
 
 def _normalize_selected_paths(
@@ -717,10 +773,11 @@ def _cursor_path_after_file_mutation(
     state: AppState,
     result: FileMutationResult,
 ) -> str | None:
+    active_entries = _active_current_entries(state)
     if result.removed_paths:
         remaining_paths = [
             entry.path
-            for entry in state.current_pane.entries
+            for entry in active_entries
             if entry.path not in result.removed_paths
         ]
         if not remaining_paths:
@@ -728,7 +785,7 @@ def _cursor_path_after_file_mutation(
         current_cursor = state.current_pane.cursor_path
         if current_cursor is not None and current_cursor not in result.removed_paths:
             return current_cursor
-        original_paths = [entry.path for entry in state.current_pane.entries]
+        original_paths = [entry.path for entry in active_entries]
         if current_cursor in original_paths:
             current_index = original_paths.index(current_cursor)
             if current_index < len(remaining_paths):
@@ -816,10 +873,64 @@ def _current_entry_for_path(
 ) -> DirectoryEntryState | None:
     if path is None:
         return None
-    for entry in state.current_pane.entries:
+    for entry in _active_current_entries(state):
         if entry.path == path:
             return entry
     return None
+
+
+def _normalize_cursor_path(
+    entries: tuple[DirectoryEntryState, ...],
+    current_cursor: str | None,
+) -> str | None:
+    entry_paths = {entry.path for entry in entries}
+    if current_cursor in entry_paths:
+        return current_cursor
+    if not entries:
+        return None
+    return entries[0].path
+
+
+def _queue_recursive_filter(state: AppState) -> ReduceResult:
+    request_id = state.next_request_id
+    next_state = replace(
+        state,
+        pending_recursive_filter_request_id=request_id,
+        next_request_id=request_id + 1,
+    )
+    return ReduceResult(
+        state=next_state,
+        effects=(
+            LoadRecursiveFilterEffect(
+                request_id=request_id,
+                path=state.current_path,
+                query=state.filter.query,
+            ),
+        ),
+    )
+
+
+def _update_recursive_filter(state: AppState) -> ReduceResult:
+    if state.filter.recursive and state.filter.active and state.filter.query:
+        return _queue_recursive_filter(state)
+
+    active_entries = state.current_pane.entries
+    selected_paths = _normalize_selected_paths(
+        state.current_pane.selected_paths,
+        active_entries,
+    )
+    cursor_path = _normalize_cursor_path(active_entries, state.current_pane.cursor_path)
+    next_state = replace(
+        state,
+        recursive_entries=(),
+        current_pane=replace(
+            state.current_pane,
+            cursor_path=cursor_path,
+            selected_paths=selected_paths,
+        ),
+        pending_recursive_filter_request_id=None,
+    )
+    return _sync_child_pane(next_state, cursor_path)
 
 
 def _validate_pending_input(state: AppState) -> str | None:

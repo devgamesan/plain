@@ -5,6 +5,7 @@ from plain.state import (
     BeginCreateInput,
     CutTargets,
     DeleteConfirmationState,
+    DirectoryEntryState,
     NotificationState,
     PaneState,
     PasteConflictState,
@@ -45,6 +46,30 @@ def test_select_current_entries_applies_filter_and_sort() -> None:
     assert [entry.name for entry in entries] == ["tests", "pyproject.toml"]
 
 
+def test_select_current_entries_uses_recursive_results_when_enabled() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        filter=replace(state.filter, query="md", active=True, recursive=True),
+        recursive_entries=(
+            DirectoryEntryState(
+                "/home/tadashi/develop/plain/docs/spec_mvp.md",
+                "spec_mvp.md",
+                "file",
+            ),
+            DirectoryEntryState("/home/tadashi/develop/plain/docs/notes.md", "notes.md", "file"),
+        ),
+        current_pane=replace(
+            state.current_pane,
+            cursor_path="/home/tadashi/develop/plain/docs/spec_mvp.md",
+        ),
+    )
+
+    entries = select_current_entries(state)
+
+    assert [entry.name for entry in entries] == ["notes.md", "spec_mvp.md"]
+
+
 def test_select_status_bar_counts_selected_absolute_paths() -> None:
     state = build_initial_app_state()
     state = _reduce_state(state, ToggleSelection("/home/tadashi/develop/plain/README.md"))
@@ -64,6 +89,36 @@ def test_select_target_paths_prefers_selection_in_entry_order() -> None:
     assert select_target_paths(state) == (
         "/home/tadashi/develop/plain/docs",
         "/home/tadashi/develop/plain/README.md",
+    )
+
+
+def test_select_target_paths_prefers_recursive_selection_in_visible_order() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        filter=replace(state.filter, query="md", active=True, recursive=True),
+        recursive_entries=(
+            DirectoryEntryState(
+                "/home/tadashi/develop/plain/docs/spec_mvp.md",
+                "spec_mvp.md",
+                "file",
+            ),
+            DirectoryEntryState("/home/tadashi/develop/plain/README.md", "README.md", "file"),
+        ),
+        current_pane=replace(
+            state.current_pane,
+            selected_paths=frozenset(
+                {
+                    "/home/tadashi/develop/plain/README.md",
+                    "/home/tadashi/develop/plain/docs/spec_mvp.md",
+                }
+            ),
+        ),
+    )
+
+    assert select_target_paths(state) == (
+        "/home/tadashi/develop/plain/README.md",
+        "/home/tadashi/develop/plain/docs/spec_mvp.md",
     )
 
 
@@ -164,7 +219,7 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     help_state = select_help_bar_state(state)
 
     assert help_state.text == (
-        "Space select | y copy | x cut | p paste | "
+        "/ filter | Space select | y copy | x cut | p paste | "
         "F2 rename | ctrl+n file | ctrl+shift+n dir"
     )
 

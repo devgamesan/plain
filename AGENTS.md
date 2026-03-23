@@ -24,7 +24,7 @@ Target Python 3.12 and follow PEP 8 with 4-space indentation. Use `snake_case` f
 
 Use `pytest` for all tests and `pytest-asyncio` for async or Textual headless cases. Name test files `test_*.py` and test functions `test_*`. Add or update tests with every behavior change. New UI bootstrap or state transitions should have at least one smoke-level test proving the app can start or the reducer path works.
 
-The current app supports three-pane rendering backed by a dummy `AppState`, plus keyboard handling for core browsing/filter flows. Covered interactions include cursor movement with `Up` / `Down`, selection toggle with `Space`, selection clear with `Esc`, entering filter mode with `Ctrl+F`, and filter editing/confirm/cancel while in `FILTER` mode. Real filesystem navigation and file operations such as open, copy, delete, rename, create, and paste are still not implemented; keep AGENTS/README in sync when that changes.
+The current app supports three-pane rendering backed by a dummy `AppState`, plus keyboard handling for core browsing/filter flows. Covered interactions include cursor movement with `Up` / `Down`, selection toggle with `Space`, selection clear with `Esc`, entering filter mode with `/`, and filter editing/confirm/cancel while in `FILTER` mode. Real filesystem navigation and file operations such as open, copy, delete, rename, create, and paste are still not implemented; keep AGENTS/README in sync when that changes.
 
 ## Commit & Pull Request Guidelines
 

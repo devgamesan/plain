@@ -40,6 +40,9 @@ from plain.state import (
     FileMutationFailed,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
+    LoadRecursiveFilterEffect,
+    RecursiveFilterFailed,
+    RecursiveFilterLoaded,
     ReduceResult,
     RequestBrowserSnapshot,
     RunClipboardPasteEffect,
@@ -215,9 +218,10 @@ class PlainApp(App[None]):
         """Handle priority key bindings through the central dispatcher."""
 
         character = None
-        if self._app_state.ui_mode in {"RENAME", "CREATE"}:
+        if self._app_state.ui_mode in {"FILTER", "RENAME", "CREATE"}:
             if key == "space":
-                character = " "
+                if self._app_state.ui_mode in {"RENAME", "CREATE"}:
+                    character = " "
             elif len(key) == 1 and key.isprintable():
                 character = key
         await self._dispatch_key_press(key, character=character)
@@ -292,6 +296,8 @@ class PlainApp(App[None]):
                 self._schedule_browser_snapshot(effect)
             elif isinstance(effect, LoadChildPaneSnapshotEffect):
                 self._schedule_child_pane_snapshot(effect)
+            elif isinstance(effect, LoadRecursiveFilterEffect):
+                self._schedule_recursive_filter(effect)
             elif isinstance(effect, RunClipboardPasteEffect):
                 self._schedule_clipboard_paste(effect)
             elif isinstance(effect, RunFileMutationEffect):
@@ -323,6 +329,22 @@ class PlainApp(App[None]):
             name=f"child-pane-snapshot:{effect.request_id}",
             group="child-pane-snapshot",
             description=effect.cursor_path,
+            exit_on_error=False,
+            exclusive=True,
+            thread=True,
+        )
+        self._pending_workers[worker.name] = effect
+
+    def _schedule_recursive_filter(self, effect: LoadRecursiveFilterEffect) -> None:
+        worker = self.run_worker(
+            partial(
+                self._snapshot_loader.load_recursive_entries,
+                effect.path,
+                effect.query,
+            ),
+            name=f"recursive-filter:{effect.request_id}",
+            group="recursive-filter",
+            description=f"{effect.path}:{effect.query}",
             exit_on_error=False,
             exclusive=True,
             thread=True,
@@ -392,6 +414,17 @@ class PlainApp(App[None]):
                 )
                 return
 
+            if isinstance(effect, LoadRecursiveFilterEffect):
+                await self.dispatch_actions(
+                    (
+                        RecursiveFilterLoaded(
+                            request_id=effect.request_id,
+                            entries=event.worker.result,
+                        ),
+                    )
+                )
+                return
+
             result = event.worker.result
             if isinstance(result, PasteConflictPrompt):
                 await self.dispatch_actions(
@@ -444,6 +477,17 @@ class PlainApp(App[None]):
             await self.dispatch_actions(
                 (
                     ChildPaneSnapshotFailed(
+                        request_id=effect.request_id,
+                        message=message,
+                    ),
+                )
+            )
+            return
+
+        if isinstance(effect, LoadRecursiveFilterEffect):
+            await self.dispatch_actions(
+                (
+                    RecursiveFilterFailed(
                         request_id=effect.request_id,
                         message=message,
                     ),

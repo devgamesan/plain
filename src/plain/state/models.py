@@ -124,6 +124,7 @@ class AppState:
     child_pane: PaneState
     sort: SortState = SortState()
     filter: FilterState = FilterState()
+    recursive_entries: tuple[DirectoryEntryState, ...] = ()
     clipboard: ClipboardState = ClipboardState()
     history: HistoryState = HistoryState()
     ui_mode: UiMode = "BROWSING"
@@ -134,6 +135,7 @@ class AppState:
     post_reload_notification: NotificationState | None = None
     pending_browser_snapshot_request_id: int | None = None
     pending_child_pane_request_id: int | None = None
+    pending_recursive_filter_request_id: int | None = None
     pending_paste_request_id: int | None = None
     pending_file_mutation_request_id: int | None = None
     next_request_id: int = 1

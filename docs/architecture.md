@@ -142,7 +142,7 @@ sequenceDiagram
 ```mermaid
 stateDiagram-v2
     [*] --> BROWSING
-    BROWSING --> FILTER: Ctrl+F
+    BROWSING --> FILTER: /
     BROWSING --> RENAME: F2
     BROWSING --> CREATE: Ctrl+N / Ctrl+Shift+N
     FILTER --> BROWSING: Enter
@@ -160,7 +160,7 @@ stateDiagram-v2
 補足:
 
 - `BROWSING`
-  - `Up`, `Down`, `Left`, `Right`, `Enter`, `Backspace`, `F5`, `Space`, `Esc`, `Ctrl+F`, `Delete`, `F2`, `Ctrl+N`, `Ctrl+Shift+N` を処理
+  - `Up`, `Down`, `Left`, `Right`, `Enter`, `Backspace`, `F5`, `Space`, `Esc`, `/`, `Delete`, `F2`, `Ctrl+N`, `Ctrl+Shift+N` を処理
 - `FILTER`
   - 文字入力、`Backspace`, `Space`, `Enter`, `Esc` を処理
 - `RENAME`, `CREATE`

@@ -78,12 +78,20 @@ def test_browsing_escape_clears_selection() -> None:
     assert actions == (SetNotification(None), ClearSelection())
 
 
-def test_browsing_ctrl_f_enters_filter_mode() -> None:
+def test_browsing_slash_enters_filter_mode() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="/", character="/")
+
+    assert actions == (SetNotification(None), BeginFilterInput())
+
+
+def test_browsing_ctrl_f_is_unbound() -> None:
     state = build_initial_app_state()
 
     actions = dispatch_key_input(state, key="ctrl+f")
 
-    assert actions == (SetNotification(None), BeginFilterInput())
+    assert actions == ()
 
 
 def test_browsing_y_dispatches_copy_targets() -> None:

@@ -42,7 +42,7 @@ uv run python -m plain
 | `BROWSING` | `x` | 選択中の項目、またはカーソル項目をカット対象として記録 |
 | `BROWSING` | `p` | カレントディレクトリへ clipboard を貼り付け |
 | `BROWSING` | `Esc` | 選択解除 |
-| `BROWSING` | `Ctrl+F` | フィルタ入力開始 |
+| `BROWSING` | `/` | フィルタ入力開始 |
 | `BROWSING` | `Delete` | 選択中の項目、またはカーソル項目をゴミ箱へ移動。複数対象時は確認ダイアログを表示 |
 | `BROWSING` | `F2` | 単一対象のリネーム入力を開始 |
 | `BROWSING` | `Ctrl+N` | 新規ファイル作成入力を開始 |

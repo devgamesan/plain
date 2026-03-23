@@ -38,7 +38,7 @@ BROWSING_KEYMAP = {
     "down": "cursor_down",
     "space": "toggle_selection",
     "escape": "clear_selection",
-    "ctrl+f": "begin_filter",
+    "/": "begin_filter",
     "left": "go_to_parent",
     "backspace": "go_to_parent",
     "ctrl+h": "go_to_parent",
@@ -113,7 +113,7 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
     if key == "escape":
         return _supported(ClearSelection())
 
-    if key == "ctrl+f":
+    if key == "/":
         return _supported(BeginFilterInput())
 
     if key == "y":

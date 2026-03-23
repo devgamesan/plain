@@ -14,6 +14,7 @@ from plain.models import (
 from .models import (
     AppState,
     BrowserSnapshot,
+    DirectoryEntryState,
     NotificationState,
     PaneState,
     SortField,
@@ -254,6 +255,22 @@ class ChildPaneSnapshotFailed:
 
 
 @dataclass(frozen=True)
+class RecursiveFilterLoaded:
+    """Apply recursively searched entries for the current filter query."""
+
+    request_id: int
+    entries: tuple[DirectoryEntryState, ...]
+
+
+@dataclass(frozen=True)
+class RecursiveFilterFailed:
+    """Apply an error raised while recursively searching the current directory."""
+
+    request_id: int
+    message: str
+
+
+@dataclass(frozen=True)
 class ClipboardPasteNeedsResolution:
     """Store the pending paste request and its conflicts."""
 
@@ -327,6 +344,8 @@ Action = (
     | BrowserSnapshotFailed
     | ChildPaneSnapshotLoaded
     | ChildPaneSnapshotFailed
+    | RecursiveFilterLoaded
+    | RecursiveFilterFailed
     | ClipboardPasteNeedsResolution
     | ClipboardPasteCompleted
     | ClipboardPasteFailed

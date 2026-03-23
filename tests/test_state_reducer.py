@@ -38,12 +38,14 @@ from plain.state import (
     GoToParentDirectory,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
+    LoadRecursiveFilterEffect,
     MoveCursor,
     NotificationState,
     PaneState,
     PasteClipboard,
     PasteConflictState,
     PendingInputState,
+    RecursiveFilterLoaded,
     ReloadDirectory,
     RequestBrowserSnapshot,
     ResolvePasteConflict,
@@ -108,6 +110,97 @@ def test_set_filter_query_returns_new_state_without_mutating_input() -> None:
     assert next_state.filter.active is True
     assert state.filter.query == ""
     assert state.filter.active is False
+
+
+def test_set_filter_query_queues_recursive_search_when_enabled() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        filter=replace(state.filter, recursive=True),
+    )
+
+    result = reduce_app_state(state, SetFilterQuery("spec"))
+
+    assert result.state.filter.query == "spec"
+    assert result.state.pending_recursive_filter_request_id == 1
+    assert result.effects == (
+        LoadRecursiveFilterEffect(
+            request_id=1,
+            path="/home/tadashi/develop/plain",
+            query="spec",
+        ),
+    )
+
+
+def test_recursive_filter_loaded_updates_recursive_entries_and_cursor() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        filter=replace(state.filter, query="md", active=True, recursive=True),
+        current_pane=replace(state.current_pane, cursor_path="/missing"),
+        pending_recursive_filter_request_id=7,
+        next_request_id=8,
+    )
+
+    result = reduce_app_state(
+        state,
+        RecursiveFilterLoaded(
+            request_id=7,
+            entries=(
+                DirectoryEntryState(
+                    "/home/tadashi/develop/plain/docs/spec_mvp.md",
+                    "spec_mvp.md",
+                    "file",
+                ),
+                DirectoryEntryState("/home/tadashi/develop/plain/README.md", "README.md", "file"),
+            ),
+        ),
+    )
+
+    assert result.state.recursive_entries == (
+        DirectoryEntryState(
+            "/home/tadashi/develop/plain/docs/spec_mvp.md",
+            "spec_mvp.md",
+            "file",
+        ),
+        DirectoryEntryState("/home/tadashi/develop/plain/README.md", "README.md", "file"),
+    )
+    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/plain/docs/spec_mvp.md"
+    assert result.state.pending_recursive_filter_request_id is None
+
+
+def test_browser_snapshot_loaded_queues_recursive_search_for_active_recursive_filter() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        filter=replace(state.filter, query="md", active=True, recursive=True),
+        pending_browser_snapshot_request_id=3,
+        next_request_id=4,
+    )
+    snapshot = BrowserSnapshot(
+        current_path="/home/tadashi/develop/plain",
+        parent_pane=state.parent_pane,
+        current_pane=state.current_pane,
+        child_pane=state.child_pane,
+    )
+
+    result = reduce_app_state(
+        state,
+        BrowserSnapshotLoaded(
+            request_id=3,
+            snapshot=snapshot,
+            blocking=False,
+        ),
+    )
+
+    assert result.state.pending_recursive_filter_request_id == 4
+    assert result.effects == (
+        LoadRecursiveFilterEffect(
+            request_id=4,
+            path="/home/tadashi/develop/plain",
+            query="md",
+        ),
+    )
 
 
 def test_set_sort_returns_new_state_without_mutating_input() -> None:

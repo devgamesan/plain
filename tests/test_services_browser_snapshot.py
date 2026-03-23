@@ -10,11 +10,19 @@ from plain.state import BrowserSnapshot, DirectoryEntryState, PaneState
 class StubFilesystemAdapter:
     entries_by_path: dict[str, tuple[DirectoryEntryState, ...]] = field(default_factory=dict)
     errors_by_path: dict[str, Exception] = field(default_factory=dict)
+    recursive_entries_by_key: dict[tuple[str, str], tuple[DirectoryEntryState, ...]] = field(
+        default_factory=dict
+    )
 
     def list_directory(self, path: str) -> tuple[DirectoryEntryState, ...]:
         if path in self.errors_by_path:
             raise self.errors_by_path[path]
         return self.entries_by_path[path]
+
+    def list_directory_recursive(self, path: str, query: str) -> tuple[DirectoryEntryState, ...]:
+        if path in self.errors_by_path:
+            raise self.errors_by_path[path]
+        return self.recursive_entries_by_key[(path, query)]
 
 
 def test_live_browser_snapshot_loader_builds_three_pane_snapshot(tmp_path) -> None:
@@ -69,6 +77,31 @@ def test_live_browser_snapshot_loader_returns_empty_child_pane_for_file_cursor(t
     assert snapshot.current_pane.cursor_path == str(readme)
     assert snapshot.child_pane.directory_path == str(project)
     assert snapshot.child_pane.entries == ()
+
+
+def test_live_browser_snapshot_loader_searches_entries_recursively(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    docs = project / "docs"
+    docs.mkdir()
+    archive = docs / "archive"
+    archive.mkdir()
+    src = project / "src"
+    src.mkdir()
+    (docs / "spec.md").write_text("spec\n", encoding="utf-8")
+    (archive / "spec-old.md").write_text("old\n", encoding="utf-8")
+    (src / "spec_helper.py").write_text("print('plain')\n", encoding="utf-8")
+
+    loader = LiveBrowserSnapshotLoader()
+
+    entries = loader.load_recursive_entries(str(project), "spec")
+
+    assert {entry.name for entry in entries} == {"spec.md", "spec-old.md", "spec_helper.py"}
+    assert {entry.path for entry in entries} == {
+        str(docs / "spec.md"),
+        str(archive / "spec-old.md"),
+        str(src / "spec_helper.py"),
+    }
 
 
 def test_live_browser_snapshot_loader_normalizes_not_found_error() -> None:

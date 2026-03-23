@@ -853,8 +853,71 @@ async def test_app_displays_browsing_help_bar() -> None:
         help_bar = app.query_one("#help-bar", HelpBar)
 
         assert str(help_bar.renderable) == (
-            "Space select | y copy | x cut | p paste | "
+            "/ filter | Space select | y copy | x cut | p paste | "
             "F2 rename | ctrl+n file | ctrl+shift+n dir"
+        )
+
+
+@pytest.mark.asyncio
+async def test_app_filter_mode_accepts_printable_bound_keys() -> None:
+    path = "/tmp/plain-filter-keys"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("/")
+        await pilot.press("y", "x", "p")
+        await asyncio.sleep(0.05)
+
+        assert app.app_state.ui_mode == "FILTER"
+        assert app.app_state.filter.query == "yxp"
+
+
+@pytest.mark.asyncio
+async def test_app_recursive_filter_updates_current_entries() -> None:
+    path = "/tmp/plain-recursive-filter"
+    docs = f"{path}/docs"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(docs, "docs", "dir"),),
+                child_path=docs,
+            )
+        },
+        recursive_results={
+            (path, "spec"): (
+                DirectoryEntryState(f"{docs}/spec.md", "spec.md", "file"),
+            ),
+        },
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("/")
+        await pilot.press("space")
+        await pilot.press("s", "p", "e", "c")
+        await _wait_for_row_count(app, 1)
+        await asyncio.sleep(0.05)
+
+        status_bar = await _wait_for_status_bar(app)
+
+        assert app.app_state.filter.recursive is True
+        assert app.app_state.recursive_entries == (
+            DirectoryEntryState(f"{docs}/spec.md", "spec.md", "file"),
+        )
+        assert str(status_bar.renderable) == (
+            "1 items | 0 selected | sort: name asc | filter: spec (recursive)"
         )
 
 

@@ -72,9 +72,9 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
     items.append(
         CommandPaletteItem(
             id="toggle_hidden",
-            label="Toggle hidden files",
+            label=_hidden_files_label(state),
             shortcut=None,
-            enabled=False,
+            enabled=True,
         )
     )
     items.append(
@@ -114,6 +114,10 @@ def _matches_query(item: CommandPaletteItem, query: str) -> bool:
         return True
     lowered_query = query.casefold()
     return lowered_query in item.label.casefold()
+
+
+def _hidden_files_label(state: AppState) -> str:
+    return "Hide hidden files" if state.show_hidden else "Show hidden files"
 
 
 def _select_target_paths(state: AppState) -> tuple[str, ...]:

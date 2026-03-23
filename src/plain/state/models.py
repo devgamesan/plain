@@ -130,6 +130,7 @@ class AppState:
     parent_pane: PaneState
     current_pane: PaneState
     child_pane: PaneState
+    show_hidden: bool = False
     sort: SortState = SortState()
     filter: FilterState = FilterState()
     recursive_entries: tuple[DirectoryEntryState, ...] = ()

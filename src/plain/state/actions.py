@@ -225,6 +225,11 @@ class SetFilterRecursive:
 
 
 @dataclass(frozen=True)
+class ToggleHiddenFiles:
+    """Toggle hidden file visibility across the shell."""
+
+
+@dataclass(frozen=True)
 class SetSort:
     """Update sort settings."""
 
@@ -371,6 +376,7 @@ Action = (
     | CancelPasteConflict
     | SetFilterQuery
     | SetFilterRecursive
+    | ToggleHiddenFiles
     | SetSort
     | SetNotification
     | RequestBrowserSnapshot

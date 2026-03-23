@@ -934,6 +934,44 @@ async def test_app_command_palette_create_file_opens_input_bar() -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_command_palette_toggles_hidden_files() -> None:
+    path = "/tmp/plain-command-palette-hidden"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/.env", ".env", "file", hidden=True),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 1)
+        await pilot.press(":")
+        await pilot.press("h", "i", "d", "d", "e", "n")
+        await pilot.press("enter")
+        await _wait_for_row_count(app, 2)
+
+        assert app.app_state.show_hidden is True
+
+        status_bar = await _wait_for_status_bar(app)
+        assert "info: Hidden files shown" in str(status_bar.renderable)
+
+        await pilot.press(":")
+        await pilot.press("h", "i", "d", "d", "e", "n")
+        await pilot.press("enter")
+        await _wait_for_row_count(app, 1)
+
+        assert app.app_state.show_hidden is False
+
+
+@pytest.mark.asyncio
 async def test_app_sort_shortcuts_update_side_panes_and_status_bar() -> None:
     path = "/tmp/plain-sort-shortcuts"
     parent_path = "/tmp"

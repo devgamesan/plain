@@ -52,7 +52,10 @@ def select_parent_entries(state: AppState) -> tuple[PaneEntry, ...]:
     cut_paths = _select_cut_paths(state)
     return tuple(
         _to_pane_entry(entry, cut=entry.path in cut_paths)
-        for entry in _sort_entries(state.parent_pane.entries, state.sort)
+        for entry in _sort_entries(
+            _filter_hidden_entries(state.parent_pane.entries, state.show_hidden),
+            state.sort,
+        )
     )
 
 
@@ -81,7 +84,10 @@ def select_child_entries(state: AppState) -> tuple[PaneEntry, ...]:
     cut_paths = _select_cut_paths(state)
     return tuple(
         _to_pane_entry(entry, cut=entry.path in cut_paths)
-        for entry in _sort_entries(state.child_pane.entries, state.sort)
+        for entry in _sort_entries(
+            _filter_hidden_entries(state.child_pane.entries, state.show_hidden),
+            state.sort,
+        )
     )
 
 
@@ -227,16 +233,29 @@ def select_visible_current_entry_states(state: AppState) -> tuple[DirectoryEntry
     """Return filtered and sorted raw current-pane entries."""
 
     if state.filter.recursive and state.filter.active:
-        return _sort_entries(state.recursive_entries, state.sort)
+        return _sort_entries(
+            _filter_hidden_entries(state.recursive_entries, state.show_hidden),
+            state.sort,
+        )
 
+    entries = _filter_hidden_entries(state.current_pane.entries, state.show_hidden)
     entries = tuple(
         _filter_entries(
-            state.current_pane.entries,
+            entries,
             state.filter.query,
             state.filter.active,
         )
     )
     return _sort_entries(entries, state.sort)
+
+
+def _filter_hidden_entries(
+    entries: tuple[DirectoryEntryState, ...],
+    show_hidden: bool,
+) -> tuple[DirectoryEntryState, ...]:
+    if show_hidden:
+        return entries
+    return tuple(entry for entry in entries if not entry.hidden)
 
 
 def _filter_entries(

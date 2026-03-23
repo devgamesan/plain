@@ -73,6 +73,75 @@ def test_select_current_entries_uses_recursive_results_when_enabled() -> None:
     assert [entry.name for entry in entries] == ["notes.md", "spec_mvp.md"]
 
 
+def test_select_current_entries_hides_hidden_by_default() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/plain",
+            entries=(
+                DirectoryEntryState(
+                    "/home/tadashi/develop/plain/.env",
+                    ".env",
+                    "file",
+                    hidden=True,
+                ),
+                DirectoryEntryState("/home/tadashi/develop/plain/docs", "docs", "dir"),
+            ),
+            cursor_path="/home/tadashi/develop/plain/docs",
+        ),
+    )
+
+    entries = select_current_entries(state)
+
+    assert [entry.name for entry in entries] == ["docs"]
+
+
+def test_select_parent_and_child_entries_hide_hidden_unless_enabled() -> None:
+    state = replace(
+        build_initial_app_state(),
+        parent_pane=PaneState(
+            directory_path="/tmp",
+            entries=(
+                DirectoryEntryState("/tmp/.cache", ".cache", "dir", hidden=True),
+                DirectoryEntryState("/tmp/plain", "plain", "dir"),
+            ),
+            cursor_path="/tmp/plain",
+        ),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/plain",
+            entries=(DirectoryEntryState("/home/tadashi/develop/plain/docs", "docs", "dir"),),
+            cursor_path="/home/tadashi/develop/plain/docs",
+        ),
+        child_pane=PaneState(
+            directory_path="/home/tadashi/develop/plain/docs",
+            entries=(
+                DirectoryEntryState(
+                    "/home/tadashi/develop/plain/docs/.draft.md",
+                    ".draft.md",
+                    "file",
+                    hidden=True,
+                ),
+                DirectoryEntryState(
+                    "/home/tadashi/develop/plain/docs/spec.md",
+                    "spec.md",
+                    "file",
+                ),
+            ),
+        ),
+    )
+
+    assert [entry.name for entry in select_parent_entries(state)] == ["plain"]
+    assert [entry.name for entry in select_child_entries(state)] == ["spec.md"]
+
+    visible_state = replace(state, show_hidden=True)
+
+    assert [entry.name for entry in select_parent_entries(visible_state)] == [".cache", "plain"]
+    assert [entry.name for entry in select_child_entries(visible_state)] == [
+        ".draft.md",
+        "spec.md",
+    ]
+
+
 def test_select_status_bar_counts_selected_absolute_paths() -> None:
     state = build_initial_app_state()
     state = _reduce_state(state, ToggleSelection("/home/tadashi/develop/plain/README.md"))
@@ -300,6 +369,25 @@ def test_select_command_palette_state_filters_query() -> None:
 
     assert palette_state is not None
     assert [item.label for item in palette_state.items] == ["Create directory"]
+
+
+def test_select_command_palette_state_uses_hidden_toggle_label_from_state() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = replace(
+        state,
+        command_palette=replace(state.command_palette, query="hidden"),
+    )
+
+    palette_state = select_command_palette_state(state)
+
+    assert palette_state is not None
+    assert [item.label for item in palette_state.items] == ["Show hidden files"]
+
+    visible_state = replace(state, show_hidden=True)
+    visible_palette_state = select_command_palette_state(visible_state)
+
+    assert visible_palette_state is not None
+    assert [item.label for item in visible_palette_state.items] == ["Hide hidden files"]
 
 
 def test_select_input_bar_state_for_create_mode() -> None:

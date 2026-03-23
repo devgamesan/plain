@@ -59,6 +59,7 @@ from .actions import (
     SetUiMode,
     SubmitCommandPalette,
     SubmitPendingInput,
+    ToggleHiddenFiles,
     ToggleSelection,
     ToggleSelectionAndAdvance,
 )
@@ -277,6 +278,8 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
             return reduce_app_state(next_state, BeginCreateInput("file"))
         if selected_item.id == "create_dir":
             return reduce_app_state(next_state, BeginCreateInput("dir"))
+        if selected_item.id == "toggle_hidden":
+            return reduce_app_state(next_state, ToggleHiddenFiles())
         return done(next_state)
 
     if isinstance(action, SetPendingInputValue):
@@ -568,6 +571,31 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
             filter=replace(state.filter, recursive=action.recursive),
         )
         return _update_recursive_filter(next_state)
+
+    if isinstance(action, ToggleHiddenFiles):
+        next_state = replace(
+            state,
+            show_hidden=not state.show_hidden,
+            notification=NotificationState(
+                level="info",
+                message="Hidden files shown" if not state.show_hidden else "Hidden files hidden",
+            ),
+        )
+        visible_entries = select_visible_current_entry_states(next_state)
+        selected_paths = _normalize_selected_paths(
+            state.current_pane.selected_paths,
+            visible_entries,
+        )
+        cursor_path = _normalize_cursor_path(visible_entries, state.current_pane.cursor_path)
+        next_state = replace(
+            next_state,
+            current_pane=replace(
+                next_state.current_pane,
+                cursor_path=cursor_path,
+                selected_paths=selected_paths,
+            ),
+        )
+        return _sync_child_pane(next_state, cursor_path)
 
     if isinstance(action, SetSort):
         directories_first = state.sort.directories_first

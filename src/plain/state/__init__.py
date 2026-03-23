@@ -47,6 +47,7 @@ from .actions import (
     SetUiMode,
     SubmitCommandPalette,
     SubmitPendingInput,
+    ToggleHiddenFiles,
     ToggleSelection,
     ToggleSelectionAndAdvance,
 )
@@ -160,6 +161,7 @@ __all__ = [
     "SortState",
     "SubmitCommandPalette",
     "SubmitPendingInput",
+    "ToggleHiddenFiles",
     "ToggleSelection",
     "ToggleSelectionAndAdvance",
     "UiMode",

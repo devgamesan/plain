@@ -62,6 +62,7 @@ from plain.state import (
     SetUiMode,
     SubmitCommandPalette,
     SubmitPendingInput,
+    ToggleHiddenFiles,
     ToggleSelection,
     ToggleSelectionAndAdvance,
     build_initial_app_state,
@@ -426,6 +427,49 @@ def test_submit_command_palette_warns_for_disabled_command() -> None:
     assert next_state.notification == NotificationState(
         level="warning",
         message="Copy path is not available yet",
+    )
+
+
+def test_submit_command_palette_toggles_hidden_files() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("hidden"))
+
+    next_state = _reduce_state(state, SubmitCommandPalette())
+
+    assert next_state.ui_mode == "BROWSING"
+    assert next_state.command_palette is None
+    assert next_state.show_hidden is True
+    assert next_state.notification == NotificationState(
+        level="info",
+        message="Hidden files shown",
+    )
+
+
+def test_toggle_hidden_files_normalizes_cursor_and_selection() -> None:
+    hidden_path = "/home/tadashi/develop/plain/.env"
+    visible_path = "/home/tadashi/develop/plain/docs"
+    state = replace(
+        build_initial_app_state(),
+        show_hidden=True,
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/plain",
+            entries=(
+                DirectoryEntryState(hidden_path, ".env", "file", hidden=True),
+                DirectoryEntryState(visible_path, "docs", "dir"),
+            ),
+            cursor_path=hidden_path,
+            selected_paths=frozenset({hidden_path, visible_path}),
+        ),
+    )
+
+    next_state = _reduce_state(state, ToggleHiddenFiles())
+
+    assert next_state.show_hidden is False
+    assert next_state.current_pane.cursor_path == visible_path
+    assert next_state.current_pane.selected_paths == frozenset({visible_path})
+    assert next_state.notification == NotificationState(
+        level="info",
+        message="Hidden files hidden",
     )
 
 

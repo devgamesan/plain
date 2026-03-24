@@ -58,7 +58,6 @@ from plain.ui import (
     ConflictDialog,
     CurrentPathBar,
     HelpBar,
-    InputBar,
     MainPane,
     SidePane,
     StatusBar,
@@ -119,7 +118,6 @@ class PlainApp(App[None]):
 
     #current-path-bar,
     #help-bar,
-    #input-bar,
     #status-bar {
         height: 1;
         padding: 0 1;
@@ -134,13 +132,6 @@ class PlainApp(App[None]):
     #help-bar {
         background: $panel;
         color: $text-muted;
-    }
-
-    #input-bar {
-        display: none;
-        background: $panel;
-        color: $text;
-        text-style: bold;
     }
 
     #command-palette {
@@ -166,6 +157,14 @@ class PlainApp(App[None]):
     #status-bar {
         background: $surface;
         color: $text;
+    }
+
+    .pane-context-input {
+        height: 1;
+        padding: 0 1;
+        background: $panel;
+        color: $text;
+        text-style: bold;
     }
 
     #conflict-dialog {
@@ -219,7 +218,6 @@ class PlainApp(App[None]):
         yield self._build_body(shell)
         yield CommandPalette(shell.command_palette, id="command-palette")
         yield HelpBar(shell.help, id="help-bar")
-        yield InputBar(shell.input_bar, id="input-bar")
         yield StatusBar(shell.status, id="status-bar")
         yield ConflictDialog(shell.conflict_dialog, id="conflict-dialog")
 
@@ -260,6 +258,7 @@ class PlainApp(App[None]):
                 "Current Directory",
                 shell.current_entries,
                 cursor_index=shell.current_cursor_index,
+                context_input=shell.current_context_input,
                 id="current-pane",
                 classes="pane main-pane",
             ),
@@ -546,7 +545,6 @@ class PlainApp(App[None]):
             child_pane = self.query_one("#child-pane", SidePane)
             command_palette = self.query_one("#command-palette", CommandPalette)
             help_bar = self.query_one("#help-bar", HelpBar)
-            input_bar = self.query_one("#input-bar", InputBar)
             status_bar = self.query_one("#status-bar", StatusBar)
             conflict_dialog = self.query_one("#conflict-dialog", ConflictDialog)
         except NoMatches:
@@ -555,7 +553,6 @@ class PlainApp(App[None]):
                 "#body",
                 "#command-palette",
                 "#help-bar",
-                "#input-bar",
                 "#status-bar",
                 "#conflict-dialog",
             )
@@ -568,7 +565,6 @@ class PlainApp(App[None]):
             await self.mount(self._build_body(shell))
             await self.mount(CommandPalette(shell.command_palette, id="command-palette"))
             await self.mount(HelpBar(shell.help, id="help-bar"))
-            await self.mount(InputBar(shell.input_bar, id="input-bar"))
             await self.mount(StatusBar(shell.status, id="status-bar"))
             await self.mount(ConflictDialog(shell.conflict_dialog, id="conflict-dialog"))
             return
@@ -576,10 +572,10 @@ class PlainApp(App[None]):
         current_path_bar.set_path(shell.current_path)
         await parent_pane.set_entries(shell.parent_entries)
         current_pane.set_entries(shell.current_entries, shell.current_cursor_index)
+        current_pane.set_context_input(shell.current_context_input)
         await child_pane.set_entries(shell.child_entries)
         command_palette.set_state(shell.command_palette)
         help_bar.set_state(shell.help)
-        input_bar.set_state(shell.input_bar)
         status_bar.set_state(shell.status)
         conflict_dialog.set_state(shell.conflict_dialog)
 

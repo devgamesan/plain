@@ -52,11 +52,12 @@ class HelpBarState:
 
 @dataclass(frozen=True)
 class InputBarState:
-    """Single-line prompt and value rendered for rename/create."""
+    """Single-line prompt and value rendered for contextual text input."""
 
     mode_label: str
     prompt: str
     value: str
+    hint: str
 
 
 @dataclass(frozen=True)
@@ -96,8 +97,8 @@ class ThreePaneShellData:
     current_entries: tuple[PaneEntry, ...]
     child_entries: tuple[PaneEntry, ...]
     current_cursor_index: int | None
+    current_context_input: InputBarState | None
     help: HelpBarState
-    input_bar: InputBarState | None
     command_palette: CommandPaletteViewState | None
     status: StatusBarState
     conflict_dialog: ConflictDialogState | None = None
@@ -128,11 +129,11 @@ def build_dummy_shell_data() -> ThreePaneShellData:
             PaneEntry("wireframes", "dir"),
         ),
         current_cursor_index=0,
+        current_context_input=None,
         help=HelpBarState(
             "/ filter | s sort | d dirs | Space select | y copy | x cut | p paste | "
             "F2 rename | : palette"
         ),
-        input_bar=None,
         command_palette=None,
         status=StatusBarState(
             item_count=len(current_entries),

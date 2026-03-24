@@ -7,7 +7,9 @@ from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.widgets import DataTable, Label, ListItem, ListView
 
-from plain.models.shell_data import PaneEntry
+from plain.models.shell_data import InputBarState, PaneEntry
+
+from .input_bar import InputBar
 
 
 class SidePane(Vertical):
@@ -86,6 +88,7 @@ class MainPane(Vertical):
         title: str,
         entries: Sequence[PaneEntry],
         cursor_index: int | None = None,
+        context_input: InputBarState | None = None,
         *,
         id: str | None = None,
         classes: str | None = None,
@@ -94,14 +97,22 @@ class MainPane(Vertical):
         self._title = title
         self._entries = tuple(entries)
         self._cursor_index = cursor_index
+        self._context_input = context_input
 
     @property
     def table_id(self) -> str | None:
         """Return the derived table identifier for tests and styling."""
         return f"{self.id}-table" if self.id else None
 
+    @property
+    def context_input_id(self) -> str | None:
+        """Return the derived context input identifier for tests and styling."""
+
+        return f"{self.id}-context-input" if self.id else None
+
     def compose(self) -> ComposeResult:
         yield Label(self._title, classes="pane-title")
+        yield InputBar(self._context_input, id=self.context_input_id, classes="pane-context-input")
         yield DataTable(id=self.table_id, classes="pane-table")
 
     def on_mount(self) -> None:
@@ -137,6 +148,15 @@ class MainPane(Vertical):
                 self._render_cell(entry.modified_label, entry.selected, entry.cut),
             )
         self._sync_cursor(table)
+
+    def set_context_input(self, state: InputBarState | None) -> None:
+        """Update the contextual input line without remounting the pane."""
+
+        if state == self._context_input:
+            return
+
+        self._context_input = state
+        self.query_one(InputBar).set_state(state)
 
     def _sync_cursor(self, table: DataTable) -> None:
         if not self._entries or self._cursor_index is None:

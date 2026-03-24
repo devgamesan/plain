@@ -79,11 +79,11 @@ async def _wait_for_current_path_bar(app, timeout: float = 0.5) -> CurrentPathBa
             await asyncio.sleep(0.01)
 
 
-async def _wait_for_input_bar(app, timeout: float = 0.5) -> InputBar:
+async def _wait_for_context_input(app, timeout: float = 0.5) -> InputBar:
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
         try:
-            return app.query_one("#input-bar", InputBar)
+            return app.query_one("#current-pane-context-input", InputBar)
         except NoMatches:
             if asyncio.get_running_loop().time() >= deadline:
                 raise
@@ -907,7 +907,7 @@ async def test_app_colon_shows_command_palette() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_command_palette_create_file_opens_input_bar() -> None:
+async def test_app_command_palette_create_file_opens_context_input() -> None:
     path = "/tmp/plain-command-palette-create"
     loader = FakeBrowserSnapshotLoader(
         snapshots={
@@ -926,7 +926,7 @@ async def test_app_command_palette_create_file_opens_input_bar() -> None:
         await pilot.press("enter")
         await asyncio.sleep(0.05)
 
-        input_bar = await _wait_for_input_bar(app)
+        input_bar = await _wait_for_context_input(app)
 
         assert app.app_state.ui_mode == "CREATE"
         assert input_bar.display is True
@@ -1056,8 +1056,46 @@ async def test_app_filter_mode_accepts_printable_bound_keys() -> None:
         await pilot.press("y", "x", "p")
         await asyncio.sleep(0.05)
 
+        input_bar = await _wait_for_context_input(app)
+
         assert app.app_state.ui_mode == "FILTER"
         assert app.app_state.filter.query == "yxp"
+        assert str(input_bar.renderable) == (
+            "[FILTER] Filter: yxp  space recursive:off | enter apply | esc cancel"
+        )
+
+
+@pytest.mark.asyncio
+async def test_app_confirmed_filter_stays_visible_in_current_pane() -> None:
+    path = "/tmp/plain-filter-confirm"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/notes.txt", "notes.txt", "file"),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("/")
+        await pilot.press("d", "o", "c", "s")
+        await pilot.press("enter")
+        await asyncio.sleep(0.05)
+
+        input_bar = await _wait_for_context_input(app)
+
+        assert app.app_state.ui_mode == "BROWSING"
+        assert app.app_state.filter.active is True
+        assert app.app_state.filter.query == "docs"
+        assert input_bar.display is True
+        assert str(input_bar.renderable) == "[FILTER] Filter: docs  active"
 
 
 @pytest.mark.asyncio
@@ -1100,7 +1138,7 @@ async def test_app_recursive_filter_updates_current_entries() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_rename_mode_shows_input_bar_and_updates_help() -> None:
+async def test_app_rename_mode_shows_context_input_and_updates_help() -> None:
     path = "/tmp/plain-rename-mode"
     docs = f"{path}/docs"
     loader = FakeBrowserSnapshotLoader(
@@ -1120,7 +1158,7 @@ async def test_app_rename_mode_shows_input_bar_and_updates_help() -> None:
         await asyncio.sleep(0.05)
 
         help_bar = app.query_one("#help-bar", HelpBar)
-        input_bar = await _wait_for_input_bar(app)
+        input_bar = await _wait_for_context_input(app)
 
         assert app.app_state.ui_mode == "RENAME"
         assert str(help_bar.renderable) == "type name | enter apply | esc cancel"

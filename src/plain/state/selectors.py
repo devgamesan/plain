@@ -38,8 +38,8 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
             current_entries,
             state.current_pane.cursor_path,
         ),
+        current_context_input=select_input_bar_state(state),
         help=select_help_bar_state(state),
-        input_bar=select_input_bar_state(state),
         command_palette=select_command_palette_state(state),
         status=select_status_bar_state(state),
         conflict_dialog=select_conflict_dialog_state(state),
@@ -129,7 +129,21 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
 
 
 def select_input_bar_state(state: AppState) -> InputBarState | None:
-    """Return the rename/create input bar state for the active mode."""
+    """Return contextual input state for the active mode."""
+
+    if state.ui_mode == "FILTER" or (state.filter.active and state.filter.query):
+        hint = "active"
+        if state.ui_mode == "FILTER":
+            recursive = "on" if state.filter.recursive else "off"
+            hint = f"space recursive:{recursive} | enter apply | esc cancel"
+        elif state.filter.recursive:
+            hint = "active | recursive:on"
+        return InputBarState(
+            mode_label="FILTER",
+            prompt="Filter: ",
+            value=state.filter.query,
+            hint=hint,
+        )
 
     if state.ui_mode not in {"RENAME", "CREATE"}:
         return None
@@ -142,6 +156,7 @@ def select_input_bar_state(state: AppState) -> InputBarState | None:
         mode_label=mode_label,
         prompt=state.pending_input.prompt,
         value=state.pending_input.value,
+        hint="enter apply | esc cancel",
     )
 
 

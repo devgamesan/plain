@@ -1,4 +1,4 @@
-"""One-line input widget for rename/create modes."""
+"""One-line input widget for contextual text input modes."""
 
 from rich.text import Text
 from textual.widgets import Static
@@ -7,7 +7,7 @@ from plain.models import InputBarState
 
 
 class InputBar(Static):
-    """Compact input line shown above the status bar."""
+    """Compact input line shown near the active interaction context."""
 
     def __init__(
         self,
@@ -31,7 +31,7 @@ class InputBar(Static):
         text.append(f"[{state.mode_label}] ", style="bold reverse")
         text.append(state.prompt, style="bold")
         text.append(value, style="underline")
-        text.append("  enter apply | esc cancel", style="dim")
+        text.append(f"  {state.hint}", style="dim")
         return text
 
     def set_state(self, state: InputBarState | None) -> None:

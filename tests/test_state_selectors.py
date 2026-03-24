@@ -4,6 +4,8 @@ from plain.models import PasteConflict, PasteRequest
 from plain.state import (
     BeginCommandPalette,
     BeginCreateInput,
+    BeginFilterInput,
+    ConfirmFilterInput,
     CutTargets,
     DeleteConfirmationState,
     DirectoryEntryState,
@@ -403,6 +405,35 @@ def test_select_input_bar_state_for_create_mode() -> None:
     assert input_bar.mode_label == "NEW FILE"
     assert input_bar.prompt == "New file: "
     assert input_bar.value == "notes.txt"
+    assert input_bar.hint == "enter apply | esc cancel"
+
+
+def test_select_input_bar_state_for_filter_mode() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFilterInput())
+    state = _reduce_state(state, SetFilterQuery("spec"))
+    state = _reduce_state(state, SetFilterRecursive(True))
+
+    input_bar = select_input_bar_state(state)
+
+    assert input_bar is not None
+    assert input_bar.mode_label == "FILTER"
+    assert input_bar.prompt == "Filter: "
+    assert input_bar.value == "spec"
+    assert input_bar.hint == "space recursive:on | enter apply | esc cancel"
+
+
+def test_select_input_bar_state_keeps_active_filter_visible_after_confirm() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFilterInput())
+    state = _reduce_state(state, SetFilterQuery("spec"))
+    state = _reduce_state(state, ConfirmFilterInput())
+
+    input_bar = select_input_bar_state(state)
+
+    assert input_bar is not None
+    assert input_bar.mode_label == "FILTER"
+    assert input_bar.prompt == "Filter: "
+    assert input_bar.value == "spec"
+    assert input_bar.hint == "active"
 
 
 def test_select_conflict_dialog_state_formats_first_conflict() -> None:

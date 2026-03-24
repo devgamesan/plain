@@ -169,8 +169,9 @@ class PlainApp(App[None]):
 
     #conflict-dialog {
         display: none;
-        height: 5;
-        margin: 1 2;
+        height: auto;
+        min-height: 6;
+        margin: 0 2;
         padding: 1 2;
         border: round $warning;
         background: $surface;
@@ -186,7 +187,10 @@ class PlainApp(App[None]):
     }
 
     #conflict-dialog-options {
-        color: $text-muted;
+        padding: 0 1;
+        background: $boost;
+        color: $warning;
+        text-style: bold;
     }
     """
 
@@ -217,9 +221,9 @@ class PlainApp(App[None]):
         yield CurrentPathBar(shell.current_path, id="current-path-bar")
         yield self._build_body(shell)
         yield CommandPalette(shell.command_palette, id="command-palette")
+        yield ConflictDialog(shell.conflict_dialog, id="conflict-dialog")
         yield HelpBar(shell.help, id="help-bar")
         yield StatusBar(shell.status, id="status-bar")
-        yield ConflictDialog(shell.conflict_dialog, id="conflict-dialog")
 
     async def on_mount(self) -> None:
         """Load the initial directory snapshot after the UI mounts."""

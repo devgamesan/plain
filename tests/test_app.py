@@ -1245,10 +1245,14 @@ async def test_app_paste_conflict_dialog_round_trip() -> None:
 
         help_bar = app.query_one("#help-bar", HelpBar)
         dialog = app.query_one("#conflict-dialog", ConflictDialog)
+        dialog_options = dialog.query_one("#conflict-dialog-options", Static)
 
         assert app.app_state.ui_mode == "CONFIRM"
-        assert str(help_bar.renderable) == "o overwrite | s skip | r rename | esc cancel"
+        assert str(help_bar.renderable) == "resolve conflict in dialog"
         assert dialog.display is True
+        assert str(dialog_options.renderable) == (
+            "Actions: o overwrite | s skip | r rename | esc cancel"
+        )
 
         await pilot.press("r")
         await asyncio.sleep(0.05)

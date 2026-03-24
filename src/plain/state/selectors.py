@@ -111,7 +111,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     if state.ui_mode == "CONFIRM":
         if state.delete_confirmation is not None:
             return HelpBarState("enter confirm delete | esc cancel")
-        return HelpBarState("o overwrite | s skip | r rename | esc cancel")
+        return HelpBarState("resolve conflict in dialog")
     if state.ui_mode == "FILTER":
         return HelpBarState("type filter | space recursive | enter apply | esc cancel")
     if state.ui_mode == "RENAME":

@@ -40,4 +40,6 @@ class ConflictDialog(Container):
 
         self.query_one("#conflict-dialog-title", Static).update(state.title)
         self.query_one("#conflict-dialog-message", Static).update(state.message)
-        self.query_one("#conflict-dialog-options", Static).update(" | ".join(state.options))
+        self.query_one("#conflict-dialog-options", Static).update(
+            f"Actions: {' | '.join(state.options)}"
+        )

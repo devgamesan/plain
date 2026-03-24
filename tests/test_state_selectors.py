@@ -479,6 +479,30 @@ def test_select_conflict_dialog_state_formats_delete_confirmation() -> None:
     assert dialog.options == ("enter confirm", "esc cancel")
 
 
+def test_select_help_bar_for_paste_conflict_uses_generic_guidance() -> None:
+    conflict = PasteConflict(
+        source_path="/home/tadashi/develop/plain/docs",
+        destination_path="/home/tadashi/develop/plain/docs",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        paste_conflict=PasteConflictState(
+            request=PasteRequest(
+                mode="copy",
+                source_paths=("/home/tadashi/develop/plain/docs",),
+                destination_dir="/home/tadashi/develop/plain",
+            ),
+            conflicts=(conflict,),
+            first_conflict=conflict,
+        ),
+    )
+
+    help_state = select_help_bar_state(state)
+
+    assert help_state.text == "resolve conflict in dialog"
+
+
 def test_select_help_bar_for_delete_confirmation() -> None:
     state = replace(
         build_initial_app_state(),

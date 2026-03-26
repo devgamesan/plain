@@ -1245,7 +1245,7 @@ async def test_app_filter_mode_accepts_printable_bound_keys() -> None:
 
         assert app.app_state.ui_mode == "FILTER"
         assert app.app_state.filter.query == "yxp"
-        assert str(input_bar.renderable) == "[FILTER] Filter: yxp  enter apply | esc cancel"
+        assert str(input_bar.renderable) == "[FILTER] Filter: yxp  enter/down apply | esc clear"
 
 
 @pytest.mark.asyncio
@@ -1278,7 +1278,74 @@ async def test_app_confirmed_filter_stays_visible_in_current_pane() -> None:
         assert app.app_state.filter.active is True
         assert app.app_state.filter.query == "docs"
         assert input_bar.display is True
-        assert str(input_bar.renderable) == "[FILTER] Filter: docs  active"
+        assert str(input_bar.renderable) == "[FILTER] Filter: docs  esc clear"
+
+
+@pytest.mark.asyncio
+async def test_app_filter_down_confirms_and_returns_to_browsing() -> None:
+    path = "/tmp/plain-filter-down"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/notes.txt", "notes.txt", "file"),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("/")
+        await pilot.press("d", "o", "c", "s")
+        await pilot.press("down")
+        await asyncio.sleep(0.05)
+
+        input_bar = await _wait_for_context_input(app)
+
+        assert app.app_state.ui_mode == "BROWSING"
+        assert app.app_state.filter.active is True
+        assert app.app_state.filter.query == "docs"
+        assert input_bar.display is True
+        assert str(input_bar.renderable) == "[FILTER] Filter: docs  esc clear"
+
+
+@pytest.mark.asyncio
+async def test_app_escape_clears_active_filter_before_selection() -> None:
+    path = "/tmp/plain-filter-escape-priority"
+    docs = f"{path}/docs"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(docs, "docs", "dir"),
+                    DirectoryEntryState(f"{path}/notes.txt", "notes.txt", "file"),
+                ),
+                child_path=docs,
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("/")
+        await pilot.press("d", "o", "c", "s", "enter")
+        await pilot.press("space")
+        await pilot.press("escape")
+        await asyncio.sleep(0.05)
+
+        input_bar = await _wait_for_context_input(app)
+
+        assert app.app_state.filter.query == ""
+        assert app.app_state.filter.active is False
+        assert app.app_state.current_pane.selected_paths == {docs}
+        assert input_bar.display is False
 
 
 

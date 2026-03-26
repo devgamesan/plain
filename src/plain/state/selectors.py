@@ -127,7 +127,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             return HelpBarState("enter return to input | esc return to input")
         return HelpBarState("resolve conflict in dialog")
     if state.ui_mode == "FILTER":
-        return HelpBarState("type filter | enter apply | esc cancel")
+        return HelpBarState("type filter | enter/down apply | esc clear")
     if state.ui_mode == "RENAME":
         return HelpBarState("type name | enter apply | esc cancel")
     if state.ui_mode == "CREATE":
@@ -146,9 +146,9 @@ def select_input_bar_state(state: AppState) -> InputBarState | None:
     """Return contextual input state for the active mode."""
 
     if state.ui_mode == "FILTER" or (state.filter.active and state.filter.query):
-        hint = "active"
+        hint = "esc clear"
         if state.ui_mode == "FILTER":
-            hint = "enter apply | esc cancel"
+            hint = "enter/down apply | esc clear"
         return InputBarState(
             mode_label="FILTER",
             prompt="Filter: ",

@@ -1,14 +1,15 @@
-"""Shared models for external application and terminal launches."""
+"""Shared models for external application, terminal, and clipboard launches."""
 
 from dataclasses import dataclass
 from typing import Literal
 
-ExternalLaunchKind = Literal["open_file", "open_terminal"]
+ExternalLaunchKind = Literal["open_file", "open_terminal", "copy_paths"]
 
 
 @dataclass(frozen=True)
 class ExternalLaunchRequest:
-    """A request to launch an external process for a path."""
+    """A request to launch an external process or copy paths to the clipboard."""
 
     kind: ExternalLaunchKind
-    path: str
+    path: str | None = None
+    paths: tuple[str, ...] = ()

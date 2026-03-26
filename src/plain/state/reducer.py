@@ -92,7 +92,7 @@ from .models import (
     PasteConflictState,
     PendingInputState,
 )
-from .selectors import select_visible_current_entry_states
+from .selectors import select_target_paths, select_visible_current_entry_states
 
 
 def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
@@ -289,6 +289,19 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
             return reduce_app_state(next_state, BeginCreateInput("file"))
         if selected_item.id == "create_dir":
             return reduce_app_state(next_state, BeginCreateInput("dir"))
+        if selected_item.id == "copy_path":
+            target_paths = select_target_paths(state)
+            if not target_paths:
+                return done(
+                    replace(
+                        state,
+                        notification=NotificationState(level="warning", message="Nothing to copy"),
+                    )
+                )
+            return _run_external_launch_request(
+                next_state,
+                ExternalLaunchRequest(kind="copy_paths", paths=target_paths),
+            )
         if selected_item.id == "toggle_hidden":
             return reduce_app_state(next_state, ToggleHiddenFiles())
         if selected_item.id == "open_terminal":
@@ -838,7 +851,10 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
         )
 
     if isinstance(action, ExternalLaunchCompleted):
-        return done(state)
+        notification = _notification_for_external_launch(action.request)
+        if notification is None:
+            return done(state)
+        return done(replace(state, notification=notification))
 
     if isinstance(action, ExternalLaunchFailed):
         return done(
@@ -1139,6 +1155,18 @@ def _pending_input_parent_and_target(state: AppState) -> tuple[str | None, str |
 def _format_clipboard_message(prefix: str, paths: tuple[str, ...]) -> str:
     noun = "item" if len(paths) == 1 else "items"
     return f"{prefix} {len(paths)} {noun} to clipboard"
+
+
+def _notification_for_external_launch(
+    request: ExternalLaunchRequest,
+) -> NotificationState | None:
+    if request.kind != "copy_paths":
+        return None
+    noun = "path" if len(request.paths) == 1 else "paths"
+    return NotificationState(
+        level="info",
+        message=f"Copied {len(request.paths)} {noun} to system clipboard",
+    )
 
 
 def _notification_for_paste_summary(summary: PasteSummary) -> NotificationState:

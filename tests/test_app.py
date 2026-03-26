@@ -1050,6 +1050,41 @@ async def test_app_enter_on_file_launches_default_app() -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_command_palette_copy_path_copies_cursor_target() -> None:
+    path = "/tmp/plain-copy-path"
+    copied_text: list[str] = []
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(
+        snapshot_loader=loader,
+        initial_path=path,
+    )
+    app.copy_to_clipboard = copied_text.append  # type: ignore[method-assign]
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await pilot.press("c", "o", "p", "y")
+        await pilot.press("enter")
+        await asyncio.sleep(0.05)
+
+        assert copied_text == [f"{path}/docs"]
+
+        status_bar = await _wait_for_status_bar(app)
+        assert "info: Copied 1 path to system clipboard" in str(status_bar.renderable)
+
+
+@pytest.mark.asyncio
 async def test_app_command_palette_open_terminal_launches_current_directory() -> None:
     path = "/tmp/plain-open-terminal"
     launch_service = FakeExternalLaunchService()

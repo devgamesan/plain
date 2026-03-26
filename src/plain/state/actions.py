@@ -346,6 +346,7 @@ class ExternalLaunchCompleted:
     """Apply a completed external launch operation."""
 
     request_id: int
+    request: ExternalLaunchRequest
 
 
 @dataclass(frozen=True)

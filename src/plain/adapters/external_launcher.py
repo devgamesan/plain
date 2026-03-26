@@ -1,4 +1,4 @@
-"""OS adapter for launching default applications and terminals."""
+"""OS adapter for launching default applications, terminals, and clipboard commands."""
 
 import platform
 import shutil
@@ -8,9 +8,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
-CommandRunner = Callable[[Sequence[str], str | None], None]
+CommandRunner = Callable[[Sequence[str], str | None, str | None], None]
 CommandAvailability = Callable[[str], str | None]
 SystemNameResolver = Callable[[], str]
+ClipboardFallback = Callable[[str], None]
 
 
 class ExternalLaunchAdapter(Protocol):
@@ -20,6 +21,8 @@ class ExternalLaunchAdapter(Protocol):
 
     def open_terminal(self, path: str) -> None: ...
 
+    def copy_to_clipboard(self, text: str) -> None: ...
+
 
 @dataclass(frozen=True)
 class LocalExternalLaunchAdapter:
@@ -28,6 +31,9 @@ class LocalExternalLaunchAdapter:
     system_name_resolver: SystemNameResolver = platform.system
     command_available: CommandAvailability = shutil.which
     command_runner: CommandRunner = field(default_factory=lambda: _run_detached_command)
+    clipboard_fallbacks: tuple[ClipboardFallback, ...] = field(
+        default_factory=lambda: (_copy_to_clipboard_with_tkinter,)
+    )
 
     def open_with_default_app(self, path: str) -> None:
         resolved_path = _resolve_existing_path(path)
@@ -43,12 +49,38 @@ class LocalExternalLaunchAdapter:
             cwd=str(resolved_path),
         )
 
+    def copy_to_clipboard(self, text: str) -> None:
+        candidates = self._clipboard_candidates()
+        available_candidates = [
+            command for command in candidates if self.command_available(command[0]) is not None
+        ]
+        if available_candidates:
+            self._run_first_available(
+                available_candidates,
+                context="copy to clipboard",
+                input_text=text,
+            )
+            return
+
+        fallback_errors: list[str] = []
+        for fallback in self.clipboard_fallbacks:
+            try:
+                fallback(text)
+                return
+            except OSError as error:
+                fallback_errors.append(str(error) or "clipboard fallback failed")
+
+        if fallback_errors:
+            raise OSError(fallback_errors[-1])
+        raise OSError("No supported command found to copy to clipboard")
+
     def _run_first_available(
         self,
         candidates: tuple[tuple[str, ...], ...],
         *,
         context: str,
         cwd: str | None = None,
+        input_text: str | None = None,
     ) -> None:
         available_candidates = [
             command for command in candidates if self.command_available(command[0]) is not None
@@ -59,7 +91,7 @@ class LocalExternalLaunchAdapter:
         errors: list[str] = []
         for command in available_candidates:
             try:
-                self.command_runner(command, cwd)
+                self.command_runner(command, cwd, input_text)
                 return
             except OSError as error:
                 errors.append(str(error) or f"{command[0]} failed")
@@ -106,8 +138,38 @@ class LocalExternalLaunchAdapter:
             )
         raise OSError(f"Unsupported operating system: {system_name}")
 
+    def _clipboard_candidates(self) -> tuple[tuple[str, ...], ...]:
+        system_name = self.system_name_resolver()
+        if system_name == "Linux":
+            return (
+                ("wl-copy",),
+                ("xclip", "-in", "-selection", "clipboard"),
+                ("xsel", "--clipboard", "--input"),
+            )
+        if system_name == "Darwin":
+            return (("pbcopy",),)
+        if system_name == "Windows":
+            return (("clip",),)
+        raise OSError(f"Unsupported operating system: {system_name}")
 
-def _run_detached_command(command: Sequence[str], cwd: str | None) -> None:
+
+def _run_detached_command(command: Sequence[str], cwd: str | None, input_text: str | None) -> None:
+    if input_text is not None:
+        try:
+            subprocess.run(
+                list(command),
+                input=input_text,
+                text=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                cwd=cwd,
+                check=True,
+            )
+        except subprocess.CalledProcessError as error:
+            detail = (error.stderr or "").strip() or str(error)
+            raise OSError(detail) from error
+        return
+
     subprocess.Popen(
         list(command),
         stdin=subprocess.DEVNULL,
@@ -116,6 +178,26 @@ def _run_detached_command(command: Sequence[str], cwd: str | None) -> None:
         cwd=cwd,
         start_new_session=True,
     )
+
+
+def _copy_to_clipboard_with_tkinter(text: str) -> None:
+    try:
+        import tkinter
+    except ImportError as error:
+        raise OSError("tkinter clipboard fallback is unavailable") from error
+
+    root = None
+    try:
+        root = tkinter.Tk()
+        root.withdraw()
+        root.clipboard_clear()
+        root.clipboard_append(text)
+        root.update()
+    except tkinter.TclError as error:
+        raise OSError(f"tkinter clipboard fallback failed: {error}") from error
+    finally:
+        if root is not None:
+            root.destroy()
 
 
 def _resolve_existing_path(path: str) -> Path:

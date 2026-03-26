@@ -338,7 +338,10 @@ class PlainApp(App[None]):
             elif isinstance(effect, RunFileMutationEffect):
                 self._schedule_file_mutation(effect)
             elif isinstance(effect, RunExternalLaunchEffect):
-                self._schedule_external_launch(effect)
+                if effect.request.kind == "copy_paths":
+                    self._schedule_system_clipboard_copy(effect)
+                else:
+                    self._schedule_external_launch(effect)
 
     def _schedule_browser_snapshot(self, effect: LoadBrowserSnapshotEffect) -> None:
         worker = self.run_worker(
@@ -406,6 +409,32 @@ class PlainApp(App[None]):
             thread=True,
         )
         self._pending_workers[worker.name] = effect
+
+    def _schedule_system_clipboard_copy(self, effect: RunExternalLaunchEffect) -> None:
+        try:
+            self.copy_to_clipboard("\n".join(effect.request.paths))
+        except Exception as error:  # pragma: no cover
+            self.call_next(
+                self.dispatch_actions,
+                (
+                    ExternalLaunchFailed(
+                        request_id=effect.request_id,
+                        request=effect.request,
+                        message=str(error) or "Failed to copy to system clipboard",
+                    ),
+                ),
+            )
+            return
+
+        self.call_next(
+            self.dispatch_actions,
+            (
+                ExternalLaunchCompleted(
+                    request_id=effect.request_id,
+                    request=effect.request,
+                ),
+            ),
+        )
 
     async def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
         """Convert worker completion back into reducer actions."""
@@ -483,7 +512,12 @@ class PlainApp(App[None]):
 
             if isinstance(effect, RunExternalLaunchEffect):
                 await self.dispatch_actions(
-                    (ExternalLaunchCompleted(request_id=effect.request_id),)
+                    (
+                        ExternalLaunchCompleted(
+                            request_id=effect.request_id,
+                            request=effect.request,
+                        ),
+                    )
                 )
                 return
 

@@ -1,4 +1,4 @@
-"""External application and terminal launch services."""
+"""External application, terminal, and clipboard launch services."""
 
 from dataclasses import dataclass, field
 from time import sleep
@@ -21,17 +21,26 @@ class LiveExternalLaunchService:
     adapter: ExternalLaunchAdapter = field(default_factory=LocalExternalLaunchAdapter)
 
     def execute(self, request: ExternalLaunchRequest) -> None:
-        if request.kind == "open_file":
+        if request.kind == "copy_paths":
             try:
-                self.adapter.open_with_default_app(request.path)
+                self.adapter.copy_to_clipboard(_format_clipboard_payload(request.paths))
             except OSError as error:
-                raise OSError(_format_open_error(request.path, str(error))) from error
+                raise OSError(_format_copy_error(request.paths, str(error))) from error
             return
 
+        if request.kind == "open_file":
+            path = _require_path(request)
+            try:
+                self.adapter.open_with_default_app(path)
+            except OSError as error:
+                raise OSError(_format_open_error(path, str(error))) from error
+            return
+
+        path = _require_path(request)
         try:
-            self.adapter.open_terminal(request.path)
+            self.adapter.open_terminal(path)
         except OSError as error:
-            raise OSError(_format_terminal_error(request.path, str(error))) from error
+            raise OSError(_format_terminal_error(path, str(error))) from error
 
 
 @dataclass(frozen=True)
@@ -57,3 +66,19 @@ def _format_open_error(path: str, detail: str) -> str:
 
 def _format_terminal_error(path: str, detail: str) -> str:
     return f"Failed to open terminal in {path}: {detail}"
+
+
+def _format_copy_error(paths: tuple[str, ...], detail: str) -> str:
+    count = len(paths)
+    noun = "path" if count == 1 else "paths"
+    return f"Failed to copy {count} {noun} to system clipboard: {detail}"
+
+
+def _format_clipboard_payload(paths: tuple[str, ...]) -> str:
+    return "\n".join(paths)
+
+
+def _require_path(request: ExternalLaunchRequest) -> str:
+    if request.path is None:
+        raise OSError(f"Missing path for {request.kind}")
+    return request.path

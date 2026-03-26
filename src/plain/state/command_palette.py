@@ -63,7 +63,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 id="copy_path",
                 label="Copy path",
                 shortcut=None,
-                enabled=False,
+                enabled=True,
             )
         )
 
@@ -75,15 +75,6 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             enabled=True,
         )
     )
-    items.append(
-        CommandPaletteItem(
-            id="cycle_sort",
-            label="Cycle sort",
-            shortcut="s",
-            enabled=False,
-        )
-    )
-
     if has_single_target:
         items.append(
             CommandPaletteItem(

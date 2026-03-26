@@ -387,7 +387,7 @@ def test_select_help_bar_for_busy_mode() -> None:
     assert help_state.text == "processing..."
 
 
-def test_select_command_palette_state_marks_selected_and_disabled_items() -> None:
+def test_select_command_palette_state_marks_selected_and_enabled_items() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
 
     palette_state = select_command_palette_state(state)
@@ -399,7 +399,7 @@ def test_select_command_palette_state_marks_selected_and_disabled_items() -> Non
         "Copy path",
     ]
     assert palette_state.items[0].selected is True
-    assert palette_state.items[2].enabled is False
+    assert palette_state.items[2].enabled is True
     assert any(item.label == "Open terminal here" and item.enabled for item in palette_state.items)
 
 

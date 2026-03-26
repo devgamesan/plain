@@ -38,6 +38,7 @@ from plain.state import (
     DirectoryEntryState,
     DismissNameConflict,
     EnterCursorDirectory,
+    ExternalLaunchCompleted,
     ExternalLaunchFailed,
     FileMutationCompleted,
     FileMutationFailed,
@@ -360,7 +361,7 @@ def test_move_command_palette_cursor_clamps_to_visible_commands() -> None:
     next_state = _reduce_state(state, MoveCommandPaletteCursor(delta=10))
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.cursor_index == 6
+    assert next_state.command_palette.cursor_index == 5
 
 
 def test_set_command_palette_query_resets_cursor() -> None:
@@ -388,16 +389,23 @@ def test_submit_command_palette_runs_create_file_flow() -> None:
     )
 
 
-def test_submit_command_palette_warns_for_disabled_command() -> None:
+def test_submit_command_palette_runs_copy_path_flow() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
     state = _reduce_state(state, MoveCommandPaletteCursor(delta=2))
 
-    next_state = _reduce_state(state, SubmitCommandPalette())
+    result = reduce_app_state(state, SubmitCommandPalette())
 
-    assert next_state.ui_mode == "PALETTE"
-    assert next_state.notification == NotificationState(
-        level="warning",
-        message="Copy path is not available yet",
+    assert result.state.ui_mode == "BROWSING"
+    assert result.state.command_palette is None
+    assert result.state.next_request_id == 2
+    assert result.effects == (
+        RunExternalLaunchEffect(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="copy_paths",
+                paths=("/home/tadashi/develop/plain/docs",),
+            ),
+        ),
     )
 
 
@@ -444,6 +452,39 @@ def test_submit_command_palette_runs_open_terminal_flow() -> None:
             request=ExternalLaunchRequest(
                 kind="open_terminal",
                 path="/home/tadashi/develop/plain",
+            ),
+        ),
+    )
+
+
+def test_submit_command_palette_uses_selected_paths_for_copy_path() -> None:
+    initial_state = build_initial_app_state()
+    state = replace(
+        initial_state,
+        current_pane=replace(
+            initial_state.current_pane,
+            selected_paths=frozenset(
+                {
+                    "/home/tadashi/develop/plain/docs",
+                    "/home/tadashi/develop/plain/src",
+                }
+            ),
+        ),
+    )
+    state = _reduce_state(state, BeginCommandPalette())
+    state = _reduce_state(state, MoveCommandPaletteCursor(delta=2))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.effects == (
+        RunExternalLaunchEffect(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="copy_paths",
+                paths=(
+                    "/home/tadashi/develop/plain/docs",
+                    "/home/tadashi/develop/plain/src",
+                ),
             ),
         ),
     )
@@ -1089,6 +1130,26 @@ def test_external_launch_failed_sets_error_notification() -> None:
     assert next_state.notification == NotificationState(
         level="error",
         message="Failed to open /tmp/plain/README.md: permission denied",
+    )
+
+
+def test_external_launch_completed_sets_copy_notification() -> None:
+    state = build_initial_app_state()
+
+    next_state = _reduce_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=5,
+            request=ExternalLaunchRequest(
+                kind="copy_paths",
+                paths=("/tmp/plain/docs", "/tmp/plain/README.md"),
+            ),
+        ),
+    )
+
+    assert next_state.notification == NotificationState(
+        level="info",
+        message="Copied 2 paths to system clipboard",
     )
 
 

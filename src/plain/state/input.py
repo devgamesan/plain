@@ -105,6 +105,7 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
     visible_paths = _visible_paths(state)
     cursor_entry = _current_entry(state)
     target_paths = select_target_paths(state)
+    filter_is_active = state.filter.active and bool(state.filter.query)
 
     if key == "up":
         return _supported(MoveCursor(delta=-1, visible_paths=visible_paths))
@@ -121,6 +122,8 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
         )
 
     if key == "escape":
+        if filter_is_active:
+            return _supported(CancelFilterInput())
         return _supported(ClearSelection())
 
     if key == "/":
@@ -216,7 +219,7 @@ def _dispatch_filter_input(
     if key == "escape":
         return _supported(CancelFilterInput())
 
-    if key == "enter":
+    if key in {"down", "enter"}:
         return _supported(ConfirmFilterInput())
 
     if key == "backspace":

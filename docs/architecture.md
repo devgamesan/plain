@@ -147,7 +147,7 @@ stateDiagram-v2
     BROWSING --> PALETTE: :
     PALETTE --> CREATE: Enter on create command
     PALETTE --> BROWSING: Esc
-    FILTER --> BROWSING: Enter
+    FILTER --> BROWSING: Enter / Down
     FILTER --> BROWSING: Esc
     RENAME --> BUSY: Enter
     CREATE --> BUSY: Enter
@@ -163,8 +163,9 @@ stateDiagram-v2
 
 - `BROWSING`
   - `Up`, `Down`, `Left`, `Right`, `Enter`, `Backspace`, `F5`, `Space`, `Esc`, `/`, `Delete`, `F2`, `:` を処理
+  - active filter が残っている間の `Esc` は選択解除より先に filter 解除を優先する
 - `FILTER`
-  - 文字入力、`Backspace`, `Space`, `Enter`, `Esc` を処理
+  - 文字入力、`Backspace`, `Down`, `Enter`, `Esc` を処理
 - `PALETTE`
   - 文字入力、`Up`, `Down`, `Backspace`, `Enter`, `Esc` を処理
 - `RENAME`, `CREATE`

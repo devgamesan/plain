@@ -85,6 +85,18 @@ def test_browsing_escape_clears_selection() -> None:
     assert actions == (SetNotification(None), ClearSelection())
 
 
+def test_browsing_escape_clears_active_filter_before_selection() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        filter=replace(state.filter, query="docs", active=True),
+    )
+
+    actions = dispatch_key_input(state, key="escape")
+
+    assert actions == (SetNotification(None), CancelFilterInput())
+
+
 def test_browsing_slash_enters_filter_mode() -> None:
     state = build_initial_app_state()
 
@@ -360,6 +372,15 @@ def test_filter_enter_confirms_filter() -> None:
     state = replace(state, ui_mode="FILTER")
 
     actions = dispatch_key_input(state, key="enter")
+
+    assert actions == (SetNotification(None), ConfirmFilterInput())
+
+
+def test_filter_down_confirms_filter() -> None:
+    state = build_initial_app_state()
+    state = replace(state, ui_mode="FILTER")
+
+    actions = dispatch_key_input(state, key="down")
 
     assert actions == (SetNotification(None), ConfirmFilterInput())
 

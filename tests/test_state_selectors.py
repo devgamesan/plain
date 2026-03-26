@@ -461,7 +461,7 @@ def test_select_input_bar_state_for_filter_mode() -> None:
     assert input_bar.mode_label == "FILTER"
     assert input_bar.prompt == "Filter: "
     assert input_bar.value == "spec"
-    assert input_bar.hint == "enter apply | esc cancel"
+    assert input_bar.hint == "enter/down apply | esc clear"
 
 
 def test_select_input_bar_state_keeps_active_filter_visible_after_confirm() -> None:
@@ -475,7 +475,15 @@ def test_select_input_bar_state_keeps_active_filter_visible_after_confirm() -> N
     assert input_bar.mode_label == "FILTER"
     assert input_bar.prompt == "Filter: "
     assert input_bar.value == "spec"
-    assert input_bar.hint == "active"
+    assert input_bar.hint == "esc clear"
+
+
+def test_select_help_bar_state_for_filter_mode() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFilterInput())
+
+    help_state = select_help_bar_state(state)
+
+    assert help_state.text == "type filter | enter/down apply | esc clear"
 
 
 def test_select_conflict_dialog_state_formats_first_conflict() -> None:

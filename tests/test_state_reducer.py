@@ -793,6 +793,17 @@ def test_cancel_filter_input_clears_query() -> None:
     assert next_state.filter.active is False
 
 
+def test_cancel_filter_input_clears_query_from_browsing() -> None:
+    state = build_initial_app_state()
+    state = _reduce_state(state, SetFilterQuery("readme"))
+
+    next_state = _reduce_state(state, CancelFilterInput())
+
+    assert next_state.ui_mode == "BROWSING"
+    assert next_state.filter.query == ""
+    assert next_state.filter.active is False
+
+
 def test_copy_targets_updates_clipboard_state() -> None:
     state = build_initial_app_state()
 

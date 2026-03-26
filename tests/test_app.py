@@ -24,7 +24,15 @@ from plain.services import (
     FakeFileMutationService,
 )
 from plain.state import BrowserSnapshot, DirectoryEntryState, PaneState
-from plain.ui import CommandPalette, ConflictDialog, CurrentPathBar, HelpBar, InputBar, StatusBar
+from plain.ui import (
+    CommandPalette,
+    ConflictDialog,
+    CurrentPathBar,
+    HelpBar,
+    InputBar,
+    StatusBar,
+    SummaryBar,
+)
 
 
 def _build_snapshot(
@@ -86,6 +94,17 @@ async def _wait_for_context_input(app, timeout: float = 0.5) -> InputBar:
     while True:
         try:
             return app.query_one("#current-pane-context-input", InputBar)
+        except NoMatches:
+            if asyncio.get_running_loop().time() >= deadline:
+                raise
+            await asyncio.sleep(0.01)
+
+
+async def _wait_for_summary_bar(app, timeout: float = 0.5) -> SummaryBar:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        try:
+            return app.query_one("#current-pane-summary-bar", SummaryBar)
         except NoMatches:
             if asyncio.get_running_loop().time() >= deadline:
                 raise
@@ -189,12 +208,14 @@ async def test_app_uses_cwd_for_default_initial_path(tmp_path, monkeypatch) -> N
         await _wait_for_snapshot_loaded(app, str(tmp_path))
         await _wait_for_row_count(app, 2)
         current_path_bar = await _wait_for_current_path_bar(app)
+        summary_bar = await _wait_for_summary_bar(app)
         status_bar = await _wait_for_status_bar(app)
 
         assert str(current_path_bar.renderable) == f"Current Path: {tmp_path}"
-        assert str(status_bar.renderable) == (
-            "2 items | 0 selected | sort: name asc dirs:on | filter: none"
+        assert str(summary_bar.renderable) == (
+            "2 items | 0 selected | sort: name asc dirs:on"
         )
+        assert str(status_bar.renderable) == ""
 
 
 @pytest.mark.asyncio
@@ -230,6 +251,7 @@ async def test_app_renders_loaded_three_pane_shell() -> None:
         current_title = app.query_one("#current-pane .pane-title", Label)
         child_title = app.query_one("#child-pane .pane-title", Label)
         current_path_bar = await _wait_for_current_path_bar(app)
+        summary_bar = await _wait_for_summary_bar(app)
         status_bar = await _wait_for_status_bar(app)
         parent_entries = [str(item.query_one(Label).renderable) for item in parent_list.children]
         child_entries = [str(item.query_one(Label).renderable) for item in child_list.children]
@@ -243,9 +265,10 @@ async def test_app_renders_loaded_three_pane_shell() -> None:
         assert current_table.row_count == 2
         assert child_entries == ["spec.md"]
         assert str(current_path_bar.renderable) == f"Current Path: {path}"
-        assert str(status_bar.renderable) == (
-            "2 items | 0 selected | sort: name asc dirs:on | filter: none"
+        assert str(summary_bar.renderable) == (
+            "2 items | 0 selected | sort: name asc dirs:on"
         )
+        assert str(status_bar.renderable) == ""
 
 
 @pytest.mark.asyncio
@@ -350,15 +373,17 @@ async def test_app_keyboard_input_updates_selection_and_child_pane() -> None:
         child_list = app.query_one("#child-pane-list", ListView)
         child_names = [str(item.query_one(Label).renderable) for item in child_list.children]
         current_path_bar = await _wait_for_current_path_bar(app)
+        summary_bar = await _wait_for_summary_bar(app)
         status_bar = await _wait_for_status_bar(app)
 
         assert app.app_state.current_pane.selected_paths == {f"{path}/docs"}
         assert app.app_state.current_pane.cursor_path == f"{path}/src"
         assert child_names == ["main.py"]
         assert str(current_path_bar.renderable) == f"Current Path: {path}"
-        assert str(status_bar.renderable) == (
-            "3 items | 1 selected | sort: name asc dirs:on | filter: none"
+        assert str(summary_bar.renderable) == (
+            "3 items | 1 selected | sort: name asc dirs:on"
         )
+        assert str(status_bar.renderable) == ""
 
         current_table = app.query_one("#current-pane-table", DataTable)
         first_row = current_table.get_row_at(0)
@@ -655,13 +680,15 @@ async def test_app_f5_drops_selection_for_missing_entries() -> None:
         await pilot.press("f5")
         await _wait_for_snapshot_loaded(app, path)
 
+        summary_bar = await _wait_for_summary_bar(app)
         status_bar = await _wait_for_status_bar(app)
 
         assert app.app_state.current_pane.selected_paths == set()
         assert app.app_state.current_pane.cursor_path == f"{path}/src"
-        assert str(status_bar.renderable) == (
-            "1 items | 0 selected | sort: name asc dirs:on | filter: none"
+        assert str(summary_bar.renderable) == (
+            "1 items | 0 selected | sort: name asc dirs:on"
         )
+        assert str(status_bar.renderable) == ""
 
 
 @pytest.mark.asyncio
@@ -707,13 +734,15 @@ async def test_app_navigation_clears_selection_in_new_directory() -> None:
         await pilot.press("right")
         await _wait_for_path(app, docs)
 
+        summary_bar = await _wait_for_summary_bar(app)
         status_bar = await _wait_for_status_bar(app)
 
         assert app.app_state.current_pane.selected_paths == set()
         assert app.app_state.current_path == docs
-        assert str(status_bar.renderable) == (
-            "1 items | 0 selected | sort: name asc dirs:on | filter: none"
+        assert str(summary_bar.renderable) == (
+            "1 items | 0 selected | sort: name asc dirs:on"
         )
+        assert str(status_bar.renderable) == ""
 
 
 @pytest.mark.asyncio
@@ -747,6 +776,7 @@ async def test_app_refresh_updates_widgets_in_place() -> None:
 
         body = app.query_one("#body")
         current_path_bar = app.query_one("#current-path-bar", CurrentPathBar)
+        summary_bar = app.query_one("#current-pane-summary-bar", SummaryBar)
         status_bar = app.query_one("#status-bar", StatusBar)
         current_table = app.query_one("#current-pane-table", DataTable)
         child_list = app.query_one("#child-pane-list", ListView)
@@ -756,6 +786,7 @@ async def test_app_refresh_updates_widgets_in_place() -> None:
 
         assert app.query_one("#body") is body
         assert app.query_one("#current-path-bar", CurrentPathBar) is current_path_bar
+        assert app.query_one("#current-pane-summary-bar", SummaryBar) is summary_bar
         assert app.query_one("#status-bar", StatusBar) is status_bar
         assert app.query_one("#current-pane-table", DataTable) is current_table
         assert app.query_one("#child-pane-list", ListView) is child_list
@@ -858,14 +889,13 @@ async def test_app_child_snapshot_failure_shows_error() -> None:
 
         child_list = app.query_one("#child-pane-list", ListView)
         current_path_bar = await _wait_for_current_path_bar(app)
+        summary_bar = await _wait_for_summary_bar(app)
         status_bar = await _wait_for_status_bar(app)
 
         assert list(child_list.children) == []
         assert str(current_path_bar.renderable) == f"Current Path: {path}"
-        assert str(status_bar.renderable) == (
-            "2 items | 0 selected | sort: name asc dirs:on | filter: none | "
-            "error: permission denied"
-        )
+        assert str(summary_bar.renderable) == "2 items | 0 selected | sort: name asc dirs:on"
+        assert str(status_bar.renderable) == "error: permission denied"
 
 
 @pytest.mark.asyncio
@@ -1137,7 +1167,7 @@ async def test_app_sort_shortcuts_keep_side_panes_fixed_and_update_status_bar() 
 
         parent_list = app.query_one("#parent-pane-list", ListView)
         child_list = app.query_one("#child-pane-list", ListView)
-        status_bar = await _wait_for_status_bar(app)
+        summary_bar = await _wait_for_summary_bar(app)
 
         assert app.app_state.sort.field == "name"
         assert app.app_state.sort.descending is True
@@ -1151,8 +1181,8 @@ async def test_app_sort_shortcuts_keep_side_panes_fixed_and_update_status_bar() 
             "archive",
             "notes.txt",
         ]
-        assert str(status_bar.renderable) == (
-            "3 items | 0 selected | sort: name desc dirs:off | filter: none"
+        assert str(summary_bar.renderable) == (
+            "3 items | 0 selected | sort: name desc dirs:off"
         )
 
 
@@ -1246,15 +1276,15 @@ async def test_app_recursive_filter_updates_current_entries() -> None:
         await _wait_for_row_count(app, 1)
         await asyncio.sleep(0.05)
 
+        summary_bar = await _wait_for_summary_bar(app)
         status_bar = await _wait_for_status_bar(app)
 
         assert app.app_state.filter.recursive is True
         assert app.app_state.recursive_entries == (
             DirectoryEntryState(f"{docs}/spec.md", "spec.md", "file"),
         )
-        assert str(status_bar.renderable) == (
-            "1 items | 0 selected | sort: name asc dirs:on | filter: spec (recursive)"
-        )
+        assert str(summary_bar.renderable) == "1 items | 0 selected | sort: name asc dirs:on"
+        assert str(status_bar.renderable) == ""
 
 
 @pytest.mark.asyncio
@@ -1336,10 +1366,7 @@ async def test_app_rename_round_trip_updates_status_bar(tmp_path) -> None:
 
         assert (tmp_path / "manuals").is_dir()
         assert app.app_state.ui_mode == "BROWSING"
-        assert str(status_bar.renderable) == (
-            "1 items | 0 selected | sort: name asc dirs:on | "
-            "filter: none | info: Renamed to manuals"
-        )
+        assert str(status_bar.renderable) == "info: Renamed to manuals"
 
 
 @pytest.mark.asyncio
@@ -1441,9 +1468,7 @@ async def test_app_paste_conflict_dialog_round_trip() -> None:
 
         status_bar = await _wait_for_status_bar(app)
         assert app.app_state.ui_mode == "BROWSING"
-        assert str(status_bar.renderable) == (
-            "1 items | 0 selected | sort: name asc dirs:on | filter: none | info: Copied 1 item(s)"
-        )
+        assert str(status_bar.renderable) == "info: Copied 1 item(s)"
 
 
 @pytest.mark.asyncio
@@ -1498,6 +1523,4 @@ async def test_app_delete_confirmation_round_trip() -> None:
 
         status_bar = await _wait_for_status_bar(app)
         assert app.app_state.ui_mode == "BROWSING"
-        assert str(status_bar.renderable) == (
-            "2 items | 0 selected | sort: name asc dirs:on | filter: none | info: Trashed 2 items"
-        )
+        assert str(status_bar.renderable) == "info: Trashed 2 items"

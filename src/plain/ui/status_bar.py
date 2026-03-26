@@ -6,7 +6,7 @@ from plain.models.shell_data import StatusBarState
 
 
 class StatusBar(Static):
-    """Compact one-line summary shown at the bottom of the screen."""
+    """Compact notification line shown at the bottom of the screen."""
 
     def __init__(
         self,
@@ -20,17 +20,12 @@ class StatusBar(Static):
 
     @staticmethod
     def format_state(state: StatusBarState) -> str:
-        """Build the visible status line."""
-        summary = (
-            f"{state.item_count} items | "
-            f"{state.selected_count} selected | "
-            f"sort: {state.sort_label} | "
-            f"filter: {state.filter_label}"
-        )
-        if state.message:
-            label = state.message_level or "message"
-            return f"{summary} | {label}: {state.message}"
-        return summary
+        """Build the visible notification line."""
+
+        if not state.message:
+            return ""
+        label = state.message_level or "message"
+        return f"{label}: {state.message}"
 
     def set_state(self, state: StatusBarState) -> None:
         """Update the rendered line without remounting the widget."""

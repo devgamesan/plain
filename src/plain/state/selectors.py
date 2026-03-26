@@ -6,6 +6,7 @@ from plain.models import (
     CommandPaletteItemViewState,
     CommandPaletteViewState,
     ConflictDialogState,
+    CurrentSummaryState,
     HelpBarState,
     InputBarState,
     PaneEntry,
@@ -40,6 +41,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
             current_entries,
             state.current_pane.cursor_path,
         ),
+        current_summary=select_current_summary_state(state),
         current_context_input=select_input_bar_state(state),
         help=select_help_bar_state(state),
         command_palette=select_command_palette_state(state),
@@ -93,15 +95,21 @@ def select_child_entries(state: AppState) -> tuple[PaneEntry, ...]:
     )
 
 
-def select_status_bar_state(state: AppState) -> StatusBarState:
-    """Return a status bar model derived from app state."""
+def select_current_summary_state(state: AppState) -> CurrentSummaryState:
+    """Return the summary model shown near the current pane."""
 
     visible_entries = select_visible_current_entry_states(state)
-    return StatusBarState(
+    return CurrentSummaryState(
         item_count=len(visible_entries),
         selected_count=len(state.current_pane.selected_paths),
         sort_label=_format_sort_label(state.sort),
-        filter_label=_format_filter_label(state),
+    )
+
+
+def select_status_bar_state(state: AppState) -> StatusBarState:
+    """Return a status bar model derived from app state."""
+
+    return StatusBarState(
         message=state.notification.message if state.notification else None,
         message_level=state.notification.level if state.notification else None,
     )
@@ -346,14 +354,6 @@ def _format_sort_label(sort: SortState) -> str:
     direction = "desc" if sort.descending else "asc"
     directories = "on" if sort.directories_first else "off"
     return f"{sort.field} {direction} dirs:{directories}"
-
-
-def _format_filter_label(state: AppState) -> str:
-    if not state.filter.active or not state.filter.query:
-        return "none"
-    if state.filter.recursive:
-        return f"{state.filter.query} (recursive)"
-    return state.filter.query
 
 
 def _get_current_cursor_entry(state: AppState) -> DirectoryEntryState | None:

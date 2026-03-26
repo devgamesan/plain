@@ -7,6 +7,7 @@ from .help_bar import HelpBar
 from .input_bar import InputBar
 from .panes import MainPane, SidePane
 from .status_bar import StatusBar
+from .summary_bar import SummaryBar
 
 __all__ = [
     "CommandPalette",
@@ -17,4 +18,5 @@ __all__ = [
     "MainPane",
     "SidePane",
     "StatusBar",
+    "SummaryBar",
 ]

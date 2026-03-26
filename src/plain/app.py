@@ -121,6 +121,13 @@ class PlainApp(App[None]):
         padding: 0 1;
     }
 
+    .pane-summary {
+        height: 1;
+        padding: 0 1;
+        background: $surface;
+        color: $text;
+    }
+
     #current-path-bar,
     #help-bar,
     #status-bar {
@@ -268,6 +275,7 @@ class PlainApp(App[None]):
             MainPane(
                 "Current Directory",
                 shell.current_entries,
+                summary=shell.current_summary,
                 cursor_index=shell.current_cursor_index,
                 context_input=shell.current_context_input,
                 id="current-pane",
@@ -613,6 +621,7 @@ class PlainApp(App[None]):
 
         current_path_bar.set_path(shell.current_path)
         await parent_pane.set_entries(shell.parent_entries)
+        current_pane.set_summary(shell.current_summary)
         current_pane.set_entries(shell.current_entries, shell.current_cursor_index)
         current_pane.set_context_input(shell.current_context_input)
         await child_pane.set_entries(shell.child_entries)

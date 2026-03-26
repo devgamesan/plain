@@ -32,13 +32,18 @@ class PaneEntry:
 
 
 @dataclass(frozen=True)
-class StatusBarState:
-    """Summary values displayed in the bottom status bar."""
+class CurrentSummaryState:
+    """Summary values displayed near the current directory pane."""
 
     item_count: int
     selected_count: int
     sort_label: str
-    filter_label: str
+
+
+@dataclass(frozen=True)
+class StatusBarState:
+    """Notification content displayed in the bottom status bar."""
+
     message: str | None = None
     message_level: NotificationLevel | None = None
 
@@ -97,6 +102,7 @@ class ThreePaneShellData:
     current_entries: tuple[PaneEntry, ...]
     child_entries: tuple[PaneEntry, ...]
     current_cursor_index: int | None
+    current_summary: CurrentSummaryState
     current_context_input: InputBarState | None
     help: HelpBarState
     command_palette: CommandPaletteViewState | None
@@ -129,18 +135,16 @@ def build_dummy_shell_data() -> ThreePaneShellData:
             PaneEntry("wireframes", "dir"),
         ),
         current_cursor_index=0,
+        current_summary=CurrentSummaryState(
+            item_count=len(current_entries),
+            selected_count=0,
+            sort_label="name asc dirs:on",
+        ),
         current_context_input=None,
         help=HelpBarState(
             "/ filter | s sort | d dirs | Space select | y copy | x cut | p paste | "
             "F2 rename | : palette"
         ),
         command_palette=None,
-        status=StatusBarState(
-            item_count=len(current_entries),
-            selected_count=0,
-            sort_label="name asc dirs:on",
-            filter_label="none",
-            message=None,
-            message_level=None,
-        ),
+        status=StatusBarState(message=None, message_level=None),
     )

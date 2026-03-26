@@ -84,18 +84,18 @@
 
 ---
 
-### 3.4 ステータスバー
+### 3.4 中央ペイン要約 / ステータスバー
 
 表示内容:
 
-- 現在パス
 - ファイル数
 - 選択数
 - ソート状態
-- フィルタ状態
 
 例:
-/home/user/project | 120 items | 3 selected | sort: modified desc | filter: *.py
+120 items | 3 selected | sort: modified desc
+
+下段ステータスバーは warning / error / info などの通知表示に使う。
 
 
 

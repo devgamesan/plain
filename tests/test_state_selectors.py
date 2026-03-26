@@ -25,6 +25,7 @@ from plain.state import (
     select_command_palette_state,
     select_conflict_dialog_state,
     select_current_entries,
+    select_current_summary_state,
     select_help_bar_state,
     select_input_bar_state,
     select_parent_entries,
@@ -200,15 +201,15 @@ def test_select_parent_and_child_entries_hide_hidden_unless_enabled() -> None:
     ]
 
 
-def test_select_status_bar_counts_selected_absolute_paths() -> None:
+def test_select_current_summary_counts_selected_absolute_paths() -> None:
     state = build_initial_app_state()
     state = _reduce_state(state, ToggleSelection("/home/tadashi/develop/plain/README.md"))
     state = _reduce_state(state, ToggleSelection("/home/tadashi/develop/plain/tests"))
 
-    status = select_status_bar_state(state)
+    summary = select_current_summary_state(state)
 
-    assert status.selected_count == 2
-    assert status.item_count == 5
+    assert summary.selected_count == 2
+    assert summary.item_count == 5
 
 
 def test_select_target_paths_prefers_selection_in_entry_order() -> None:
@@ -394,28 +395,29 @@ def test_select_shell_data_includes_selected_cut_and_contextual_models() -> None
     assert shell.parent_entries[0].cut is False
     assert shell.current_context_input is not None
     assert shell.current_context_input.value == "read"
+    assert shell.current_summary.sort_label == "name asc dirs:on"
     assert shell.status.message == "Ready"
 
 
-def test_select_status_bar_keeps_summary_format() -> None:
+def test_select_current_summary_state_keeps_summary_format() -> None:
     state = build_initial_app_state()
 
-    status = select_status_bar_state(state)
+    summary = select_current_summary_state(state)
 
     assert (
-        f"{status.item_count} items | {status.selected_count} selected | "
-        f"sort: {status.sort_label} | filter: {status.filter_label}"
-    ) == "5 items | 0 selected | sort: name asc dirs:on | filter: none"
+        f"{summary.item_count} items | {summary.selected_count} selected | "
+        f"sort: {summary.sort_label}"
+    ) == "5 items | 0 selected | sort: name asc dirs:on"
 
 
-def test_recursive_filter_label_is_reflected_in_status_bar() -> None:
+def test_recursive_filter_does_not_change_current_summary_format() -> None:
     state = build_initial_app_state()
     state = _reduce_state(state, SetFilterQuery("md"))
     state = _reduce_state(state, SetFilterRecursive(True))
 
-    status = select_status_bar_state(state)
+    summary = select_current_summary_state(state)
 
-    assert status.filter_label == "md (recursive)"
+    assert summary.sort_label == "name asc dirs:on"
 
 
 def test_select_status_bar_exposes_notification_level() -> None:

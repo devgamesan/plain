@@ -7,9 +7,10 @@ from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.widgets import DataTable, Label, ListItem, ListView
 
-from plain.models.shell_data import InputBarState, PaneEntry
+from plain.models.shell_data import CurrentSummaryState, InputBarState, PaneEntry
 
 from .input_bar import InputBar
+from .summary_bar import SummaryBar
 
 
 class SidePane(Vertical):
@@ -87,6 +88,7 @@ class MainPane(Vertical):
         self,
         title: str,
         entries: Sequence[PaneEntry],
+        summary: CurrentSummaryState,
         cursor_index: int | None = None,
         context_input: InputBarState | None = None,
         *,
@@ -96,6 +98,7 @@ class MainPane(Vertical):
         super().__init__(id=id, classes=classes)
         self._title = title
         self._entries = tuple(entries)
+        self._summary = summary
         self._cursor_index = cursor_index
         self._context_input = context_input
 
@@ -110,8 +113,15 @@ class MainPane(Vertical):
 
         return f"{self.id}-context-input" if self.id else None
 
+    @property
+    def summary_id(self) -> str | None:
+        """Return the derived summary widget identifier for tests and styling."""
+
+        return f"{self.id}-summary-bar" if self.id else None
+
     def compose(self) -> ComposeResult:
         yield Label(self._title, classes="pane-title")
+        yield SummaryBar(self._summary, id=self.summary_id, classes="pane-summary")
         yield InputBar(self._context_input, id=self.context_input_id, classes="pane-context-input")
         yield DataTable(id=self.table_id, classes="pane-table")
 
@@ -157,6 +167,15 @@ class MainPane(Vertical):
 
         self._context_input = state
         self.query_one(InputBar).set_state(state)
+
+    def set_summary(self, state: CurrentSummaryState) -> None:
+        """Update the summary line without remounting the pane."""
+
+        if state == self._summary:
+            return
+
+        self._summary = state
+        self.query_one(SummaryBar).set_state(state)
 
     def _sync_cursor(self, table: DataTable) -> None:
         if not self._entries or self._cursor_index is None:

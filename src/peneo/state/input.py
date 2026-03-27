@@ -111,14 +111,15 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
     cursor_entry = _current_entry(state)
     target_paths = select_target_paths(state)
     filter_is_active = state.filter.active and bool(state.filter.query)
+    command = BROWSING_KEYMAP.get(key)
 
-    if key == "up":
+    if command == "cursor_up":
         return _supported(MoveCursor(delta=-1, visible_paths=visible_paths))
 
-    if key == "down":
+    if command == "cursor_down":
         return _supported(MoveCursor(delta=1, visible_paths=visible_paths))
 
-    if key == "space" and state.current_pane.cursor_path is not None:
+    if command == "toggle_selection" and state.current_pane.cursor_path is not None:
         return _supported(
             ToggleSelectionAndAdvance(
                 path=state.current_pane.cursor_path,
@@ -126,43 +127,43 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
             )
         )
 
-    if key == "escape":
+    if command == "clear_selection":
         if filter_is_active:
             return _supported(CancelFilterInput())
         return _supported(ClearSelection())
 
-    if key == "/":
+    if command == "begin_filter":
         return _supported(BeginFilterInput())
 
-    if key == "y":
+    if command == "copy_targets":
         return _supported(CopyTargets(target_paths))
 
-    if key == "x":
+    if command == "cut_targets":
         return _supported(CutTargets(target_paths))
 
-    if key == "p":
+    if command == "paste_clipboard":
         return _supported(PasteClipboard())
 
-    if key in {"left", "backspace"}:
+    if command == "go_to_parent":
         return _supported(GoToParentDirectory())
 
-    if key == "f5":
+    if command == "reload_directory":
         return _supported(ReloadDirectory())
 
-    if key == "f2":
+    if command == "begin_rename":
         if not target_paths:
             return _warn("Nothing to rename")
         if len(target_paths) != 1:
             return _warn("Rename requires a single target")
         return _supported(BeginRenameInput(target_paths[0]))
 
-    if key == ":":
+    if command == "begin_command_palette":
         return _supported(BeginCommandPalette())
 
-    if key == "s":
+    if command == "cycle_sort":
         return _supported(_next_sort_action(state))
 
-    if key == "d":
+    if command == "toggle_directories_first":
         return _supported(
             SetSort(
                 field=state.sort.field,
@@ -171,17 +172,17 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
             )
         )
 
-    if key == "delete":
+    if command == "delete_targets":
         if not target_paths:
             return _warn("Nothing to delete")
         return _supported(BeginDeleteTargets(target_paths))
 
-    if key == "e":
+    if command == "open_in_editor":
         if cursor_entry is not None and cursor_entry.kind == "file":
             return _supported(OpenPathInEditor(cursor_entry.path))
         return _warn("Editor launch requires a file")
 
-    if key == "right":
+    if command == "enter_directory":
         if cursor_entry is not None and cursor_entry.kind == "dir":
             return _supported(EnterCursorDirectory())
         return ()

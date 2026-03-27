@@ -164,6 +164,36 @@ async def _wait_for_path(app, expected_path: str, timeout: float = 0.5) -> None:
         await asyncio.sleep(0.01)
 
 
+async def _wait_for_cursor_path(app, expected_path: str, timeout: float = 0.5) -> None:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        if app.app_state.current_pane.cursor_path == expected_path:
+            return
+        if asyncio.get_running_loop().time() >= deadline:
+            raise AssertionError(f"cursor path did not become {expected_path}")
+        await asyncio.sleep(0.01)
+
+
+async def _wait_for_child_entries(
+    app,
+    expected_names: list[str],
+    timeout: float = 0.5,
+) -> None:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        try:
+            child_list = app.query_one("#child-pane-list", ListView)
+        except NoMatches:
+            child_list = None
+        if child_list is not None:
+            child_names = [str(item.query_one(Label).renderable) for item in child_list.children]
+            if child_names == expected_names:
+                return
+        if asyncio.get_running_loop().time() >= deadline:
+            raise AssertionError(f"child entries did not become {expected_names}")
+        await asyncio.sleep(0.01)
+
+
 async def _wait_for_external_launch_count(app, expected_count: int, timeout: float = 0.5) -> None:
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
@@ -1662,3 +1692,106 @@ async def test_app_delete_confirmation_round_trip() -> None:
         status_bar = await _wait_for_status_bar(app)
         assert app.app_state.ui_mode == "BROWSING"
         assert str(status_bar.renderable) == "info: Trashed 2 items"
+
+
+@pytest.mark.asyncio
+async def test_app_main_flow_round_trip_on_live_filesystem(tmp_path) -> None:
+    archive_dir = tmp_path / "archive"
+    archive_dir.mkdir()
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    (docs_dir / "guide.md").write_text("guide")
+    notes_file = tmp_path / "notes.txt"
+    notes_file.write_text("notes")
+    todo_file = tmp_path / "todo.txt"
+    todo_file.write_text("todo")
+
+    app = create_app(initial_path=tmp_path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, str(tmp_path))
+        await _wait_for_row_count(app, 4)
+
+        await pilot.press("down")
+        await _wait_for_cursor_path(app, str(docs_dir))
+        await _wait_for_child_entries(app, ["guide.md"])
+
+        await pilot.press("down")
+        await _wait_for_cursor_path(app, str(notes_file))
+
+        await pilot.press("space")
+        await _wait_for_cursor_path(app, str(todo_file))
+        assert app.app_state.current_pane.selected_paths == {str(notes_file)}
+
+        await pilot.press("y")
+        await asyncio.sleep(0.05)
+
+        assert app.app_state.clipboard.mode == "copy"
+        assert app.app_state.clipboard.paths == (str(notes_file),)
+
+        await pilot.press("up")
+        await pilot.press("up")
+        await _wait_for_cursor_path(app, str(docs_dir))
+
+        await pilot.press("enter")
+        await _wait_for_path(app, str(docs_dir))
+        await _wait_for_row_count(app, 1)
+
+        await pilot.press("p")
+        await _wait_for_row_count(app, 2, timeout=2.0)
+
+        status_bar = await _wait_for_status_bar(app)
+        assert (docs_dir / "notes.txt").is_file()
+        assert str(status_bar.renderable) == "info: Copied 1 item(s)"
+
+        await pilot.press("backspace")
+        await _wait_for_path(app, str(tmp_path))
+        await _wait_for_row_count(app, 4)
+
+        await pilot.press("/")
+        await pilot.press("n", "o", "t", "e", "s", "enter")
+        await _wait_for_row_count(app, 1)
+
+        assert app.app_state.filter.active is True
+        assert app.app_state.filter.query == "notes"
+
+        await pilot.press("escape")
+        await _wait_for_row_count(app, 4)
+        assert app.app_state.filter.active is False
+
+        await pilot.press("s")
+        await pilot.press("d")
+        await asyncio.sleep(0.05)
+
+        summary_bar = await _wait_for_summary_bar(app)
+        assert str(summary_bar.renderable) == (
+            "4 items | 0 selected | sort: name desc dirs:off"
+        )
+
+
+@pytest.mark.asyncio
+async def test_app_large_directory_smoke_with_1000_entries(tmp_path) -> None:
+    for index in range(200):
+        directory = tmp_path / f"dir-{index:04d}"
+        directory.mkdir()
+        (directory / f"child-{index:04d}.txt").write_text("child")
+
+    for index in range(800):
+        (tmp_path / f"file-{index:04d}.txt").write_text("file")
+
+    app = create_app(initial_path=tmp_path)
+
+    async with app.run_test(size=(80, 20)) as pilot:
+        await _wait_for_snapshot_loaded(app, str(tmp_path), timeout=2.0)
+        await _wait_for_row_count(app, 1000, timeout=2.0)
+        await _wait_for_child_entries(app, ["child-0000.txt"], timeout=2.0)
+
+        for _ in range(150):
+            await pilot.press("down")
+
+        await _wait_for_cursor_path(app, str(tmp_path / "dir-0150"), timeout=2.0)
+        await _wait_for_child_entries(app, ["child-0150.txt"], timeout=2.0)
+
+        current_table = app.query_one("#current-pane-table", DataTable)
+        assert current_table.row_count == 1000
+        assert current_table.cursor_row == 150

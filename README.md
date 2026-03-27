@@ -58,6 +58,22 @@ To launch directly from a local checkout during development, run this from the r
 uv run peneo
 ```
 
+If you want the last directory from Peneo to become your shell's current directory when you quit, you can optionally enable shell integration:
+
+```bash
+eval "$(peneo init bash)"
+# or
+eval "$(peneo init zsh)"
+```
+
+After that, launch the optional wrapper instead of `peneo`:
+
+```bash
+peneo-cd
+```
+
+This setup is optional. Normal usage with `peneo` or `uv run peneo` still works without any shell configuration.
+
 ## Basic Operations
 
 The main keys are listed below.
@@ -80,6 +96,7 @@ The main keys are listed below.
 | Normal | `/` | Start filter input |
 | Normal | `s` | Cycle the sort order |
 | Normal | `d` | Toggle directories-first ordering |
+| Normal | `q` | Quit the app |
 | Normal | `Esc` | Clear the active filter, otherwise clear the selection |
 | Normal | `:` | Open the command palette |
 | Filter input | Text input | Update the filter string |

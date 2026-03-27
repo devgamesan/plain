@@ -141,7 +141,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         return HelpBarState("processing...")
     return HelpBarState(
         "Right dir | Enter open | e edit | / filter | Space select | y copy | x cut | "
-        "p paste | "
+        "p paste | q quit | "
         "s sort | d dirs | F2 rename | : palette"
     )
 

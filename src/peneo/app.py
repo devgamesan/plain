@@ -41,6 +41,7 @@ from peneo.state import (
     ClipboardPasteFailed,
     ClipboardPasteNeedsResolution,
     Effect,
+    ExitCurrentPath,
     ExternalLaunchCompleted,
     ExternalLaunchFailed,
     FileMutationCompleted,
@@ -325,6 +326,9 @@ class PeneoApp(App[None]):
         effects: list[Effect] = []
 
         for action in actions:
+            if isinstance(action, ExitCurrentPath):
+                self.exit(result=state.current_path, return_code=action.return_code)
+                continue
             result: ReduceResult = reduce_app_state(state, action)
             next_state = result.state
             if next_state != state:

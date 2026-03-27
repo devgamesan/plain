@@ -951,9 +951,31 @@ async def test_app_displays_browsing_help_bar() -> None:
 
         assert str(help_bar.renderable) == (
             "Right dir | Enter open | e edit | / filter | Space select | y copy | x cut | "
-            "p paste | "
+            "p paste | q quit | "
             "s sort | d dirs | F2 rename | : palette"
         )
+
+
+@pytest.mark.asyncio
+async def test_app_pressing_q_exits_with_current_path() -> None:
+    path = "/tmp/peneo-quit"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("q")
+        await asyncio.sleep(0.05)
+
+    assert app.return_value == path
 
 
 @pytest.mark.asyncio

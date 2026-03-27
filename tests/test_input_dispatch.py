@@ -18,6 +18,7 @@ from peneo.state import (
     DeleteConfirmationState,
     DismissNameConflict,
     EnterCursorDirectory,
+    ExitCurrentPath,
     GoToParentDirectory,
     MoveCommandPaletteCursor,
     MoveCursor,
@@ -142,12 +143,32 @@ def test_browsing_slash_enters_filter_mode() -> None:
     assert actions == (SetNotification(None), BeginFilterInput())
 
 
+def test_browsing_q_dispatches_exit_current_path() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="q", character="q")
+
+    assert actions == (SetNotification(None), ExitCurrentPath())
+
+
 def test_browsing_ctrl_f_is_unbound() -> None:
     state = build_initial_app_state()
 
     actions = dispatch_key_input(state, key="ctrl+f")
 
     assert actions == ()
+
+
+def test_filter_q_updates_query_instead_of_exiting() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        ui_mode="FILTER",
+    )
+
+    actions = dispatch_key_input(state, key="q", character="q")
+
+    assert actions == (SetNotification(None), SetFilterQuery("q", active=True))
 
 
 def test_browsing_y_dispatches_copy_targets() -> None:

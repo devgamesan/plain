@@ -168,6 +168,13 @@ class ReloadDirectory:
 
 
 @dataclass(frozen=True)
+class ExitCurrentPath:
+    """Exit the application and return the current path."""
+
+    return_code: int = 0
+
+
+@dataclass(frozen=True)
 class OpenPathWithDefaultApp:
     """Open a file path with the OS default application."""
 
@@ -407,6 +414,7 @@ Action = (
     | EnterCursorDirectory
     | GoToParentDirectory
     | ReloadDirectory
+    | ExitCurrentPath
     | OpenPathWithDefaultApp
     | OpenPathInEditor
     | OpenTerminalAtPath

@@ -18,6 +18,7 @@ from .actions import (
     CutTargets,
     DismissNameConflict,
     EnterCursorDirectory,
+    ExitCurrentPath,
     GoToParentDirectory,
     MoveCommandPaletteCursor,
     MoveCursor,
@@ -52,6 +53,7 @@ BROWSING_KEYMAP = {
     "backspace": "go_to_parent",
     "h": "go_to_parent",
     "f5": "reload_directory",
+    "q": "exit_current_path",
     "f2": "begin_rename",
     ":": "begin_command_palette",
     "s": "cycle_sort",
@@ -159,6 +161,9 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
 
     if command == "begin_command_palette":
         return _supported(BeginCommandPalette())
+
+    if command == "exit_current_path":
+        return _supported(ExitCurrentPath())
 
     if command == "cycle_sort":
         return _supported(_next_sort_action(state))

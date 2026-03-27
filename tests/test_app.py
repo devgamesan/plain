@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import nullcontext
 from pathlib import Path
 
 import pytest
@@ -918,7 +919,7 @@ async def test_app_displays_browsing_help_bar() -> None:
         help_bar = app.query_one("#help-bar", HelpBar)
 
         assert str(help_bar.renderable) == (
-            "Enter open | / filter | Space select | y copy | x cut | p paste | "
+            "Enter open | e edit | / filter | Space select | y copy | x cut | p paste | "
             "s sort | d dirs | F2 rename | : palette"
         )
 
@@ -1117,6 +1118,81 @@ async def test_app_command_palette_open_terminal_launches_current_directory() ->
             ExternalLaunchRequest(kind="open_terminal", path=path)
         ]
         assert app.app_state.ui_mode == "BROWSING"
+
+
+@pytest.mark.asyncio
+async def test_app_pressing_e_launches_editor_for_file() -> None:
+    path = "/tmp/plain-open-editor"
+    launch_service = FakeExternalLaunchService()
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(
+        snapshot_loader=loader,
+        external_launch_service=launch_service,
+        initial_path=path,
+    )
+    app.suspend = nullcontext  # type: ignore[method-assign]
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("down")
+        await pilot.press("e")
+        await _wait_for_external_launch_count(app, 1)
+
+        assert launch_service.executed_requests == [
+            ExternalLaunchRequest(kind="open_editor", path=f"{path}/README.md")
+        ]
+        assert app.app_state.ui_mode == "BROWSING"
+
+
+@pytest.mark.asyncio
+async def test_app_pressing_e_refreshes_after_editor_returns() -> None:
+    path = "/tmp/plain-open-editor-refresh"
+    launch_service = FakeExternalLaunchService()
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(
+        snapshot_loader=loader,
+        external_launch_service=launch_service,
+        initial_path=path,
+    )
+    app.suspend = nullcontext  # type: ignore[method-assign]
+
+    refresh_calls: list[tuple[bool, bool, bool]] = []
+    original_refresh = app.refresh
+
+    def tracked_refresh(*, repaint: bool = True, layout: bool = False, recompose: bool = False):
+        refresh_calls.append((repaint, layout, recompose))
+        return original_refresh(repaint=repaint, layout=layout, recompose=recompose)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        app.refresh = tracked_refresh  # type: ignore[method-assign]
+        await pilot.press("down")
+        await pilot.press("e")
+        await _wait_for_external_launch_count(app, 1)
+
+        assert (True, True, False) in refresh_calls
 
 
 @pytest.mark.asyncio

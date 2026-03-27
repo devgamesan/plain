@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
-ExternalLaunchKind = Literal["open_file", "open_terminal", "copy_paths"]
+ExternalLaunchKind = Literal["open_file", "open_editor", "open_terminal", "copy_paths"]
 
 
 @dataclass(frozen=True)

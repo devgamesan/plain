@@ -49,6 +49,7 @@ from plain.state import (
     MoveCursor,
     NameConflictState,
     NotificationState,
+    OpenPathInEditor,
     OpenPathWithDefaultApp,
     OpenTerminalAtPath,
     PaneState,
@@ -275,6 +276,33 @@ def test_open_path_with_default_app_emits_external_launch_effect() -> None:
             request_id=1,
             request=ExternalLaunchRequest(
                 kind="open_file",
+                path="/home/tadashi/develop/plain/README.md",
+            ),
+        ),
+    )
+
+
+def test_open_path_in_editor_emits_external_launch_effect() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=replace(
+            build_initial_app_state().current_pane,
+            cursor_path="/home/tadashi/develop/plain/README.md",
+        ),
+    )
+
+    result = reduce_app_state(
+        state,
+        OpenPathInEditor("/home/tadashi/develop/plain/README.md"),
+    )
+
+    assert result.state.ui_mode == "BROWSING"
+    assert result.state.next_request_id == 2
+    assert result.effects == (
+        RunExternalLaunchEffect(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="open_editor",
                 path="/home/tadashi/develop/plain/README.md",
             ),
         ),

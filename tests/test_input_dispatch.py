@@ -23,6 +23,7 @@ from plain.state import (
     MoveCursor,
     NameConflictState,
     NotificationState,
+    OpenPathInEditor,
     OpenPathWithDefaultApp,
     PasteClipboard,
     PendingInputState,
@@ -166,6 +167,36 @@ def test_browsing_enter_on_file_dispatches_open_with_default_app() -> None:
     assert actions == (
         SetNotification(None),
         OpenPathWithDefaultApp("/home/tadashi/develop/plain/README.md"),
+    )
+
+
+def test_browsing_e_on_file_dispatches_open_in_editor() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        current_pane=replace(
+            state.current_pane,
+            cursor_path="/home/tadashi/develop/plain/README.md",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="e", character="e")
+
+    assert actions == (
+        SetNotification(None),
+        OpenPathInEditor("/home/tadashi/develop/plain/README.md"),
+    )
+
+
+def test_browsing_e_on_directory_warns() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="e", character="e")
+
+    assert actions == (
+        SetNotification(
+            NotificationState(level="warning", message="Editor launch requires a file")
+        ),
     )
 
 

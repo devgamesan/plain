@@ -18,6 +18,17 @@ class StubCommandRunner:
             raise OSError(f"{command[0]} failed")
 
 
+@dataclass
+class StubForegroundRunner:
+    executed: list[tuple[tuple[str, ...], str | None]] = field(default_factory=list)
+    failing_commands: set[str] = field(default_factory=set)
+
+    def __call__(self, command: tuple[str, ...], cwd: str | None) -> None:
+        self.executed.append((command, cwd))
+        if command[0] in self.failing_commands:
+            raise OSError(f"{command[0]} failed")
+
+
 def test_local_external_launch_adapter_uses_xdg_open_on_linux(tmp_path) -> None:
     readme = tmp_path / "README.md"
     readme.write_text("plain\n", encoding="utf-8")
@@ -31,6 +42,40 @@ def test_local_external_launch_adapter_uses_xdg_open_on_linux(tmp_path) -> None:
     adapter.open_with_default_app(str(readme))
 
     assert runner.executed == [(("xdg-open", str(readme.resolve())), None, None)]
+
+
+def test_local_external_launch_adapter_runs_terminal_editor_in_current_terminal(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("plain\n", encoding="utf-8")
+    runner = StubForegroundRunner()
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Linux",
+        command_available=lambda command: command if command == "nvim" else None,
+        foreground_command_runner=runner,
+        environment_variable=lambda name: "nvim -u NONE" if name == "EDITOR" else None,
+    )
+
+    adapter.open_in_editor(str(readme))
+
+    assert runner.executed == [
+        (("nvim", "-u", "NONE", str(readme.resolve())), str(tmp_path.resolve()))
+    ]
+
+
+def test_local_external_launch_adapter_ignores_gui_editor_environment_variable(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("plain\n", encoding="utf-8")
+    runner = StubForegroundRunner()
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Linux",
+        command_available=lambda command: command if command == "vim" else None,
+        foreground_command_runner=runner,
+        environment_variable=lambda name: "code" if name == "EDITOR" else None,
+    )
+
+    adapter.open_in_editor(str(readme))
+
+    assert runner.executed == [(("vim", str(readme.resolve())), str(tmp_path.resolve()))]
 
 
 def test_local_external_launch_adapter_falls_back_terminal_command_on_linux(tmp_path) -> None:
@@ -107,6 +152,23 @@ def test_live_external_launch_service_formats_open_error(tmp_path) -> None:
 
     with pytest.raises(OSError, match=f"Failed to open {missing.resolve()}: Not found: "):
         service.execute(ExternalLaunchRequest(kind="open_file", path=str(missing)))
+
+
+def test_live_external_launch_service_formats_editor_error(tmp_path) -> None:
+    missing = tmp_path / "missing.txt"
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Linux",
+        command_available=lambda command: command if command == "gedit" else None,
+        command_runner=StubCommandRunner(),
+        environment_variable=lambda name: None,
+    )
+    service = LiveExternalLaunchService(adapter=adapter)
+
+    with pytest.raises(
+        OSError,
+        match=f"Failed to open {missing.resolve()} in editor: Not found: ",
+    ):
+        service.execute(ExternalLaunchRequest(kind="open_editor", path=str(missing)))
 
 
 def test_live_external_launch_service_formats_terminal_error_for_file(tmp_path) -> None:

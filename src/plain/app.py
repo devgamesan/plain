@@ -1,11 +1,12 @@
 """Application assembly for Plain."""
 
 from collections.abc import Sequence
+from contextlib import nullcontext
 from functools import partial
 from pathlib import Path
 
 from textual import events
-from textual.app import App, ComposeResult
+from textual.app import App, ComposeResult, SuspendNotSupported
 from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.css.query import NoMatches
@@ -340,6 +341,8 @@ class PlainApp(App[None]):
             elif isinstance(effect, RunExternalLaunchEffect):
                 if effect.request.kind == "copy_paths":
                     self._schedule_system_clipboard_copy(effect)
+                elif effect.request.kind == "open_editor":
+                    self.call_next(self._run_foreground_external_launch, effect)
                 else:
                     self._schedule_external_launch(effect)
 
@@ -426,6 +429,51 @@ class PlainApp(App[None]):
             )
             return
 
+        self.call_next(
+            self.dispatch_actions,
+            (
+                ExternalLaunchCompleted(
+                    request_id=effect.request_id,
+                    request=effect.request,
+                ),
+            ),
+        )
+
+    def _run_foreground_external_launch(self, effect: RunExternalLaunchEffect) -> None:
+        suspend_context = nullcontext()
+        try:
+            suspend_context = self.suspend()
+        except SuspendNotSupported as error:
+            self.call_next(
+                self.dispatch_actions,
+                (
+                    ExternalLaunchFailed(
+                        request_id=effect.request_id,
+                        request=effect.request,
+                        message=str(error),
+                    ),
+                ),
+            )
+            return
+
+        try:
+            with suspend_context:
+                self._external_launch_service.execute(effect.request)
+        except OSError as error:
+            self.refresh(repaint=True, layout=True)
+            self.call_next(
+                self.dispatch_actions,
+                (
+                    ExternalLaunchFailed(
+                        request_id=effect.request_id,
+                        request=effect.request,
+                        message=str(error) or "Operation failed",
+                    ),
+                ),
+            )
+            return
+
+        self.refresh(repaint=True, layout=True)
         self.call_next(
             self.dispatch_actions,
             (

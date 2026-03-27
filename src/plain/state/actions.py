@@ -156,6 +156,13 @@ class OpenPathWithDefaultApp:
 
 
 @dataclass(frozen=True)
+class OpenPathInEditor:
+    """Open a file path with the configured editor."""
+
+    path: str
+
+
+@dataclass(frozen=True)
 class OpenTerminalAtPath:
     """Open a new terminal rooted at the supplied directory path."""
 
@@ -380,6 +387,7 @@ Action = (
     | GoToParentDirectory
     | ReloadDirectory
     | OpenPathWithDefaultApp
+    | OpenPathInEditor
     | OpenTerminalAtPath
     | ToggleSelection
     | ToggleSelectionAndAdvance

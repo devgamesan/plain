@@ -144,7 +144,7 @@ sequenceDiagram
 - `browser_snapshot.py`: 実 filesystem から 3 ペイン用 snapshot を構築
 - `clipboard_operations.py`: copy / cut / paste の実処理と競合検出を担当
 - `file_mutations.py`: rename / create / trash delete を担当
-- `external_launcher.py`: 既定アプリ起動、ターミナル起動、システムクリップボードへのパスコピーを担当
+- `external_launcher.py`: 既定アプリ起動、現在のターミナル内エディタ起動、ターミナル起動、システムクリップボードへのパスコピーを担当
 
 ### `src/plain/adapters/`
 
@@ -211,6 +211,7 @@ stateDiagram-v2
 - 新規ファイル / 新規ディレクトリ作成
 - ゴミ箱への削除と複数対象削除時の確認ダイアログ
 - ファイルの既定アプリ起動
+- ファイルの現在のターミナル内エディタ起動
 - コマンドパレットからの path copy、terminal 起動、hidden files 切り替え
 - status bar / help bar / input bar / conflict dialog の状態連動表示
 

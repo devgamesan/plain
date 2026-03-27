@@ -21,6 +21,7 @@ from .actions import (
     GoToParentDirectory,
     MoveCommandPaletteCursor,
     MoveCursor,
+    OpenPathInEditor,
     OpenPathWithDefaultApp,
     PasteClipboard,
     ReloadDirectory,
@@ -54,6 +55,7 @@ BROWSING_KEYMAP = {
     "s": "cycle_sort",
     "d": "toggle_directories_first",
     "delete": "delete_targets",
+    "e": "open_in_editor",
     "right": "enter_or_open",
     "enter": "enter_or_open",
     "y": "copy_targets",
@@ -170,6 +172,11 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
         if not target_paths:
             return _warn("Nothing to delete")
         return _supported(BeginDeleteTargets(target_paths))
+
+    if key == "e":
+        if cursor_entry is not None and cursor_entry.kind == "file":
+            return _supported(OpenPathInEditor(cursor_entry.path))
+        return _warn("Editor launch requires a file")
 
     if key in {"right", "enter"}:
         if cursor_entry is not None and cursor_entry.kind == "dir":

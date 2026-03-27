@@ -36,6 +36,14 @@ class LiveExternalLaunchService:
                 raise OSError(_format_open_error(path, str(error))) from error
             return
 
+        if request.kind == "open_editor":
+            path = _require_path(request)
+            try:
+                self.adapter.open_in_editor(path)
+            except OSError as error:
+                raise OSError(_format_editor_error(path, str(error))) from error
+            return
+
         path = _require_path(request)
         try:
             self.adapter.open_terminal(path)
@@ -62,6 +70,10 @@ class FakeExternalLaunchService:
 
 def _format_open_error(path: str, detail: str) -> str:
     return f"Failed to open {path}: {detail}"
+
+
+def _format_editor_error(path: str, detail: str) -> str:
+    return f"Failed to open {path} in editor: {detail}"
 
 
 def _format_terminal_error(path: str, detail: str) -> str:

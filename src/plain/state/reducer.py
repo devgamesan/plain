@@ -47,6 +47,7 @@ from .actions import (
     InitializeState,
     MoveCommandPaletteCursor,
     MoveCursor,
+    OpenPathInEditor,
     OpenPathWithDefaultApp,
     OpenTerminalAtPath,
     PasteClipboard,
@@ -433,6 +434,15 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
         return _run_external_launch_request(
             replace(state, notification=None),
             ExternalLaunchRequest(kind="open_file", path=entry.path),
+        )
+
+    if isinstance(action, OpenPathInEditor):
+        entry = _current_entry_for_path(state, action.path)
+        if entry is None or entry.kind != "file":
+            return done(state)
+        return _run_external_launch_request(
+            replace(state, notification=None),
+            ExternalLaunchRequest(kind="open_editor", path=entry.path),
         )
 
     if isinstance(action, OpenTerminalAtPath):

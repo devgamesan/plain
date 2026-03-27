@@ -134,9 +134,14 @@ class PeneoApp(App[None]):
     }
 
     #current-path-bar,
-    #help-bar,
     #status-bar {
         height: 1;
+        padding: 0 1;
+    }
+
+    #help-bar {
+        height: auto;
+        min-height: 1;
         padding: 0 1;
     }
 

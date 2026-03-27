@@ -397,10 +397,13 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
 
     help_state = select_help_bar_state(state)
 
+    assert help_state.lines == (
+        "Enter open | e edit | / filter | : palette | q quit",
+        "Space select | y copy | x cut | p paste | s sort | d dirs | F2 rename",
+    )
     assert help_state.text == (
-        "Right dir | Enter open | e edit | / filter | Space select | y copy | x cut | "
-        "p paste | q quit | "
-        "s sort | d dirs | F2 rename | : palette"
+        "Enter open | e edit | / filter | : palette | q quit\n"
+        "Space select | y copy | x cut | p paste | s sort | d dirs | F2 rename"
     )
 
 

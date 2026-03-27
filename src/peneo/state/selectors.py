@@ -136,32 +136,33 @@ def select_status_bar_state(state: AppState) -> StatusBarState:
 
 
 def select_help_bar_state(state: AppState) -> HelpBarState:
-    """Return the single-line help content for the active mode."""
+    """Return the help content for the active mode."""
 
     if state.ui_mode == "CONFIRM":
         if state.delete_confirmation is not None:
-            return HelpBarState("enter confirm delete | esc cancel")
+            return HelpBarState(("enter confirm delete | esc cancel",))
         if state.name_conflict is not None:
-            return HelpBarState("enter return to input | esc return to input")
-        return HelpBarState("resolve conflict in dialog")
+            return HelpBarState(("enter return to input | esc return to input",))
+        return HelpBarState(("resolve conflict in dialog",))
     if state.ui_mode == "DETAIL":
-        return HelpBarState("enter close | esc close")
+        return HelpBarState(("enter close | esc close",))
     if state.ui_mode == "FILTER":
-        return HelpBarState("type filter | enter/down apply | esc clear")
+        return HelpBarState(("type filter | enter/down apply | esc clear",))
     if state.ui_mode == "RENAME":
-        return HelpBarState("type name | enter apply | esc cancel")
+        return HelpBarState(("type name | enter apply | esc cancel",))
     if state.ui_mode == "CREATE":
-        return HelpBarState("type name | enter apply | esc cancel")
+        return HelpBarState(("type name | enter apply | esc cancel",))
     if state.ui_mode == "PALETTE":
         if state.command_palette is not None and state.command_palette.source == "file_search":
-            return HelpBarState("type filename | enter jump | esc cancel")
-        return HelpBarState("type command | enter run | esc cancel")
+            return HelpBarState(("type filename | enter jump | esc cancel",))
+        return HelpBarState(("type command | enter run | esc cancel",))
     if state.ui_mode == "BUSY":
-        return HelpBarState("processing...")
+        return HelpBarState(("processing...",))
     return HelpBarState(
-        "Right dir | Enter open | e edit | / filter | Space select | y copy | x cut | "
-        "p paste | q quit | "
-        "s sort | d dirs | F2 rename | : palette"
+        (
+            "Enter open | e edit | / filter | : palette | q quit",
+            "Space select | y copy | x cut | p paste | s sort | d dirs | F2 rename",
+        )
     )
 
 

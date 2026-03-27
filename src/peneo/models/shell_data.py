@@ -51,9 +51,15 @@ class StatusBarState:
 
 @dataclass(frozen=True)
 class HelpBarState:
-    """A single-line help summary rendered above the status bar."""
+    """Compact help summary rendered above the status bar."""
 
-    text: str
+    lines: tuple[str, ...]
+
+    @property
+    def text(self) -> str:
+        """Return the rendered help content."""
+
+        return "\n".join(self.lines)
 
 
 @dataclass(frozen=True)
@@ -154,8 +160,10 @@ def build_dummy_shell_data() -> ThreePaneShellData:
         ),
         current_context_input=None,
         help=HelpBarState(
-            "Right dir | Enter open | e edit | / filter | Space select | y copy | x cut | "
-            "p paste | s sort | d dirs | F2 rename | : palette"
+            (
+                "Enter open | e edit | / filter | : palette | q quit",
+                "Space select | y copy | x cut | p paste | s sort | d dirs | F2 rename",
+            )
         ),
         command_palette=None,
         status=StatusBarState(message=None, message_level=None),

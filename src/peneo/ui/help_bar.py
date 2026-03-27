@@ -1,4 +1,4 @@
-"""One-line help widget."""
+"""Help widget shown above the status bar."""
 
 from textual.widgets import Static
 
@@ -6,7 +6,7 @@ from peneo.models import HelpBarState
 
 
 class HelpBar(Static):
-    """Compact help line shown above the status bar."""
+    """Compact help text shown above the status bar."""
 
     def __init__(
         self,

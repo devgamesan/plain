@@ -43,11 +43,14 @@ DispatchedActions = tuple[Action, ...]
 BROWSING_KEYMAP = {
     "up": "cursor_up",
     "down": "cursor_down",
+    "k": "cursor_up",
+    "j": "cursor_down",
     "space": "toggle_selection",
     "escape": "clear_selection",
     "/": "begin_filter",
     "left": "go_to_parent",
     "backspace": "go_to_parent",
+    "h": "go_to_parent",
     "f5": "reload_directory",
     "f2": "begin_rename",
     ":": "begin_command_palette",
@@ -56,6 +59,7 @@ BROWSING_KEYMAP = {
     "delete": "delete_targets",
     "e": "open_in_editor",
     "right": "enter_directory",
+    "l": "enter_directory",
     "enter": "enter_or_open",
     "y": "copy_targets",
     "x": "cut_targets",
@@ -201,10 +205,10 @@ def _dispatch_command_palette_input(
     if key == "escape":
         return _supported(CancelCommandPalette())
 
-    if key == "up":
+    if key in {"up", "k"}:
         return _supported(MoveCommandPaletteCursor(delta=-1))
 
-    if key == "down":
+    if key in {"down", "j"}:
         return _supported(MoveCommandPaletteCursor(delta=1))
 
     if key == "enter":

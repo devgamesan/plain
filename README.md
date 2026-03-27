@@ -64,9 +64,10 @@ The main keys are listed below.
 
 | State | Key | Behavior |
 | --- | --- | --- |
-| Normal | `↑` / `↓` | Move the cursor |
-| Normal | `←` / `Backspace` | Move to the parent directory |
-| Normal | `→` | Enter the item if it is a directory |
+| Normal | `↑` / `k` | Move the cursor |
+| Normal | `↓` / `j` | Move the cursor |
+| Normal | `←` / `h` / `Backspace` | Move to the parent directory |
+| Normal | `→` / `l` | Enter the item if it is a directory |
 | Normal | `Enter` | Enter a directory, or open a file with the default app |
 | Normal | `e` | Open the focused file in the editor inside the current terminal |
 | Normal | `F5` | Reload the current directory |
@@ -85,7 +86,7 @@ The main keys are listed below.
 | Filter input | `Backspace` | Delete one character |
 | Filter input | `Enter` / `↓` | Apply the filter and return to list navigation |
 | Filter input | `Esc` | Clear the filter |
-| Command palette | Text input / `↑` / `↓` / `Enter` / `Esc` | Filter, move, run, or cancel commands |
+| Command palette | Text input / `↑` / `↓` / `k` / `j` / `Enter` / `Esc` | Filter, move, run, or cancel commands |
 | Name input | Text input / `Backspace` / `Enter` / `Esc` | Edit, confirm, or cancel rename/create input |
 | Confirmation dialog | `Enter` / `Esc` | Confirm or cancel delete |
 | Confirmation dialog | `o` / `s` / `r` / `Esc` | Resolve a paste conflict with overwrite / skip / rename / cancel |

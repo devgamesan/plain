@@ -60,6 +60,42 @@ def test_browsing_down_dispatches_move_cursor() -> None:
     )
 
 
+def test_browsing_j_dispatches_move_cursor() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="j", character="j")
+
+    assert actions[0] == SetNotification(None)
+    assert actions[1] == MoveCursor(
+        delta=1,
+        visible_paths=(
+            "/home/tadashi/develop/peneo/docs",
+            "/home/tadashi/develop/peneo/src",
+            "/home/tadashi/develop/peneo/tests",
+            "/home/tadashi/develop/peneo/pyproject.toml",
+            "/home/tadashi/develop/peneo/README.md",
+        ),
+    )
+
+
+def test_browsing_k_dispatches_move_cursor() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="k", character="k")
+
+    assert actions[0] == SetNotification(None)
+    assert actions[1] == MoveCursor(
+        delta=-1,
+        visible_paths=(
+            "/home/tadashi/develop/peneo/docs",
+            "/home/tadashi/develop/peneo/src",
+            "/home/tadashi/develop/peneo/tests",
+            "/home/tadashi/develop/peneo/pyproject.toml",
+            "/home/tadashi/develop/peneo/README.md",
+        ),
+    )
+
+
 def test_browsing_space_toggles_selection_and_advances_cursor() -> None:
     state = build_initial_app_state()
 
@@ -144,10 +180,26 @@ def test_browsing_p_dispatches_paste_clipboard() -> None:
     assert actions == (SetNotification(None), PasteClipboard())
 
 
+def test_browsing_h_goes_to_parent_directory() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="h", character="h")
+
+    assert actions == (SetNotification(None), GoToParentDirectory())
+
+
 def test_browsing_right_enters_directory() -> None:
     state = build_initial_app_state()
 
     actions = dispatch_key_input(state, key="right")
+
+    assert actions == (SetNotification(None), EnterCursorDirectory())
+
+
+def test_browsing_l_enters_directory() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="l", character="l")
 
     assert actions == (SetNotification(None), EnterCursorDirectory())
 

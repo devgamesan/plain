@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python with uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run tests
+        run: uv run pytest
+
+      - name: Build source distribution
+        run: |
+          uv build --sdist --out-dir dist
+
+      - name: Build wheel
+        run: |
+          uv build --wheel --out-dir dist
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Verify version consistency
+        run: |
+          TAG_VERSION=${{ steps.version.outputs.version }}
+          PY_VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml'))['project']['version'])")
+          if [ "$TAG_VERSION" != "$PY_VERSION" ]; then
+            echo "Error: Tag version ($TAG_VERSION) does not match pyproject.toml version ($PY_VERSION)"
+            exit 1
+          fi
+
+      - name: Generate release notes
+        run: |
+          cat << 'EOF' > release_notes.md
+          ## Plain ${{ steps.version.outputs.version }}
+
+          Plain は、GUI のエクスプローラーに近い感覚で使える Textual ベースの TUI ファイルマネージャです。
+
+          ### インストール方法
+
+          \`\`\`bash
+          uv tool install plain==${{ steps.version.outputs.version }}
+          \`\`\`
+
+          または:
+
+          \`\`\`bash
+          pip install plain==${{ steps.version.outputs.version }}
+          \`\`\`
+
+          ### 変更点
+
+          詳細は [CHANGELOG.md](https://github.com/devgamesan/plain/blob/main/CHANGELOG.md) をご確認ください。
+          EOF
+          cat release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Plain ${{ steps.version.outputs.version }}
+          body_path: release_notes.md
+          files: |
+            dist/*
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true

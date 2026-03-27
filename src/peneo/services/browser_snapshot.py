@@ -41,7 +41,7 @@ class LiveBrowserSnapshotLoader:
         path: str,
         cursor_path: str | None = None,
     ) -> BrowserSnapshot:
-        resolved_path = str(Path(path).expanduser().resolve())
+        resolved_path = _resolve_path(path)
         current_entries = self._list_directory(resolved_path)
         resolved_cursor_path = _resolve_cursor_path(current_entries, cursor_path)
 
@@ -63,7 +63,11 @@ class LiveBrowserSnapshotLoader:
                 entries=current_entries,
                 cursor_path=resolved_cursor_path,
             ),
-            child_pane=self.load_child_pane_snapshot(resolved_path, resolved_cursor_path),
+            child_pane=self._build_child_pane_snapshot(
+                resolved_path,
+                current_entries,
+                resolved_cursor_path,
+            ),
         )
 
     def load_child_pane_snapshot(
@@ -71,15 +75,35 @@ class LiveBrowserSnapshotLoader:
         current_path: str,
         cursor_path: str | None,
     ) -> PaneState:
+        resolved_current_path = _resolve_path(current_path)
         if cursor_path is None:
-            return PaneState(directory_path=current_path, entries=())
+            return PaneState(directory_path=resolved_current_path, entries=())
 
-        child_path = Path(cursor_path).expanduser().resolve()
+        child_path = Path(_resolve_path(cursor_path))
         if not child_path.is_dir():
-            return PaneState(directory_path=current_path, entries=())
+            return PaneState(directory_path=resolved_current_path, entries=())
 
         child_entries = self._list_directory(str(child_path))
         return PaneState(directory_path=str(child_path), entries=child_entries)
+
+    def _build_child_pane_snapshot(
+        self,
+        current_path: str,
+        current_entries,
+        cursor_path: str | None,
+    ) -> PaneState:
+        if cursor_path is None:
+            return PaneState(directory_path=current_path, entries=())
+
+        cursor_entry = next(
+            (entry for entry in current_entries if entry.path == cursor_path),
+            None,
+        )
+        if cursor_entry is None or cursor_entry.kind != "dir":
+            return PaneState(directory_path=current_path, entries=())
+
+        child_entries = self._list_directory(cursor_path)
+        return PaneState(directory_path=cursor_path, entries=child_entries)
 
     def _list_directory(self, path: str):
         try:
@@ -105,6 +129,7 @@ class FakeBrowserSnapshotLoader:
     default_delay_seconds: float = 0.0
     per_path_delay_seconds: Mapping[str, float] = field(default_factory=dict)
     child_delay_seconds: Mapping[tuple[str, str | None], float] = field(default_factory=dict)
+    loaded_child_requests: list[tuple[str, str | None]] = field(default_factory=list)
 
     def load_browser_snapshot(
         self,
@@ -130,6 +155,7 @@ class FakeBrowserSnapshotLoader:
         cursor_path: str | None,
     ) -> PaneState:
         key = (current_path, cursor_path)
+        self.loaded_child_requests.append(key)
         delay = self.child_delay_seconds.get(key, self.default_delay_seconds)
         if delay > 0:
             sleep(delay)
@@ -189,7 +215,7 @@ def _build_fallback_snapshot(path: str, cursor_path: str | None) -> BrowserSnaps
             )
         return snapshot_from_app_state(state)
 
-    resolved_path = str(Path(path).expanduser().resolve())
+    resolved_path = _resolve_path(path)
     parent_path = str(Path(resolved_path).parent)
     return BrowserSnapshot(
         current_path=resolved_path,
@@ -209,3 +235,7 @@ def _resolve_cursor_path(entries, cursor_path: str | None) -> str | None:
 
 def _contains_path(entries, path: str) -> bool:
     return any(entry.path == path for entry in entries)
+
+
+def _resolve_path(path: str) -> str:
+    return str(Path(path).expanduser().resolve())

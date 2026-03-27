@@ -195,6 +195,19 @@ async def _wait_for_child_entries(
         await asyncio.sleep(0.01)
 
 
+async def _wait_for_child_pane_idle(app, timeout: float = 0.5) -> None:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        if (
+            app.app_state.pending_child_pane_request_id is None
+            and getattr(app, "_child_pane_timer", None) is None
+        ):
+            return
+        if asyncio.get_running_loop().time() >= deadline:
+            raise AssertionError("child pane did not become idle")
+        await asyncio.sleep(0.01)
+
+
 async def _wait_for_external_launch_count(app, expected_count: int, timeout: float = 0.5) -> None:
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
@@ -986,6 +999,88 @@ async def test_app_child_snapshot_failure_shows_error() -> None:
         assert str(current_path_bar.renderable) == f"Current Path: {path}"
         assert str(summary_bar.renderable) == "2 items | 0 selected | sort: name asc dirs:on"
         assert str(status_bar.renderable) == "error: permission denied"
+
+
+@pytest.mark.asyncio
+async def test_app_child_pane_debounce_keeps_only_latest_directory_request() -> None:
+    path = "/tmp/peneo-child-debounce"
+    docs = f"{path}/docs"
+    src = f"{path}/src"
+    current_entries = (
+        DirectoryEntryState(docs, "docs", "dir"),
+        DirectoryEntryState(src, "src", "dir"),
+    )
+    docs_entries = (DirectoryEntryState(f"{docs}/spec.md", "spec.md", "file"),)
+    src_entries = (DirectoryEntryState(f"{src}/main.py", "main.py", "file"),)
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                current_entries,
+                child_path=docs,
+                child_entries=docs_entries,
+            )
+        },
+        child_panes={
+            (path, docs): PaneState(directory_path=docs, entries=docs_entries),
+            (path, src): PaneState(directory_path=src, entries=src_entries),
+        },
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+    app.CHILD_PANE_DEBOUNCE_SECONDS = 0.2
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 2)
+        await pilot.press("down", "up")
+
+        await _wait_for_child_pane_idle(app)
+
+        assert loader.loaded_child_requests == [(path, docs)]
+        await _wait_for_child_entries(app, ["spec.md"])
+
+
+@pytest.mark.asyncio
+async def test_app_file_cursor_cancels_pending_child_pane_debounce() -> None:
+    path = "/tmp/peneo-child-file-cancel"
+    docs = f"{path}/docs"
+    src = f"{path}/src"
+    readme = f"{path}/README.md"
+    current_entries = (
+        DirectoryEntryState(docs, "docs", "dir"),
+        DirectoryEntryState(src, "src", "dir"),
+        DirectoryEntryState(readme, "README.md", "file", size_bytes=120),
+    )
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                current_entries,
+                child_path=docs,
+                child_entries=(DirectoryEntryState(f"{docs}/spec.md", "spec.md", "file"),),
+            )
+        },
+        child_panes={
+            (path, src): PaneState(
+                directory_path=src,
+                entries=(DirectoryEntryState(f"{src}/main.py", "main.py", "file"),),
+            )
+        },
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+    app.CHILD_PANE_DEBOUNCE_SECONDS = 0.2
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 3)
+        await pilot.press("down", "down")
+
+        await _wait_for_child_pane_idle(app)
+
+        assert app.app_state.current_pane.cursor_path == readme
+        assert loader.loaded_child_requests == []
+        child_list = app.query_one("#child-pane-list", ListView)
+        assert list(child_list.children) == []
 
 
 @pytest.mark.asyncio

@@ -10,6 +10,7 @@ from textual.app import App, ComposeResult, SuspendNotSupported
 from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.css.query import NoMatches
+from textual.timer import Timer
 from textual.worker import Worker, WorkerState
 
 from peneo.models import (
@@ -75,6 +76,8 @@ from peneo.ui import (
 
 class PeneoApp(App[None]):
     """Three-pane shell with reducer-driven file operations."""
+
+    CHILD_PANE_DEBOUNCE_SECONDS = 0.03
 
     TITLE = "Peneo"
     SUB_TITLE = "Three-pane shell"
@@ -229,6 +232,8 @@ class PeneoApp(App[None]):
         self._external_launch_service = external_launch_service or LiveExternalLaunchService()
         self._file_search_service = file_search_service or LiveFileSearchService()
         self._pending_workers: dict[str, Effect] = {}
+        self._pending_child_pane_effect: LoadChildPaneSnapshotEffect | None = None
+        self._child_pane_timer: Timer | None = None
 
     @property
     def app_state(self) -> AppState:
@@ -316,6 +321,8 @@ class PeneoApp(App[None]):
         """Apply reducer actions, refresh the UI, and schedule any effects."""
 
         changed, effects = self._apply_actions(actions)
+        if self._app_state.pending_child_pane_request_id is None:
+            self._cancel_pending_child_pane_snapshot()
         if changed:
             await self._refresh_shell()
         self._schedule_effects(effects)
@@ -376,6 +383,21 @@ class PeneoApp(App[None]):
         self._pending_workers[worker.name] = effect
 
     def _schedule_child_pane_snapshot(self, effect: LoadChildPaneSnapshotEffect) -> None:
+        self._cancel_pending_child_pane_snapshot()
+        self._pending_child_pane_effect = effect
+        self._child_pane_timer = self.set_timer(
+            self.CHILD_PANE_DEBOUNCE_SECONDS,
+            self._flush_child_pane_snapshot,
+            name="child-pane-snapshot-debounce",
+        )
+
+    def _flush_child_pane_snapshot(self) -> None:
+        effect = self._pending_child_pane_effect
+        self._pending_child_pane_effect = None
+        self._child_pane_timer = None
+        if effect is None:
+            return
+
         worker = self.run_worker(
             partial(
                 self._snapshot_loader.load_child_pane_snapshot,
@@ -390,6 +412,12 @@ class PeneoApp(App[None]):
             thread=True,
         )
         self._pending_workers[worker.name] = effect
+
+    def _cancel_pending_child_pane_snapshot(self) -> None:
+        self._pending_child_pane_effect = None
+        if self._child_pane_timer is not None:
+            self._child_pane_timer.stop()
+            self._child_pane_timer = None
 
     def _schedule_clipboard_paste(self, effect: RunClipboardPasteEffect) -> None:
         worker = self.run_worker(

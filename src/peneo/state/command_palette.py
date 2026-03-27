@@ -91,6 +91,14 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 enabled=True,
             )
         )
+    items.append(
+        CommandPaletteItem(
+            id="open_file_manager",
+            label="Open in file manager",
+            shortcut=None,
+            enabled=True,
+        )
+    )
 
     items.append(
         CommandPaletteItem(

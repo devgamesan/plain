@@ -375,6 +375,8 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
                 next_state,
                 ExternalLaunchRequest(kind="copy_paths", paths=target_paths),
             )
+        if selected_item.id == "open_file_manager":
+            return reduce_app_state(next_state, OpenPathWithDefaultApp(next_state.current_path))
         if selected_item.id == "toggle_hidden":
             return reduce_app_state(next_state, ToggleHiddenFiles())
         if selected_item.id == "open_terminal":
@@ -501,12 +503,9 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
         )
 
     if isinstance(action, OpenPathWithDefaultApp):
-        entry = _current_entry_for_path(state, action.path)
-        if entry is None or entry.kind != "file":
-            return done(state)
         return _run_external_launch_request(
             replace(state, notification=None),
-            ExternalLaunchRequest(kind="open_file", path=entry.path),
+            ExternalLaunchRequest(kind="open_file", path=action.path),
         )
 
     if isinstance(action, OpenPathInEditor):

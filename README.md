@@ -29,6 +29,7 @@ _Current three-pane UI showing the parent, current, and child directories side b
 - Switch sorting by name / modified time / size
 - Toggle directories-first ordering
 - Copy paths to the system clipboard
+- Open the current directory in the OS file manager
 - Launch a terminal in the current directory
 - Toggle hidden-file visibility
 - Open files with the OS default app
@@ -117,6 +118,7 @@ The currently available commands are:
 - `Create directory`
 - `Find file`
 - `Copy path`
+- `Open in file manager`
 - `Open terminal here`
 - `Show hidden files` / `Hide hidden files`
 

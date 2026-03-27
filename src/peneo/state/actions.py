@@ -176,7 +176,7 @@ class ExitCurrentPath:
 
 @dataclass(frozen=True)
 class OpenPathWithDefaultApp:
-    """Open a file path with the OS default application."""
+    """Open a filesystem path with the OS default application."""
 
     path: str
 

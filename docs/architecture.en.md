@@ -136,7 +136,7 @@ sequenceDiagram
 ### `src/peneo/state/command_palette.py`
 
 - Builds command palette candidates and filters them by query
-- The current palette includes `Create file`, `Create directory`, `Copy path`, `Show/Hide hidden files`, and `Open terminal here`
+- The current palette includes `Create file`, `Create directory`, `Find file`, `Copy path`, `Open in file manager`, `Show/Hide hidden files`, and `Open terminal here`
 - `Run shell command` may appear as a candidate, but it is still a placeholder with `enabled=False`
 
 ### `src/peneo/services/`

@@ -154,7 +154,7 @@ class PeneoApp(App[None]):
         display: none;
         height: auto;
         min-height: 4;
-        max-height: 12;
+        max-height: 13;
         margin: 0 2;
         padding: 0 1;
         border: round $accent;

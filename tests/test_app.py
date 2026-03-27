@@ -1263,6 +1263,41 @@ async def test_app_command_palette_open_terminal_launches_current_directory() ->
 
 
 @pytest.mark.asyncio
+async def test_app_command_palette_open_in_file_manager_launches_current_directory() -> None:
+    path = "/tmp/peneo-open-file-manager"
+    launch_service = FakeExternalLaunchService()
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(
+        snapshot_loader=loader,
+        external_launch_service=launch_service,
+        initial_path=path,
+    )
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await pilot.press("m", "a", "n", "a", "g", "e", "r")
+        await pilot.press("enter")
+        await _wait_for_external_launch_count(app, 1)
+
+        assert launch_service.executed_requests == [
+            ExternalLaunchRequest(kind="open_file", path=path)
+        ]
+        assert app.app_state.ui_mode == "BROWSING"
+
+
+@pytest.mark.asyncio
 async def test_app_pressing_e_launches_editor_for_file() -> None:
     path = "/tmp/peneo-open-editor"
     launch_service = FakeExternalLaunchService()

@@ -136,7 +136,7 @@ sequenceDiagram
 ### `src/peneo/state/command_palette.py`
 
 - コマンドパレット候補の構築と query フィルタリングを担当する
-- 現在の palette には `Create file`、`Create directory`、`Find file`、`Copy path`、`Show/Hide hidden files`、`Open terminal here` がある
+- 現在の palette には `Create file`、`Create directory`、`Find file`、`Copy path`、`Open in file manager`、`Show/Hide hidden files`、`Open terminal here` がある
 - `Find file` 選択後は palette をファイル検索モードに切り替え、現在ディレクトリ以下を再帰検索した結果を同じ UI で表示する
 - `Run shell command` は候補として見える場合があるが、現時点では `enabled=False` のプレースホルダ
 
@@ -215,7 +215,7 @@ stateDiagram-v2
 - ゴミ箱への削除と複数対象削除時の確認ダイアログ
 - ファイルの既定アプリ起動
 - ファイルの現在のターミナル内エディタ起動
-- コマンドパレットからの path copy、terminal 起動、hidden files 切り替え
+- コマンドパレットからの path copy、既定ファイラー起動、terminal 起動、hidden files 切り替え
 - status bar / help bar / input bar / conflict dialog の状態連動表示
 
 ## 7. 現時点で未接続または未実装の範囲

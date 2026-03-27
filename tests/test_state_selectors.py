@@ -377,7 +377,7 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
 
     assert help_state.text == (
         "Right dir | Enter open | e edit | / filter | Space select | y copy | x cut | "
-        "p paste | "
+        "p paste | q quit | "
         "s sort | d dirs | F2 rename | : palette"
     )
 
@@ -403,6 +403,9 @@ def test_select_command_palette_state_marks_selected_and_enabled_items() -> None
     ]
     assert palette_state.items[0].selected is True
     assert palette_state.items[2].enabled is True
+    assert any(
+        item.label == "Open in file manager" and item.enabled for item in palette_state.items
+    )
     assert any(item.label == "Open terminal here" and item.enabled for item in palette_state.items)
 
 
@@ -436,7 +439,6 @@ def test_select_command_palette_state_uses_hidden_toggle_label_from_state() -> N
 
     assert visible_palette_state is not None
     assert [item.label for item in visible_palette_state.items] == ["Hide hidden files"]
-
 
 def test_select_command_palette_state_for_file_search_results() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())

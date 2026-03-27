@@ -14,10 +14,15 @@ from peneo.models import (
     ThreePaneShellData,
 )
 
-from .command_palette import get_command_palette_items, normalize_command_palette_cursor
+from .command_palette import (
+    CommandPaletteItem,
+    get_command_palette_items,
+    normalize_command_palette_cursor,
+)
 from .models import AppState, DirectoryEntryState, FileSearchResultState, SortState
 
 SIDE_PANE_SORT = SortState(field="name", descending=False, directories_first=True)
+COMMAND_PALETTE_VISIBLE_WINDOW = 8
 FILE_SEARCH_VISIBLE_WINDOW = 8
 
 
@@ -203,8 +208,9 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
         )
 
     items = get_command_palette_items(state)
+    visible_items, title = _select_command_palette_window(items, cursor_index)
     return CommandPaletteViewState(
-        title="Command Palette",
+        title=title,
         query=state.command_palette.query,
         items=tuple(
             CommandPaletteItemViewState(
@@ -213,7 +219,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
                 enabled=item.enabled,
                 selected=index == cursor_index,
             )
-            for index, item in enumerate(items)
+            for index, item in visible_items
         ),
         empty_message="No matching commands",
     )
@@ -393,6 +399,26 @@ def _select_file_search_window(
     end = min(total, start + FILE_SEARCH_VISIBLE_WINDOW)
     visible_results = tuple((index, results[index]) for index in range(start, end))
     return visible_results, f"Find File ({start + 1}-{end} / {total})"
+
+
+def _select_command_palette_window(
+    items: tuple[CommandPaletteItem, ...],
+    cursor_index: int,
+) -> tuple[tuple[tuple[int, CommandPaletteItem], ...], str]:
+    total = len(items)
+    if total <= COMMAND_PALETTE_VISIBLE_WINDOW:
+        return tuple(enumerate(items)), "Command Palette"
+
+    start = max(
+        0,
+        min(
+            cursor_index - (COMMAND_PALETTE_VISIBLE_WINDOW // 2),
+            max(0, total - COMMAND_PALETTE_VISIBLE_WINDOW),
+        ),
+    )
+    end = min(total, start + COMMAND_PALETTE_VISIBLE_WINDOW)
+    visible_items = tuple((index, items[index]) for index in range(start, end))
+    return visible_items, f"Command Palette ({start + 1}-{end} / {total})"
 
 
 def _file_search_empty_message(state: AppState) -> str:

@@ -393,7 +393,7 @@ def test_move_command_palette_cursor_clamps_to_visible_commands() -> None:
     next_state = _reduce_state(state, MoveCommandPaletteCursor(delta=10))
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.cursor_index == 6
+    assert next_state.command_palette.cursor_index == 7
 
 
 def test_set_command_palette_query_resets_cursor() -> None:
@@ -446,6 +446,26 @@ def test_submit_command_palette_runs_copy_path_flow() -> None:
             request=ExternalLaunchRequest(
                 kind="copy_paths",
                 paths=("/home/tadashi/develop/peneo/docs",),
+            ),
+        ),
+    )
+
+
+def test_submit_command_palette_opens_current_directory_in_file_manager() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("manager"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "BROWSING"
+    assert result.state.command_palette is None
+    assert result.state.next_request_id == 2
+    assert result.effects == (
+        RunExternalLaunchEffect(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="open_file",
+                path="/home/tadashi/develop/peneo",
             ),
         ),
     )

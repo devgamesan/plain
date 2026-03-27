@@ -466,6 +466,7 @@ def test_submit_command_palette_opens_attribute_dialog_for_single_target() -> No
     assert next_state.attribute_inspection.name == "docs"
     assert next_state.attribute_inspection.kind == "dir"
     assert next_state.attribute_inspection.path == "/home/tadashi/develop/peneo/docs"
+    assert next_state.attribute_inspection.permissions_mode is None
 
 
 def test_dismiss_attribute_dialog_returns_to_browsing() -> None:

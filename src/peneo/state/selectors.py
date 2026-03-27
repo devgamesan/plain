@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from stat import S_IMODE, filemode
 
 from peneo.models import (
     AttributeDialogState,
@@ -319,6 +320,7 @@ def select_attribute_dialog_state(state: AppState) -> AttributeDialogState | Non
             f"Size: {_format_size_label(entry.size_bytes)}",
             f"Modified: {_format_modified_label_from_timestamp(entry.modified_at)}",
             f"Hidden: {hidden_label}",
+            f"Permissions: {_format_permissions_label(entry.permissions_mode)}",
         ),
         options=("enter close", "esc close"),
     )
@@ -539,6 +541,13 @@ def _format_modified_label_from_timestamp(value: datetime | None) -> str:
     if value is None:
         return "-"
     return value.strftime("%Y-%m-%d %H:%M")
+
+
+def _format_permissions_label(mode: int | None) -> str:
+    if mode is None:
+        return "-"
+    normalized_mode = S_IMODE(mode)
+    return f"{filemode(mode)} ({normalized_mode:03o})"
 
 
 def _format_current_entry_name_detail(

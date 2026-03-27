@@ -1,4 +1,5 @@
 """Filesystem adapter for reading local directory entries."""
+
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -41,4 +42,5 @@ def _build_directory_entry(path: Path) -> DirectoryEntryState | None:
         size_bytes=None if kind == "dir" else stat_result.st_size,
         modified_at=datetime.fromtimestamp(stat_result.st_mtime),
         hidden=path.name.startswith("."),
+        permissions_mode=stat_result.st_mode,
     )

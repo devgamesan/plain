@@ -407,6 +407,7 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
                         size_bytes=entry.size_bytes,
                         modified_at=entry.modified_at,
                         hidden=entry.hidden,
+                        permissions_mode=entry.permissions_mode,
                     ),
                 )
             )

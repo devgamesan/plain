@@ -25,6 +25,7 @@ class DirectoryEntryState:
     size_bytes: int | None = None
     modified_at: datetime | None = None
     hidden: bool = False
+    permissions_mode: int | None = None
 
 
 @dataclass(frozen=True)
@@ -97,6 +98,7 @@ class AttributeInspectionState:
     size_bytes: int | None = None
     modified_at: datetime | None = None
     hidden: bool = False
+    permissions_mode: int | None = None
 
 
 @dataclass(frozen=True)

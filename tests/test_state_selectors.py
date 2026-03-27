@@ -1,4 +1,5 @@
 from dataclasses import replace
+from stat import S_IFREG
 
 import peneo.state.selectors as selectors_module
 from peneo.models import PasteConflict, PasteRequest
@@ -474,6 +475,7 @@ def test_select_attribute_dialog_state_formats_selected_entry() -> None:
             size_bytes=2_150,
             modified_at=build_initial_app_state().current_pane.entries[3].modified_at,
             hidden=False,
+            permissions_mode=S_IFREG | 0o644,
         ),
     )
 
@@ -486,6 +488,7 @@ def test_select_attribute_dialog_state_formats_selected_entry() -> None:
     assert "Path: /home/tadashi/develop/peneo/README.md" in dialog.lines
     assert "Size: 2.1 KB" in dialog.lines
     assert "Hidden: No" in dialog.lines
+    assert "Permissions: -rw-r--r-- (644)" in dialog.lines
     assert dialog.options == ("enter close", "esc close")
 
 

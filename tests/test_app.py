@@ -1190,6 +1190,7 @@ async def test_app_command_palette_show_attributes_opens_read_only_dialog() -> N
         assert "Type: Directory" in str(lines.renderable)
         assert f"Path: {path}/docs" in str(lines.renderable)
         assert "Hidden: No" in str(lines.renderable)
+        assert "Permissions:" in str(lines.renderable)
 
         await pilot.press("enter")
         await asyncio.sleep(0.05)

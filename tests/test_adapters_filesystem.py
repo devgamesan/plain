@@ -22,12 +22,15 @@ def test_local_filesystem_adapter_lists_entries_with_metadata(tmp_path) -> None:
     assert docs_entry.kind == "dir"
     assert docs_entry.size_bytes is None
     assert docs_entry.modified_at is not None
+    assert docs_entry.permissions_mode is not None
 
     assert hidden_entry.hidden is True
     assert hidden_entry.kind == "file"
+    assert hidden_entry.permissions_mode is not None
 
     assert readme_entry.kind == "file"
     assert readme_entry.size_bytes == len("plain\n")
+    assert readme_entry.permissions_mode is not None
 
 
 def test_local_filesystem_adapter_skips_broken_symlink_entries(tmp_path) -> None:

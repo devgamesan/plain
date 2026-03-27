@@ -137,7 +137,7 @@ sequenceDiagram
 
 - Builds command palette candidates and filters them by query
 - The current palette includes `Find file`, `Show attributes`, `Copy path`, `Open in file manager`, `Open terminal here`, `Show/Hide hidden files`, `Create file`, and `Create directory`
-- `Show attributes` appears only for a single target and opens a read-only attribute dialog
+- `Show attributes` appears only for a single target and opens a read-only attribute dialog with `Name`, `Type`, `Path`, `Size`, `Modified`, `Hidden`, and `Permissions`
 - `Run shell command` may appear as a candidate, but it is still a placeholder with `enabled=False`
 
 ### `src/peneo/services/`

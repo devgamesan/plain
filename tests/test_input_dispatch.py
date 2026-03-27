@@ -152,6 +152,21 @@ def test_browsing_right_enters_directory() -> None:
     assert actions == (SetNotification(None), EnterCursorDirectory())
 
 
+def test_browsing_right_on_file_does_nothing() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        current_pane=replace(
+            state.current_pane,
+            cursor_path="/home/tadashi/develop/plain/README.md",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="right")
+
+    assert actions == ()
+
+
 def test_browsing_enter_on_file_dispatches_open_with_default_app() -> None:
     state = build_initial_app_state()
     state = replace(

@@ -56,7 +56,7 @@ BROWSING_KEYMAP = {
     "d": "toggle_directories_first",
     "delete": "delete_targets",
     "e": "open_in_editor",
-    "right": "enter_or_open",
+    "right": "enter_directory",
     "enter": "enter_or_open",
     "y": "copy_targets",
     "x": "cut_targets",
@@ -178,7 +178,12 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
             return _supported(OpenPathInEditor(cursor_entry.path))
         return _warn("Editor launch requires a file")
 
-    if key in {"right", "enter"}:
+    if key == "right":
+        if cursor_entry is not None and cursor_entry.kind == "dir":
+            return _supported(EnterCursorDirectory())
+        return ()
+
+    if key == "enter":
         if cursor_entry is not None and cursor_entry.kind == "dir":
             return _supported(EnterCursorDirectory())
         if cursor_entry is not None and cursor_entry.kind == "file":

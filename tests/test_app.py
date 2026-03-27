@@ -949,7 +949,8 @@ async def test_app_displays_browsing_help_bar() -> None:
         help_bar = app.query_one("#help-bar", HelpBar)
 
         assert str(help_bar.renderable) == (
-            "Enter open | e edit | / filter | Space select | y copy | x cut | p paste | "
+            "Right dir | Enter open | e edit | / filter | Space select | y copy | x cut | "
+            "p paste | "
             "s sort | d dirs | F2 rename | : palette"
         )
 
@@ -1077,6 +1078,40 @@ async def test_app_enter_on_file_launches_default_app() -> None:
         assert launch_service.executed_requests == [
             ExternalLaunchRequest(kind="open_file", path=f"{path}/README.md")
         ]
+        assert app.app_state.ui_mode == "BROWSING"
+
+
+@pytest.mark.asyncio
+async def test_app_right_on_file_does_not_launch_default_app() -> None:
+    path = "/tmp/plain-right-file"
+    launch_service = FakeExternalLaunchService()
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(
+        snapshot_loader=loader,
+        external_launch_service=launch_service,
+        initial_path=path,
+    )
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("down")
+        await pilot.press("right")
+        await asyncio.sleep(0.05)
+
+        assert launch_service.executed_requests == []
+        assert app.app_state.current_path == path
+        assert app.app_state.current_pane.cursor_path == f"{path}/README.md"
         assert app.app_state.ui_mode == "BROWSING"
 
 

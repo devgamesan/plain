@@ -137,7 +137,8 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     if state.ui_mode == "BUSY":
         return HelpBarState("processing...")
     return HelpBarState(
-        "Enter open | e edit | / filter | Space select | y copy | x cut | p paste | "
+        "Right dir | Enter open | e edit | / filter | Space select | y copy | x cut | "
+        "p paste | "
         "s sort | d dirs | F2 rename | : palette"
     )
 

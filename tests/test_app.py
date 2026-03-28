@@ -1425,6 +1425,39 @@ async def test_app_ctrl_t_opens_split_terminal_and_focuses_it() -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_split_terminal_uses_half_of_body_height_when_visible() -> None:
+    path = "/tmp/peneo-split-terminal-layout"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    split_terminal_service = FakeSplitTerminalService()
+    app = create_app(
+        snapshot_loader=loader,
+        split_terminal_service=split_terminal_service,
+        initial_path=path,
+    )
+
+    async with app.run_test(size=(100, 30)) as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("ctrl+t")
+        await asyncio.sleep(0.05)
+
+        split_terminal = await _wait_for_split_terminal(app)
+        browser_row = app.query_one("#browser-row")
+
+        assert abs(browser_row.size.height - split_terminal.size.height) <= 1
+
+
+@pytest.mark.asyncio
 async def test_app_split_terminal_focus_routes_input_to_session() -> None:
     path = "/tmp/peneo-split-terminal-input"
     loader = FakeBrowserSnapshotLoader(

@@ -277,7 +277,7 @@ class PeneoApp(App[None]):
 
     #split-terminal {
         display: none;
-        height: 10;
+        height: 1fr;
         min-height: 6;
         border: round $accent;
         background: $surface;

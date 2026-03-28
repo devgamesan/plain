@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Protocol
 
-from peneo.models import TerminalConfig
+from peneo.models import EditorConfig, TerminalConfig
 
 CommandRunner = Callable[[Sequence[str], str | None, str | None], None]
 ForegroundCommandRunner = Callable[[Sequence[str], str | None], None]
@@ -55,6 +55,7 @@ class LocalExternalLaunchAdapter:
         default_factory=lambda: (_copy_to_clipboard_with_tkinter,)
     )
     terminal_command_templates: TerminalConfig = field(default_factory=TerminalConfig)
+    editor_command_template: EditorConfig = field(default_factory=EditorConfig)
 
     def open_with_default_app(self, path: str) -> None:
         resolved_path = _resolve_existing_path(path)
@@ -180,6 +181,12 @@ class LocalExternalLaunchAdapter:
 
     def _terminal_editor_commands(self, path: str) -> tuple[tuple[str, ...], ...]:
         commands: list[tuple[str, ...]] = []
+        configured_editor_command = self.editor_command_template.command
+        if configured_editor_command:
+            parsed_command = tuple(shlex.split(configured_editor_command))
+            if parsed_command and _is_terminal_editor_command(parsed_command[0]):
+                commands.append(parsed_command + (path,))
+
         editor_command = self.environment_variable("EDITOR")
         if editor_command:
             try:

@@ -18,6 +18,13 @@ class TerminalConfig:
 
 
 @dataclass(frozen=True)
+class EditorConfig:
+    """Terminal editor launch command configured by the user."""
+
+    command: str | None = None
+
+
+@dataclass(frozen=True)
 class DisplayConfig:
     """Display-related startup defaults."""
 
@@ -41,6 +48,7 @@ class AppConfig:
     """Normalized application configuration."""
 
     terminal: TerminalConfig = field(default_factory=TerminalConfig)
+    editor: EditorConfig = field(default_factory=EditorConfig)
     display: DisplayConfig = field(default_factory=DisplayConfig)
     behavior: BehaviorConfig = field(default_factory=BehaviorConfig)
 

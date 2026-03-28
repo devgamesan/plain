@@ -7,6 +7,7 @@ from .config import (
     ConfigSortField,
     ConfigTheme,
     DisplayConfig,
+    EditorConfig,
     PasteConflictAction,
     TerminalConfig,
 )
@@ -59,6 +60,7 @@ __all__ = [
     "CreateKind",
     "CreatePathRequest",
     "DisplayConfig",
+    "EditorConfig",
     "ExternalLaunchKind",
     "ExternalLaunchRequest",
     "FileMutationResult",

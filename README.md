@@ -15,7 +15,7 @@ _Current three-pane UI showing the parent, current, and child directories side b
 - Optional embedded split terminal below the browser panes, opened and closed with a single shortcut and focused immediately
 - Common actions stay visible in the on-screen help, while less frequent actions live in the command palette
 - Keyboard-only navigation, multi-selection, copy, cut, paste, delete-to-trash, rename, and create flows
-- Filter input, recursive file search from the command palette, attribute inspection, config editing, sort switching, and hidden-file visibility toggle
+- Filter input, recursive file search from the command palette, attribute inspection, config editing, editor selection, sort switching, and hidden-file visibility toggle
 - Files open with the OS default app, directories can be opened in the OS file manager, `e` opens the current file in the editor inside the current terminal, and a terminal can also be launched in the current directory
 - Optional shell integration via `peneo-cd` can return your shell to the last directory after quitting
 - Safer file operations with trash deletion and overwrite / skip / rename conflict resolution during paste
@@ -75,7 +75,7 @@ _The read-only attribute dialog showing file details such as path, size, modifie
 - Toggle hidden-file visibility
 - Open files with the OS default app
 - Open files in the editor inside the current terminal
-- Persist display, behavior, and terminal-launch preferences in `config.toml`
+- Persist display, behavior, editor, and terminal-launch preferences in `config.toml`
 - Optionally return the shell to the last visited directory after quitting
 
 ## Installation
@@ -117,7 +117,7 @@ peneo-cd
 
 Use plain `peneo` or `uv run peneo` when you do not need that behavior.
 
-When a file is focused, press `e` to jump into a terminal editor such as `$EDITOR`, `nvim`, `vim`, or `nano` in the current terminal session.
+When a file is focused, press `e` to jump into a terminal editor in the current terminal session. Peneo prefers `config.toml` `editor.command` when set, then falls back to `$EDITOR`, then built-in defaults such as `nvim`, `vim`, or `nano`.
 
 ## Configuration File
 
@@ -135,6 +135,7 @@ The supported settings are:
 | `terminal` | `linux` | Array of shell-style command templates | Optional terminal launch commands for Linux. Use `{path}` as the working-directory placeholder. Invalid or empty entries are ignored. |
 | `terminal` | `macos` | Array of shell-style command templates | Optional terminal launch commands for macOS, validated the same way as Linux entries. |
 | `terminal` | `windows` | Array of shell-style command templates | Optional terminal launch commands for Windows and WSL bridge workflows. The config key is accepted even though native Windows runtime is not currently supported. |
+| `editor` | `command` | Shell-style string, for example `nvim -u NONE` | Optional terminal editor command used by `e`. Do not include the file path; Peneo appends it automatically. Unsupported GUI editors or invalid commands are ignored. |
 | `display` | `show_hidden_files` | `true` / `false` | Default hidden-file visibility when the app starts. |
 | `display` | `theme` | `textual-dark` / `textual-light` | Default UI theme applied on startup and after saving from the config editor. |
 | `display` | `default_sort_field` | `name` / `modified` / `size` | Default sort field for the main pane. |
@@ -150,6 +151,9 @@ Example:
 linux = ["konsole --working-directory {path}", "gnome-terminal --working-directory={path}"]
 macos = ["open -a Terminal {path}"]
 windows = ["wt -d {path}"]
+
+[editor]
+command = "nvim -u NONE"
 
 [display]
 show_hidden_files = false
@@ -176,7 +180,7 @@ The main keys are listed below.
 | Normal | `←` / `h` / `Backspace` | Move to the parent directory |
 | Normal | `→` / `l` | Enter the item if it is a directory |
 | Normal | `Enter` | Enter a directory, or open a file with the default app |
-| Normal | `e` | Switch the focused file into a terminal editor such as `$EDITOR`, `nvim`, `vim`, or `nano` |
+| Normal | `e` | Switch the focused file into the configured terminal editor (`editor.command` -> `$EDITOR` -> built-in defaults) |
 | Normal | `F5` | Reload the current directory |
 | Normal | `Space` | Toggle selection, then move to the next row |
 | Normal | `y` | Copy the selected items, or the focused item if nothing is selected |
@@ -203,7 +207,7 @@ The main keys are listed below.
 | Confirmation dialog | `Enter` / `Esc` | Confirm or cancel delete |
 | Confirmation dialog | `o` / `s` / `r` / `Esc` | Resolve a paste conflict with overwrite / skip / rename / cancel |
 
-When `e` succeeds, Peneo launches a terminal editor in the current terminal session rather than opening a separate GUI app window.
+When `e` succeeds, Peneo launches a terminal editor in the current terminal session rather than opening a separate GUI app window. `editor.command` is preferred over `$EDITOR` when both are set.
 
 ## Command Palette
 
@@ -218,7 +222,7 @@ Less frequent actions are grouped in the command palette opened with `:`.
 | `Open terminal here` | Always | Launches an external terminal rooted at the current directory, using `config.toml` templates before built-in fallbacks. |
 | `Open split terminal` / `Close split terminal` | Always | Toggles the embedded split terminal. The label changes with visibility, and the split terminal keeps the directory where it was started instead of following later browser navigation. |
 | `Show hidden files` / `Hide hidden files` | Always | Toggles hidden-file visibility for the browser panes. The label reflects the current visibility state. |
-| `Edit config` | Always | Opens the config overlay for startup defaults, including hidden-file visibility, theme, sorting, and paste/delete behavior. Use `↑` / `↓` to move, `←` / `→` / `Enter` to change values, `s` to save `config.toml`, and `e` to open the raw config file in a terminal editor. |
+| `Edit config` | Always | Opens the config overlay for startup defaults, including the preferred terminal editor, hidden-file visibility, theme, sorting, and paste/delete behavior. Use `↑` / `↓` to move, `←` / `→` / `Enter` to change values, `s` to save `config.toml`, and `e` to open the raw config file in a terminal editor. |
 | `Create file` | Always | Starts the inline create-file flow in the current directory. |
 | `Create directory` | Always | Starts the inline create-directory flow in the current directory. |
 
@@ -228,7 +232,7 @@ Less frequent actions are grouped in the command palette opened with `:`.
 - GUI integration paths such as default-app launch, file-manager launch, and terminal launch are currently validated primarily in that environment.
 - The embedded split terminal currently targets POSIX environments such as Ubuntu/Linux and WSL.
 - External-launch behavior includes Linux, macOS, and WSL-aware fallbacks. Native Windows is not a supported runtime for Peneo.
-- `config.toml` can override terminal launch commands before those built-in fallbacks are used.
+- `config.toml` can override both the preferred terminal editor and external terminal launch commands before those built-in fallbacks are used.
 - WSL prefers Windows-side bridges such as `wslview`, `explorer.exe`, and `clip.exe` when available, with Linux-side fallbacks kept for WSLg and desktop Linux environments.
 - The application is still under active development, so behavior and keybindings may change.
 - File mutations operate on the selected directory entry. If the selected item is a symlink, Peneo mutates the symlink itself instead of silently following and mutating the link target.

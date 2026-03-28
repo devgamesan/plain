@@ -2,6 +2,7 @@ import asyncio
 import threading
 import time
 from contextlib import nullcontext
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,7 @@ from peneo.models import (
     AppConfig,
     BehaviorConfig,
     DisplayConfig,
+    EditorConfig,
     ExternalLaunchRequest,
     FileMutationResult,
     PasteConflict,
@@ -31,8 +33,15 @@ from peneo.services import (
     FakeFileMutationService,
     FakeFileSearchService,
     FakeSplitTerminalService,
+    LiveExternalLaunchService,
 )
-from peneo.state import BrowserSnapshot, DirectoryEntryState, FileSearchResultState, PaneState
+from peneo.state import (
+    BrowserSnapshot,
+    ConfigSaveCompleted,
+    DirectoryEntryState,
+    FileSearchResultState,
+    PaneState,
+)
 from peneo.ui import (
     AttributeDialog,
     CommandPalette,
@@ -1453,8 +1462,9 @@ async def test_app_command_palette_opens_config_dialog_and_saves_changes() -> No
         assert app.app_state.ui_mode == "CONFIG"
         assert "Config Editor" in str(title.renderable)
         assert "Path: /tmp/peneo/config.toml" in str(lines.renderable)
-        assert "> Show hidden files: false" in str(lines.renderable)
+        assert "> Editor command: system default" in str(lines.renderable)
 
+        await pilot.press("down")
         await pilot.press("enter")
         await pilot.press("s")
         await _wait_for_notification_message(app, "Config saved: /tmp/peneo/config.toml")
@@ -1498,6 +1508,7 @@ async def test_app_config_dialog_save_updates_theme() -> None:
 
         assert app.theme == "textual-dark"
 
+        await pilot.press("down")
         await pilot.press("down")
         await pilot.press("enter")
         await pilot.press("s")
@@ -1545,6 +1556,52 @@ async def test_app_config_dialog_e_opens_config_file_in_editor() -> None:
         assert launch_service.executed_requests == [
             ExternalLaunchRequest(kind="open_editor", path="/tmp/peneo/config.toml")
         ]
+
+
+@pytest.mark.asyncio
+async def test_app_config_save_refreshes_live_external_launch_service() -> None:
+    path = "/tmp/peneo-refresh-editor-config"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file", size_bytes=120),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(
+        snapshot_loader=loader,
+        config_path="/tmp/peneo/config.toml",
+        initial_path=path,
+    )
+
+    async with app.run_test():
+        await _wait_for_snapshot_loaded(app, path)
+
+        assert isinstance(app._external_launch_service, LiveExternalLaunchService)
+        assert app._external_launch_service.adapter.editor_command_template.command is None
+
+        app._app_state = replace(app.app_state, pending_config_save_request_id=7)
+        saved_config = replace(app.app_state.config, editor=EditorConfig(command="nvim -u NONE"))
+        await app.dispatch_actions(
+            (
+                ConfigSaveCompleted(
+                    request_id=7,
+                    path="/tmp/peneo/config.toml",
+                    config=saved_config,
+                ),
+            )
+        )
+
+        assert isinstance(app._external_launch_service, LiveExternalLaunchService)
+        assert (
+            app._external_launch_service.adapter.editor_command_template.command
+            == "nvim -u NONE"
+        )
 
 
 @pytest.mark.asyncio

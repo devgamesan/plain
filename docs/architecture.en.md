@@ -145,10 +145,10 @@ sequenceDiagram
 
 - `browser_snapshot.py`: builds the three-pane snapshot from the real filesystem
 - `clipboard_operations.py`: handles copy / cut / paste execution and conflict detection
-- `config.py`: loads, validates, saves, and renders `config.toml`
+- `config.py`: loads, validates, saves, and renders `config.toml`, including normalized startup editor settings such as `editor.command`
 - `file_search.py`: handles recursive file search under the current directory and filters results according to hidden-file visibility
 - `file_mutations.py`: handles rename / create / trash delete
-- `external_launcher.py`: handles default-app open, editor-in-current-terminal launch, terminal launch, and copying a path to the system clipboard
+- `external_launcher.py`: handles default-app open, editor-in-current-terminal launch, terminal launch, and copying a path to the system clipboard, resolving editors in config -> `$EDITOR` -> built-in order
 - `split_terminal.py`: starts PTY-backed embedded terminal sessions, forwards I/O, and reports exit events
 
 ### `src/peneo/adapters/`
@@ -201,7 +201,7 @@ Notes:
 - `PALETTE`
   - Handles query updates, candidate cursor movement, command execution, and cancel
 - `CONFIG`
-  - Edits startup defaults in the config overlay, saves with `s`, and opens the raw `config.toml` in a terminal editor with `e`
+  - Edits startup defaults in the config overlay, including terminal-editor presets, saves with `s`, and opens the raw `config.toml` in a terminal editor with `e`
 - `RENAME` / `CREATE`
   - Edits names in the input bar and issues a mutation effect on `Enter`
 - `CONFIRM`

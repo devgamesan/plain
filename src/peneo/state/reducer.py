@@ -125,6 +125,7 @@ from .selectors import select_target_paths, select_visible_current_entry_states
 _CONFIG_SORT_FIELDS = ("name", "modified", "size")
 _CONFIG_THEMES = ("textual-dark", "textual-light")
 _CONFIG_PASTE_ACTIONS = ("prompt", "overwrite", "skip", "rename")
+_CONFIG_EDITOR_COMMANDS = (None, "nvim", "vim", "nano", "hx", "micro", "emacs -nw")
 
 
 def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
@@ -1546,6 +1547,14 @@ def _normalize_config_editor_cursor(cursor_index: int) -> int:
 
 def _cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) -> AppConfig:
     field_id = _config_editor_field_ids()[_normalize_config_editor_cursor(cursor_index)]
+    if field_id == "editor.command":
+        return replace(
+            config,
+            editor=replace(
+                config.editor,
+                command=_cycle_editor_command(config.editor.command, delta),
+            ),
+        )
     if field_id == "display.show_hidden_files":
         return replace(
             config,
@@ -1620,8 +1629,17 @@ def _cycle_choice(options: tuple[str, ...], current: str, delta: int) -> str:
     return options[(current_index + delta) % len(options)]
 
 
+def _cycle_editor_command(current: str | None, delta: int) -> str | None:
+    if current in _CONFIG_EDITOR_COMMANDS:
+        current_index = _CONFIG_EDITOR_COMMANDS.index(current)
+    else:
+        current_index = len(_CONFIG_EDITOR_COMMANDS)
+    return _CONFIG_EDITOR_COMMANDS[(current_index + delta) % len(_CONFIG_EDITOR_COMMANDS)]
+
+
 def _config_editor_field_ids() -> tuple[str, ...]:
     return (
+        "editor.command",
         "display.show_hidden_files",
         "display.theme",
         "display.default_sort_field",
@@ -1634,6 +1652,7 @@ def _config_editor_field_ids() -> tuple[str, ...]:
 
 def _config_editor_labels() -> tuple[str, ...]:
     return (
+        "Editor command",
         "Show hidden files",
         "Theme",
         "Default sort field",

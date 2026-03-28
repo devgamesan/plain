@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 import pytest
 
 from peneo.adapters import LocalExternalLaunchAdapter
-from peneo.models import ExternalLaunchRequest, TerminalConfig
+from peneo.models import EditorConfig, ExternalLaunchRequest, TerminalConfig
 from peneo.services import LiveExternalLaunchService
 
 
@@ -139,6 +139,25 @@ def test_local_external_launch_adapter_runs_terminal_editor_in_current_terminal(
     ]
 
 
+def test_local_external_launch_adapter_prefers_configured_editor_command(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("plain\n", encoding="utf-8")
+    runner = StubForegroundRunner()
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Linux",
+        command_available=lambda command: command if command in {"nvim", "vim"} else None,
+        foreground_command_runner=runner,
+        environment_variable=lambda _name: "vim" ,
+        editor_command_template=EditorConfig(command="nvim -u NONE"),
+    )
+
+    adapter.open_in_editor(str(readme))
+
+    assert runner.executed == [
+        (("nvim", "-u", "NONE", str(readme.resolve())), str(tmp_path.resolve()))
+    ]
+
+
 def test_local_external_launch_adapter_ignores_gui_editor_environment_variable(tmp_path) -> None:
     readme = tmp_path / "README.md"
     readme.write_text("plain\n", encoding="utf-8")
@@ -148,6 +167,23 @@ def test_local_external_launch_adapter_ignores_gui_editor_environment_variable(t
         command_available=lambda command: command if command == "vim" else None,
         foreground_command_runner=runner,
         environment_variable=lambda name: "code" if name == "EDITOR" else None,
+    )
+
+    adapter.open_in_editor(str(readme))
+
+    assert runner.executed == [(("vim", str(readme.resolve())), str(tmp_path.resolve()))]
+
+
+def test_local_external_launch_adapter_ignores_gui_configured_editor_command(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("plain\n", encoding="utf-8")
+    runner = StubForegroundRunner()
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Linux",
+        command_available=lambda command: command if command == "vim" else None,
+        foreground_command_runner=runner,
+        editor_command_template=EditorConfig(command="code --wait"),
+        environment_variable=lambda _name: None,
     )
 
     adapter.open_in_editor(str(readme))

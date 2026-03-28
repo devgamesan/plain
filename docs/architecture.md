@@ -145,10 +145,10 @@ sequenceDiagram
 
 - `browser_snapshot.py`: 実 filesystem から 3 ペイン用 snapshot を構築
 - `clipboard_operations.py`: copy / cut / paste の実処理と競合検出を担当
-- `config.py`: `config.toml` の読み込み、検証、保存、既定値レンダリングを担当
+- `config.py`: `config.toml` の読み込み、検証、保存、既定値レンダリングを担当し、`editor.command` を含む起動設定を正規化する
 - `file_search.py`: 現在ディレクトリ以下の再帰ファイル検索を担当し、hidden 設定に応じて結果を絞る
 - `file_mutations.py`: rename / create / trash delete を担当
-- `external_launcher.py`: 既定アプリ起動、現在のターミナル内エディタ起動、ターミナル起動、システムクリップボードへのパスコピーを担当
+- `external_launcher.py`: 既定アプリ起動、現在のターミナル内エディタ起動、ターミナル起動、システムクリップボードへのパスコピーを担当し、editor config -> `$EDITOR` -> 既定値の順でエディタ候補を解決する
 - `split_terminal.py`: 埋め込み split terminal の PTY セッション起動、入出力、終了通知を担当
 
 ### `src/peneo/adapters/`
@@ -201,7 +201,7 @@ stateDiagram-v2
 - `PALETTE`
   - query 更新、候補カーソル移動、コマンド実行、キャンセルを処理する
 - `CONFIG`
-  - config overlay 上で起動時設定を編集し、`s` で保存、`e` で生の `config.toml` をターミナル内エディタで開く
+  - config overlay 上で起動時設定を編集し、terminal editor のプリセット選択を含めて `s` で保存し、`e` で生の `config.toml` をターミナル内エディタで開く
 - `RENAME` / `CREATE`
   - 入力バーで名前を編集し、`Enter` で mutation effect を発行する
 - `CONFIRM`

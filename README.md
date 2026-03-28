@@ -40,6 +40,12 @@ cd peneo
 uv tool install --from . peneo
 ```
 
+On WSL, also install `wslu` so bridge commands such as `wslview` are available:
+
+```bash
+sudo apt install wslu
+```
+
 To update, pull the latest changes and run the same install command again.
 
 ## Run
@@ -180,11 +186,12 @@ Less frequent actions are grouped in the command palette opened with `:`.
 
 ## Platform Notes
 
-- The project is currently verified only on Ubuntu.
-- GUI integration paths such as default-app launch, file-manager launch, and terminal launch are currently validated primarily in that environment.
+- The project is currently verified on Ubuntu and Ubuntu running under WSL.
+- GUI integration paths such as default-app launch, file-manager launch, and terminal launch are currently validated primarily in those environments.
 - The embedded split terminal currently targets POSIX environments such as Ubuntu/Linux and WSL.
 - External-launch behavior includes Linux, macOS, and WSL-aware fallbacks. Native Windows is not a supported runtime for Peneo.
 - `config.toml` can override both the preferred terminal editor and external terminal launch commands before those built-in fallbacks are used.
+- On WSL, install `wslu` to make `wslview` available for the preferred bridge behavior.
 - WSL prefers Windows-side bridges such as `wslview`, `explorer.exe`, and `clip.exe` when available, with Linux-side fallbacks kept for WSLg and desktop Linux environments.
 - Behavior and keybindings may change in future revisions.
 - File mutations operate on the selected directory entry. If the selected item is a symlink, Peneo mutates the symlink itself instead of silently following and mutating the link target.

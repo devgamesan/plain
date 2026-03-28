@@ -41,6 +41,12 @@ cd peneo
 uv tool install --from . peneo
 ```
 
+WSL 環境では、`wslview` などのブリッジコマンドを使えるように `wslu` も追加でインストールしてください。
+
+```bash
+sudo apt install wslu
+```
+
 更新時は最新を pull したあとに同じコマンドを再実行してください。
 
 ## 起動
@@ -180,11 +186,12 @@ paste_conflict_action = "prompt"
 
 ## 対応環境と注意
 
-- 現時点で動作確認している OS は Ubuntu のみです。
+- 現時点で動作確認している OS は Ubuntu と WSL 上の Ubuntu です。
 - 既定アプリ起動、ファイルマネージャ起動、ターミナル起動などの GUI 連携も主にその環境で確認しています。
 - 埋め込み split terminal は現状 POSIX 環境、特に Ubuntu/Linux と WSL を前提にしています。
 - 外部起動まわりは Linux、macOS、WSL を意識したフォールバックを持ちます。Windows ネイティブ実行はサポート対象外です。
 - `config.toml` でターミナルエディタやターミナル起動コマンドを指定した場合は、その設定を組み込みフォールバックより優先します。
+- WSL では、優先ブリッジ動作に使う `wslview` を利用できるよう `wslu` のインストールが必要です。
 - WSL では `wslview`、`explorer.exe`、`clip.exe` のような Windows 側ブリッジを優先し、WSLg や Linux デスクトップ向けのフォールバックも維持します。
 - 挙動やキーバインドは今後見直す可能性があります。
 - ファイル操作は、選択したディレクトリエントリ自体に対して行われます。選択中の項目が symlink の場合も、リンク先を暗黙に辿って変更せず、symlink エントリ自体を操作します。

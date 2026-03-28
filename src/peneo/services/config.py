@@ -26,6 +26,7 @@ class ConfigSaveService(Protocol):
     def save(self, *, path: str, config: AppConfig) -> str: ...
 
 _VALID_SORT_FIELDS = frozenset({"name", "modified", "size"})
+_VALID_THEMES = frozenset({"textual-dark", "textual-light"})
 _VALID_PASTE_ACTIONS = frozenset({"overwrite", "skip", "rename", "prompt"})
 _VALIDATION_PATH = "/tmp/peneo"
 
@@ -168,6 +169,13 @@ def _load_display_config(section: object, warnings: list[str]) -> DisplayConfig:
             section_name="display",
         ),
     )
+    theme = section.get("theme", config.theme)
+    if isinstance(theme, str) and theme in _VALID_THEMES:
+        config = replace(config, theme=theme)
+    elif "theme" in section:
+        warnings.append(
+            "display.theme must be one of textual-dark, textual-light; using default."
+        )
 
     sort_field = section.get("default_sort_field", config.default_sort_field)
     if isinstance(sort_field, str) and sort_field in _VALID_SORT_FIELDS:
@@ -286,6 +294,7 @@ def render_app_config(config: AppConfig) -> str:
 
         [display]
         show_hidden_files = {show_hidden_files}
+        theme = "{theme}"
         default_sort_field = "{default_sort_field}"
         default_sort_descending = {default_sort_descending}
         directories_first = {directories_first}
@@ -299,6 +308,7 @@ def render_app_config(config: AppConfig) -> str:
         macos=_render_command_array(config.terminal.macos),
         windows=_render_command_array(config.terminal.windows),
         show_hidden_files=_render_bool(config.display.show_hidden_files),
+        theme=config.display.theme,
         default_sort_field=config.display.default_sort_field,
         default_sort_descending=_render_bool(config.display.default_sort_descending),
         directories_first=_render_bool(config.display.directories_first),

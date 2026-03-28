@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 ConfigSortField = Literal["name", "modified", "size"]
+ConfigTheme = Literal["textual-dark", "textual-light"]
 PasteConflictAction = Literal["overwrite", "skip", "rename", "prompt"]
 
 
@@ -21,6 +22,7 @@ class DisplayConfig:
     """Display-related startup defaults."""
 
     show_hidden_files: bool = False
+    theme: ConfigTheme = "textual-dark"
     default_sort_field: ConfigSortField = "name"
     default_sort_descending: bool = False
     directories_first: bool = True

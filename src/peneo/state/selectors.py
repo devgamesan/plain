@@ -364,23 +364,27 @@ def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
         _format_config_line(
             0, selected_index, "Show hidden files", _format_bool(config.display.show_hidden_files)
         ),
-        _format_config_line(
-            1, selected_index, "Default sort field", config.display.default_sort_field
-        ),
+        _format_config_line(1, selected_index, "Theme", config.display.theme),
         _format_config_line(
             2,
+            selected_index,
+            "Default sort field",
+            config.display.default_sort_field,
+        ),
+        _format_config_line(
+            3,
             selected_index,
             "Default sort descending",
             _format_bool(config.display.default_sort_descending),
         ),
         _format_config_line(
-            3, selected_index, "Directories first", _format_bool(config.display.directories_first)
+            4, selected_index, "Directories first", _format_bool(config.display.directories_first)
         ),
         _format_config_line(
-            4, selected_index, "Confirm delete", _format_bool(config.behavior.confirm_delete)
+            5, selected_index, "Confirm delete", _format_bool(config.behavior.confirm_delete)
         ),
         _format_config_line(
-            5, selected_index, "Paste conflict action", config.behavior.paste_conflict_action
+            6, selected_index, "Paste conflict action", config.behavior.paste_conflict_action
         ),
         "",
         "Terminal launch templates: edit config.toml with e",

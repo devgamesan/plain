@@ -26,6 +26,7 @@ def test_loader_creates_default_config_when_missing(tmp_path) -> None:
     assert '# linux = [' in written
     assert '#   "konsole --working-directory {path}",' in written
     assert '#   "gnome-terminal --working-directory={path}",' in written
+    assert 'theme = "textual-dark"' in written
     assert 'default_sort_field = "name"' in written
 
 
@@ -38,6 +39,7 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
 
         [display]
         show_hidden_files = true
+        theme = "textual-light"
         default_sort_field = "modified"
         default_sort_descending = true
         directories_first = false
@@ -55,6 +57,7 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
     assert result.warnings == ()
     assert result.config.terminal.linux == ("konsole --working-directory {path}",)
     assert result.config.display.show_hidden_files is True
+    assert result.config.display.theme == "textual-light"
     assert result.config.display.default_sort_field == "modified"
     assert result.config.display.default_sort_descending is True
     assert result.config.display.directories_first is False
@@ -71,6 +74,7 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
 
         [display]
         show_hidden_files = true
+        theme = "bad-theme"
         default_sort_field = "invalid"
 
         [behavior]
@@ -84,10 +88,11 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
 
     assert result.config.terminal.linux == ("konsole --working-directory {path}",)
     assert result.config.display.show_hidden_files is True
+    assert result.config.display.theme == "textual-dark"
     assert result.config.display.default_sort_field == "name"
     assert result.config.behavior.confirm_delete is True
     assert result.config.behavior.paste_conflict_action == "prompt"
-    assert len(result.warnings) == 4
+    assert len(result.warnings) == 5
 
 
 def test_config_save_service_writes_normalized_config_file(tmp_path) -> None:
@@ -100,6 +105,7 @@ def test_config_save_service_writes_normalized_config_file(tmp_path) -> None:
             terminal=TerminalConfig(linux=("konsole --working-directory {path}",)),
             display=DisplayConfig(
                 show_hidden_files=True,
+                theme="textual-light",
                 default_sort_field="size",
                 default_sort_descending=True,
                 directories_first=False,
@@ -117,6 +123,7 @@ def test_config_save_service_writes_normalized_config_file(tmp_path) -> None:
     assert '# windows = ["wt -d {path}"]' in written
     assert 'linux = ["konsole --working-directory {path}"]' in written
     assert "show_hidden_files = true" in written
+    assert 'theme = "textual-light"' in written
     assert 'default_sort_field = "size"' in written
     assert "confirm_delete = false" in written
     assert 'paste_conflict_action = "rename"' in written

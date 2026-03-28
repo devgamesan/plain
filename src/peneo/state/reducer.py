@@ -123,6 +123,7 @@ from .models import (
 from .selectors import select_target_paths, select_visible_current_entry_states
 
 _CONFIG_SORT_FIELDS = ("name", "modified", "size")
+_CONFIG_THEMES = ("textual-dark", "textual-light")
 _CONFIG_PASTE_ACTIONS = ("prompt", "overwrite", "skip", "rename")
 
 
@@ -1553,6 +1554,18 @@ def _cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int)
                 show_hidden_files=not config.display.show_hidden_files,
             ),
         )
+    if field_id == "display.theme":
+        return replace(
+            config,
+            display=replace(
+                config.display,
+                theme=_cycle_choice(
+                    _CONFIG_THEMES,
+                    config.display.theme,
+                    delta,
+                ),
+            ),
+        )
     if field_id == "display.default_sort_field":
         return replace(
             config,
@@ -1610,6 +1623,7 @@ def _cycle_choice(options: tuple[str, ...], current: str, delta: int) -> str:
 def _config_editor_field_ids() -> tuple[str, ...]:
     return (
         "display.show_hidden_files",
+        "display.theme",
         "display.default_sort_field",
         "display.default_sort_descending",
         "display.directories_first",
@@ -1621,6 +1635,7 @@ def _config_editor_field_ids() -> tuple[str, ...]:
 def _config_editor_labels() -> tuple[str, ...]:
     return (
         "Show hidden files",
+        "Theme",
         "Default sort field",
         "Default sort descending",
         "Directories first",

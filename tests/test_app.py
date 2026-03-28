@@ -338,6 +338,7 @@ def test_create_app_applies_configured_startup_state() -> None:
             terminal=TerminalConfig(),
             display=DisplayConfig(
                 show_hidden_files=True,
+                theme="textual-light",
                 default_sort_field="modified",
                 default_sort_descending=True,
                 directories_first=False,
@@ -350,6 +351,7 @@ def test_create_app_applies_configured_startup_state() -> None:
     )
 
     assert app.app_state.show_hidden is True
+    assert app.theme == "textual-light"
     assert app.app_state.sort.field == "modified"
     assert app.app_state.sort.descending is True
     assert app.app_state.sort.directories_first is False
@@ -1462,6 +1464,49 @@ async def test_app_command_palette_opens_config_dialog_and_saves_changes() -> No
         assert saved_path == "/tmp/peneo/config.toml"
         assert saved_config.display.show_hidden_files is True
         assert app.app_state.show_hidden is True
+
+
+@pytest.mark.asyncio
+async def test_app_config_dialog_save_updates_theme() -> None:
+    path = "/tmp/peneo-command-palette-theme"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file", size_bytes=120),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    config_save_service = FakeConfigSaveService()
+    app = create_app(
+        snapshot_loader=loader,
+        config_save_service=config_save_service,
+        config_path="/tmp/peneo/config.toml",
+        initial_path=path,
+    )
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await pilot.press("c", "o", "n", "f", "i", "g")
+        await pilot.press("enter")
+        await _wait_for_config_dialog(app)
+
+        assert app.theme == "textual-dark"
+
+        await pilot.press("down")
+        await pilot.press("enter")
+        await pilot.press("s")
+        await _wait_for_notification_message(app, "Config saved: /tmp/peneo/config.toml")
+
+        assert len(config_save_service.saved_requests) == 1
+        _saved_path, saved_config = config_save_service.saved_requests[0]
+        assert saved_config.display.theme == "textual-light"
+        assert app.theme == "textual-light"
 
 
 @pytest.mark.asyncio

@@ -616,7 +616,8 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
     assert dialog is not None
     assert dialog.title == "Config Editor*"
     assert "Path: /tmp/peneo/config.toml" in dialog.lines
-    assert "> Default sort field: name" in dialog.lines
+    assert "> Theme: textual-dark" in dialog.lines
+    assert "  Default sort field: name" in dialog.lines
     assert "Terminal launch templates: edit config.toml with e" in dialog.lines
     assert dialog.options == ("left/right/enter change", "s save", "e edit file", "esc close")
 

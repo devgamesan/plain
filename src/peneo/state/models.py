@@ -24,6 +24,7 @@ SplitTerminalStatus = Literal["closed", "starting", "running"]
 SplitTerminalFocusTarget = Literal["browser", "terminal"]
 ConfigFieldId = Literal[
     "display.show_hidden_files",
+    "display.theme",
     "display.default_sort_field",
     "display.default_sort_descending",
     "display.directories_first",

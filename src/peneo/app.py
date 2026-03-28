@@ -349,6 +349,7 @@ class PeneoApp(App[None]):
     ) -> None:
         super().__init__()
         self._app_config = app_config or AppConfig()
+        self.theme = self._app_config.display.theme
         self._initial_path = str(Path(initial_path or Path.cwd()).expanduser().resolve())
         self._app_state: AppState = build_placeholder_app_state(
             self._initial_path,
@@ -487,6 +488,8 @@ class PeneoApp(App[None]):
         previous_state = self._app_state
         changed, effects = self._apply_actions(actions)
         self._sync_file_search_state(previous_state, self._app_state)
+        if previous_state.config.display.theme != self._app_state.config.display.theme:
+            self.theme = self._app_state.config.display.theme
         if changed:
             await self._refresh_shell()
         self._schedule_effects(effects)

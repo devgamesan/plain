@@ -29,7 +29,12 @@ from .file_mutations import (
     FileMutationService,
     LiveFileMutationService,
 )
-from .file_search import FakeFileSearchService, FileSearchService, LiveFileSearchService
+from .file_search import (
+    FakeFileSearchService,
+    FileSearchService,
+    InvalidFileSearchQueryError,
+    LiveFileSearchService,
+)
 from .split_terminal import (
     FakeSplitTerminalService,
     LiveSplitTerminalService,
@@ -46,6 +51,7 @@ __all__ = [
     "FileSearchService",
     "FakeFileMutationService",
     "FakeFileSearchService",
+    "InvalidFileSearchQueryError",
     "FakeBrowserSnapshotLoader",
     "FakeClipboardOperationService",
     "FakeExternalLaunchService",

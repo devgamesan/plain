@@ -637,6 +637,12 @@ def _select_command_palette_window(
 def _file_search_empty_message(state: AppState) -> str:
     if state.pending_file_search_request_id is not None:
         return "Searching files..."
+    if (
+        state.command_palette is not None
+        and state.command_palette.source == "file_search"
+        and state.command_palette.file_search_error_message is not None
+    ):
+        return state.command_palette.file_search_error_message
     return "No matching files"
 
 

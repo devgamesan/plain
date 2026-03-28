@@ -139,6 +139,8 @@ sequenceDiagram
 - 現在の palette には `Find file`、`Show attributes`、`Copy path`、`Open in file manager`、`Open terminal here`、`Open/Close split terminal`、`Show/Hide hidden files`、`Edit config`、`Create file`、`Create directory` がある
 - `Show attributes` は単一対象がある場合にだけ表示し、`Name` / `Type` / `Path` / `Size` / `Modified` / `Hidden` / `Permissions` を持つ read-only の属性ダイアログを開く
 - `Find file` 選択後は palette をファイル検索モードに切り替え、現在ディレクトリ以下を再帰検索した結果を同じ UI で表示する
+  - 通常入力は basename 対象の大文字小文字を無視した部分一致
+  - `re:` 接頭辞付き入力は basename 対象の Python regex として扱い、無効な regex は palette 内メッセージで表示する
 - split terminal と hidden files のトグルは状態に応じてラベルを切り替える
 
 ### `src/peneo/services/`
@@ -146,7 +148,7 @@ sequenceDiagram
 - `browser_snapshot.py`: 実 filesystem から 3 ペイン用 snapshot を構築
 - `clipboard_operations.py`: copy / cut / paste の実処理と競合検出を担当
 - `config.py`: `config.toml` の読み込み、検証、保存、既定値レンダリングを担当し、`editor.command` を含む起動設定を正規化する
-- `file_search.py`: 現在ディレクトリ以下の再帰ファイル検索を担当し、hidden 設定に応じて結果を絞る
+- `file_search.py`: 現在ディレクトリ以下の再帰ファイル検索を担当し、通常入力と `re:` regex 入力を解釈したうえで hidden 設定に応じて結果を絞る
 - `file_mutations.py`: rename / create / trash delete を担当
 - `external_launcher.py`: 既定アプリ起動、現在のターミナル内エディタ起動、ターミナル起動、システムクリップボードへのパスコピーを担当し、editor config -> `$EDITOR` -> 既定値の順でエディタ候補を解決する
 - `split_terminal.py`: 埋め込み split terminal の PTY セッション起動、入出力、終了通知を担当
@@ -225,7 +227,7 @@ stateDiagram-v2
 - ゴミ箱への削除と複数対象削除時の確認ダイアログ
 - ファイルの既定アプリ起動
 - `e` による現在のターミナル内エディタ起動
-- コマンドパレットからの再帰ファイル検索、属性表示、path copy、既定ファイラー起動、terminal 起動、hidden files 切り替え
+- コマンドパレットからの再帰ファイル検索（通常部分一致と `re:` regex、invalid regex の inline 表示を含む）、属性表示、path copy、既定ファイラー起動、terminal 起動、hidden files 切り替え
 - config overlay による起動時設定の編集と `config.toml` 保存
 - 埋め込み split terminal の起動、入力、終了通知
 - status bar / help bar / input bar / conflict dialog / attribute dialog / config dialog / split terminal の状態連動表示

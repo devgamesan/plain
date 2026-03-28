@@ -144,6 +144,7 @@ class FileSearchFailed:
     request_id: int
     query: str
     message: str
+    invalid_query: bool = False
 
 
 @dataclass(frozen=True)

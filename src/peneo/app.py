@@ -31,6 +31,7 @@ from peneo.services import (
     ExternalLaunchService,
     FileMutationService,
     FileSearchService,
+    InvalidFileSearchQueryError,
     LiveBrowserSnapshotLoader,
     LiveClipboardOperationService,
     LiveConfigSaveService,
@@ -1043,12 +1044,14 @@ class PeneoApp(App[None]):
             return
 
         if isinstance(effect, RunFileSearchEffect):
+            invalid_query = isinstance(event.worker.error, InvalidFileSearchQueryError)
             await self.dispatch_actions(
                 (
                     FileSearchFailed(
                         request_id=effect.request_id,
                         query=effect.query,
                         message=message,
+                        invalid_query=invalid_query,
                     ),
                 )
             )

@@ -215,7 +215,7 @@ Less frequent actions are grouped in the command palette opened with `:`.
 
 | Command | Shown when | Behavior / Notes |
 | --- | --- | --- |
-| `Find file` | Always | Switches the palette into recursive file-search mode. Searches the current directory tree with a case-insensitive partial filename match, excludes hidden paths unless hidden files are currently visible, and `Enter` jumps to the selected result by opening its parent directory and focusing that file. |
+| `Find file` | Always | Switches the palette into recursive file-search mode. Plain input searches the current directory tree with a case-insensitive partial basename match. Prefix the query with `re:` to run a Python regular expression against basenames instead; regex is case-sensitive unless you use inline flags such as `(?i)`. Hidden paths are excluded unless hidden files are currently visible, invalid regex patterns are shown inline in the palette, and `Enter` jumps to the selected result by opening its parent directory and focusing that file. |
 | `Show attributes` | Exactly one target is selected or focused | Opens a read-only dialog with `Name`, `Type`, `Path`, `Size`, `Modified`, `Hidden`, and `Permissions`. |
 | `Copy path` | At least one target is selected or focused | Copies the selected path list, or the focused path when nothing is selected, to the system clipboard. |
 | `Open in file manager` | Always | Opens the current directory in the OS file manager. |

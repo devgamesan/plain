@@ -46,7 +46,11 @@ class CommandPalette(Container):
         title_widget.update(state.title)
         query_text = Text()
         query_text.append("> ", style="bold")
-        placeholder = "type a filename" if state.title == "Find File" else "type a command"
+        placeholder = (
+            "type a filename or re:pattern"
+            if state.title == "Find File"
+            else "type a command"
+        )
         query_text.append(state.query or placeholder, style="bold" if state.query else "dim")
         query_widget.update(query_text)
         items_widget.update(self._render_items(state))

@@ -52,6 +52,7 @@ from peneo.state import (
     FileMutationCompleted,
     FileMutationFailed,
     FileSearchCompleted,
+    FileSearchFailed,
     FileSearchResultState,
     FocusSplitTerminal,
     GoToParentDirectory,
@@ -1067,6 +1068,41 @@ def test_set_command_palette_query_runs_new_search_when_query_is_not_prefix_exte
     )
 
 
+def test_set_command_palette_query_runs_new_search_for_regex_queries() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("find"))
+    state = _reduce_state(state, SubmitCommandPalette())
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            query="read",
+            file_search_cache_query="read",
+            file_search_cache_results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/peneo/README.md",
+                    display_path="README.md",
+                ),
+            ),
+            file_search_cache_root_path="/home/tadashi/develop/peneo",
+            file_search_cache_show_hidden=False,
+        ),
+        next_request_id=4,
+    )
+
+    result = reduce_app_state(state, SetCommandPaletteQuery(r"re:^README\.md$"))
+
+    assert result.state.pending_file_search_request_id == 4
+    assert result.effects == (
+        RunFileSearchEffect(
+            request_id=4,
+            root_path="/home/tadashi/develop/peneo",
+            query=r"re:^README\.md$",
+            show_hidden=False,
+        ),
+    )
+
+
 def test_file_search_completed_updates_palette_results() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
     state = _reduce_state(state, SetCommandPaletteQuery("find"))
@@ -1102,6 +1138,101 @@ def test_file_search_completed_updates_palette_results() -> None:
     assert next_state.command_palette.file_search_cache_root_path == "/home/tadashi/develop/peneo"
     assert next_state.command_palette.file_search_cache_show_hidden is False
     assert next_state.pending_file_search_request_id is None
+
+
+def test_file_search_completed_does_not_cache_regex_queries() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("find"))
+    state = _reduce_state(state, SubmitCommandPalette())
+    search_state = replace(
+        state,
+        command_palette=replace(state.command_palette, query=r"re:^README\.md$"),
+        pending_file_search_request_id=4,
+    )
+
+    next_state = _reduce_state(
+        search_state,
+        FileSearchCompleted(
+            request_id=4,
+            query=r"re:^README\.md$",
+            results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/peneo/README.md",
+                    display_path="README.md",
+                ),
+            ),
+        ),
+    )
+
+    assert next_state.command_palette is not None
+    assert next_state.command_palette.file_search_results == (
+        FileSearchResultState(
+            path="/home/tadashi/develop/peneo/README.md",
+            display_path="README.md",
+        ),
+    )
+    assert next_state.command_palette.file_search_cache_query == ""
+    assert next_state.command_palette.file_search_cache_results == ()
+
+
+def test_file_search_failed_sets_inline_error_for_invalid_regex() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("find"))
+    state = _reduce_state(state, SubmitCommandPalette())
+    search_state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            query="re:[",
+            file_search_results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/peneo/README.md",
+                    display_path="README.md",
+                ),
+            ),
+        ),
+        pending_file_search_request_id=4,
+    )
+
+    next_state = _reduce_state(
+        search_state,
+        FileSearchFailed(
+            request_id=4,
+            query="re:[",
+            message="Invalid regex: unterminated character set",
+            invalid_query=True,
+        ),
+    )
+
+    assert next_state.command_palette is not None
+    assert next_state.command_palette.file_search_results == ()
+    assert (
+        next_state.command_palette.file_search_error_message
+        == "Invalid regex: unterminated character set"
+    )
+    assert next_state.notification is None
+    assert next_state.pending_file_search_request_id is None
+
+
+def test_submit_command_palette_uses_inline_error_message_when_present() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("find"))
+    state = _reduce_state(state, SubmitCommandPalette())
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            query="re:[",
+            file_search_error_message="Invalid regex: unterminated character set",
+        ),
+    )
+
+    next_state = _reduce_state(state, SubmitCommandPalette())
+
+    assert next_state.notification == NotificationState(
+        level="warning",
+        message="Invalid regex: unterminated character set",
+    )
 
 
 def test_submit_command_palette_file_search_result_requests_snapshot() -> None:

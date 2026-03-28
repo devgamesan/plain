@@ -126,6 +126,7 @@ _CONFIG_SORT_FIELDS = ("name", "modified", "size")
 _CONFIG_THEMES = ("textual-dark", "textual-light")
 _CONFIG_PASTE_ACTIONS = ("prompt", "overwrite", "skip", "rename")
 _CONFIG_EDITOR_COMMANDS = (None, "nvim", "vim", "nano", "hx", "micro", "emacs -nw")
+_REGEX_FILE_SEARCH_PREFIX = "re:"
 
 
 def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
@@ -315,21 +316,29 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
             state.command_palette,
             query=action.query,
             cursor_index=0,
+            file_search_error_message=None,
         )
         if state.command_palette.source != "file_search":
             return done(replace(state, command_palette=next_palette))
 
-        normalized_query = action.query.strip().casefold()
-        if not normalized_query:
+        stripped_query = action.query.strip()
+        if not stripped_query:
             return done(
                 replace(
                     state,
-                    command_palette=replace(next_palette, file_search_results=()),
+                    command_palette=replace(
+                        next_palette,
+                        file_search_results=(),
+                        file_search_error_message=None,
+                    ),
                     pending_file_search_request_id=None,
                 )
             )
+        is_regex_query = _is_regex_file_search_query(stripped_query)
+        normalized_query = stripped_query.casefold()
         if (
-            state.command_palette.file_search_cache_query
+            not is_regex_query
+            and state.command_palette.file_search_cache_query
             and normalized_query.startswith(state.command_palette.file_search_cache_query)
             and state.command_palette.file_search_cache_root_path == state.current_path
             and state.command_palette.file_search_cache_show_hidden == state.show_hidden
@@ -359,7 +368,7 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
             RunFileSearchEffect(
                 request_id=request_id,
                 root_path=state.current_path,
-                query=normalized_query,
+                query=stripped_query,
                 show_hidden=state.show_hidden,
             ),
         )
@@ -370,12 +379,16 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
         if state.command_palette.source == "file_search":
             results = state.command_palette.file_search_results
             if not results:
+                message = (
+                    state.command_palette.file_search_error_message
+                    or "No matching files"
+                )
                 return done(
                     replace(
                         state,
                         notification=NotificationState(
                             level="warning",
-                            message="No matching files",
+                            message=message,
                         ),
                     )
                 )
@@ -1142,18 +1155,24 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
             action.request_id != state.pending_file_search_request_id
             or state.command_palette is None
             or state.command_palette.source != "file_search"
-            or state.command_palette.query.strip().casefold() != action.query
+            or state.command_palette.query.strip() != action.query
         ):
             return done(state)
+        cache_query = ""
+        cache_results: tuple[FileSearchResultState, ...] = ()
+        if not _is_regex_file_search_query(action.query):
+            cache_query = action.query.casefold()
+            cache_results = action.results
         return done(
             replace(
                 state,
                 command_palette=replace(
                     state.command_palette,
                     file_search_results=action.results,
+                    file_search_error_message=None,
                     cursor_index=0,
-                    file_search_cache_query=action.query,
-                    file_search_cache_results=action.results,
+                    file_search_cache_query=cache_query,
+                    file_search_cache_results=cache_results,
                     file_search_cache_root_path=state.current_path,
                     file_search_cache_show_hidden=state.show_hidden,
                 ),
@@ -1164,6 +1183,18 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
     if isinstance(action, FileSearchFailed):
         if action.request_id != state.pending_file_search_request_id:
             return done(state)
+        if state.command_palette is not None and action.invalid_query:
+            return done(
+                replace(
+                    state,
+                    command_palette=replace(
+                        state.command_palette,
+                        file_search_results=(),
+                        file_search_error_message=action.message,
+                    ),
+                    pending_file_search_request_id=None,
+                )
+            )
         return done(
             replace(
                 state,
@@ -1753,6 +1784,10 @@ def _filter_file_search_results(
         for result in results
         if normalized_query in Path(result.path).name.casefold()
     )
+
+
+def _is_regex_file_search_query(query: str) -> bool:
+    return query.strip().startswith(_REGEX_FILE_SEARCH_PREFIX)
 
 
 def _format_clipboard_message(prefix: str, paths: tuple[str, ...]) -> str:

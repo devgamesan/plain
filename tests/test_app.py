@@ -1298,6 +1298,52 @@ async def test_app_file_search_debounces_rapid_query_updates(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_file_search_passes_regex_queries_through_to_service(tmp_path) -> None:
+    path = str(tmp_path)
+    (tmp_path / "README.md").write_text("readme\n", encoding="utf-8")
+    file_search_service = FakeFileSearchService(
+        results_by_query={
+            (path, r"re:^README\.md$", False): (
+                FileSearchResultState(
+                    path=f"{path}/README.md",
+                    display_path="README.md",
+                ),
+            )
+        }
+    )
+    app = create_app(file_search_service=file_search_service, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await pilot.press("enter")
+        await pilot.press(
+            "r",
+            "e",
+            ":",
+            "^",
+            "R",
+            "E",
+            "A",
+            "D",
+            "M",
+            "E",
+            "\\",
+            ".",
+            "m",
+            "d",
+            "$",
+        )
+        await _wait_for_request_count(file_search_service, 1)
+
+        assert file_search_service.executed_requests == [(path, r"re:^README\.md$", False)]
+        assert app.app_state.command_palette is not None
+        assert [
+            result.display_path for result in app.app_state.command_palette.file_search_results
+        ] == ["README.md"]
+
+
+@pytest.mark.asyncio
 async def test_app_file_search_prefix_extension_reuses_cached_results(tmp_path) -> None:
     path = str(tmp_path)
     (tmp_path / "README.md").write_text("readme\n", encoding="utf-8")
@@ -1380,6 +1426,32 @@ async def test_app_file_search_cancels_superseded_request_without_notification(t
         assert [
             result.display_path for result in app.app_state.command_palette.file_search_results
         ] == ["guide.md"]
+
+
+@pytest.mark.asyncio
+async def test_app_file_search_shows_invalid_regex_message_in_palette(tmp_path) -> None:
+    path = str(tmp_path)
+    (tmp_path / "README.md").write_text("readme\n", encoding="utf-8")
+    file_search_service = FakeFileSearchService(
+        invalid_query_messages={
+            (path, "re:[", False): "Invalid regex: unterminated character set"
+        }
+    )
+    app = create_app(file_search_service=file_search_service, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await pilot.press("enter")
+        await pilot.press("r", "e", ":", "[")
+        await _wait_for_request_count(file_search_service, 1)
+        await asyncio.sleep(0.05)
+
+        palette = await _wait_for_command_palette(app)
+        items = palette.query_one("#command-palette-items", Static)
+
+        assert "Invalid regex: unterminated character set" in str(items.renderable)
+        assert app.app_state.notification is None
 
 
 @pytest.mark.asyncio

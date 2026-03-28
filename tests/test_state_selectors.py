@@ -686,6 +686,25 @@ def test_select_command_palette_state_shows_searching_message_while_file_search_
     assert palette_state.items == ()
 
 
+def test_select_command_palette_state_shows_regex_error_message() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = replace(
+        state,
+        command_palette=CommandPaletteState(
+            source="file_search",
+            query="re:[",
+            file_search_error_message="Invalid regex: unterminated character set",
+        ),
+    )
+
+    palette_state = select_command_palette_state(state)
+
+    assert palette_state is not None
+    assert palette_state.title == "Find File"
+    assert palette_state.empty_message == "Invalid regex: unterminated character set"
+    assert palette_state.items == ()
+
+
 def test_select_command_palette_state_windows_large_file_search_results() -> None:
     results = tuple(
         FileSearchResultState(

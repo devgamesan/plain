@@ -1,9 +1,10 @@
 """Recursive file-search services for the command palette."""
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Protocol
+from typing import Literal, Protocol
 
 from peneo.state.models import FileSearchResultState
 
@@ -21,6 +22,60 @@ class FileSearchService(Protocol):
     ) -> tuple[FileSearchResultState, ...]: ...
 
 
+_REGEX_QUERY_PREFIX = "re:"
+
+
+class InvalidFileSearchQueryError(ValueError):
+    """Raised when the file-search query cannot be interpreted."""
+
+
+@dataclass(frozen=True)
+class ParsedFileSearchQuery:
+    """Normalized file-search query used by the search service."""
+
+    raw_query: str
+    mode: Literal["plain", "regex"]
+    normalized_plain_query: str = ""
+    pattern: re.Pattern[str] | None = None
+
+    @property
+    def is_regex(self) -> bool:
+        return self.mode == "regex"
+
+    def matches(self, filename: str) -> bool:
+        if self.pattern is not None:
+            return self.pattern.search(filename) is not None
+        return self.normalized_plain_query in filename.casefold()
+
+
+def is_regex_file_search_query(query: str) -> bool:
+    """Return whether the trimmed query uses regex mode."""
+
+    return query.strip().startswith(_REGEX_QUERY_PREFIX)
+
+
+def parse_file_search_query(query: str) -> ParsedFileSearchQuery:
+    """Parse a file-search query into plain or regex matching mode."""
+
+    stripped_query = query.strip()
+    if is_regex_file_search_query(stripped_query):
+        pattern_source = stripped_query[len(_REGEX_QUERY_PREFIX) :]
+        try:
+            pattern = re.compile(pattern_source)
+        except re.error as error:
+            raise InvalidFileSearchQueryError(f"Invalid regex: {error}") from error
+        return ParsedFileSearchQuery(
+            raw_query=stripped_query,
+            mode="regex",
+            pattern=pattern,
+        )
+    return ParsedFileSearchQuery(
+        raw_query=stripped_query,
+        mode="plain",
+        normalized_plain_query=stripped_query.casefold(),
+    )
+
+
 @dataclass(frozen=True)
 class LiveFileSearchService:
     """Search the local filesystem for matching filenames."""
@@ -33,8 +88,8 @@ class LiveFileSearchService:
         show_hidden: bool,
         is_cancelled: Callable[[], bool] | None = None,
     ) -> tuple[FileSearchResultState, ...]:
-        normalized_query = query.strip().casefold()
-        if not normalized_query:
+        parsed_query = parse_file_search_query(query)
+        if not parsed_query.raw_query:
             return ()
 
         root = Path(root_path).expanduser().resolve()
@@ -63,7 +118,7 @@ class LiveFileSearchService:
                 if child.is_dir():
                     stack.append(child)
                     continue
-                if normalized_query not in child.name.casefold():
+                if not parsed_query.matches(child.name):
                     continue
                 results.append(
                     FileSearchResultState(
@@ -83,6 +138,7 @@ class FakeFileSearchService:
         default_factory=dict
     )
     failure_messages: dict[tuple[str, str, bool], str] = field(default_factory=dict)
+    invalid_query_messages: dict[tuple[str, str, bool], str] = field(default_factory=dict)
     executed_requests: list[tuple[str, str, bool]] = field(default_factory=list)
 
     def search(
@@ -97,6 +153,8 @@ class FakeFileSearchService:
         self.executed_requests.append(key)
         if is_cancelled is not None and is_cancelled():
             return ()
+        if key in self.invalid_query_messages:
+            raise InvalidFileSearchQueryError(self.invalid_query_messages[key])
         if key in self.failure_messages:
             raise OSError(self.failure_messages[key])
         return self.results_by_query.get(key, ())

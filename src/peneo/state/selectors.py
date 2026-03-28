@@ -362,31 +362,38 @@ def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
         f"Path: {state.config_editor.path}",
         "",
         _format_config_line(
-            0, selected_index, "Show hidden files", _format_bool(config.display.show_hidden_files)
+            0, selected_index, "Editor command", _format_editor_command_value(config.editor.command)
         ),
-        _format_config_line(1, selected_index, "Theme", config.display.theme),
         _format_config_line(
-            2,
+            1,
+            selected_index,
+            "Show hidden files",
+            _format_bool(config.display.show_hidden_files),
+        ),
+        _format_config_line(2, selected_index, "Theme", config.display.theme),
+        _format_config_line(
+            3,
             selected_index,
             "Default sort field",
             config.display.default_sort_field,
         ),
         _format_config_line(
-            3,
+            4,
             selected_index,
             "Default sort descending",
             _format_bool(config.display.default_sort_descending),
         ),
         _format_config_line(
-            4, selected_index, "Directories first", _format_bool(config.display.directories_first)
+            5, selected_index, "Directories first", _format_bool(config.display.directories_first)
         ),
         _format_config_line(
-            5, selected_index, "Confirm delete", _format_bool(config.behavior.confirm_delete)
+            6, selected_index, "Confirm delete", _format_bool(config.behavior.confirm_delete)
         ),
         _format_config_line(
-            6, selected_index, "Paste conflict action", config.behavior.paste_conflict_action
+            7, selected_index, "Paste conflict action", config.behavior.paste_conflict_action
         ),
         "",
+        _format_custom_editor_hint(config.editor.command),
         "Terminal launch templates: edit config.toml with e",
         f"  Linux templates: {len(config.terminal.linux)}",
         f"  macOS templates: {len(config.terminal.macos)}",
@@ -701,6 +708,20 @@ def _format_permissions_label(mode: int | None) -> str:
         return "-"
     normalized_mode = S_IMODE(mode)
     return f"{filemode(mode)} ({normalized_mode:03o})"
+
+
+def _format_editor_command_value(command: str | None) -> str:
+    if command is None:
+        return "system default"
+    if command in {"nvim", "vim", "nano", "hx", "micro", "emacs -nw"}:
+        return command
+    return "custom (raw config only)"
+
+
+def _format_custom_editor_hint(command: str | None) -> str:
+    if command is None or command in {"nvim", "vim", "nano", "hx", "micro", "emacs -nw"}:
+        return "Editor presets: system default, nvim, vim, nano, hx, micro, emacs -nw"
+    return f"Custom editor command: {command}"
 
 
 def _format_current_entry_name_detail(entry: DirectoryEntryState) -> str | None:

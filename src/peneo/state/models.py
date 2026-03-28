@@ -23,6 +23,7 @@ CommandPaletteSource = Literal["commands", "file_search"]
 SplitTerminalStatus = Literal["closed", "starting", "running"]
 SplitTerminalFocusTarget = Literal["browser", "terminal"]
 ConfigFieldId = Literal[
+    "editor.command",
     "display.show_hidden_files",
     "display.theme",
     "display.default_sort_field",

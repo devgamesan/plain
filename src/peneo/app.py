@@ -365,10 +365,9 @@ class PeneoApp(App[None]):
         self._clipboard_service = clipboard_service or LiveClipboardOperationService()
         self._config_save_service = config_save_service or LiveConfigSaveService()
         self._file_mutation_service = file_mutation_service or LiveFileMutationService()
-        self._external_launch_service = external_launch_service or LiveExternalLaunchService(
-            adapter=LocalExternalLaunchAdapter(
-                terminal_command_templates=self._app_config.terminal,
-            )
+        self._uses_live_external_launch_service = external_launch_service is None
+        self._external_launch_service = (
+            external_launch_service or self._build_external_launch_service(self._app_config)
         )
         self._file_search_service = file_search_service or LiveFileSearchService()
         self._split_terminal_service = split_terminal_service or LiveSplitTerminalService()
@@ -490,9 +489,24 @@ class PeneoApp(App[None]):
         self._sync_file_search_state(previous_state, self._app_state)
         if previous_state.config.display.theme != self._app_state.config.display.theme:
             self.theme = self._app_state.config.display.theme
+        if previous_state.config != self._app_state.config:
+            self._sync_external_launch_service()
         if changed:
             await self._refresh_shell()
         self._schedule_effects(effects)
+
+    def _build_external_launch_service(self, app_config: AppConfig) -> LiveExternalLaunchService:
+        return LiveExternalLaunchService(
+            adapter=LocalExternalLaunchAdapter(
+                terminal_command_templates=app_config.terminal,
+                editor_command_template=app_config.editor,
+            )
+        )
+
+    def _sync_external_launch_service(self) -> None:
+        if not self._uses_live_external_launch_service:
+            return
+        self._external_launch_service = self._build_external_launch_service(self._app_state.config)
 
     def _apply_actions(self, actions: Sequence[Action]) -> tuple[bool, tuple[Effect, ...]]:
         state = self._app_state

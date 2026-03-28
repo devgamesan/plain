@@ -2,7 +2,7 @@ from dataclasses import replace
 from stat import S_IFREG
 
 import peneo.state.selectors as selectors_module
-from peneo.models import PasteConflict, PasteRequest
+from peneo.models import AppConfig, EditorConfig, PasteConflict, PasteRequest
 from peneo.state import (
     AttributeInspectionState,
     BeginCommandPalette,
@@ -606,7 +606,7 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
         config_editor=ConfigEditorState(
             path="/tmp/peneo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=1,
+            cursor_index=2,
             dirty=True,
         ),
     )
@@ -616,10 +616,29 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
     assert dialog is not None
     assert dialog.title == "Config Editor*"
     assert "Path: /tmp/peneo/config.toml" in dialog.lines
+    assert "  Editor command: system default" in dialog.lines
     assert "> Theme: textual-dark" in dialog.lines
     assert "  Default sort field: name" in dialog.lines
+    assert "Editor presets: system default, nvim, vim, nano, hx, micro, emacs -nw" in dialog.lines
     assert "Terminal launch templates: edit config.toml with e" in dialog.lines
     assert dialog.options == ("left/right/enter change", "s save", "e edit file", "esc close")
+
+
+def test_select_config_dialog_state_shows_custom_editor_command_hint() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/peneo/config.toml",
+            draft=AppConfig(editor=EditorConfig(command="nvim -u NONE")),
+        ),
+    )
+
+    dialog = select_config_dialog_state(state)
+
+    assert dialog is not None
+    assert "> Editor command: custom (raw config only)" in dialog.lines
+    assert "Custom editor command: nvim -u NONE" in dialog.lines
 
 
 def test_select_command_palette_state_for_file_search_results() -> None:

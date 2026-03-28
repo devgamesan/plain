@@ -11,7 +11,7 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Callable, Protocol
 
-from peneo.models import AppConfig, ConfigLoadResult, DisplayConfig, TerminalConfig
+from peneo.models import AppConfig, ConfigLoadResult, DisplayConfig, EditorConfig, TerminalConfig
 from peneo.models.config import BehaviorConfig
 
 SystemNameResolver = Callable[[], str]
@@ -28,6 +28,9 @@ class ConfigSaveService(Protocol):
 _VALID_SORT_FIELDS = frozenset({"name", "modified", "size"})
 _VALID_THEMES = frozenset({"textual-dark", "textual-light"})
 _VALID_PASTE_ACTIONS = frozenset({"overwrite", "skip", "rename", "prompt"})
+_VALID_TERMINAL_EDITOR_NAMES = frozenset(
+    {"emacs", "helix", "hx", "kak", "micro", "nano", "nvim", "vi", "vim"}
+)
 _VALIDATION_PATH = "/tmp/peneo"
 
 
@@ -74,10 +77,16 @@ class AppConfigLoader:
             )
 
         terminal = _load_terminal_config(document.get("terminal"), warnings)
+        editor = _load_editor_config(document.get("editor"), warnings)
         display = _load_display_config(document.get("display"), warnings)
         behavior = _load_behavior_config(document.get("behavior"), warnings)
         return ConfigLoadResult(
-            config=AppConfig(terminal=terminal, display=display, behavior=behavior),
+            config=AppConfig(
+                terminal=terminal,
+                editor=editor,
+                display=display,
+                behavior=behavior,
+            ),
             path=str(path),
             warnings=tuple(warnings),
         )
@@ -188,6 +197,39 @@ def _load_display_config(section: object, warnings: list[str]) -> DisplayConfig:
     return config
 
 
+def _load_editor_config(section: object, warnings: list[str]) -> EditorConfig:
+    if section is None:
+        return EditorConfig()
+    if not isinstance(section, dict):
+        warnings.append("editor must be a table; using defaults.")
+        return EditorConfig()
+
+    command = section.get("command")
+    if command is None:
+        return EditorConfig()
+    if not isinstance(command, str) or not command.strip():
+        warnings.append("editor.command must be a non-empty string; using default.")
+        return EditorConfig()
+
+    try:
+        parsed = tuple(shlex.split(command))
+    except ValueError as error:
+        warnings.append(
+            f"editor.command is not a valid shell-style command: {error}; using default."
+        )
+        return EditorConfig()
+
+    if not parsed:
+        warnings.append("editor.command did not produce an executable command; using default.")
+        return EditorConfig()
+    if Path(parsed[0]).name.casefold() not in _VALID_TERMINAL_EDITOR_NAMES:
+        warnings.append(
+            "editor.command must target a supported terminal editor; using default."
+        )
+        return EditorConfig()
+    return EditorConfig(command=command)
+
+
 def _load_behavior_config(section: object, warnings: list[str]) -> BehaviorConfig:
     config = BehaviorConfig()
     if section is None:
@@ -292,6 +334,14 @@ def render_app_config(config: AppConfig) -> str:
         macos = [{macos}]
         windows = [{windows}]
 
+        [editor]
+        # Optional terminal editor command for `e`.
+        # Use a shell-style command without the file path; Peneo appends it automatically.
+        # Examples:
+        # command = "nvim -u NONE"
+        # command = "emacs -nw"
+        command = {editor_command}
+
         [display]
         show_hidden_files = {show_hidden_files}
         theme = "{theme}"
@@ -307,6 +357,7 @@ def render_app_config(config: AppConfig) -> str:
         linux=_render_command_array(config.terminal.linux),
         macos=_render_command_array(config.terminal.macos),
         windows=_render_command_array(config.terminal.windows),
+        editor_command=_render_optional_toml_string(config.editor.command),
         show_hidden_files=_render_bool(config.display.show_hidden_files),
         theme=config.display.theme,
         default_sort_field=config.display.default_sort_field,
@@ -328,3 +379,9 @@ def _render_bool(value: bool) -> str:
 def _render_toml_string(value: str) -> str:
     escaped = value.replace("\\", "\\\\").replace('"', '\\"')
     return f'"{escaped}"'
+
+
+def _render_optional_toml_string(value: str | None) -> str:
+    if value is None:
+        return '""'
+    return _render_toml_string(value)

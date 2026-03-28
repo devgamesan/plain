@@ -178,7 +178,6 @@ Less frequent actions are grouped in the command palette opened with `:`.
 | `Copy path` | At least one target is selected or focused | Copies the selected path list, or the focused path when nothing is selected, to the system clipboard. |
 | `Open in file manager` | Always | Opens the current directory in the OS file manager. |
 | `Open terminal here` | Always | Launches an external terminal rooted at the current directory, using `config.toml` templates before built-in fallbacks. |
-| `Open split terminal` / `Close split terminal` | Always | Toggles the embedded split terminal. The label changes with visibility, and the split terminal keeps the directory where it was started instead of following later browser navigation. |
 | `Show hidden files` / `Hide hidden files` | Always | Toggles hidden-file visibility for the browser panes. The label reflects the current visibility state. |
 | `Edit config` | Always | Opens the settings overlay for startup defaults. You can edit the preferred terminal editor, hidden-file visibility, theme, sorting, default paste-conflict behavior, and delete confirmation. Use `↑` / `↓` to move, `←` / `→` / `Enter` to change values, `s` to save `config.toml`, and `e` to open the raw config file in a terminal editor. |
 | `Create file` | Always | Starts the inline create-file flow in the current directory. |

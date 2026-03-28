@@ -414,7 +414,7 @@ def test_move_command_palette_cursor_clamps_to_visible_commands() -> None:
     next_state = _reduce_state(state, MoveCommandPaletteCursor(delta=10))
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.cursor_index == 8
+    assert next_state.command_palette.cursor_index == 7
 
 
 def test_set_command_palette_query_resets_cursor() -> None:
@@ -762,23 +762,6 @@ def test_open_path_in_editor_allows_non_browser_file_path() -> None:
                 kind="open_editor",
                 path="/tmp/peneo/config.toml",
             ),
-        ),
-    )
-
-
-def test_submit_command_palette_toggles_split_terminal() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("split"))
-
-    result = reduce_app_state(state, SubmitCommandPalette())
-
-    assert result.state.ui_mode == "BROWSING"
-    assert result.state.split_terminal.visible is True
-    assert result.state.split_terminal.status == "starting"
-    assert result.effects == (
-        StartSplitTerminalEffect(
-            session_id=1,
-            cwd="/home/tadashi/develop/peneo",
         ),
     )
 

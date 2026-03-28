@@ -504,8 +504,6 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
             return reduce_app_state(next_state, OpenPathWithDefaultApp(next_state.current_path))
         if selected_item.id == "open_terminal":
             return reduce_app_state(next_state, OpenTerminalAtPath(next_state.current_path))
-        if selected_item.id == "toggle_split_terminal":
-            return reduce_app_state(next_state, ToggleSplitTerminal())
         if selected_item.id == "toggle_hidden":
             return reduce_app_state(next_state, ToggleHiddenFiles())
         if selected_item.id == "edit_config":

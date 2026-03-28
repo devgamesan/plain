@@ -99,12 +99,6 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 enabled=True,
             ),
             CommandPaletteItem(
-                id="toggle_split_terminal",
-                label=_split_terminal_label(state),
-                shortcut=None,
-                enabled=True,
-            ),
-            CommandPaletteItem(
                 id="toggle_hidden",
                 label=_hidden_files_label(state),
                 shortcut=None,
@@ -143,10 +137,6 @@ def _matches_query(item: CommandPaletteItem, query: str) -> bool:
 
 def _hidden_files_label(state: AppState) -> str:
     return "Hide hidden files" if state.show_hidden else "Show hidden files"
-
-
-def _split_terminal_label(state: AppState) -> str:
-    return "Close split terminal" if state.split_terminal.visible else "Open split terminal"
 
 
 def _select_target_paths(state: AppState) -> tuple[str, ...]:

@@ -78,6 +78,7 @@ def test_main_passes_loaded_config_and_warnings_to_create_app(monkeypatch) -> No
     assert return_code == 0
     assert app.run_calls == 1
     assert captured_kwargs["app_config"] is loaded_config
+    assert captured_kwargs["config_path"] == ""
     assert captured_kwargs["startup_notification"] is not None
     assert captured_kwargs["startup_notification"].level == "warning"
     assert "using test config" in captured_kwargs["startup_notification"].message

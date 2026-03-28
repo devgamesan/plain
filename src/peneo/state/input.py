@@ -16,18 +16,22 @@ from .actions import (
     ConfirmFilterInput,
     CopyTargets,
     CutTargets,
+    CycleConfigEditorValue,
     DismissAttributeDialog,
+    DismissConfigEditor,
     DismissNameConflict,
     EnterCursorDirectory,
     ExitCurrentPath,
     GoToParentDirectory,
     MoveCommandPaletteCursor,
+    MoveConfigEditorCursor,
     MoveCursor,
     OpenPathInEditor,
     OpenPathWithDefaultApp,
     PasteClipboard,
     ReloadDirectory,
     ResolvePasteConflict,
+    SaveConfigEditor,
     SendSplitTerminalInput,
     SetCommandPaletteQuery,
     SetFilterQuery,
@@ -105,6 +109,9 @@ def dispatch_key_input(
 
     if state.ui_mode == "DETAIL":
         return _dispatch_detail_input(key)
+
+    if state.ui_mode == "CONFIG":
+        return _dispatch_config_input(state, key)
 
     if state.ui_mode == "BUSY":
         return _warn("Input ignored while processing")
@@ -394,6 +401,31 @@ def _dispatch_detail_input(key: str) -> DispatchedActions:
         return _supported(DismissAttributeDialog())
 
     return _warn("Use Enter or Esc to close the attributes dialog")
+
+
+def _dispatch_config_input(state: AppState, key: str) -> DispatchedActions:
+    if key == "escape":
+        return _supported(DismissConfigEditor())
+
+    if key in {"up", "k"}:
+        return _supported(MoveConfigEditorCursor(delta=-1))
+
+    if key in {"down", "j"}:
+        return _supported(MoveConfigEditorCursor(delta=1))
+
+    if key in {"left", "h"}:
+        return _supported(CycleConfigEditorValue(delta=-1))
+
+    if key in {"right", "l", "enter", "space"}:
+        return _supported(CycleConfigEditorValue(delta=1))
+
+    if key == "s":
+        return _supported(SaveConfigEditor())
+
+    if key == "e":
+        return _supported(OpenPathInEditor(state.config_path))
+
+    return _warn("Use arrows to change values, s to save, e to edit the file, or Esc to close")
 
 
 def _visible_paths(state: AppState) -> tuple[str, ...]:

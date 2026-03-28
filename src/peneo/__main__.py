@@ -58,6 +58,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     startup_notification = _config_warning_notification(config_result.warnings)
     app = create_app(
         app_config=config_result.config,
+        config_path=config_result.path,
         startup_notification=startup_notification,
     )
     app.run()

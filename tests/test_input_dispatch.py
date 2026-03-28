@@ -11,17 +11,21 @@ from peneo.state import (
     CancelPasteConflict,
     CancelPendingInput,
     ClearSelection,
+    ConfigEditorState,
     ConfirmDeleteTargets,
     ConfirmFilterInput,
     CopyTargets,
     CutTargets,
+    CycleConfigEditorValue,
     DeleteConfirmationState,
     DismissAttributeDialog,
+    DismissConfigEditor,
     DismissNameConflict,
     EnterCursorDirectory,
     ExitCurrentPath,
     GoToParentDirectory,
     MoveCommandPaletteCursor,
+    MoveConfigEditorCursor,
     MoveCursor,
     NameConflictState,
     NotificationState,
@@ -31,6 +35,7 @@ from peneo.state import (
     PendingInputState,
     ReloadDirectory,
     ResolvePasteConflict,
+    SaveConfigEditor,
     SendSplitTerminalInput,
     SetCommandPaletteQuery,
     SetFilterQuery,
@@ -661,6 +666,81 @@ def test_detail_enter_closes_attribute_dialog() -> None:
     actions = dispatch_key_input(state, key="enter")
 
     assert actions == (SetNotification(None), DismissAttributeDialog())
+
+
+def test_config_down_moves_cursor() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/peneo/config.toml",
+            draft=build_initial_app_state().config,
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="down")
+
+    assert actions == (SetNotification(None), MoveConfigEditorCursor(delta=1))
+
+
+def test_config_enter_cycles_selected_value() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/peneo/config.toml",
+            draft=build_initial_app_state().config,
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="enter")
+
+    assert actions == (SetNotification(None), CycleConfigEditorValue(delta=1))
+
+
+def test_config_s_saves_editor() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/peneo/config.toml",
+            draft=build_initial_app_state().config,
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="s", character="s")
+
+    assert actions == (SetNotification(None), SaveConfigEditor())
+
+
+def test_config_e_opens_config_file_in_editor() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/peneo/config.toml",
+            draft=build_initial_app_state().config,
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="e", character="e")
+
+    assert actions == (SetNotification(None), OpenPathInEditor("/tmp/peneo/config.toml"))
+
+
+def test_config_escape_closes_editor() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/peneo/config.toml",
+            draft=build_initial_app_state().config,
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="escape")
+
+    assert actions == (SetNotification(None), DismissConfigEditor())
 
 
 def test_confirm_o_selects_overwrite_resolution() -> None:

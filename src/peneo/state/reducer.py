@@ -4,6 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from peneo.models import (
+    AppConfig,
     CreatePathRequest,
     ExternalLaunchRequest,
     FileMutationResult,
@@ -33,11 +34,15 @@ from .actions import (
     ClipboardPasteCompleted,
     ClipboardPasteFailed,
     ClipboardPasteNeedsResolution,
+    ConfigSaveCompleted,
+    ConfigSaveFailed,
     ConfirmDeleteTargets,
     ConfirmFilterInput,
     CopyTargets,
     CutTargets,
+    CycleConfigEditorValue,
     DismissAttributeDialog,
+    DismissConfigEditor,
     DismissNameConflict,
     EnterCursorDirectory,
     ExternalLaunchCompleted,
@@ -50,6 +55,7 @@ from .actions import (
     GoToParentDirectory,
     InitializeState,
     MoveCommandPaletteCursor,
+    MoveConfigEditorCursor,
     MoveCursor,
     OpenPathInEditor,
     OpenPathWithDefaultApp,
@@ -58,6 +64,7 @@ from .actions import (
     ReloadDirectory,
     RequestBrowserSnapshot,
     ResolvePasteConflict,
+    SaveConfigEditor,
     SendSplitTerminalInput,
     SetCommandPaletteQuery,
     SetCursorPath,
@@ -88,6 +95,7 @@ from .effects import (
     LoadChildPaneSnapshotEffect,
     ReduceResult,
     RunClipboardPasteEffect,
+    RunConfigSaveEffect,
     RunExternalLaunchEffect,
     RunFileMutationEffect,
     RunFileSearchEffect,
@@ -99,6 +107,7 @@ from .models import (
     AttributeInspectionState,
     ClipboardState,
     CommandPaletteState,
+    ConfigEditorState,
     DeleteConfirmationState,
     DirectoryEntryState,
     NameConflictKind,
@@ -107,9 +116,13 @@ from .models import (
     PaneState,
     PasteConflictState,
     PendingInputState,
+    SortState,
     SplitTerminalState,
 )
 from .selectors import select_target_paths, select_visible_current_entry_states
+
+_CONFIG_SORT_FIELDS = ("name", "modified", "size")
+_CONFIG_PASTE_ACTIONS = ("prompt", "overwrite", "skip", "rename")
 
 
 def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
@@ -263,6 +276,16 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
                 ui_mode="BROWSING",
                 notification=None,
                 attribute_inspection=None,
+            )
+        )
+
+    if isinstance(action, DismissConfigEditor):
+        return done(
+            replace(
+                state,
+                ui_mode="BROWSING",
+                notification=None,
+                config_editor=None,
             )
         )
 
@@ -443,11 +466,78 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
             return reduce_app_state(next_state, ToggleSplitTerminal())
         if selected_item.id == "toggle_hidden":
             return reduce_app_state(next_state, ToggleHiddenFiles())
+        if selected_item.id == "edit_config":
+            return done(
+                replace(
+                    state,
+                    ui_mode="CONFIG",
+                    notification=None,
+                    command_palette=None,
+                    pending_file_search_request_id=None,
+                    attribute_inspection=None,
+                    config_editor=ConfigEditorState(
+                        path=state.config_path,
+                        draft=state.config,
+                    ),
+                )
+            )
         if selected_item.id == "create_file":
             return reduce_app_state(next_state, BeginCreateInput("file"))
         if selected_item.id == "create_dir":
             return reduce_app_state(next_state, BeginCreateInput("dir"))
         return done(next_state)
+
+    if isinstance(action, MoveConfigEditorCursor):
+        if state.config_editor is None:
+            return done(state)
+        return done(
+            replace(
+                state,
+                config_editor=replace(
+                    state.config_editor,
+                    cursor_index=_normalize_config_editor_cursor(
+                        state.config_editor.cursor_index + action.delta
+                    ),
+                ),
+            )
+        )
+
+    if isinstance(action, CycleConfigEditorValue):
+        if state.config_editor is None:
+            return done(state)
+        next_draft = _cycle_config_editor_value(
+            state.config_editor.draft,
+            state.config_editor.cursor_index,
+            action.delta,
+        )
+        return done(
+            replace(
+                state,
+                config_editor=replace(
+                    state.config_editor,
+                    draft=next_draft,
+                    dirty=next_draft != state.config,
+                ),
+            )
+        )
+
+    if isinstance(action, SaveConfigEditor):
+        if state.config_editor is None:
+            return done(state)
+        request_id = state.next_request_id
+        return done(
+            replace(
+                state,
+                notification=None,
+                pending_config_save_request_id=request_id,
+                next_request_id=request_id + 1,
+            ),
+            RunConfigSaveEffect(
+                request_id=request_id,
+                path=state.config_editor.path,
+                config=state.config_editor.draft,
+            ),
+        )
 
     if isinstance(action, SetPendingInputValue):
         if state.pending_input is None:
@@ -576,12 +666,9 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
         )
 
     if isinstance(action, OpenPathInEditor):
-        entry = _current_entry_for_path(state, action.path)
-        if entry is None or entry.kind != "file":
-            return done(state)
         return _run_external_launch_request(
             replace(state, notification=None),
-            ExternalLaunchRequest(kind="open_editor", path=entry.path),
+            ExternalLaunchRequest(kind="open_editor", path=action.path),
         )
 
     if isinstance(action, OpenTerminalAtPath):
@@ -1158,6 +1245,48 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
             )
         )
 
+    if isinstance(action, ConfigSaveCompleted):
+        if state.pending_config_save_request_id != action.request_id:
+            return done(state)
+        next_config_editor = state.config_editor
+        if next_config_editor is not None:
+            next_config_editor = replace(
+                next_config_editor,
+                path=action.path,
+                draft=action.config,
+                dirty=False,
+            )
+        return done(
+            _apply_config_to_runtime_state(
+                replace(
+                    state,
+                    config=action.config,
+                    config_path=action.path,
+                    config_editor=next_config_editor,
+                    pending_config_save_request_id=None,
+                    notification=NotificationState(
+                        level="info",
+                        message=f"Config saved: {action.path}",
+                    ),
+                ),
+                action.config,
+            )
+        )
+
+    if isinstance(action, ConfigSaveFailed):
+        if state.pending_config_save_request_id != action.request_id:
+            return done(state)
+        return done(
+            replace(
+                state,
+                pending_config_save_request_id=None,
+                notification=NotificationState(
+                    level="error",
+                    message=f"Failed to save config: {action.message}",
+                ),
+            )
+        )
+
     if isinstance(action, DismissNameConflict):
         if state.name_conflict is None:
             return done(state)
@@ -1255,6 +1384,8 @@ def _run_file_mutation_request(
         state=next_state,
         effects=(RunFileMutationEffect(request_id=request_id, request=request),),
     )
+
+
 def _cursor_path_after_file_mutation(
     state: AppState,
     result: FileMutationResult,
@@ -1382,6 +1513,110 @@ def _normalize_cursor_path(
     if not entries:
         return None
     return entries[0].path
+
+
+def _normalize_config_editor_cursor(cursor_index: int) -> int:
+    return max(0, min(len(_config_editor_labels()) - 1, cursor_index))
+
+
+def _cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) -> AppConfig:
+    field_id = _config_editor_field_ids()[_normalize_config_editor_cursor(cursor_index)]
+    if field_id == "display.show_hidden_files":
+        return replace(
+            config,
+            display=replace(
+                config.display,
+                show_hidden_files=not config.display.show_hidden_files,
+            ),
+        )
+    if field_id == "display.default_sort_field":
+        return replace(
+            config,
+            display=replace(
+                config.display,
+                default_sort_field=_cycle_choice(
+                    _CONFIG_SORT_FIELDS,
+                    config.display.default_sort_field,
+                    delta,
+                ),
+            ),
+        )
+    if field_id == "display.default_sort_descending":
+        return replace(
+            config,
+            display=replace(
+                config.display,
+                default_sort_descending=not config.display.default_sort_descending,
+            ),
+        )
+    if field_id == "display.directories_first":
+        return replace(
+            config,
+            display=replace(
+                config.display,
+                directories_first=not config.display.directories_first,
+            ),
+        )
+    if field_id == "behavior.confirm_delete":
+        return replace(
+            config,
+            behavior=replace(
+                config.behavior,
+                confirm_delete=not config.behavior.confirm_delete,
+            ),
+        )
+    return replace(
+        config,
+        behavior=replace(
+            config.behavior,
+            paste_conflict_action=_cycle_choice(
+                _CONFIG_PASTE_ACTIONS,
+                config.behavior.paste_conflict_action,
+                delta,
+            ),
+        ),
+    )
+
+
+def _cycle_choice(options: tuple[str, ...], current: str, delta: int) -> str:
+    current_index = options.index(current) if current in options else 0
+    return options[(current_index + delta) % len(options)]
+
+
+def _config_editor_field_ids() -> tuple[str, ...]:
+    return (
+        "display.show_hidden_files",
+        "display.default_sort_field",
+        "display.default_sort_descending",
+        "display.directories_first",
+        "behavior.confirm_delete",
+        "behavior.paste_conflict_action",
+    )
+
+
+def _config_editor_labels() -> tuple[str, ...]:
+    return (
+        "Show hidden files",
+        "Default sort field",
+        "Default sort descending",
+        "Directories first",
+        "Confirm delete",
+        "Paste conflict action",
+    )
+
+
+def _apply_config_to_runtime_state(state: AppState, config: AppConfig) -> AppState:
+    return replace(
+        state,
+        show_hidden=config.display.show_hidden_files,
+        sort=SortState(
+            field=config.display.default_sort_field,
+            descending=config.display.default_sort_descending,
+            directories_first=config.display.directories_first,
+        ),
+        confirm_delete=config.behavior.confirm_delete,
+        paste_conflict_action=config.behavior.paste_conflict_action,
+    )
 
 
 def _validate_pending_input(state: AppState) -> str | None:

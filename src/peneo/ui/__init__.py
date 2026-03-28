@@ -2,6 +2,7 @@
 
 from .attribute_dialog import AttributeDialog
 from .command_palette import CommandPalette
+from .config_dialog import ConfigDialog
 from .conflict_dialog import ConflictDialog
 from .current_path_bar import CurrentPathBar
 from .help_bar import HelpBar
@@ -14,6 +15,7 @@ from .summary_bar import SummaryBar
 __all__ = [
     "AttributeDialog",
     "CommandPalette",
+    "ConfigDialog",
     "ConflictDialog",
     "CurrentPathBar",
     "HelpBar",

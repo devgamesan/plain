@@ -122,6 +122,15 @@ class AttributeDialogState:
 
 
 @dataclass(frozen=True)
+class ConfigDialogState:
+    """Display data for the editable config dialog."""
+
+    title: str
+    lines: tuple[str, ...]
+    options: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ThreePaneShellData:
     """Complete display state for the shell UI."""
 
@@ -138,6 +147,7 @@ class ThreePaneShellData:
     status: StatusBarState
     conflict_dialog: ConflictDialogState | None = None
     attribute_dialog: AttributeDialogState | None = None
+    config_dialog: ConfigDialogState | None = None
 
 
 def build_dummy_shell_data() -> ThreePaneShellData:
@@ -187,4 +197,5 @@ def build_dummy_shell_data() -> ThreePaneShellData:
         command_palette=None,
         status=StatusBarState(message=None, message_level=None),
         attribute_dialog=None,
+        config_dialog=None,
     )

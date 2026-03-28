@@ -33,13 +33,18 @@ from peneo.state import (
     ClipboardPasteNeedsResolution,
     CloseSplitTerminalEffect,
     CommandPaletteState,
+    ConfigEditorState,
+    ConfigSaveCompleted,
+    ConfigSaveFailed,
     ConfirmDeleteTargets,
     ConfirmFilterInput,
     CopyTargets,
     CutTargets,
+    CycleConfigEditorValue,
     DeleteConfirmationState,
     DirectoryEntryState,
     DismissAttributeDialog,
+    DismissConfigEditor,
     DismissNameConflict,
     EnterCursorDirectory,
     ExternalLaunchCompleted,
@@ -53,6 +58,7 @@ from peneo.state import (
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
     MoveCommandPaletteCursor,
+    MoveConfigEditorCursor,
     MoveCursor,
     NameConflictState,
     NotificationState,
@@ -67,9 +73,11 @@ from peneo.state import (
     RequestBrowserSnapshot,
     ResolvePasteConflict,
     RunClipboardPasteEffect,
+    RunConfigSaveEffect,
     RunExternalLaunchEffect,
     RunFileMutationEffect,
     RunFileSearchEffect,
+    SaveConfigEditor,
     SendSplitTerminalInput,
     SetCommandPaletteQuery,
     SetCursorPath,
@@ -404,7 +412,7 @@ def test_move_command_palette_cursor_clamps_to_visible_commands() -> None:
     next_state = _reduce_state(state, MoveCommandPaletteCursor(delta=10))
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.cursor_index == 8
+    assert next_state.command_palette.cursor_index == 9
 
 
 def test_set_command_palette_query_resets_cursor() -> None:
@@ -441,6 +449,147 @@ def test_submit_command_palette_enters_find_file_mode() -> None:
 
     assert next_state.ui_mode == "PALETTE"
     assert next_state.command_palette == CommandPaletteState(source="file_search")
+
+
+def test_submit_command_palette_opens_config_editor() -> None:
+    state = _reduce_state(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        BeginCommandPalette(),
+    )
+    state = _reduce_state(state, SetCommandPaletteQuery("config"))
+
+    next_state = _reduce_state(state, SubmitCommandPalette())
+
+    assert next_state.ui_mode == "CONFIG"
+    assert next_state.command_palette is None
+    assert next_state.config_editor == ConfigEditorState(
+        path="/tmp/peneo/config.toml",
+        draft=next_state.config,
+    )
+
+
+def test_move_config_editor_cursor_clamps_to_visible_settings() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/peneo/config.toml",
+            draft=build_initial_app_state().config,
+        ),
+    )
+
+    next_state = _reduce_state(state, MoveConfigEditorCursor(delta=99))
+
+    assert next_state.config_editor is not None
+    assert next_state.config_editor.cursor_index == 5
+
+
+def test_cycle_config_editor_value_updates_draft_and_dirty_state() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/peneo/config.toml",
+            draft=build_initial_app_state().config,
+            cursor_index=0,
+        ),
+    )
+
+    next_state = _reduce_state(state, CycleConfigEditorValue(delta=1))
+
+    assert next_state.config_editor is not None
+    assert next_state.config_editor.draft.display.show_hidden_files is True
+    assert next_state.config_editor.dirty is True
+
+
+def test_save_config_editor_emits_config_save_effect() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/peneo/config.toml",
+            draft=replace(
+                build_initial_app_state().config,
+                behavior=replace(build_initial_app_state().config.behavior, confirm_delete=False),
+            ),
+            dirty=True,
+        ),
+    )
+
+    result = reduce_app_state(state, SaveConfigEditor())
+
+    assert result.state.pending_config_save_request_id == 1
+    assert result.state.next_request_id == 2
+    assert result.effects == (
+        RunConfigSaveEffect(
+            request_id=1,
+            path="/tmp/peneo/config.toml",
+            config=result.state.config_editor.draft,
+        ),
+    )
+
+
+def test_config_save_completed_updates_runtime_state_and_clears_dirty_flag() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/peneo/config.toml",
+            draft=replace(
+                build_initial_app_state().config,
+                behavior=replace(build_initial_app_state().config.behavior, confirm_delete=False),
+            ),
+            dirty=True,
+        ),
+        pending_config_save_request_id=3,
+    )
+
+    saved_config = state.config_editor.draft
+    next_state = _reduce_state(
+        state,
+        ConfigSaveCompleted(
+            request_id=3,
+            path="/tmp/peneo/config.toml",
+            config=saved_config,
+        ),
+    )
+
+    assert next_state.pending_config_save_request_id is None
+    assert next_state.config == saved_config
+    assert next_state.confirm_delete is False
+    assert next_state.config_editor is not None
+    assert next_state.config_editor.dirty is False
+
+
+def test_config_save_failed_sets_error_notification() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        pending_config_save_request_id=4,
+    )
+
+    next_state = _reduce_state(state, ConfigSaveFailed(request_id=4, message="disk full"))
+
+    assert next_state.pending_config_save_request_id is None
+    assert next_state.notification == NotificationState(
+        level="error",
+        message="Failed to save config: disk full",
+    )
+
+
+def test_dismiss_config_editor_returns_to_browsing() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/peneo/config.toml",
+            draft=build_initial_app_state().config,
+        ),
+    )
+
+    next_state = _reduce_state(state, DismissConfigEditor())
+
+    assert next_state.ui_mode == "BROWSING"
+    assert next_state.config_editor is None
 
 
 def test_submit_command_palette_runs_copy_path_flow() -> None:
@@ -559,6 +708,24 @@ def test_submit_command_palette_runs_open_terminal_flow() -> None:
             request=ExternalLaunchRequest(
                 kind="open_terminal",
                 path="/home/tadashi/develop/peneo",
+            ),
+        ),
+    )
+
+
+def test_open_path_in_editor_allows_non_browser_file_path() -> None:
+    result = reduce_app_state(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        OpenPathInEditor("/tmp/peneo/config.toml"),
+    )
+
+    assert result.state.next_request_id == 2
+    assert result.effects == (
+        RunExternalLaunchEffect(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="open_editor",
+                path="/tmp/peneo/config.toml",
             ),
         ),
     )

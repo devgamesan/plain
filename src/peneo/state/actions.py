@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from peneo.models import (
+    AppConfig,
     ConflictResolution,
     CreateKind,
     ExternalLaunchRequest,
@@ -101,6 +102,30 @@ class SetCommandPaletteQuery:
 @dataclass(frozen=True)
 class SubmitCommandPalette:
     """Run the currently selected command palette command."""
+
+
+@dataclass(frozen=True)
+class DismissConfigEditor:
+    """Close the config editor without saving pending changes."""
+
+
+@dataclass(frozen=True)
+class MoveConfigEditorCursor:
+    """Move the config editor cursor by the provided delta."""
+
+    delta: int
+
+
+@dataclass(frozen=True)
+class CycleConfigEditorValue:
+    """Advance or reverse the selected config editor value."""
+
+    delta: int
+
+
+@dataclass(frozen=True)
+class SaveConfigEditor:
+    """Persist the current config editor draft to config.toml."""
 
 
 @dataclass(frozen=True)
@@ -448,6 +473,23 @@ class SplitTerminalExited:
     exit_code: int | None
 
 
+@dataclass(frozen=True)
+class ConfigSaveCompleted:
+    """Apply a successful config save."""
+
+    request_id: int
+    path: str
+    config: AppConfig
+
+
+@dataclass(frozen=True)
+class ConfigSaveFailed:
+    """Apply a failed config save."""
+
+    request_id: int
+    message: str
+
+
 Action = (
     InitializeState
     | SetUiMode
@@ -461,6 +503,10 @@ Action = (
     | MoveCommandPaletteCursor
     | SetCommandPaletteQuery
     | SubmitCommandPalette
+    | DismissConfigEditor
+    | MoveConfigEditorCursor
+    | CycleConfigEditorValue
+    | SaveConfigEditor
     | FileSearchCompleted
     | FileSearchFailed
     | SetPendingInputValue
@@ -508,4 +554,6 @@ Action = (
     | SplitTerminalStartFailed
     | SplitTerminalOutputReceived
     | SplitTerminalExited
+    | ConfigSaveCompleted
+    | ConfigSaveFailed
 )

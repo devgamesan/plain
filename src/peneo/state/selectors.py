@@ -9,6 +9,7 @@ from peneo.models import (
     AttributeDialogState,
     CommandPaletteItemViewState,
     CommandPaletteViewState,
+    ConfigDialogState,
     ConflictDialogState,
     CurrentSummaryState,
     HelpBarState,
@@ -66,6 +67,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         status=select_status_bar_state(state),
         conflict_dialog=select_conflict_dialog_state(state),
         attribute_dialog=select_attribute_dialog_state(state),
+        config_dialog=select_config_dialog_state(state),
     )
 
 
@@ -155,6 +157,10 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         return HelpBarState(("resolve conflict in dialog",))
     if state.ui_mode == "DETAIL":
         return HelpBarState(("enter close | esc close",))
+    if state.ui_mode == "CONFIG":
+        return HelpBarState(
+            ("up/down choose | left/right/enter change | s save | e edit file | esc close",)
+        )
     if state.ui_mode == "FILTER":
         return HelpBarState(("type filter | enter/down apply | esc clear",))
     if state.ui_mode == "RENAME":
@@ -284,10 +290,7 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
         noun = "item" if target_count == 1 else "items"
         message = f"Move {target_count} {noun} to trash?"
         if target_count > 1:
-            message = (
-                f"Move {target_count} items to trash? "
-                f"The first target is {first_name}."
-            )
+            message = f"Move {target_count} items to trash? The first target is {first_name}."
         return ConflictDialogState(
             title="Delete Confirmation",
             message=message,
@@ -362,6 +365,54 @@ def select_attribute_dialog_state(state: AppState) -> AttributeDialogState | Non
     )
 
 
+def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
+    """Return dialog content when the app is showing editable config values."""
+
+    if state.ui_mode != "CONFIG" or state.config_editor is None:
+        return None
+
+    config = state.config_editor.draft
+    selected_index = state.config_editor.cursor_index
+    lines = (
+        f"Path: {state.config_editor.path}",
+        "",
+        _format_config_line(
+            0, selected_index, "Show hidden files", _format_bool(config.display.show_hidden_files)
+        ),
+        _format_config_line(
+            1, selected_index, "Default sort field", config.display.default_sort_field
+        ),
+        _format_config_line(
+            2,
+            selected_index,
+            "Default sort descending",
+            _format_bool(config.display.default_sort_descending),
+        ),
+        _format_config_line(
+            3, selected_index, "Directories first", _format_bool(config.display.directories_first)
+        ),
+        _format_config_line(
+            4, selected_index, "Confirm delete", _format_bool(config.behavior.confirm_delete)
+        ),
+        _format_config_line(
+            5, selected_index, "Paste conflict action", config.behavior.paste_conflict_action
+        ),
+        "",
+        "Terminal launch templates: edit config.toml with e",
+        f"  Linux templates: {len(config.terminal.linux)}",
+        f"  macOS templates: {len(config.terminal.macos)}",
+        f"  Windows templates: {len(config.terminal.windows)}",
+    )
+    title = "Config Editor"
+    if state.config_editor.dirty:
+        title = "Config Editor*"
+    return ConfigDialogState(
+        title=title,
+        lines=lines,
+        options=("left/right/enter change", "s save", "e edit file", "esc close"),
+    )
+
+
 def select_target_paths(state: AppState) -> tuple[str, ...]:
     """Return selected paths, or the cursor path when nothing is selected."""
 
@@ -419,6 +470,15 @@ def _filter_hidden_entries(
     if show_hidden:
         return entries
     return tuple(entry for entry in entries if not entry.hidden)
+
+
+def _format_config_line(index: int, selected_index: int, label: str, value: str) -> str:
+    prefix = ">" if index == selected_index else " "
+    return f"{prefix} {label}: {value}"
+
+
+def _format_bool(value: bool) -> str:
+    return "true" if value else "false"
 
 
 def _filter_entries(

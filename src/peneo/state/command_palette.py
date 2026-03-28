@@ -117,6 +117,12 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 enabled=True,
             ),
             CommandPaletteItem(
+                id="edit_config",
+                label="Edit config",
+                shortcut=None,
+                enabled=True,
+            ),
+            CommandPaletteItem(
                 id="create_file",
                 label="Create file",
                 shortcut=None,

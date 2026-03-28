@@ -9,7 +9,7 @@ import tomllib
 from dataclasses import replace
 from pathlib import Path
 from textwrap import dedent
-from typing import Callable
+from typing import Callable, Protocol
 
 from peneo.models import AppConfig, ConfigLoadResult, DisplayConfig, TerminalConfig
 from peneo.models.config import BehaviorConfig
@@ -18,6 +18,12 @@ SystemNameResolver = Callable[[], str]
 EnvironmentVariableReader = Callable[[str], str | None]
 HomeDirectoryResolver = Callable[[], Path]
 ConfigPathResolver = Callable[[], Path]
+
+
+class ConfigSaveService(Protocol):
+    """Boundary for persisting the normalized application config."""
+
+    def save(self, *, path: str, config: AppConfig) -> str: ...
 
 _VALID_SORT_FIELDS = frozenset({"name", "modified", "size"})
 _VALID_PASTE_ACTIONS = frozenset({"overwrite", "skip", "rename", "prompt"})
@@ -80,6 +86,16 @@ def load_app_config(*, config_path_resolver: ConfigPathResolver | None = None) -
     """Convenience wrapper for loading the user configuration."""
 
     return AppConfigLoader(config_path_resolver=config_path_resolver).load()
+
+
+class LiveConfigSaveService:
+    """Write the normalized application config to disk."""
+
+    def save(self, *, path: str, config: AppConfig) -> str:
+        config_path = Path(path).expanduser()
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(render_app_config(config), encoding="utf-8")
+        return str(config_path)
 
 
 def resolve_config_path(
@@ -248,23 +264,57 @@ def _read_bool(
 
 
 def _render_default_config() -> str:
+    return render_app_config(AppConfig())
+
+
+def render_app_config(config: AppConfig) -> str:
     return dedent(
         """
         [terminal]
         # Optional OS-specific terminal launch templates.
-        # Use {path} for the working directory.
-        linux = []
-        macos = []
-        windows = []
+        # Use {{path}} for the working directory.
+        # Examples:
+        # linux = [
+        #   "konsole --working-directory {{path}}",
+        #   "gnome-terminal --working-directory={{path}}",
+        # ]
+        # macos = ["open -a Terminal {{path}}"]
+        # windows = ["wt -d {{path}}"]
+        linux = [{linux}]
+        macos = [{macos}]
+        windows = [{windows}]
 
         [display]
-        show_hidden_files = false
-        default_sort_field = "name"
-        default_sort_descending = false
-        directories_first = true
+        show_hidden_files = {show_hidden_files}
+        default_sort_field = "{default_sort_field}"
+        default_sort_descending = {default_sort_descending}
+        directories_first = {directories_first}
 
         [behavior]
-        confirm_delete = true
-        paste_conflict_action = "prompt"
+        confirm_delete = {confirm_delete}
+        paste_conflict_action = "{paste_conflict_action}"
         """
+    ).format(
+        linux=_render_command_array(config.terminal.linux),
+        macos=_render_command_array(config.terminal.macos),
+        windows=_render_command_array(config.terminal.windows),
+        show_hidden_files=_render_bool(config.display.show_hidden_files),
+        default_sort_field=config.display.default_sort_field,
+        default_sort_descending=_render_bool(config.display.default_sort_descending),
+        directories_first=_render_bool(config.display.directories_first),
+        confirm_delete=_render_bool(config.behavior.confirm_delete),
+        paste_conflict_action=config.behavior.paste_conflict_action,
     ).lstrip()
+
+
+def _render_command_array(commands: tuple[str, ...]) -> str:
+    return ", ".join(_render_toml_string(command) for command in commands)
+
+
+def _render_bool(value: bool) -> str:
+    return "true" if value else "false"
+
+
+def _render_toml_string(value: str) -> str:
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'

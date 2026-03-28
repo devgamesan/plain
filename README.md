@@ -15,7 +15,7 @@ _Current three-pane UI showing the parent, current, and child directories side b
 - Optional embedded split terminal below the browser panes, opened and closed with a single shortcut and focused immediately
 - Common actions stay visible in the on-screen help, while less frequent actions live in the command palette
 - Keyboard-only navigation, multi-selection, copy, cut, paste, delete-to-trash, rename, and create flows
-- Filter input, recursive file search from the command palette, attribute inspection, sort switching, and hidden-file visibility toggle
+- Filter input, recursive file search from the command palette, attribute inspection, config editing, sort switching, and hidden-file visibility toggle
 - Files open with the OS default app, directories can be opened in the OS file manager, `e` opens the current file in the editor inside the current terminal, and a terminal can also be launched in the current directory
 - Optional shell integration via `peneo-cd` can return your shell to the last directory after quitting
 - Safer file operations with trash deletion and overwrite / skip / rename conflict resolution during paste
@@ -31,6 +31,7 @@ _Current three-pane UI showing the parent, current, and child directories side b
 - Filter by file name
 - Search files recursively from the command palette
 - Inspect file and directory attributes from the command palette
+- Edit startup config values from the command palette and save them back to `config.toml`
 - Switch sorting by name / modified time / size
 - Toggle directories-first ordering
 - Copy paths to the system clipboard
@@ -169,12 +170,15 @@ The currently available commands are:
 - `Open terminal here`
 - `Open split terminal` / `Close split terminal`
 - `Show hidden files` / `Hide hidden files`
+- `Edit config`
 - `Create file`
 - `Create directory`
 
 `Find file` searches recursively under the current directory using a case-insensitive partial match on the filename, then jumps to the selected result by opening its parent directory and focusing that file. Hidden paths are excluded unless hidden-file visibility is enabled. When there are many hits, the palette shows a moving window around the current cursor so you can inspect all matches with the arrow keys without clipping the list.
 
 `Show attributes` opens a read-only dialog for the current cursor target or a single selected entry and shows `Name`, `Type`, `Path`, `Size`, `Modified`, `Hidden`, and `Permissions`.
+
+`Edit config` opens an overlay for startup defaults such as hidden-file visibility, sort settings, delete confirmation, and paste-conflict handling. Use `↑` / `↓` to move between settings, `←` / `→` / `Enter` to change the selected value, `s` to save back to `config.toml`, and `e` to open the raw config file in your editor for terminal command templates or manual edits.
 
 `Open split terminal` starts an embedded shell rooted at the current directory. The split terminal does not automatically follow later directory changes in the browser pane; open a new split session if you need a shell in another directory.
 

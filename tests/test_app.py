@@ -34,6 +34,7 @@ from peneo.state import BrowserSnapshot, DirectoryEntryState, FileSearchResultSt
 from peneo.ui import (
     AttributeDialog,
     CommandPalette,
+    ConfigDialog,
     ConflictDialog,
     CurrentPathBar,
     HelpBar,
@@ -142,6 +143,17 @@ async def _wait_for_attribute_dialog(app, timeout: float = 0.5) -> AttributeDial
             await asyncio.sleep(0.01)
 
 
+async def _wait_for_config_dialog(app, timeout: float = 0.5) -> ConfigDialog:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        try:
+            return app.query_one("#config-dialog", ConfigDialog)
+        except NoMatches:
+            if asyncio.get_running_loop().time() >= deadline:
+                raise
+            await asyncio.sleep(0.01)
+
+
 async def _wait_for_split_terminal(app, timeout: float = 0.5) -> SplitTerminalPane:
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
@@ -165,6 +177,32 @@ async def _wait_for_snapshot_loaded(app, expected_path: str, timeout: float = 0.
         if asyncio.get_running_loop().time() >= deadline:
             raise AssertionError(f"snapshot did not finish for {expected_path}")
         await asyncio.sleep(0.01)
+
+
+async def _wait_for_notification_message(app, expected: str, timeout: float = 0.5) -> None:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        notification = app.app_state.notification
+        if notification is not None and notification.message == expected:
+            return
+        if asyncio.get_running_loop().time() >= deadline:
+            raise AssertionError(f"notification did not become {expected!r}")
+        await asyncio.sleep(0.01)
+
+
+class FakeConfigSaveService:
+    def __init__(
+        self, *, saved_path: str | None = None, failure_message: str | None = None
+    ) -> None:
+        self.saved_path = saved_path
+        self.failure_message = failure_message
+        self.saved_requests: list[tuple[str, AppConfig]] = []
+
+    def save(self, *, path: str, config: AppConfig) -> str:
+        self.saved_requests.append((path, config))
+        if self.failure_message is not None:
+            raise OSError(self.failure_message)
+        return self.saved_path or path
 
 
 async def _wait_for_row_count(app, expected_count: int, timeout: float = 0.5) -> None:
@@ -274,9 +312,7 @@ async def test_app_uses_cwd_for_default_initial_path(tmp_path, monkeypatch) -> N
         DirectoryEntryState(f"{tmp_path}/docs", "docs", "dir"),
         DirectoryEntryState(f"{tmp_path}/README.md", "README.md", "file", size_bytes=20),
     )
-    child_entries = (
-        DirectoryEntryState(f"{tmp_path}/docs/spec.md", "spec.md", "file"),
-    )
+    child_entries = (DirectoryEntryState(f"{tmp_path}/docs/spec.md", "spec.md", "file"),)
     loader = FakeBrowserSnapshotLoader(
         snapshots={
             str(tmp_path): _build_snapshot(
@@ -298,9 +334,7 @@ async def test_app_uses_cwd_for_default_initial_path(tmp_path, monkeypatch) -> N
         status_bar = await _wait_for_status_bar(app)
 
         assert str(current_path_bar.renderable) == f"Current Path: {tmp_path}"
-        assert str(summary_bar.renderable) == (
-            "2 items | 0 selected | sort: name asc dirs:on"
-        )
+        assert str(summary_bar.renderable) == ("2 items | 0 selected | sort: name asc dirs:on")
         assert str(status_bar.renderable) == ""
 
 
@@ -311,9 +345,7 @@ async def test_app_renders_loaded_three_pane_shell() -> None:
         DirectoryEntryState(f"{path}/docs", "docs", "dir"),
         DirectoryEntryState(f"{path}/README.md", "README.md", "file", size_bytes=120),
     )
-    child_entries = (
-        DirectoryEntryState(f"{path}/docs/spec.md", "spec.md", "file"),
-    )
+    child_entries = (DirectoryEntryState(f"{path}/docs/spec.md", "spec.md", "file"),)
     loader = FakeBrowserSnapshotLoader(
         snapshots={
             path: _build_snapshot(
@@ -351,9 +383,7 @@ async def test_app_renders_loaded_three_pane_shell() -> None:
         assert current_table.row_count == 2
         assert child_entries == ["spec.md"]
         assert str(current_path_bar.renderable) == f"Current Path: {path}"
-        assert str(summary_bar.renderable) == (
-            "2 items | 0 selected | sort: name asc dirs:on"
-        )
+        assert str(summary_bar.renderable) == ("2 items | 0 selected | sort: name asc dirs:on")
         assert str(status_bar.renderable) == ""
 
 
@@ -426,12 +456,8 @@ async def test_app_keyboard_input_updates_selection_and_child_pane() -> None:
         DirectoryEntryState(f"{path}/src", "src", "dir"),
         DirectoryEntryState(f"{path}/README.md", "README.md", "file", size_bytes=120),
     )
-    docs_child_entries = (
-        DirectoryEntryState(f"{path}/docs/spec.md", "spec.md", "file"),
-    )
-    src_child_entries = (
-        DirectoryEntryState(f"{path}/src/main.py", "main.py", "file"),
-    )
+    docs_child_entries = (DirectoryEntryState(f"{path}/docs/spec.md", "spec.md", "file"),)
+    src_child_entries = (DirectoryEntryState(f"{path}/src/main.py", "main.py", "file"),)
     loader = FakeBrowserSnapshotLoader(
         snapshots={
             path: _build_snapshot(
@@ -466,9 +492,7 @@ async def test_app_keyboard_input_updates_selection_and_child_pane() -> None:
         assert app.app_state.current_pane.cursor_path == f"{path}/src"
         assert child_names == ["main.py"]
         assert str(current_path_bar.renderable) == f"Current Path: {path}"
-        assert str(summary_bar.renderable) == (
-            "3 items | 1 selected | sort: name asc dirs:on"
-        )
+        assert str(summary_bar.renderable) == ("3 items | 1 selected | sort: name asc dirs:on")
         assert str(status_bar.renderable) == ""
 
         current_table = app.query_one("#current-pane-table", DataTable)
@@ -521,9 +545,7 @@ async def test_app_right_enters_directory_and_backspace_returns_to_parent() -> N
         DirectoryEntryState(docs, "docs", "dir"),
         DirectoryEntryState(f"{root}/README.md", "README.md", "file", size_bytes=120),
     )
-    docs_entries = (
-        DirectoryEntryState(f"{docs}/guide.md", "guide.md", "file", size_bytes=42),
-    )
+    docs_entries = (DirectoryEntryState(f"{docs}/guide.md", "guide.md", "file", size_bytes=42),)
     loader = FakeBrowserSnapshotLoader(
         snapshots={
             root: _build_snapshot(
@@ -694,9 +716,7 @@ async def test_app_f5_falls_back_to_first_row_when_cursor_disappears() -> None:
         DirectoryEntryState(f"{path}/docs", "docs", "dir"),
         DirectoryEntryState(f"{path}/src", "src", "dir"),
     )
-    reloaded_entries = (
-        DirectoryEntryState(f"{path}/docs", "docs", "dir"),
-    )
+    reloaded_entries = (DirectoryEntryState(f"{path}/docs", "docs", "dir"),)
     loader = FakeBrowserSnapshotLoader(
         snapshots={
             path: _build_snapshot(
@@ -736,9 +756,7 @@ async def test_app_f5_drops_selection_for_missing_entries() -> None:
         DirectoryEntryState(f"{path}/docs", "docs", "dir"),
         DirectoryEntryState(f"{path}/src", "src", "dir"),
     )
-    reloaded_entries = (
-        DirectoryEntryState(f"{path}/src", "src", "dir"),
-    )
+    reloaded_entries = (DirectoryEntryState(f"{path}/src", "src", "dir"),)
     loader = FakeBrowserSnapshotLoader(
         snapshots={
             path: _build_snapshot(
@@ -771,9 +789,7 @@ async def test_app_f5_drops_selection_for_missing_entries() -> None:
 
         assert app.app_state.current_pane.selected_paths == set()
         assert app.app_state.current_pane.cursor_path == f"{path}/src"
-        assert str(summary_bar.renderable) == (
-            "1 items | 0 selected | sort: name asc dirs:on"
-        )
+        assert str(summary_bar.renderable) == ("1 items | 0 selected | sort: name asc dirs:on")
         assert str(status_bar.renderable) == ""
 
 
@@ -781,12 +797,8 @@ async def test_app_f5_drops_selection_for_missing_entries() -> None:
 async def test_app_navigation_clears_selection_in_new_directory() -> None:
     root = "/tmp/peneo-selection-nav"
     docs = f"{root}/docs"
-    root_entries = (
-        DirectoryEntryState(docs, "docs", "dir"),
-    )
-    docs_entries = (
-        DirectoryEntryState(f"{docs}/guide.md", "guide.md", "file", size_bytes=42),
-    )
+    root_entries = (DirectoryEntryState(docs, "docs", "dir"),)
+    docs_entries = (DirectoryEntryState(f"{docs}/guide.md", "guide.md", "file", size_bytes=42),)
     loader = FakeBrowserSnapshotLoader(
         snapshots={
             root: _build_snapshot(
@@ -825,9 +837,7 @@ async def test_app_navigation_clears_selection_in_new_directory() -> None:
 
         assert app.app_state.current_pane.selected_paths == set()
         assert app.app_state.current_path == docs
-        assert str(summary_bar.renderable) == (
-            "1 items | 0 selected | sort: name asc dirs:on"
-        )
+        assert str(summary_bar.renderable) == ("1 items | 0 selected | sort: name asc dirs:on")
         assert str(status_bar.renderable) == ""
 
 
@@ -1237,6 +1247,94 @@ async def test_app_command_palette_show_attributes_opens_read_only_dialog() -> N
         await asyncio.sleep(0.05)
 
         assert app.app_state.ui_mode == "BROWSING"
+
+
+@pytest.mark.asyncio
+async def test_app_command_palette_opens_config_dialog_and_saves_changes() -> None:
+    path = "/tmp/peneo-command-palette-config"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file", size_bytes=120),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    config_save_service = FakeConfigSaveService()
+    app = create_app(
+        snapshot_loader=loader,
+        config_save_service=config_save_service,
+        config_path="/tmp/peneo/config.toml",
+        initial_path=path,
+    )
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await pilot.press("c", "o", "n", "f", "i", "g")
+        await pilot.press("enter")
+        await asyncio.sleep(0.05)
+
+        dialog = await _wait_for_config_dialog(app)
+        title = dialog.query_one("#config-dialog-title", Static)
+        lines = dialog.query_one("#config-dialog-lines", Static)
+
+        assert app.app_state.ui_mode == "CONFIG"
+        assert "Config Editor" in str(title.renderable)
+        assert "Path: /tmp/peneo/config.toml" in str(lines.renderable)
+        assert "> Show hidden files: false" in str(lines.renderable)
+
+        await pilot.press("enter")
+        await pilot.press("s")
+        await _wait_for_notification_message(app, "Config saved: /tmp/peneo/config.toml")
+
+        assert len(config_save_service.saved_requests) == 1
+        saved_path, saved_config = config_save_service.saved_requests[0]
+        assert saved_path == "/tmp/peneo/config.toml"
+        assert saved_config.display.show_hidden_files is True
+        assert app.app_state.show_hidden is True
+
+
+@pytest.mark.asyncio
+async def test_app_config_dialog_e_opens_config_file_in_editor() -> None:
+    path = "/tmp/peneo-command-palette-config-editor"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file", size_bytes=120),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    launch_service = FakeExternalLaunchService()
+    app = create_app(
+        snapshot_loader=loader,
+        external_launch_service=launch_service,
+        config_path="/tmp/peneo/config.toml",
+        initial_path=path,
+    )
+    app.suspend = nullcontext  # type: ignore[method-assign]
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await pilot.press("c", "o", "n", "f", "i", "g")
+        await pilot.press("enter")
+        await _wait_for_config_dialog(app)
+        await pilot.press("e")
+        await _wait_for_external_launch_count(app, 1)
+
+        assert launch_service.executed_requests == [
+            ExternalLaunchRequest(kind="open_editor", path="/tmp/peneo/config.toml")
+        ]
 
 
 @pytest.mark.asyncio
@@ -1796,9 +1894,7 @@ async def test_app_sort_shortcuts_keep_side_panes_fixed_and_update_status_bar() 
             "archive",
             "notes.txt",
         ]
-        assert str(summary_bar.renderable) == (
-            "3 items | 0 selected | sort: name desc dirs:off"
-        )
+        assert str(summary_bar.renderable) == ("3 items | 0 selected | sort: name desc dirs:off")
 
 
 @pytest.mark.asyncio
@@ -1926,7 +2022,6 @@ async def test_app_escape_clears_active_filter_before_selection() -> None:
         assert app.app_state.filter.active is False
         assert app.app_state.current_pane.selected_paths == {docs}
         assert input_bar.display is False
-
 
 
 @pytest.mark.asyncio
@@ -2296,9 +2391,7 @@ async def test_app_main_flow_round_trip_on_live_filesystem(tmp_path) -> None:
         await asyncio.sleep(0.05)
 
         summary_bar = await _wait_for_summary_bar(app)
-        assert str(summary_bar.renderable) == (
-            "4 items | 0 selected | sort: name desc dirs:off"
-        )
+        assert str(summary_bar.renderable) == ("4 items | 0 selected | sort: name desc dirs:off")
 
 
 @pytest.mark.asyncio

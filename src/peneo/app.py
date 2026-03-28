@@ -26,17 +26,20 @@ from peneo.models import (
 from peneo.services import (
     BrowserSnapshotLoader,
     ClipboardOperationService,
+    ConfigSaveService,
     ExternalLaunchService,
     FileMutationService,
     FileSearchService,
     LiveBrowserSnapshotLoader,
     LiveClipboardOperationService,
+    LiveConfigSaveService,
     LiveExternalLaunchService,
     LiveFileMutationService,
     LiveFileSearchService,
     LiveSplitTerminalService,
     SplitTerminalService,
     SplitTerminalSession,
+    resolve_config_path,
 )
 from peneo.state import (
     Action,
@@ -49,6 +52,8 @@ from peneo.state import (
     ClipboardPasteFailed,
     ClipboardPasteNeedsResolution,
     CloseSplitTerminalEffect,
+    ConfigSaveCompleted,
+    ConfigSaveFailed,
     Effect,
     ExitCurrentPath,
     ExternalLaunchCompleted,
@@ -63,6 +68,7 @@ from peneo.state import (
     ReduceResult,
     RequestBrowserSnapshot,
     RunClipboardPasteEffect,
+    RunConfigSaveEffect,
     RunExternalLaunchEffect,
     RunFileMutationEffect,
     RunFileSearchEffect,
@@ -81,6 +87,7 @@ from peneo.state import (
 from peneo.ui import (
     AttributeDialog,
     CommandPalette,
+    ConfigDialog,
     ConflictDialog,
     CurrentPathBar,
     HelpBar,
@@ -279,6 +286,32 @@ class PeneoApp(App[None]):
         text-style: bold;
     }
 
+    #config-dialog {
+        display: none;
+        height: auto;
+        min-height: 10;
+        margin: 0 2;
+        padding: 1 2;
+        border: round $accent;
+        background: $surface;
+    }
+
+    #config-dialog-title {
+        text-style: bold;
+        color: $accent;
+    }
+
+    #config-dialog-lines {
+        margin: 0 0 1 0;
+    }
+
+    #config-dialog-options {
+        padding: 0 1;
+        background: $boost;
+        color: $accent;
+        text-style: bold;
+    }
+
     #split-terminal {
         display: none;
         height: 1fr;
@@ -300,12 +333,14 @@ class PeneoApp(App[None]):
         self,
         snapshot_loader: BrowserSnapshotLoader | None = None,
         clipboard_service: ClipboardOperationService | None = None,
+        config_save_service: ConfigSaveService | None = None,
         file_mutation_service: FileMutationService | None = None,
         external_launch_service: ExternalLaunchService | None = None,
         file_search_service: FileSearchService | None = None,
         split_terminal_service: SplitTerminalService | None = None,
         *,
         app_config: AppConfig | None = None,
+        config_path: str | None = None,
         startup_notification: NotificationState | None = None,
         initial_path: str | Path | None = None,
     ) -> None:
@@ -314,6 +349,8 @@ class PeneoApp(App[None]):
         self._initial_path = str(Path(initial_path or Path.cwd()).expanduser().resolve())
         self._app_state: AppState = build_placeholder_app_state(
             self._initial_path,
+            config=self._app_config,
+            config_path=config_path or str(resolve_config_path()),
             show_hidden=self._app_config.display.show_hidden_files,
             sort=_initial_sort_state(self._app_config),
             confirm_delete=self._app_config.behavior.confirm_delete,
@@ -322,6 +359,7 @@ class PeneoApp(App[None]):
         )
         self._snapshot_loader = snapshot_loader or LiveBrowserSnapshotLoader()
         self._clipboard_service = clipboard_service or LiveClipboardOperationService()
+        self._config_save_service = config_save_service or LiveConfigSaveService()
         self._file_mutation_service = file_mutation_service or LiveFileMutationService()
         self._external_launch_service = external_launch_service or LiveExternalLaunchService(
             adapter=LocalExternalLaunchAdapter(
@@ -346,6 +384,7 @@ class PeneoApp(App[None]):
         yield CommandPalette(shell.command_palette, id="command-palette")
         yield ConflictDialog(shell.conflict_dialog, id="conflict-dialog")
         yield AttributeDialog(shell.attribute_dialog, id="attribute-dialog")
+        yield ConfigDialog(shell.config_dialog, id="config-dialog")
         yield HelpBar(shell.help, id="help-bar")
         yield StatusBar(shell.status, id="status-bar")
 
@@ -470,6 +509,8 @@ class PeneoApp(App[None]):
                 self._schedule_child_pane_snapshot(effect)
             elif isinstance(effect, RunClipboardPasteEffect):
                 self._schedule_clipboard_paste(effect)
+            elif isinstance(effect, RunConfigSaveEffect):
+                self._schedule_config_save(effect)
             elif isinstance(effect, RunFileMutationEffect):
                 self._schedule_file_mutation(effect)
             elif isinstance(effect, RunExternalLaunchEffect):
@@ -526,6 +567,22 @@ class PeneoApp(App[None]):
             name=f"clipboard-paste:{effect.request_id}",
             group="clipboard-paste",
             description=effect.request.destination_dir,
+            exit_on_error=False,
+            exclusive=True,
+            thread=True,
+        )
+        self._pending_workers[worker.name] = effect
+
+    def _schedule_config_save(self, effect: RunConfigSaveEffect) -> None:
+        worker = self.run_worker(
+            partial(
+                self._config_save_service.save,
+                path=effect.path,
+                config=effect.config,
+            ),
+            name=f"config-save:{effect.request_id}",
+            group="config-save",
+            description=effect.path,
             exit_on_error=False,
             exclusive=True,
             thread=True,
@@ -820,6 +877,18 @@ class PeneoApp(App[None]):
                 )
                 return
 
+            if isinstance(effect, RunConfigSaveEffect):
+                await self.dispatch_actions(
+                    (
+                        ConfigSaveCompleted(
+                            request_id=effect.request_id,
+                            path=event.worker.result,
+                            config=effect.config,
+                        ),
+                    )
+                )
+                return
+
             if isinstance(effect, RunExternalLaunchEffect):
                 await self.dispatch_actions(
                     (
@@ -871,6 +940,17 @@ class PeneoApp(App[None]):
             await self.dispatch_actions(
                 (
                     FileMutationFailed(
+                        request_id=effect.request_id,
+                        message=message,
+                    ),
+                )
+            )
+            return
+
+        if isinstance(effect, RunConfigSaveEffect):
+            await self.dispatch_actions(
+                (
+                    ConfigSaveFailed(
                         request_id=effect.request_id,
                         message=message,
                     ),
@@ -931,6 +1011,7 @@ class PeneoApp(App[None]):
             status_bar = self.query_one("#status-bar", StatusBar)
             conflict_dialog = self.query_one("#conflict-dialog", ConflictDialog)
             attribute_dialog = self.query_one("#attribute-dialog", AttributeDialog)
+            config_dialog = self.query_one("#config-dialog", ConfigDialog)
         except NoMatches:
             selectors = (
                 "#current-path-bar",
@@ -941,6 +1022,7 @@ class PeneoApp(App[None]):
                 "#status-bar",
                 "#conflict-dialog",
                 "#attribute-dialog",
+                "#config-dialog",
             )
             for selector in selectors:
                 try:
@@ -954,6 +1036,7 @@ class PeneoApp(App[None]):
             await self.mount(StatusBar(shell.status, id="status-bar"))
             await self.mount(ConflictDialog(shell.conflict_dialog, id="conflict-dialog"))
             await self.mount(AttributeDialog(shell.attribute_dialog, id="attribute-dialog"))
+            await self.mount(ConfigDialog(shell.config_dialog, id="config-dialog"))
             return
 
         current_path_bar.set_path(shell.current_path)
@@ -969,6 +1052,7 @@ class PeneoApp(App[None]):
         status_bar.set_state(shell.status)
         conflict_dialog.set_state(shell.conflict_dialog)
         attribute_dialog.set_state(shell.attribute_dialog)
+        config_dialog.set_state(shell.config_dialog)
 
         if (
             self._app_state.ui_mode == "BROWSING"
@@ -996,12 +1080,14 @@ class PeneoApp(App[None]):
 def create_app(
     snapshot_loader: BrowserSnapshotLoader | None = None,
     clipboard_service: ClipboardOperationService | None = None,
+    config_save_service: ConfigSaveService | None = None,
     file_mutation_service: FileMutationService | None = None,
     external_launch_service: ExternalLaunchService | None = None,
     file_search_service: FileSearchService | None = None,
     split_terminal_service: SplitTerminalService | None = None,
     *,
     app_config: AppConfig | None = None,
+    config_path: str | None = None,
     startup_notification: NotificationState | None = None,
     initial_path: str | Path | None = None,
 ) -> PeneoApp:
@@ -1010,11 +1096,13 @@ def create_app(
     return PeneoApp(
         snapshot_loader=snapshot_loader,
         clipboard_service=clipboard_service,
+        config_save_service=config_save_service,
         file_mutation_service=file_mutation_service,
         external_launch_service=external_launch_service,
         file_search_service=file_search_service,
         split_terminal_service=split_terminal_service,
         app_config=app_config,
+        config_path=config_path,
         startup_notification=startup_notification,
         initial_path=initial_path,
     )

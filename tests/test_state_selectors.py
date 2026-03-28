@@ -9,6 +9,7 @@ from peneo.state import (
     BeginCreateInput,
     BeginFilterInput,
     CommandPaletteState,
+    ConfigEditorState,
     ConfirmFilterInput,
     CutTargets,
     DeleteConfirmationState,
@@ -28,6 +29,7 @@ from peneo.state import (
     select_attribute_dialog_state,
     select_child_entries,
     select_command_palette_state,
+    select_config_dialog_state,
     select_conflict_dialog_state,
     select_current_entries,
     select_current_summary_state,
@@ -474,7 +476,7 @@ def test_select_command_palette_state_marks_selected_and_enabled_items() -> None
     palette_state = select_command_palette_state(state)
 
     assert palette_state is not None
-    assert palette_state.title == "Command Palette (1-8 / 9)"
+    assert palette_state.title == "Command Palette (1-8 / 10)"
     assert [item.label for item in palette_state.items[:3]] == [
         "Find file",
         "Show attributes",
@@ -485,7 +487,7 @@ def test_select_command_palette_state_marks_selected_and_enabled_items() -> None
     assert any(
         item.label == "Open in file manager" and item.enabled for item in palette_state.items
     )
-    assert any(item.label == "Create file" and item.enabled for item in palette_state.items)
+    assert any(item.label == "Edit config" and item.enabled for item in palette_state.items)
     assert any(item.label == "Open terminal here" and item.enabled for item in palette_state.items)
     assert any(item.label == "Open split terminal" and item.enabled for item in palette_state.items)
 
@@ -547,6 +549,28 @@ def test_select_attribute_dialog_state_formats_selected_entry() -> None:
     assert "Hidden: No" in dialog.lines
     assert "Permissions: -rw-r--r-- (644)" in dialog.lines
     assert dialog.options == ("enter close", "esc close")
+
+
+def test_select_config_dialog_state_formats_editor_lines() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/peneo/config.toml",
+            draft=build_initial_app_state().config,
+            cursor_index=1,
+            dirty=True,
+        ),
+    )
+
+    dialog = select_config_dialog_state(state)
+
+    assert dialog is not None
+    assert dialog.title == "Config Editor*"
+    assert "Path: /tmp/peneo/config.toml" in dialog.lines
+    assert "> Default sort field: name" in dialog.lines
+    assert "Terminal launch templates: edit config.toml with e" in dialog.lines
+    assert dialog.options == ("left/right/enter change", "s save", "e edit file", "esc close")
 
 
 def test_select_command_palette_state_for_file_search_results() -> None:

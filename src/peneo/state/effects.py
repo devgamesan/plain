@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from peneo.models import (
+    AppConfig,
     CreatePathRequest,
     ExternalLaunchRequest,
     PasteRequest,
@@ -89,6 +90,15 @@ class CloseSplitTerminalEffect:
     session_id: int
 
 
+@dataclass(frozen=True)
+class RunConfigSaveEffect:
+    """Persist the current config editor draft to disk."""
+
+    request_id: int
+    path: str
+    config: AppConfig
+
+
 Effect = (
     LoadBrowserSnapshotEffect
     | LoadChildPaneSnapshotEffect
@@ -99,6 +109,7 @@ Effect = (
     | StartSplitTerminalEffect
     | WriteSplitTerminalInputEffect
     | CloseSplitTerminalEffect
+    | RunConfigSaveEffect
 )
 
 

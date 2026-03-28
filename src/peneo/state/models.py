@@ -1,11 +1,12 @@
 """State models for app-level updates and selector inputs."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
 from peneo.models import (
+    AppConfig,
     ConflictResolution,
     CreateKind,
     PasteConflict,
@@ -14,13 +15,21 @@ from peneo.models import (
 )
 from peneo.models.shell_data import EntryKind, NotificationLevel
 
-UiMode = Literal["BROWSING", "FILTER", "RENAME", "CREATE", "PALETTE", "CONFIRM", "BUSY"]
+UiMode = Literal["BROWSING", "FILTER", "RENAME", "CREATE", "PALETTE", "CONFIRM", "CONFIG", "BUSY"]
 SortField = Literal["name", "modified", "size"]
 ClipboardMode = Literal["copy", "cut", "none"]
 NameConflictKind = Literal["rename", "create_file", "create_dir"]
 CommandPaletteSource = Literal["commands", "file_search"]
 SplitTerminalStatus = Literal["closed", "starting", "running"]
 SplitTerminalFocusTarget = Literal["browser", "terminal"]
+ConfigFieldId = Literal[
+    "display.show_hidden_files",
+    "display.default_sort_field",
+    "display.default_sort_descending",
+    "display.directories_first",
+    "behavior.confirm_delete",
+    "behavior.paste_conflict_action",
+]
 
 
 @dataclass(frozen=True)
@@ -110,6 +119,16 @@ class AttributeInspectionState:
 
 
 @dataclass(frozen=True)
+class ConfigEditorState:
+    """Transient config editor state used by the config dialog."""
+
+    path: str
+    draft: AppConfig
+    cursor_index: int = 0
+    dirty: bool = False
+
+
+@dataclass(frozen=True)
 class HistoryState:
     """Back/forward navigation history."""
 
@@ -183,6 +202,8 @@ class AppState:
     parent_pane: PaneState
     current_pane: PaneState
     child_pane: PaneState
+    config: AppConfig = field(default_factory=AppConfig)
+    config_path: str = ""
     show_hidden: bool = False
     sort: SortState = SortState()
     confirm_delete: bool = True
@@ -199,17 +220,21 @@ class AppState:
     delete_confirmation: DeleteConfirmationState | None = None
     name_conflict: NameConflictState | None = None
     attribute_inspection: AttributeInspectionState | None = None
+    config_editor: ConfigEditorState | None = None
     post_reload_notification: NotificationState | None = None
     pending_browser_snapshot_request_id: int | None = None
     pending_child_pane_request_id: int | None = None
     pending_paste_request_id: int | None = None
     pending_file_mutation_request_id: int | None = None
     pending_file_search_request_id: int | None = None
+    pending_config_save_request_id: int | None = None
     next_request_id: int = 1
 
 
 def build_initial_app_state(
     *,
+    config: AppConfig | None = None,
+    config_path: str = "/home/tadashi/.config/peneo/config.toml",
     show_hidden: bool = False,
     sort: SortState | None = None,
     confirm_delete: bool = True,
@@ -268,6 +293,8 @@ def build_initial_app_state(
 
     return AppState(
         current_path=current_path,
+        config=config or AppConfig(),
+        config_path=config_path,
         parent_pane=PaneState(directory_path="/home/tadashi", entries=parent_entries),
         current_pane=PaneState(
             directory_path=current_path,
@@ -287,6 +314,8 @@ def build_initial_app_state(
 def build_placeholder_app_state(
     current_path: str,
     *,
+    config: AppConfig | None = None,
+    config_path: str = "",
     show_hidden: bool = False,
     sort: SortState | None = None,
     confirm_delete: bool = True,
@@ -299,6 +328,8 @@ def build_placeholder_app_state(
     parent_path = str(Path(resolved_path).parent)
     return AppState(
         current_path=resolved_path,
+        config=config or AppConfig(),
+        config_path=config_path,
         parent_pane=PaneState(directory_path=parent_path, entries=()),
         current_pane=PaneState(directory_path=resolved_path, entries=()),
         child_pane=PaneState(directory_path=resolved_path, entries=()),

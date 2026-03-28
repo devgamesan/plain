@@ -61,7 +61,64 @@ def test_local_external_launch_adapter_uses_xdg_open_on_linux(tmp_path) -> None:
 
     adapter.open_with_default_app(str(readme))
 
-    assert runner.executed == [(("xdg-open", str(readme.resolve())), None, None)]
+    assert runner.executed == [
+        (("xdg-open", str(readme.resolve())), str(tmp_path.resolve()), None)
+    ]
+
+
+def test_local_external_launch_adapter_falls_back_to_gio_open_on_linux(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("plain\n", encoding="utf-8")
+    runner = StubCommandRunner(failing_commands={"xdg-open"})
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Linux",
+        command_available=lambda command: command if command in {"xdg-open", "gio"} else None,
+        command_runner=runner,
+        text_file_reader=lambda _path: "Linux version 6.8.0\n",
+    )
+
+    adapter.open_with_default_app(str(readme))
+
+    assert runner.executed == [
+        (("xdg-open", str(readme.resolve())), str(tmp_path.resolve()), None),
+        (("gio", "open", str(readme.resolve())), str(tmp_path.resolve()), None),
+    ]
+
+
+def test_local_external_launch_adapter_uses_wslview_on_wsl(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("plain\n", encoding="utf-8")
+    runner = StubCommandRunner()
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Linux",
+        command_available=lambda command: command if command == "wslview" else None,
+        command_runner=runner,
+        environment_variable=lambda name: "Ubuntu" if name == "WSL_DISTRO_NAME" else None,
+    )
+
+    adapter.open_with_default_app(str(readme))
+
+    assert runner.executed == [
+        (("wslview", str(readme.resolve())), str(tmp_path.resolve()), None)
+    ]
+
+
+def test_local_external_launch_adapter_falls_back_to_explorer_on_wsl(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("plain\n", encoding="utf-8")
+    runner = StubCommandRunner()
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Linux",
+        command_available=lambda command: command if command == "explorer.exe" else None,
+        command_runner=runner,
+        environment_variable=lambda name: "Ubuntu" if name == "WSL_DISTRO_NAME" else None,
+    )
+
+    adapter.open_with_default_app(str(readme))
+
+    assert runner.executed == [
+        (("explorer.exe", str(readme.resolve())), str(tmp_path.resolve()), None)
+    ]
 
 
 def test_local_external_launch_adapter_runs_terminal_editor_in_current_terminal(tmp_path) -> None:
@@ -99,20 +156,35 @@ def test_local_external_launch_adapter_ignores_gui_editor_environment_variable(t
 
 
 def test_local_external_launch_adapter_falls_back_terminal_command_on_linux(tmp_path) -> None:
-    runner = StubCommandRunner(failing_commands={"konsole"})
+    runner = StubCommandRunner(failing_commands={"kgx"})
     adapter = LocalExternalLaunchAdapter(
         system_name_resolver=lambda: "Linux",
-        command_available=lambda command: (
-            command if command in {"konsole", "gnome-terminal"} else None
-        ),
+        command_available=lambda command: command if command in {"kgx", "gnome-terminal"} else None,
         command_runner=runner,
+        text_file_reader=lambda _path: "Linux version 6.8.0\n",
     )
 
     adapter.open_terminal(str(tmp_path))
 
     assert runner.executed == [
-        (("konsole",), str(tmp_path), None),
+        (("kgx",), str(tmp_path), None),
         (("gnome-terminal",), str(tmp_path), None),
+    ]
+
+
+def test_local_external_launch_adapter_uses_wt_on_wsl_for_terminal(tmp_path) -> None:
+    runner = StubCommandRunner()
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Linux",
+        command_available=lambda command: command if command == "wt.exe" else None,
+        command_runner=runner,
+        environment_variable=lambda name: "Ubuntu" if name == "WSL_DISTRO_NAME" else None,
+    )
+
+    adapter.open_terminal(str(tmp_path))
+
+    assert runner.executed == [
+        (("wt.exe", "wsl.exe", "--cd", str(tmp_path.resolve())), str(tmp_path), None)
     ]
 
 
@@ -146,16 +218,37 @@ def test_local_external_launch_adapter_copies_to_clipboard_on_linux() -> None:
     ]
 
 
+def test_local_external_launch_adapter_uses_clip_exe_on_wsl() -> None:
+    runner = StubCommandRunner()
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Linux",
+        command_available=lambda command: command if command == "clip.exe" else None,
+        command_runner=runner,
+        environment_variable=lambda name: "Ubuntu" if name == "WSL_DISTRO_NAME" else None,
+    )
+
+    adapter.copy_to_clipboard("/tmp/peneo/docs\n/tmp/peneo/README.md")
+
+    assert runner.executed == [
+        (("clip.exe",), None, "/tmp/peneo/docs\n/tmp/peneo/README.md")
+    ]
+
+
 def test_local_external_launch_adapter_raises_last_terminal_error_when_all_candidates_fail(
     tmp_path,
 ) -> None:
     runner = StubCommandRunner(
         failing_commands={
-            "konsole",
+            "kgx",
+            "gnome-console",
             "gnome-terminal",
             "xfce4-terminal",
-            "xterm",
+            "mate-terminal",
+            "tilix",
+            "konsole",
+            "lxterminal",
             "x-terminal-emulator",
+            "xterm",
         }
     )
     adapter = LocalExternalLaunchAdapter(
@@ -163,13 +256,25 @@ def test_local_external_launch_adapter_raises_last_terminal_error_when_all_candi
         command_available=lambda command: (
             command
             if command
-            in {"konsole", "gnome-terminal", "xfce4-terminal", "xterm", "x-terminal-emulator"}
+            in {
+                "kgx",
+                "gnome-console",
+                "gnome-terminal",
+                "xfce4-terminal",
+                "mate-terminal",
+                "tilix",
+                "konsole",
+                "lxterminal",
+                "x-terminal-emulator",
+                "xterm",
+            }
             else None
         ),
         command_runner=runner,
+        text_file_reader=lambda _path: "Linux version 6.8.0\n",
     )
 
-    with pytest.raises(OSError, match="x-terminal-emulator failed"):
+    with pytest.raises(OSError, match="xterm failed"):
         adapter.open_terminal(str(tmp_path))
 
 
@@ -185,6 +290,19 @@ def test_local_external_launch_adapter_reports_invalid_editor_value(tmp_path) ->
 
     with pytest.raises(OSError, match="Invalid EDITOR value"):
         adapter.open_in_editor(str(readme))
+
+
+def test_local_external_launch_adapter_rejects_windows_native_support(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("plain\n", encoding="utf-8")
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Windows",
+        command_available=lambda command: command,
+        command_runner=StubCommandRunner(),
+    )
+
+    with pytest.raises(OSError, match="Windows native is unsupported"):
+        adapter.open_with_default_app(str(readme))
 
 
 def test_local_external_launch_adapter_uses_clipboard_fallback_when_commands_missing() -> None:
@@ -279,6 +397,26 @@ def test_live_external_launch_service_formats_terminal_error_for_file(tmp_path) 
         match=f"Failed to open terminal in {readme.resolve()}: Not a directory: ",
     ):
         service.execute(ExternalLaunchRequest(kind="open_terminal", path=str(readme)))
+
+
+def test_live_external_launch_service_formats_windows_native_error(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("plain\n", encoding="utf-8")
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Windows",
+        command_available=lambda command: command,
+        command_runner=StubCommandRunner(),
+    )
+    service = LiveExternalLaunchService(adapter=adapter)
+
+    with pytest.raises(
+        OSError,
+        match=(
+            f"Failed to open {readme.resolve()}: "
+            "Windows native is unsupported; run Peneo from WSL"
+        ),
+    ):
+        service.execute(ExternalLaunchRequest(kind="open_file", path=str(readme)))
 
 
 def test_live_external_launch_service_formats_copy_error() -> None:

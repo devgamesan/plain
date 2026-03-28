@@ -8,7 +8,7 @@ import subprocess
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Protocol
+from typing import Literal, Protocol
 
 CommandRunner = Callable[[Sequence[str], str | None, str | None], None]
 ForegroundCommandRunner = Callable[[Sequence[str], str | None], None]
@@ -16,6 +16,8 @@ CommandAvailability = Callable[[str], str | None]
 SystemNameResolver = Callable[[], str]
 ClipboardFallback = Callable[[str], None]
 EnvironmentVariableReader = Callable[[str], str | None]
+TextFileReader = Callable[[str], str]
+PlatformKind = Literal["linux", "wsl", "darwin"]
 TERMINAL_EDITOR_NAMES = frozenset(
     {"emacs", "helix", "hx", "kak", "micro", "nano", "nvim", "vi", "vim"}
 )
@@ -46,14 +48,17 @@ class LocalExternalLaunchAdapter:
     environment_variable: EnvironmentVariableReader = field(
         default_factory=lambda: os.environ.get
     )
+    text_file_reader: TextFileReader = field(default_factory=lambda: _read_text_file)
     clipboard_fallbacks: tuple[ClipboardFallback, ...] = field(
         default_factory=lambda: (_copy_to_clipboard_with_tkinter,)
     )
 
     def open_with_default_app(self, path: str) -> None:
         resolved_path = _resolve_existing_path(path)
-        candidates = self._default_app_candidates(str(resolved_path))
-        self._run_first_available(candidates, context=f"open {resolved_path}")
+        platform_kind = self._platform_kind()
+        candidates = self._default_app_candidates(platform_kind, str(resolved_path))
+        cwd = str(resolved_path if resolved_path.is_dir() else resolved_path.parent)
+        self._run_first_available(candidates, context=f"open {resolved_path}", cwd=cwd)
 
     def open_in_editor(self, path: str) -> None:
         resolved_path = _resolve_existing_path(path)
@@ -70,7 +75,7 @@ class LocalExternalLaunchAdapter:
 
     def open_terminal(self, path: str) -> None:
         resolved_path = _resolve_directory_path(path)
-        candidates = self._terminal_candidates(str(resolved_path))
+        candidates = self._terminal_candidates(self._platform_kind(), str(resolved_path))
         self._run_first_available(
             candidates,
             context=f"open terminal in {resolved_path}",
@@ -78,7 +83,7 @@ class LocalExternalLaunchAdapter:
         )
 
     def copy_to_clipboard(self, text: str) -> None:
-        candidates = self._clipboard_candidates()
+        candidates = self._clipboard_candidates(self._platform_kind())
         available_candidates = [
             command for command in candidates if self.command_available(command[0]) is not None
         ]
@@ -126,15 +131,38 @@ class LocalExternalLaunchAdapter:
 
         raise OSError(errors[-1] if errors else f"Failed to {context}")
 
-    def _default_app_candidates(self, path: str) -> tuple[tuple[str, ...], ...]:
+    def _platform_kind(self) -> PlatformKind:
         system_name = self.system_name_resolver()
-        if system_name == "Linux":
-            return (("xdg-open", path),)
         if system_name == "Darwin":
-            return (("open", path),)
+            return "darwin"
+        if system_name == "Linux":
+            if _is_wsl_environment(self.environment_variable, self.text_file_reader):
+                return "wsl"
+            return "linux"
         if system_name == "Windows":
-            return (("cmd", "/c", "start", "", path),)
+            raise OSError("Windows native is unsupported; run Peneo from WSL")
         raise OSError(f"Unsupported operating system: {system_name}")
+
+    def _default_app_candidates(
+        self,
+        platform_kind: PlatformKind,
+        path: str,
+    ) -> tuple[tuple[str, ...], ...]:
+        if platform_kind == "linux":
+            return (
+                ("xdg-open", path),
+                ("gio", "open", path),
+            )
+        if platform_kind == "wsl":
+            return (
+                ("wslview", path),
+                ("explorer.exe", path),
+                ("xdg-open", path),
+                ("gio", "open", path),
+            )
+        if platform_kind == "darwin":
+            return (("open", path),)
+        raise OSError(f"Unsupported platform kind: {platform_kind}")
 
     def _editor_candidates(self, path: str) -> tuple[tuple[str, ...], ...]:
         editor_commands = [
@@ -162,8 +190,8 @@ class LocalExternalLaunchAdapter:
         return _dedupe_commands(commands)
 
     def _default_terminal_editor_commands(self, path: str) -> tuple[tuple[str, ...], ...]:
-        system_name = self.system_name_resolver()
-        if system_name in {"Linux", "Darwin", "Windows"}:
+        platform_kind = self._platform_kind()
+        if platform_kind in {"linux", "wsl", "darwin"}:
             return (
                 ("nvim", path),
                 ("vim", path),
@@ -172,7 +200,7 @@ class LocalExternalLaunchAdapter:
                 ("micro", path),
                 ("emacs", "-nw", path),
             )
-        raise OSError(f"Unsupported operating system: {system_name}")
+        raise OSError(f"Unsupported platform kind: {platform_kind}")
 
     def _command_exists(self, command: str) -> bool:
         command_path = Path(command)
@@ -180,49 +208,60 @@ class LocalExternalLaunchAdapter:
             return command_path.exists()
         return self.command_available(command) is not None
 
-    def _terminal_candidates(self, path: str) -> tuple[tuple[str, ...], ...]:
-        system_name = self.system_name_resolver()
-        if system_name == "Linux":
+    def _terminal_candidates(
+        self,
+        platform_kind: PlatformKind,
+        path: str,
+    ) -> tuple[tuple[str, ...], ...]:
+        if platform_kind == "linux":
             return (
-                ("konsole",),
+                ("kgx",),
+                ("gnome-console",),
                 ("gnome-terminal",),
                 ("xfce4-terminal",),
-                ("xterm",),
+                ("mate-terminal",),
+                ("tilix",),
+                ("konsole",),
+                ("lxterminal",),
                 ("x-terminal-emulator",),
+                ("xterm",),
             )
-        if system_name == "Darwin":
-            return (("open", "-a", "Terminal", path),)
-        if system_name == "Windows":
-            escaped_path = path.replace("'", "''")
-            powershell_command = f"Set-Location -LiteralPath '{escaped_path}'"
+        if platform_kind == "wsl":
             return (
-                ("cmd", "/c", "start", "", "wt", "-d", path),
-                (
-                    "cmd",
-                    "/c",
-                    "start",
-                    "",
-                    "powershell",
-                    "-NoExit",
-                    "-Command",
-                    powershell_command,
-                ),
+                ("wt.exe", "wsl.exe", "--cd", path),
+                ("cmd.exe", "/c", "start", "", "wsl.exe", "--cd", path),
+                ("kgx",),
+                ("gnome-console",),
+                ("gnome-terminal",),
+                ("xfce4-terminal",),
+                ("mate-terminal",),
+                ("tilix",),
+                ("konsole",),
+                ("lxterminal",),
+                ("x-terminal-emulator",),
+                ("xterm",),
             )
-        raise OSError(f"Unsupported operating system: {system_name}")
+        if platform_kind == "darwin":
+            return (("open", "-a", "Terminal", path),)
+        raise OSError(f"Unsupported platform kind: {platform_kind}")
 
-    def _clipboard_candidates(self) -> tuple[tuple[str, ...], ...]:
-        system_name = self.system_name_resolver()
-        if system_name == "Linux":
+    def _clipboard_candidates(self, platform_kind: PlatformKind) -> tuple[tuple[str, ...], ...]:
+        if platform_kind == "linux":
             return (
                 ("wl-copy",),
                 ("xclip", "-in", "-selection", "clipboard"),
                 ("xsel", "--clipboard", "--input"),
             )
-        if system_name == "Darwin":
+        if platform_kind == "wsl":
+            return (
+                ("clip.exe",),
+                ("wl-copy",),
+                ("xclip", "-in", "-selection", "clipboard"),
+                ("xsel", "--clipboard", "--input"),
+            )
+        if platform_kind == "darwin":
             return (("pbcopy",),)
-        if system_name == "Windows":
-            return (("clip",),)
-        raise OSError(f"Unsupported operating system: {system_name}")
+        raise OSError(f"Unsupported platform kind: {platform_kind}")
 
 
 def _run_detached_command(command: Sequence[str], cwd: str | None, input_text: str | None) -> None:
@@ -283,6 +322,10 @@ def _copy_to_clipboard_with_tkinter(text: str) -> None:
             root.destroy()
 
 
+def _read_text_file(path: str) -> str:
+    return Path(path).read_text(encoding="utf-8")
+
+
 def _resolve_existing_path(path: str) -> Path:
     resolved_path = Path(path).expanduser().resolve()
     if not resolved_path.exists():
@@ -310,3 +353,19 @@ def _dedupe_commands(commands: Sequence[tuple[str, ...]]) -> tuple[tuple[str, ..
         seen.add(command)
         unique_commands.append(command)
     return tuple(unique_commands)
+
+
+def _is_wsl_environment(
+    environment_variable: EnvironmentVariableReader,
+    text_file_reader: TextFileReader,
+) -> bool:
+    if environment_variable("WSL_DISTRO_NAME") is not None:
+        return True
+    if environment_variable("WSL_INTEROP") is not None:
+        return True
+
+    try:
+        proc_version = text_file_reader("/proc/version")
+    except OSError:
+        return False
+    return "microsoft" in proc_version.casefold()

@@ -140,8 +140,9 @@ peneo-cd
 
 - 現時点で動作確認している OS は Ubuntu のみです。
 - 既定アプリ起動、ファイルマネージャ起動、ターミナル起動などの GUI 連携も主にその環境で確認しています。
-- 埋め込み split terminal は現状 POSIX 環境、特に Ubuntu/Linux を前提にしています。
-- コード上は Linux / macOS / Windows 向けの外部起動処理を持っていますが、動作確認済みとは限りません。
+- 埋め込み split terminal は現状 POSIX 環境、特に Ubuntu/Linux と WSL を前提にしています。
+- 外部起動まわりは Linux、macOS、WSL を意識したフォールバックを持ちます。Windows ネイティブ実行はサポート対象外です。
+- WSL では `wslview`、`explorer.exe`、`clip.exe` のような Windows 側ブリッジを優先し、WSLg や Linux デスクトップ向けのフォールバックも維持します。
 - まだ開発途中です。挙動やキーバインドは今後見直す可能性があります。
 - ファイル操作は、選択したディレクトリエントリ自体に対して行われます。選択中の項目が symlink の場合も、リンク先を暗黙に辿って変更せず、symlink エントリ自体を操作します。
 

@@ -147,8 +147,9 @@ Commands still under development may appear dimmed and cannot be executed yet.
 
 - The project is currently verified only on Ubuntu.
 - GUI integration paths such as default-app launch, file-manager launch, and terminal launch are currently validated primarily in that environment.
-- The embedded split terminal currently targets POSIX environments such as Ubuntu/Linux.
-- The code contains external-launch implementations for Linux / macOS / Windows, but not every platform path is fully validated.
+- The embedded split terminal currently targets POSIX environments such as Ubuntu/Linux and WSL.
+- External-launch behavior includes Linux, macOS, and WSL-aware fallbacks. Native Windows is not a supported runtime for Peneo.
+- WSL prefers Windows-side bridges such as `wslview`, `explorer.exe`, and `clip.exe` when available, with Linux-side fallbacks kept for WSLg and desktop Linux environments.
 - The application is still under active development, so behavior and keybindings may change.
 - File mutations operate on the selected directory entry. If the selected item is a symlink, Peneo mutates the symlink itself instead of silently following and mutating the link target.
 

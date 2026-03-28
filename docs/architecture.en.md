@@ -136,9 +136,8 @@ sequenceDiagram
 ### `src/peneo/state/command_palette.py`
 
 - Builds command palette candidates and filters them by query
-- The current palette includes `Find file`, `Show attributes`, `Copy path`, `Open in file manager`, `Open terminal here`, `Show/Hide hidden files`, `Create file`, and `Create directory`
+- The current palette includes `Find file`, `Show attributes`, `Copy path`, `Open in file manager`, `Open terminal here`, `Open/Close split terminal`, `Show/Hide hidden files`, `Create file`, and `Create directory`
 - `Show attributes` appears only for a single target and opens a read-only attribute dialog with `Name`, `Type`, `Path`, `Size`, `Modified`, `Hidden`, and `Permissions`
-- `Run shell command` may appear as a candidate, but it is still a placeholder with `enabled=False`
 
 ### `src/peneo/services/`
 
@@ -219,7 +218,6 @@ Notes:
 ## 7. Areas Still Unwired Or Unimplemented
 
 - `HistoryState` exists in state, but back / forward is not wired into the UI yet
-- `Run shell command` is still a non-executable placeholder in the command palette
 - File preview, editing, Git integration, tabs, and keybinding customization are not implemented
 
 Filesystem mutations treat the entry path selected in the UI as the trust boundary. When the selected item is a symlink, the final path component is not canonicalized, so delete / rename / move / copy / overwrite / trash operate on the symlink entry itself rather than silently following the target.

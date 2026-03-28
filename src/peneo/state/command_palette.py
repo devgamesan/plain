@@ -131,16 +131,6 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         ]
     )
 
-    if has_single_target:
-        items.append(
-            CommandPaletteItem(
-                id="run_shell",
-                label="Run shell command",
-                shortcut=None,
-                enabled=False,
-            )
-        )
-
     return tuple(items)
 
 

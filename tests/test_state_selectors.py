@@ -475,7 +475,7 @@ def test_select_command_palette_state_marks_selected_and_enabled_items() -> None
     palette_state = select_command_palette_state(state)
 
     assert palette_state is not None
-    assert palette_state.title == "Command Palette (1-8 / 10)"
+    assert palette_state.title == "Command Palette (1-8 / 9)"
     assert [item.label for item in palette_state.items[:3]] == [
         "Find file",
         "Show attributes",

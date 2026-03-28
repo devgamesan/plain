@@ -136,10 +136,9 @@ sequenceDiagram
 ### `src/peneo/state/command_palette.py`
 
 - コマンドパレット候補の構築と query フィルタリングを担当する
-- 現在の palette には `Find file`、`Show attributes`、`Copy path`、`Open in file manager`、`Open terminal here`、`Show/Hide hidden files`、`Create file`、`Create directory` がある
+- 現在の palette には `Find file`、`Show attributes`、`Copy path`、`Open in file manager`、`Open terminal here`、`Open/Close split terminal`、`Show/Hide hidden files`、`Create file`、`Create directory` がある
 - `Show attributes` は単一対象がある場合にだけ表示し、`Name` / `Type` / `Path` / `Size` / `Modified` / `Hidden` / `Permissions` を持つ read-only の属性ダイアログを開く
 - `Find file` 選択後は palette をファイル検索モードに切り替え、現在ディレクトリ以下を再帰検索した結果を同じ UI で表示する
-- `Run shell command` は候補として見える場合があるが、現時点では `enabled=False` のプレースホルダ
 
 ### `src/peneo/services/`
 
@@ -222,7 +221,6 @@ stateDiagram-v2
 ## 7. 現時点で未接続または未実装の範囲
 
 - `HistoryState` は state にあるが、戻る / 進む操作としてはまだ UI に接続していない
-- `Run shell command` は command palette にプレースホルダがあるが実行不可
 - ファイル内容プレビュー、編集、Git 連携、タブ機能、キーバインドカスタマイズは未実装
 
 filesystem mutation は、UI が選択している entry path をそのまま trust boundary として扱う。選択対象が symlink の場合でも最終パス要素を canonicalize せず、delete / rename / move / copy / overwrite / trash は symlink 自体に作用させる。

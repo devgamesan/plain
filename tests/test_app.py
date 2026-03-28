@@ -1818,6 +1818,54 @@ async def test_app_split_terminal_handles_full_screen_terminal_output() -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_split_terminal_coalesces_rapid_output_updates() -> None:
+    path = "/tmp/peneo-split-terminal-coalesce"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    split_terminal_service = FakeSplitTerminalService()
+    app = create_app(
+        snapshot_loader=loader,
+        split_terminal_service=split_terminal_service,
+        initial_path=path,
+    )
+
+    async with app.run_test(size=(72, 16)) as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("ctrl+t")
+        await asyncio.sleep(0.05)
+
+        session = split_terminal_service.sessions[0]
+        body = app.query_one("#split-terminal-body", Static)
+        update_calls: list[str] = []
+        original_update = body.update
+
+        def tracked_update(content=""):
+            update_calls.append(str(content))
+            return original_update(content)
+
+        body.update = tracked_update  # type: ignore[method-assign]
+
+        session.emit_output("a")
+        session.emit_output("b")
+        session.emit_output("c")
+        await asyncio.sleep(0.01)
+
+        assert update_calls == []
+
+        await asyncio.sleep(0.05)
+
+        assert len(update_calls) == 1
+        assert str(body.renderable).splitlines()[0].startswith("abc")
+
+
+@pytest.mark.asyncio
 async def test_app_split_terminal_ignores_unsupported_private_sgr_sequences() -> None:
     path = "/tmp/peneo-split-terminal-private-sgr"
     loader = FakeBrowserSnapshotLoader(

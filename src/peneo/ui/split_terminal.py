@@ -9,6 +9,7 @@ from textual import events
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.geometry import Size
+from textual.timer import Timer
 from textual.widgets import Static
 
 from peneo.models import SplitTerminalViewState
@@ -19,6 +20,7 @@ class SplitTerminalPane(Static):
 
     DEFAULT_COLUMNS = 80
     DEFAULT_ROWS = 8
+    RENDER_COALESCE_SECONDS = 1 / 30
 
     DEFAULT_STATE = SplitTerminalViewState(
         visible=False,
@@ -44,6 +46,8 @@ class SplitTerminalPane(Static):
         self._pending_escape_sequence = ""
         self._screen_columns = self.DEFAULT_COLUMNS
         self._screen_rows = self.DEFAULT_ROWS
+        self._render_timer: Timer | None = None
+        self._render_pending = False
 
     def compose(self) -> ComposeResult:
         yield Static("", id="split-terminal-title")
@@ -53,6 +57,9 @@ class SplitTerminalPane(Static):
 
     def on_mount(self) -> None:
         self.set_state(self.state)
+
+    def on_unmount(self) -> None:
+        self._cancel_pending_render()
 
     def on_resize(self, _event: events.Resize) -> None:
         if not self.state.visible:
@@ -113,9 +120,10 @@ class SplitTerminalPane(Static):
                 pass
             else:
                 self._has_terminal_output = True
-        self._render_body()
+                self._schedule_render()
 
     def _render_body(self) -> None:
+        self._cancel_pending_render()
         body = self.query_one("#split-terminal-body", Static)
         rendered = Text("")
         if self.state.visible:
@@ -126,6 +134,27 @@ class SplitTerminalPane(Static):
         else:
             self._reset_terminal_screen()
         body.update(rendered)
+
+    def _schedule_render(self) -> None:
+        if self._render_pending:
+            return
+        self._render_pending = True
+        self._render_timer = self.set_timer(
+            self.RENDER_COALESCE_SECONDS,
+            self._flush_render,
+            name="split-terminal-render",
+        )
+
+    def _flush_render(self) -> None:
+        self._render_timer = None
+        self._render_pending = False
+        self._render_body()
+
+    def _cancel_pending_render(self) -> None:
+        if self._render_timer is not None:
+            self._render_timer.stop()
+            self._render_timer = None
+        self._render_pending = False
 
     def _ensure_terminal_screen(self, *, columns: int, rows: int) -> None:
         if self._screen is None or self._stream is None:

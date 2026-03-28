@@ -110,6 +110,7 @@ from .models import (
     ConfigEditorState,
     DeleteConfirmationState,
     DirectoryEntryState,
+    FileSearchResultState,
     NameConflictKind,
     NameConflictState,
     NotificationState,
@@ -316,7 +317,7 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
         if state.command_palette.source != "file_search":
             return done(replace(state, command_palette=next_palette))
 
-        normalized_query = action.query.strip()
+        normalized_query = action.query.strip().casefold()
         if not normalized_query:
             return done(
                 replace(
@@ -325,10 +326,29 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
                     pending_file_search_request_id=None,
                 )
             )
+        if (
+            state.command_palette.file_search_cache_query
+            and normalized_query.startswith(state.command_palette.file_search_cache_query)
+            and state.command_palette.file_search_cache_root_path == state.current_path
+            and state.command_palette.file_search_cache_show_hidden == state.show_hidden
+        ):
+            return done(
+                replace(
+                    state,
+                    command_palette=replace(
+                        next_palette,
+                        file_search_results=_filter_file_search_results(
+                            state.command_palette.file_search_cache_results,
+                            normalized_query,
+                        ),
+                    ),
+                    pending_file_search_request_id=None,
+                )
+            )
         request_id = state.next_request_id
         next_state = replace(
             state,
-            command_palette=replace(next_palette, file_search_results=()),
+            command_palette=next_palette,
             pending_file_search_request_id=request_id,
             next_request_id=request_id + 1,
         )
@@ -1120,7 +1140,7 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
             action.request_id != state.pending_file_search_request_id
             or state.command_palette is None
             or state.command_palette.source != "file_search"
-            or state.command_palette.query.strip() != action.query
+            or state.command_palette.query.strip().casefold() != action.query
         ):
             return done(state)
         return done(
@@ -1130,6 +1150,10 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
                     state.command_palette,
                     file_search_results=action.results,
                     cursor_index=0,
+                    file_search_cache_query=action.query,
+                    file_search_cache_results=action.results,
+                    file_search_cache_root_path=state.current_path,
+                    file_search_cache_show_hidden=state.show_hidden,
                 ),
                 pending_file_search_request_id=None,
             )
@@ -1684,6 +1708,17 @@ def _pending_input_parent_and_target(state: AppState) -> tuple[str | None, str |
     if state.ui_mode == "CREATE":
         return (state.current_pane.directory_path, None)
     return (None, None)
+
+
+def _filter_file_search_results(
+    results: tuple[FileSearchResultState, ...],
+    normalized_query: str,
+) -> tuple[FileSearchResultState, ...]:
+    return tuple(
+        result
+        for result in results
+        if normalized_query in Path(result.path).name.casefold()
+    )
 
 
 def _format_clipboard_message(prefix: str, paths: tuple[str, ...]) -> str:

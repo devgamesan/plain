@@ -1,4 +1,6 @@
 import asyncio
+import threading
+import time
 from contextlib import nullcontext
 from pathlib import Path
 
@@ -205,6 +207,45 @@ class FakeConfigSaveService:
         return self.saved_path or path
 
 
+class BlockingFileSearchService:
+    def __init__(
+        self,
+        *,
+        results_by_query: (
+            dict[tuple[str, str, bool], tuple[FileSearchResultState, ...]] | None
+        ) = None,
+        blocked_queries: tuple[str, ...] = (),
+    ) -> None:
+        self.results_by_query = results_by_query or {}
+        self.blocked_queries = set(blocked_queries)
+        self.executed_requests: list[tuple[str, str, bool]] = []
+        self.cancelled_queries: list[str] = []
+        self.started_queries: list[str] = []
+        self.release_event = threading.Event()
+
+    def search(
+        self,
+        root_path: str,
+        query: str,
+        *,
+        show_hidden: bool,
+        is_cancelled=None,
+    ) -> tuple[FileSearchResultState, ...]:
+        key = (root_path, query, show_hidden)
+        self.executed_requests.append(key)
+        self.started_queries.append(query)
+        if query in self.blocked_queries:
+            while not self.release_event.is_set():
+                if is_cancelled is not None and is_cancelled():
+                    self.cancelled_queries.append(query)
+                    return ()
+                time.sleep(0.01)
+        if is_cancelled is not None and is_cancelled():
+            self.cancelled_queries.append(query)
+            return ()
+        return self.results_by_query.get(key, ())
+
+
 async def _wait_for_row_count(app, expected_count: int, timeout: float = 0.5) -> None:
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
@@ -271,6 +312,16 @@ async def _wait_for_external_launch_count(app, expected_count: int, timeout: flo
             return
         if asyncio.get_running_loop().time() >= deadline:
             raise AssertionError(f"external launches did not become {expected_count}")
+        await asyncio.sleep(0.01)
+
+
+async def _wait_for_request_count(service, expected_count: int, timeout: float = 0.5) -> None:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        if len(service.executed_requests) >= expected_count:
+            return
+        if asyncio.get_running_loop().time() >= deadline:
+            raise AssertionError(f"search request count did not reach {expected_count}")
         await asyncio.sleep(0.01)
 
 
@@ -1198,12 +1249,126 @@ async def test_app_command_palette_find_file_jumps_to_matching_parent_directory(
         await pilot.press(":")
         await pilot.press("enter")
         await pilot.press("r", "e", "a", "d")
-        await asyncio.sleep(0.05)
+        await _wait_for_request_count(file_search_service, 1)
         await pilot.press("enter")
         await _wait_for_snapshot_loaded(app, docs_path)
 
         assert app.app_state.current_path == docs_path
         assert app.app_state.current_pane.cursor_path == f"{docs_path}/README.md"
+
+
+@pytest.mark.asyncio
+async def test_app_file_search_debounces_rapid_query_updates(tmp_path) -> None:
+    path = str(tmp_path)
+    (tmp_path / "README.md").write_text("readme\n", encoding="utf-8")
+    file_search_service = FakeFileSearchService(
+        results_by_query={
+            (path, "read", False): (
+                FileSearchResultState(
+                    path=f"{path}/README.md",
+                    display_path="README.md",
+                ),
+            )
+        }
+    )
+    app = create_app(file_search_service=file_search_service, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await pilot.press("enter")
+        await pilot.press("r", "e", "a", "d")
+
+        await asyncio.sleep(0.1)
+        assert file_search_service.executed_requests == []
+
+        await _wait_for_request_count(file_search_service, 1, timeout=0.5)
+        assert file_search_service.executed_requests == [(path, "read", False)]
+
+
+@pytest.mark.asyncio
+async def test_app_file_search_prefix_extension_reuses_cached_results(tmp_path) -> None:
+    path = str(tmp_path)
+    (tmp_path / "README.md").write_text("readme\n", encoding="utf-8")
+    (tmp_path / "readings.txt").write_text("readings\n", encoding="utf-8")
+    file_search_service = FakeFileSearchService(
+        results_by_query={
+            (path, "read", False): (
+                FileSearchResultState(
+                    path=f"{path}/README.md",
+                    display_path="README.md",
+                ),
+                FileSearchResultState(
+                    path=f"{path}/readings.txt",
+                    display_path="readings.txt",
+                ),
+            )
+        }
+    )
+    app = create_app(file_search_service=file_search_service, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await pilot.press("enter")
+        await pilot.press("r", "e", "a", "d")
+        await _wait_for_request_count(file_search_service, 1)
+        await asyncio.sleep(0.05)
+
+        await pilot.press("m")
+        await asyncio.sleep(0.05)
+
+        assert file_search_service.executed_requests == [(path, "read", False)]
+        assert app.app_state.command_palette is not None
+        assert [
+            result.display_path for result in app.app_state.command_palette.file_search_results
+        ] == ["README.md"]
+
+
+@pytest.mark.asyncio
+async def test_app_file_search_cancels_superseded_request_without_notification(tmp_path) -> None:
+    path = str(tmp_path)
+    (tmp_path / "README.md").write_text("readme\n", encoding="utf-8")
+    (tmp_path / "guide.md").write_text("guide\n", encoding="utf-8")
+    file_search_service = BlockingFileSearchService(
+        results_by_query={
+            (path, "read", False): (
+                FileSearchResultState(
+                    path=f"{path}/README.md",
+                    display_path="README.md",
+                ),
+            ),
+            (path, "guide", False): (
+                FileSearchResultState(
+                    path=f"{path}/guide.md",
+                    display_path="guide.md",
+                ),
+            ),
+        },
+        blocked_queries=("read",),
+    )
+    app = create_app(file_search_service=file_search_service, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await pilot.press("enter")
+        await pilot.press("r", "e", "a", "d")
+        await _wait_for_request_count(file_search_service, 1)
+
+        await pilot.press("backspace", "backspace", "backspace", "backspace")
+        await pilot.press("g", "u", "i", "d", "e")
+        await _wait_for_request_count(file_search_service, 2, timeout=1.0)
+
+        file_search_service.release_event.set()
+        await asyncio.sleep(0.1)
+
+        assert "read" in file_search_service.cancelled_queries
+        assert app.app_state.notification is None
+        assert app.app_state.command_palette is not None
+        assert [
+            result.display_path for result in app.app_state.command_palette.file_search_results
+        ] == ["guide.md"]
 
 
 @pytest.mark.asyncio

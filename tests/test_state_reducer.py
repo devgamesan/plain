@@ -938,6 +938,99 @@ def test_set_command_palette_query_starts_file_search_effect() -> None:
     )
 
 
+def test_set_command_palette_query_reuses_completed_file_search_results_for_prefix_extension(
+) -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("find"))
+    state = _reduce_state(state, SubmitCommandPalette())
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            query="read",
+            file_search_results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/peneo/README.md",
+                    display_path="README.md",
+                ),
+                FileSearchResultState(
+                    path="/home/tadashi/develop/peneo/docs/readings.txt",
+                    display_path="docs/readings.txt",
+                ),
+            ),
+            file_search_cache_query="read",
+            file_search_cache_results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/peneo/README.md",
+                    display_path="README.md",
+                ),
+                FileSearchResultState(
+                    path="/home/tadashi/develop/peneo/docs/readings.txt",
+                    display_path="docs/readings.txt",
+                ),
+            ),
+            file_search_cache_root_path="/home/tadashi/develop/peneo",
+            file_search_cache_show_hidden=False,
+        ),
+        pending_file_search_request_id=4,
+        next_request_id=5,
+    )
+
+    result = reduce_app_state(state, SetCommandPaletteQuery("readm"))
+
+    assert result.effects == ()
+    assert result.state.pending_file_search_request_id is None
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.file_search_results == (
+        FileSearchResultState(
+            path="/home/tadashi/develop/peneo/README.md",
+            display_path="README.md",
+        ),
+    )
+    assert result.state.next_request_id == 5
+
+
+def test_set_command_palette_query_runs_new_search_when_query_is_not_prefix_extension() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("find"))
+    state = _reduce_state(state, SubmitCommandPalette())
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            query="read",
+            file_search_results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/peneo/README.md",
+                    display_path="README.md",
+                ),
+            ),
+            file_search_cache_query="read",
+            file_search_cache_results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/peneo/README.md",
+                    display_path="README.md",
+                ),
+            ),
+            file_search_cache_root_path="/home/tadashi/develop/peneo",
+            file_search_cache_show_hidden=False,
+        ),
+        next_request_id=4,
+    )
+
+    result = reduce_app_state(state, SetCommandPaletteQuery("rea"))
+
+    assert result.state.pending_file_search_request_id == 4
+    assert result.effects == (
+        RunFileSearchEffect(
+            request_id=4,
+            root_path="/home/tadashi/develop/peneo",
+            query="rea",
+            show_hidden=False,
+        ),
+    )
+
+
 def test_file_search_completed_updates_palette_results() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
     state = _reduce_state(state, SetCommandPaletteQuery("find"))
@@ -969,6 +1062,9 @@ def test_file_search_completed_updates_palette_results() -> None:
             display_path="README.md",
         ),
     )
+    assert next_state.command_palette.file_search_cache_query == "read"
+    assert next_state.command_palette.file_search_cache_root_path == "/home/tadashi/develop/peneo"
+    assert next_state.command_palette.file_search_cache_show_hidden is False
     assert next_state.pending_file_search_request_id is None
 
 

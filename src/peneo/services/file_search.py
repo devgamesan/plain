@@ -1,5 +1,6 @@
 """Recursive file-search services for the command palette."""
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
@@ -16,6 +17,7 @@ class FileSearchService(Protocol):
         query: str,
         *,
         show_hidden: bool,
+        is_cancelled: Callable[[], bool] | None = None,
     ) -> tuple[FileSearchResultState, ...]: ...
 
 
@@ -29,6 +31,7 @@ class LiveFileSearchService:
         query: str,
         *,
         show_hidden: bool,
+        is_cancelled: Callable[[], bool] | None = None,
     ) -> tuple[FileSearchResultState, ...]:
         normalized_query = query.strip().casefold()
         if not normalized_query:
@@ -44,13 +47,17 @@ class LiveFileSearchService:
         stack = [root]
 
         while stack:
+            if is_cancelled is not None and is_cancelled():
+                return ()
             directory = stack.pop()
             try:
-                children = sorted(directory.iterdir(), key=lambda child: child.name.casefold())
+                children = tuple(directory.iterdir())
             except (FileNotFoundError, PermissionError):
                 continue
 
-            for child in reversed(children):
+            for child in children:
+                if is_cancelled is not None and is_cancelled():
+                    return ()
                 if not show_hidden and child.name.startswith("."):
                     continue
                 if child.is_dir():
@@ -84,9 +91,12 @@ class FakeFileSearchService:
         query: str,
         *,
         show_hidden: bool,
+        is_cancelled: Callable[[], bool] | None = None,
     ) -> tuple[FileSearchResultState, ...]:
         key = (root_path, query, show_hidden)
         self.executed_requests.append(key)
+        if is_cancelled is not None and is_cancelled():
+            return ()
         if key in self.failure_messages:
             raise OSError(self.failure_messages[key])
         return self.results_by_query.get(key, ())

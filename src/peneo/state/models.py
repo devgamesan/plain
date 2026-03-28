@@ -170,6 +170,10 @@ class CommandPaletteState:
     query: str = ""
     cursor_index: int = 0
     file_search_results: tuple[FileSearchResultState, ...] = ()
+    file_search_cache_query: str = ""
+    file_search_cache_results: tuple[FileSearchResultState, ...] = ()
+    file_search_cache_root_path: str | None = None
+    file_search_cache_show_hidden: bool = False
 
 
 @dataclass(frozen=True)

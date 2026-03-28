@@ -45,3 +45,25 @@ def test_live_file_search_service_matches_case_insensitively_and_ignores_directo
     results = service.search(str(root), "read", show_hidden=False)
 
     assert [result.display_path for result in results] == ["README.MD"]
+
+
+def test_live_file_search_service_stops_when_cancelled(tmp_path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    for index in range(3):
+        nested = root / f"dir-{index}"
+        nested.mkdir()
+        (nested / f"README-{index}.md").write_text("readme\n", encoding="utf-8")
+
+    service = LiveFileSearchService()
+    cancelled = False
+
+    def is_cancelled() -> bool:
+        nonlocal cancelled
+        cancelled = True
+        return True
+
+    results = service.search(str(root), "read", show_hidden=False, is_cancelled=is_cancelled)
+
+    assert cancelled is True
+    assert results == ()

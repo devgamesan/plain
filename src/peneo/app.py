@@ -13,6 +13,7 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.css.query import NoMatches
 from textual.message import Message
+from textual.timer import Timer
 from textual.worker import Worker, WorkerState
 
 from peneo.adapters import LocalExternalLaunchAdapter
@@ -96,6 +97,8 @@ from peneo.ui import (
     SplitTerminalPane,
     StatusBar,
 )
+
+_FILE_SEARCH_DEBOUNCE_SECONDS = 0.2
 
 
 class PeneoApp(App[None]):
@@ -370,6 +373,9 @@ class PeneoApp(App[None]):
         self._split_terminal_service = split_terminal_service or LiveSplitTerminalService()
         self._pending_workers: dict[str, Effect] = {}
         self._split_terminal_session: SplitTerminalSession | None = None
+        self._file_search_timer: Timer | None = None
+        self._active_file_search_cancel_event: threading.Event | None = None
+        self._active_file_search_request_id: int | None = None
 
     @property
     def app_state(self) -> AppState:
@@ -396,6 +402,7 @@ class PeneoApp(App[None]):
     def on_unmount(self) -> None:
         """Ensure the embedded terminal session is stopped when the app exits."""
 
+        self._cancel_pending_file_search()
         if self._split_terminal_session is None:
             return
         self._split_terminal_session.close()
@@ -477,7 +484,9 @@ class PeneoApp(App[None]):
     async def dispatch_actions(self, actions: Sequence[Action]) -> None:
         """Apply reducer actions, refresh the UI, and schedule any effects."""
 
+        previous_state = self._app_state
         changed, effects = self._apply_actions(actions)
+        self._sync_file_search_state(previous_state, self._app_state)
         if changed:
             await self._refresh_shell()
         self._schedule_effects(effects)
@@ -613,12 +622,27 @@ class PeneoApp(App[None]):
         self._pending_workers[worker.name] = effect
 
     def _schedule_file_search(self, effect: RunFileSearchEffect) -> None:
+        self._cancel_file_search_timer()
+        self._file_search_timer = self.set_timer(
+            _FILE_SEARCH_DEBOUNCE_SECONDS,
+            partial(self._start_file_search_worker, effect),
+            name=f"file-search-debounce:{effect.request_id}",
+        )
+
+    def _start_file_search_worker(self, effect: RunFileSearchEffect) -> None:
+        self._file_search_timer = None
+        if self._app_state.pending_file_search_request_id != effect.request_id:
+            return
+        cancel_event = threading.Event()
+        self._active_file_search_cancel_event = cancel_event
+        self._active_file_search_request_id = effect.request_id
         worker = self.run_worker(
             partial(
                 self._file_search_service.search,
                 effect.root_path,
                 effect.query,
                 show_hidden=effect.show_hidden,
+                is_cancelled=cancel_event.is_set,
             ),
             name=f"file-search:{effect.request_id}",
             group="file-search",
@@ -628,6 +652,31 @@ class PeneoApp(App[None]):
             thread=True,
         )
         self._pending_workers[worker.name] = effect
+
+    def _sync_file_search_state(self, previous_state: AppState, next_state: AppState) -> None:
+        if (
+            previous_state.pending_file_search_request_id
+            == next_state.pending_file_search_request_id
+        ):
+            return
+        self._cancel_pending_file_search()
+
+    def _cancel_pending_file_search(self) -> None:
+        self._cancel_file_search_timer()
+        self._cancel_active_file_search()
+
+    def _cancel_file_search_timer(self) -> None:
+        if self._file_search_timer is None:
+            return
+        self._file_search_timer.stop()
+        self._file_search_timer = None
+
+    def _cancel_active_file_search(self) -> None:
+        if self._active_file_search_cancel_event is None:
+            return
+        self._active_file_search_cancel_event.set()
+        self._active_file_search_cancel_event = None
+        self._active_file_search_request_id = None
 
     def _start_split_terminal(self, effect: StartSplitTerminalEffect) -> None:
         try:
@@ -814,6 +863,12 @@ class PeneoApp(App[None]):
             return
 
         self._pending_workers.pop(event.worker.name, None)
+        if (
+            isinstance(effect, RunFileSearchEffect)
+            and effect.request_id == self._active_file_search_request_id
+        ):
+            self._active_file_search_cancel_event = None
+            self._active_file_search_request_id = None
 
         if event.state == WorkerState.CANCELLED:
             return

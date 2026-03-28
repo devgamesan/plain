@@ -348,6 +348,54 @@ def test_select_shell_data_reuses_current_visible_entries(monkeypatch) -> None:
     assert shell.current_summary.item_count == len(shell.current_entries)
 
 
+def test_select_shell_data_reuses_pane_entries_when_only_notification_changes() -> None:
+    state = build_initial_app_state()
+
+    initial_shell = select_shell_data(state)
+    updated_shell = select_shell_data(
+        _reduce_state(
+            state,
+            SetNotification(NotificationState(level="info", message="Ready")),
+        )
+    )
+
+    assert updated_shell.parent_entries is initial_shell.parent_entries
+    assert updated_shell.current_entries is initial_shell.current_entries
+    assert updated_shell.child_entries is initial_shell.child_entries
+
+
+def test_select_shell_data_reuses_current_entries_when_only_cursor_changes() -> None:
+    state = build_initial_app_state()
+
+    initial_shell = select_shell_data(state)
+    moved_shell = select_shell_data(
+        _reduce_state(
+            state,
+            SetCursorPath("/home/tadashi/develop/peneo/tests"),
+        )
+    )
+
+    assert moved_shell.current_entries is initial_shell.current_entries
+    assert moved_shell.current_cursor_index == 2
+    assert moved_shell.child_entries == ()
+
+
+def test_select_shell_data_rebuilds_only_current_entries_when_selection_changes() -> None:
+    state = build_initial_app_state()
+
+    initial_shell = select_shell_data(state)
+    updated_shell = select_shell_data(
+        _reduce_state(
+            state,
+            ToggleSelection("/home/tadashi/develop/peneo/README.md"),
+        )
+    )
+
+    assert updated_shell.parent_entries is initial_shell.parent_entries
+    assert updated_shell.child_entries is initial_shell.child_entries
+    assert updated_shell.current_entries is not initial_shell.current_entries
+
+
 def test_select_shell_data_includes_selected_cut_and_contextual_models() -> None:
     state = _reduce_state(
         build_initial_app_state(),

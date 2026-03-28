@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 from stat import S_IMODE, filemode
 
@@ -44,18 +45,13 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
     """Build the display shell data consumed by the UI layer."""
 
     current_pane = _select_current_pane_projection(state)
-    cut_paths = _select_cut_paths(state)
     return ThreePaneShellData(
         current_path=state.current_path,
         parent_entries=select_parent_entries(state),
-        current_entries=tuple(
-            _to_pane_entry(
-                entry,
-                name_detail=_format_current_entry_name_detail(state, entry),
-                selected=entry.path in state.current_pane.selected_paths,
-                cut=entry.path in cut_paths,
-            )
-            for entry in current_pane.visible_entries
+        current_entries=_select_current_pane_entries(
+            current_pane.visible_entries,
+            state.current_pane.selected_paths,
+            _select_cut_paths(state),
         ),
         child_entries=_select_child_entries_for_cursor(state, current_pane.cursor_entry),
         current_cursor_index=current_pane.cursor_index,
@@ -74,28 +70,20 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
 def select_parent_entries(state: AppState) -> tuple[PaneEntry, ...]:
     """Return display entries for the parent pane."""
 
-    cut_paths = _select_cut_paths(state)
-    return tuple(
-        _to_pane_entry(entry, cut=entry.path in cut_paths)
-        for entry in _sort_entries(
-            _filter_hidden_entries(state.parent_pane.entries, state.show_hidden),
-            SIDE_PANE_SORT,
-        )
+    visible_entries = _select_side_pane_entry_states(state.parent_pane.entries, state.show_hidden)
+    return _select_side_pane_entries(
+        visible_entries,
+        _select_visible_cut_paths(visible_entries, _select_cut_paths(state)),
     )
 
 
 def select_current_entries(state: AppState) -> tuple[PaneEntry, ...]:
     """Return display entries for the current pane after filter/sort."""
 
-    cut_paths = _select_cut_paths(state)
-    return tuple(
-        _to_pane_entry(
-            entry,
-            name_detail=_format_current_entry_name_detail(state, entry),
-            selected=entry.path in state.current_pane.selected_paths,
-            cut=entry.path in cut_paths,
-        )
-        for entry in select_visible_current_entry_states(state)
+    return _select_current_pane_entries(
+        select_visible_current_entry_states(state),
+        state.current_pane.selected_paths,
+        _select_cut_paths(state),
     )
 
 
@@ -114,13 +102,10 @@ def _select_child_entries_for_cursor(
         return ()
     if cursor_entry.path != state.child_pane.directory_path:
         return ()
-    cut_paths = _select_cut_paths(state)
-    return tuple(
-        _to_pane_entry(entry, cut=entry.path in cut_paths)
-        for entry in _sort_entries(
-            _filter_hidden_entries(state.child_pane.entries, state.show_hidden),
-            SIDE_PANE_SORT,
-        )
+    visible_entries = _select_side_pane_entry_states(state.child_pane.entries, state.show_hidden)
+    return _select_side_pane_entries(
+        visible_entries,
+        _select_visible_cut_paths(visible_entries, _select_cut_paths(state)),
     )
 
 
@@ -433,36 +418,99 @@ def select_target_paths(state: AppState) -> tuple[str, ...]:
 def select_visible_current_entry_states(state: AppState) -> tuple[DirectoryEntryState, ...]:
     """Return filtered and sorted raw current-pane entries."""
 
-    entries = _filter_hidden_entries(state.current_pane.entries, state.show_hidden)
-    entries = tuple(
-        _filter_entries(
-            entries,
-            state.filter.query,
-            state.filter.active,
-        )
+    return _select_visible_current_entry_states(
+        state.current_pane.entries,
+        state.show_hidden,
+        state.filter.query,
+        state.filter.active,
+        state.sort,
     )
-    return _sort_entries(entries, state.sort)
 
 
 def _select_current_pane_projection(state: AppState) -> _CurrentPaneProjection:
     visible_entries = select_visible_current_entry_states(state)
-    cursor_index = _find_current_cursor_index(
-        visible_entries,
-        state.current_pane.cursor_path,
-    )
+    cursor_index = _find_current_cursor_index(visible_entries, state.current_pane.cursor_path)
     cursor_entry = None if cursor_index is None else visible_entries[cursor_index]
     return _CurrentPaneProjection(
         visible_entries=visible_entries,
         cursor_index=cursor_index,
         cursor_entry=cursor_entry,
-        summary=CurrentSummaryState(
-            item_count=len(visible_entries),
-            selected_count=len(state.current_pane.selected_paths),
-            sort_label=_format_sort_label(state.sort),
+        summary=_build_current_summary(
+            len(visible_entries),
+            len(state.current_pane.selected_paths),
+            state.sort,
         ),
     )
 
 
+@lru_cache(maxsize=256)
+def _select_visible_current_entry_states(
+    entries: tuple[DirectoryEntryState, ...],
+    show_hidden: bool,
+    query: str,
+    active: bool,
+    sort: SortState,
+) -> tuple[DirectoryEntryState, ...]:
+    visible_entries = _filter_hidden_entries(entries, show_hidden)
+    visible_entries = _filter_entries(visible_entries, query, active)
+    return _sort_entries(visible_entries, sort)
+
+
+@lru_cache(maxsize=256)
+def _select_side_pane_entry_states(
+    entries: tuple[DirectoryEntryState, ...],
+    show_hidden: bool,
+) -> tuple[DirectoryEntryState, ...]:
+    return _sort_entries(_filter_hidden_entries(entries, show_hidden), SIDE_PANE_SORT)
+
+
+@lru_cache(maxsize=256)
+def _select_current_pane_entries(
+    visible_entries: tuple[DirectoryEntryState, ...],
+    selected_paths: frozenset[str],
+    cut_paths: frozenset[str],
+) -> tuple[PaneEntry, ...]:
+    return tuple(
+        _to_pane_entry(
+            entry,
+            name_detail=_format_current_entry_name_detail(entry),
+            selected=entry.path in selected_paths,
+            cut=entry.path in cut_paths,
+        )
+        for entry in visible_entries
+    )
+
+
+@lru_cache(maxsize=256)
+def _select_side_pane_entries(
+    visible_entries: tuple[DirectoryEntryState, ...],
+    cut_paths: frozenset[str],
+) -> tuple[PaneEntry, ...]:
+    return tuple(_to_pane_entry(entry, cut=entry.path in cut_paths) for entry in visible_entries)
+
+
+@lru_cache(maxsize=512)
+def _select_visible_cut_paths(
+    visible_entries: tuple[DirectoryEntryState, ...],
+    cut_paths: frozenset[str],
+) -> frozenset[str]:
+    return frozenset(entry.path for entry in visible_entries if entry.path in cut_paths)
+
+
+@lru_cache(maxsize=256)
+def _build_current_summary(
+    item_count: int,
+    selected_count: int,
+    sort: SortState,
+) -> CurrentSummaryState:
+    return CurrentSummaryState(
+        item_count=item_count,
+        selected_count=selected_count,
+        sort_label=_format_sort_label(sort),
+    )
+
+
+@lru_cache(maxsize=256)
 def _filter_hidden_entries(
     entries: tuple[DirectoryEntryState, ...],
     show_hidden: bool,
@@ -481,6 +529,7 @@ def _format_bool(value: bool) -> str:
     return "true" if value else "false"
 
 
+@lru_cache(maxsize=256)
 def _filter_entries(
     entries: tuple[DirectoryEntryState, ...],
     query: str,
@@ -493,6 +542,7 @@ def _filter_entries(
     return tuple(entry for entry in entries if lowered_query in entry.name.casefold())
 
 
+@lru_cache(maxsize=256)
 def _sort_entries(
     entries: tuple[DirectoryEntryState, ...],
     sort: SortState,
@@ -589,6 +639,7 @@ def _select_cut_paths(state: AppState) -> frozenset[str]:
     return frozenset(state.clipboard.paths)
 
 
+@lru_cache(maxsize=4096)
 def _to_pane_entry(
     entry: DirectoryEntryState,
     *,
@@ -613,10 +664,12 @@ def _find_current_cursor_index(
 ) -> int | None:
     if cursor_path is None:
         return None
-    for index, entry in enumerate(entries):
-        if entry.path == cursor_path:
-            return index
-    return None
+    return _build_entry_index(entries).get(cursor_path)
+
+
+@lru_cache(maxsize=256)
+def _build_entry_index(entries: tuple[DirectoryEntryState, ...]) -> dict[str, int]:
+    return {entry.path: index for index, entry in enumerate(entries)}
 
 
 def _format_size_label(size_bytes: int | None) -> str:
@@ -646,8 +699,5 @@ def _format_permissions_label(mode: int | None) -> str:
     return f"{filemode(mode)} ({normalized_mode:03o})"
 
 
-def _format_current_entry_name_detail(
-    state: AppState,
-    entry: DirectoryEntryState,
-) -> str | None:
+def _format_current_entry_name_detail(entry: DirectoryEntryState) -> str | None:
     return None

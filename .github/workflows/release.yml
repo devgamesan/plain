@@ -59,37 +59,12 @@ jobs:
             exit 1
           fi
 
-      - name: Generate release notes
-        run: |
-          cat << 'EOF' > release_notes.md
-          ## Peneo ${{ steps.version.outputs.version }}
-
-          Peneo は、GUI のエクスプローラーに近い感覚で使える Textual ベースの TUI ファイルマネージャです。
-
-          ### インストール方法
-
-          \`\`\`bash
-          uv tool install peneo==${{ steps.version.outputs.version }}
-          \`\`\`
-
-          または:
-
-          \`\`\`bash
-          pip install peneo==${{ steps.version.outputs.version }}
-          \`\`\`
-
-          ### 変更点
-
-          詳細は [CHANGELOG.md](https://github.com/devgamesan/peneo/blob/main/CHANGELOG.md) をご確認ください。
-          EOF
-          cat release_notes.md
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Peneo ${{ steps.version.outputs.version }}
-          body_path: release_notes.md
+          generate_release_notes: true
           files: |
             dist/*
           draft: false

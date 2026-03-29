@@ -234,6 +234,16 @@ class ReloadDirectory:
 
 
 @dataclass(frozen=True)
+class GoBack:
+    """Navigate to the previous directory in the history stack."""
+
+
+@dataclass(frozen=True)
+class GoForward:
+    """Navigate to the next directory in the history forward stack."""
+
+
+@dataclass(frozen=True)
 class ExitCurrentPath:
     """Exit the application and return the current path."""
 
@@ -593,6 +603,8 @@ Action = (
     | SetCursorPath
     | EnterCursorDirectory
     | GoToParentDirectory
+    | GoBack
+    | GoForward
     | ReloadDirectory
     | ExitCurrentPath
     | OpenPathWithDefaultApp

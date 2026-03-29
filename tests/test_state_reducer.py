@@ -60,10 +60,13 @@ from peneo.state import (
     FileSearchFailed,
     FileSearchResultState,
     FocusSplitTerminal,
+    GoBack,
+    GoForward,
     GoToParentDirectory,
     GrepSearchCompleted,
     GrepSearchFailed,
     GrepSearchResultState,
+    HistoryState,
     JumpCursor,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
@@ -2640,3 +2643,200 @@ def test_jump_cursor_with_filter() -> None:
     )
 
     assert result.state.current_pane.cursor_path == "/home/tadashi/develop/peneo/src"
+
+
+def test_go_back_does_nothing_when_back_stack_is_empty() -> None:
+    state = build_initial_app_state()
+
+    result = reduce_app_state(state, GoBack())
+
+    assert result.state == state
+
+
+def test_go_back_requests_snapshot_from_back_stack() -> None:
+    state = replace(
+        build_initial_app_state(),
+        history=HistoryState(
+            back=("/home/tadashi", "/home/tadashi/downloads"),
+            forward=(),
+        ),
+    )
+
+    result = reduce_app_state(state, GoBack())
+
+    assert result.state.pending_browser_snapshot_request_id is not None
+    assert result.state.ui_mode == "BUSY"
+    assert len(result.effects) == 1
+    assert result.effects[0].path == "/home/tadashi/downloads"
+
+
+def test_go_forward_does_nothing_when_forward_stack_is_empty() -> None:
+    state = build_initial_app_state()
+
+    result = reduce_app_state(state, GoForward())
+
+    assert result.state == state
+
+
+def test_go_forward_requests_snapshot_from_forward_stack() -> None:
+    state = replace(
+        build_initial_app_state(),
+        history=HistoryState(
+            back=(),
+            forward=("/home/tadashi/downloads",),
+        ),
+    )
+
+    result = reduce_app_state(state, GoForward())
+
+    assert result.state.pending_browser_snapshot_request_id is not None
+    assert result.state.ui_mode == "BUSY"
+    assert len(result.effects) == 1
+    assert result.effects[0].path == "/home/tadashi/downloads"
+
+
+def test_browser_snapshot_loaded_records_history_on_path_change() -> None:
+    state = build_initial_app_state()
+    initial_path = state.current_path
+    state = _reduce_state(state, RequestBrowserSnapshot("/tmp/example"))
+
+    snapshot = BrowserSnapshot(
+        current_path="/tmp/example",
+        parent_pane=state.parent_pane,
+        current_pane=state.current_pane,
+        child_pane=state.child_pane,
+    )
+
+    next_state = _reduce_state(
+        state,
+        BrowserSnapshotLoaded(
+            request_id=state.pending_browser_snapshot_request_id,
+            snapshot=snapshot,
+            blocking=True,
+        ),
+    )
+
+    assert next_state.current_path == "/tmp/example"
+    assert next_state.history.back == (initial_path,)
+    assert next_state.history.forward == ()
+
+
+def test_browser_snapshot_loaded_clears_forward_on_new_navigation() -> None:
+    initial_path = build_initial_app_state().current_path
+    state = replace(
+        build_initial_app_state(),
+        history=HistoryState(
+            back=("/home/tadashi",),
+            forward=("/home/tadashi/downloads", "/home/tadashi/documents"),
+        ),
+    )
+    state = _reduce_state(state, RequestBrowserSnapshot("/tmp/new_place"))
+
+    snapshot = BrowserSnapshot(
+        current_path="/tmp/new_place",
+        parent_pane=state.parent_pane,
+        current_pane=state.current_pane,
+        child_pane=state.child_pane,
+    )
+
+    next_state = _reduce_state(
+        state,
+        BrowserSnapshotLoaded(
+            request_id=state.pending_browser_snapshot_request_id,
+            snapshot=snapshot,
+            blocking=True,
+        ),
+    )
+
+    assert next_state.history.forward == ()
+    assert next_state.history.back == ("/home/tadashi", initial_path)
+
+
+def test_browser_snapshot_loaded_does_not_record_history_on_reload() -> None:
+    state = build_initial_app_state()
+    state = _reduce_state(state, RequestBrowserSnapshot(state.current_path))
+
+    snapshot = BrowserSnapshot(
+        current_path=state.current_path,
+        parent_pane=state.parent_pane,
+        current_pane=state.current_pane,
+        child_pane=state.child_pane,
+    )
+
+    next_state = _reduce_state(
+        state,
+        BrowserSnapshotLoaded(
+            request_id=state.pending_browser_snapshot_request_id,
+            snapshot=snapshot,
+            blocking=True,
+        ),
+    )
+
+    assert next_state.history.back == ()
+    assert next_state.history.forward == ()
+
+
+def test_go_back_then_snapshot_loaded_updates_history_correctly() -> None:
+    initial_path = "/home/tadashi"
+    second_path = "/home/tadashi/develop"
+
+    state = replace(
+        build_initial_app_state(),
+        current_path=second_path,
+        history=HistoryState(back=(initial_path,), forward=()),
+    )
+
+    result = reduce_app_state(state, GoBack())
+    assert result.effects[0].path == initial_path
+
+    snapshot = BrowserSnapshot(
+        current_path=initial_path,
+        parent_pane=state.parent_pane,
+        current_pane=state.current_pane,
+        child_pane=state.child_pane,
+    )
+    loaded_result = _reduce_state(
+        result.state,
+        BrowserSnapshotLoaded(
+            request_id=result.state.pending_browser_snapshot_request_id,
+            snapshot=snapshot,
+            blocking=True,
+        ),
+    )
+
+    assert loaded_result.current_path == initial_path
+    assert loaded_result.history.back == ()
+    assert loaded_result.history.forward == (second_path,)
+
+
+def test_go_forward_then_snapshot_loaded_updates_history_correctly() -> None:
+    initial_path = "/home/tadashi"
+    forward_path = "/home/tadashi/develop"
+
+    state = replace(
+        build_initial_app_state(),
+        current_path=initial_path,
+        history=HistoryState(back=(), forward=(forward_path,)),
+    )
+
+    result = reduce_app_state(state, GoForward())
+    assert result.effects[0].path == forward_path
+
+    snapshot = BrowserSnapshot(
+        current_path=forward_path,
+        parent_pane=state.parent_pane,
+        current_pane=state.current_pane,
+        child_pane=state.child_pane,
+    )
+    loaded_result = _reduce_state(
+        result.state,
+        BrowserSnapshotLoaded(
+            request_id=result.state.pending_browser_snapshot_request_id,
+            snapshot=snapshot,
+            blocking=True,
+        ),
+    )
+
+    assert loaded_result.current_path == forward_path
+    assert loaded_result.history.back == (initial_path,)
+    assert loaded_result.history.forward == ()

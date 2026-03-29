@@ -56,6 +56,8 @@ from .actions import (
     FileSearchCompleted,
     FileSearchFailed,
     FocusSplitTerminal,
+    GoBack,
+    GoForward,
     GoToParentDirectory,
     GrepSearchCompleted,
     GrepSearchFailed,
@@ -123,6 +125,7 @@ from .models import (
     DirectoryEntryState,
     DirectorySizeCacheEntry,
     FileSearchResultState,
+    HistoryState,
     NameConflictKind,
     NameConflictState,
     NotificationState,
@@ -780,6 +783,22 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
             ),
         )
 
+    if isinstance(action, GoBack):
+        if not state.history.back:
+            return done(state)
+        return reduce_app_state(
+            state,
+            RequestBrowserSnapshot(state.history.back[-1], blocking=True),
+        )
+
+    if isinstance(action, GoForward):
+        if not state.history.forward:
+            return done(state)
+        return reduce_app_state(
+            state,
+            RequestBrowserSnapshot(state.history.forward[0], blocking=True),
+        )
+
     if isinstance(action, ReloadDirectory):
         return reduce_app_state(
             state,
@@ -1144,6 +1163,25 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
                 state.current_pane.selected_paths,
                 action.snapshot.current_pane.entries,
             )
+        previous_path = state.current_path
+        new_history = state.history
+        if action.snapshot.current_path != previous_path:
+            history = state.history
+            if history.forward and action.snapshot.current_path == history.forward[0]:
+                new_history = HistoryState(
+                    back=(*history.back, previous_path),
+                    forward=history.forward[1:],
+                )
+            elif history.back and action.snapshot.current_path == history.back[-1]:
+                new_history = HistoryState(
+                    back=history.back[:-1],
+                    forward=(previous_path, *history.forward),
+                )
+            else:
+                new_history = HistoryState(
+                    back=(*history.back, previous_path),
+                    forward=(),
+                )
         next_state = replace(
             state,
             current_path=action.snapshot.current_path,
@@ -1158,6 +1196,7 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
             pending_browser_snapshot_request_id=None,
             pending_child_pane_request_id=None,
             ui_mode="BROWSING" if action.blocking else state.ui_mode,
+            history=new_history,
         )
         return _maybe_request_directory_sizes(next_state)
 

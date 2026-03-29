@@ -25,6 +25,8 @@ from peneo.state import (
     DismissNameConflict,
     EnterCursorDirectory,
     ExitCurrentPath,
+    GoBack,
+    GoForward,
     GoToParentDirectory,
     JumpCursor,
     MoveCommandPaletteCursor,
@@ -942,3 +944,19 @@ def test_palette_end_jumps_to_end() -> None:
     actions = dispatch_key_input(state, key="end")
 
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=999999))
+
+
+def test_browsing_alt_left_dispatches_go_back() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="alt+left")
+
+    assert actions == (SetNotification(None), GoBack())
+
+
+def test_browsing_alt_right_dispatches_go_forward() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="alt+right")
+
+    assert actions == (SetNotification(None), GoForward())

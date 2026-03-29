@@ -26,6 +26,8 @@ from .actions import (
     DismissNameConflict,
     EnterCursorDirectory,
     ExitCurrentPath,
+    GoBack,
+    GoForward,
     GoToParentDirectory,
     JumpCursor,
     MoveCommandPaletteCursor,
@@ -87,6 +89,8 @@ BROWSING_KEYMAP = {
     "p": "paste_clipboard",
     "home": "cursor_home",
     "end": "cursor_end",
+    "alt+left": "go_back",
+    "alt+right": "go_forward",
 }
 
 CONFLICT_KEYMAP = {
@@ -185,6 +189,12 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
 
     if command == "paste_clipboard":
         return _supported(PasteClipboard())
+
+    if command == "go_back":
+        return _supported(GoBack())
+
+    if command == "go_forward":
+        return _supported(GoForward())
 
     if command == "go_to_parent":
         return _supported(GoToParentDirectory())

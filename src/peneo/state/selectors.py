@@ -84,8 +84,8 @@ def select_parent_entries(state: AppState) -> tuple[PaneEntry, ...]:
     return _select_side_pane_entries(
         visible_entries,
         state.directory_size_cache,
-        state.config.display.show_directory_sizes,
-        _select_visible_cut_paths(visible_entries, _select_cut_paths(state)),
+        display_directory_sizes=False,
+        cut_paths=_select_visible_cut_paths(visible_entries, _select_cut_paths(state)),
     )
 
 
@@ -120,8 +120,8 @@ def _select_child_entries_for_cursor(
     return _select_side_pane_entries(
         visible_entries,
         state.directory_size_cache,
-        state.config.display.show_directory_sizes,
-        _select_visible_cut_paths(visible_entries, _select_cut_paths(state)),
+        display_directory_sizes=False,
+        cut_paths=_select_visible_cut_paths(visible_entries, _select_cut_paths(state)),
     )
 
 

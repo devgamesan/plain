@@ -233,6 +233,29 @@ async def _wait_for_table_cell(
         await asyncio.sleep(0.01)
 
 
+async def _wait_for_child_list_label(
+    app, expected_substring: str, index: int = 0, timeout: float = 5.0
+) -> None:
+    from textual.widgets import Label as TextualLabel
+
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        child_list = app.query_one("#child-pane-list", ListView)
+        if child_list.children:
+            try:
+                label = child_list.children[index].query_one(TextualLabel)
+                if expected_substring in str(label.renderable):
+                    return
+            except (NoMatches, IndexError):
+                pass
+        if asyncio.get_running_loop().time() >= deadline:
+            raise AssertionError(
+                f"child list label at index {index} "
+                f"did not contain {expected_substring!r}"
+            )
+        await asyncio.sleep(0.01)
+
+
 class FakeConfigSaveService:
     def __init__(
         self, *, saved_path: str | None = None, failure_message: str | None = None
@@ -476,6 +499,7 @@ async def test_app_loads_directory_sizes_when_enabled() -> None:
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 2)
         await _wait_for_table_cell(app, "4.2 KB", 0, 3)
+        await _wait_for_child_list_label(app, "88.0 KB")
 
         table = app.query_one("#current-pane-table", DataTable)
         child_list = app.query_one("#child-pane-list", ListView)
@@ -527,6 +551,7 @@ async def test_app_keeps_successful_directory_sizes_when_some_paths_fail() -> No
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 2)
         await _wait_for_table_cell(app, "4.2 KB", 0, 3)
+        await _wait_for_child_list_label(app, "88.0 KB")
 
         table = app.query_one("#current-pane-table", DataTable)
         child_list = app.query_one("#child-pane-list", ListView)

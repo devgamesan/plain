@@ -648,6 +648,8 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
             return reduce_app_state(next_state, BeginGrepSearch())
         if selected_item.id == "history_search":
             return reduce_app_state(next_state, BeginHistorySearch())
+        if selected_item.id == "go_to_path":
+            return reduce_app_state(next_state, BeginGoToPath())
         if selected_item.id == "reload_directory":
             return reduce_app_state(next_state, ReloadDirectory())
         if selected_item.id == "toggle_split_terminal":

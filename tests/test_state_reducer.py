@@ -546,10 +546,10 @@ def test_begin_command_palette_sets_mode_and_empty_query() -> None:
 def test_move_command_palette_cursor_clamps_to_visible_commands() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
 
-    next_state = _reduce_state(state, MoveCommandPaletteCursor(delta=10))
+    next_state = _reduce_state(state, MoveCommandPaletteCursor(delta=20))
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.cursor_index == 7
+    assert next_state.command_palette.cursor_index == 15
 
 
 def test_set_command_palette_query_resets_cursor() -> None:
@@ -952,7 +952,7 @@ def test_submit_command_palette_toggles_hidden_files() -> None:
 
 def test_submit_command_palette_runs_open_terminal_flow() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("terminal"))
+    state = _reduce_state(state, SetCommandPaletteQuery("open terminal"))
 
     result = reduce_app_state(state, SubmitCommandPalette())
 
@@ -968,6 +968,63 @@ def test_submit_command_palette_runs_open_terminal_flow() -> None:
             ),
         ),
     )
+
+
+def test_submit_command_palette_begins_file_search() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("find files"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "PALETTE"
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.source == "file_search"
+
+
+def test_submit_command_palette_begins_grep_search() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("grep search"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "PALETTE"
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.source == "grep_search"
+
+
+def test_submit_command_palette_begins_history_search() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("history search"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "PALETTE"
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.source == "history"
+
+
+def test_submit_command_palette_reloads_directory() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("reload directory"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.command_palette is None
+    assert len(result.effects) == 1
+    assert isinstance(result.effects[0], LoadBrowserSnapshotEffect)
+
+
+def test_submit_command_palette_toggles_split_terminal() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("split terminal"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "BROWSING"
+    assert result.state.command_palette is None
+    assert result.state.split_terminal.visible is True
+    assert len(result.effects) == 1
+    assert isinstance(result.effects[0], StartSplitTerminalEffect)
 
 
 def test_open_path_in_editor_allows_non_browser_file_path() -> None:
@@ -1001,6 +1058,29 @@ def test_toggle_split_terminal_starts_embedded_session() -> None:
             cwd="/home/tadashi/develop/peneo",
         ),
     )
+
+
+def test_submit_command_palette_begins_rename_with_single_target() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("rename"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "RENAME"
+    assert result.state.command_palette is None
+    assert result.state.pending_input is not None
+    assert result.state.pending_input.prompt == "Rename: "
+
+
+def test_submit_command_palette_deletes_targets() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("trash"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "CONFIRM"
+    assert result.state.command_palette is None
+    assert result.state.delete_confirmation is not None
 
 
 def test_toggle_split_terminal_closes_active_session() -> None:

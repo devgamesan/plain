@@ -586,6 +586,16 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
             pending_grep_search_request_id=None,
             attribute_inspection=None,
         )
+        if selected_item.id == "file_search":
+            return reduce_app_state(next_state, BeginFileSearch())
+        if selected_item.id == "grep_search":
+            return reduce_app_state(next_state, BeginGrepSearch())
+        if selected_item.id == "history_search":
+            return reduce_app_state(next_state, BeginHistorySearch())
+        if selected_item.id == "reload_directory":
+            return reduce_app_state(next_state, ReloadDirectory())
+        if selected_item.id == "toggle_split_terminal":
+            return reduce_app_state(next_state, ToggleSplitTerminal())
         if selected_item.id == "show_attributes":
             entry = _single_target_entry(state)
             if entry is None:
@@ -630,6 +640,55 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
                 next_state,
                 ExternalLaunchRequest(kind="copy_paths", paths=target_paths),
             )
+        if selected_item.id == "rename":
+            target_path = _single_target_path(state)
+            if target_path is None:
+                return done(
+                    replace(
+                        next_state,
+                        notification=NotificationState(
+                            level="warning",
+                            message="Rename requires a single target",
+                        ),
+                    )
+                )
+            return reduce_app_state(next_state, BeginRenameInput(path=target_path))
+        if selected_item.id == "open_in_editor":
+            entry = _single_target_entry(state)
+            if entry is None:
+                return done(
+                    replace(
+                        next_state,
+                        notification=NotificationState(
+                            level="warning",
+                            message="Open in editor requires a single target",
+                        ),
+                    )
+                )
+            if entry.kind != "file":
+                return done(
+                    replace(
+                        next_state,
+                        notification=NotificationState(
+                            level="warning",
+                            message="Can only open files in editor",
+                        ),
+                    )
+                )
+            return reduce_app_state(next_state, OpenPathInEditor(path=entry.path))
+        if selected_item.id == "delete_targets":
+            target_paths = select_target_paths(state)
+            if not target_paths:
+                return done(
+                    replace(
+                        next_state,
+                        notification=NotificationState(
+                            level="warning",
+                            message="Nothing to delete",
+                        ),
+                    )
+                )
+            return reduce_app_state(next_state, BeginDeleteTargets(paths=target_paths))
         if selected_item.id == "open_file_manager":
             return reduce_app_state(next_state, OpenPathWithDefaultApp(next_state.current_path))
         if selected_item.id == "open_terminal":
@@ -1937,6 +1996,11 @@ def _single_target_entry(state: AppState) -> DirectoryEntryState | None:
     if len(target_paths) != 1:
         return None
     return _current_entry_for_path(state, target_paths[0])
+
+
+def _single_target_path(state: AppState) -> str | None:
+    entry = _single_target_entry(state)
+    return entry.path if entry else None
 
 
 def _normalize_cursor_path(

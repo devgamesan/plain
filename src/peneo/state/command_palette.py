@@ -96,6 +96,36 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
     has_single_target = single_target_entry is not None
 
     items = [
+        CommandPaletteItem(
+            id="file_search",
+            label="Find files",
+            shortcut="Ctrl+F",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="grep_search",
+            label="Grep search",
+            shortcut="Ctrl+G",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="history_search",
+            label="History search",
+            shortcut="Ctrl+O",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="reload_directory",
+            label="Reload directory",
+            shortcut="F5",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="toggle_split_terminal",
+            label="Toggle split terminal",
+            shortcut="Ctrl+T",
+            enabled=True,
+        ),
     ]
 
     if has_single_target:
@@ -107,6 +137,22 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 enabled=True,
             )
         )
+        items.append(
+            CommandPaletteItem(
+                id="rename",
+                label="Rename",
+                shortcut="F2",
+                enabled=True,
+            )
+        )
+        items.append(
+            CommandPaletteItem(
+                id="open_in_editor",
+                label="Open in editor",
+                shortcut="E",
+                enabled=single_target_entry.kind == "file",
+            )
+        )
 
     if has_target:
         items.append(
@@ -114,6 +160,14 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 id="copy_path",
                 label="Copy path",
                 shortcut=None,
+                enabled=True,
+            )
+        )
+        items.append(
+            CommandPaletteItem(
+                id="delete_targets",
+                label="Move to trash",
+                shortcut="Del",
                 enabled=True,
             )
         )

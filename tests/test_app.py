@@ -2180,7 +2180,7 @@ async def test_app_command_palette_open_terminal_launches_current_directory() ->
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press(":")
-        await pilot.press("t", "e", "r", "m", "i", "n", "a", "l")
+        await pilot.press("o", "p", "e", "n", " ", "t", "e", "r", "m", "i", "n", "a", "l")
         await pilot.press("enter")
         await _wait_for_external_launch_count(app, 1)
 

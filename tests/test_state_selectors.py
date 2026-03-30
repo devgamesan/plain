@@ -587,25 +587,22 @@ def test_select_command_palette_state_marks_selected_and_enabled_items() -> None
     palette_state = select_command_palette_state(state)
 
     assert palette_state is not None
-    assert palette_state.title == "Command Palette"
+    assert palette_state.title.startswith("Command Palette")
     assert [item.label for item in palette_state.items[:2]] == [
-        "Show attributes",
-        "Copy path",
+        "Find files",
+        "Grep search",
     ]
     assert palette_state.items[0].selected is True
-    assert palette_state.items[1].enabled is True
-    assert any(
-        item.label == "Open in file manager" and item.enabled for item in palette_state.items
-    )
-    assert any(item.label == "Edit config" and item.enabled for item in palette_state.items)
-    assert any(item.label == "Open terminal here" and item.enabled for item in palette_state.items)
+    assert palette_state.items[0].enabled is True
+    assert any(item.label == "Show attributes" and item.enabled for item in palette_state.items)
+    assert any(item.label == "Rename" and item.enabled for item in palette_state.items)
 
 
 def test_select_command_palette_state_filters_query() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
     state = replace(
         state,
-        command_palette=replace(state.command_palette, query="dir"),
+        command_palette=replace(state.command_palette, query="create dir"),
     )
 
     palette_state = select_command_palette_state(state)

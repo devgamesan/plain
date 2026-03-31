@@ -76,6 +76,7 @@ from peneo.state import (
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
     NotificationState,
+    PasteFromClipboardEffect,
     ReduceResult,
     RequestBrowserSnapshot,
     RunClipboardPasteEffect,
@@ -85,6 +86,7 @@ from peneo.state import (
     RunFileMutationEffect,
     RunFileSearchEffect,
     RunGrepSearchEffect,
+    SetNotification,
     SetTerminalHeight,
     SortState,
     SplitTerminalExited,
@@ -591,6 +593,8 @@ class PeneoApp(App[None]):
                 self._start_split_terminal(effect)
             elif isinstance(effect, WriteSplitTerminalInputEffect):
                 self._write_split_terminal_input(effect)
+            elif isinstance(effect, PasteFromClipboardEffect):
+                self._paste_from_clipboard(effect)
             elif isinstance(effect, CloseSplitTerminalEffect):
                 self._close_split_terminal(effect)
 
@@ -868,6 +872,20 @@ class PeneoApp(App[None]):
                         message=str(error) or "Failed to write to split terminal",
                     ),
                 ),
+            )
+
+    def _paste_from_clipboard(self, effect: PasteFromClipboardEffect) -> None:
+        if self._app_state.split_terminal.session_id != effect.session_id:
+            return
+        if self._split_terminal_session is None:
+            return
+        try:
+            clipboard_text = self._external_launch_service.get_from_clipboard()
+            self._split_terminal_session.write(clipboard_text)
+        except OSError as error:
+            message = str(error) or "Failed to read clipboard"
+            self.dispatch_actions(
+                SetNotification(NotificationState(level="warning", message=message)),
             )
 
     def _close_split_terminal(self, effect: CloseSplitTerminalEffect) -> None:

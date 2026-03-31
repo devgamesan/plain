@@ -189,6 +189,7 @@ paste_conflict_action = "prompt"
 | コマンドパレット表示中 | 文字入力 / `↑` / `↓` / `k` / `j` / `Enter` / `Esc` | コマンドを絞り込み、選択、実行、キャンセル |
 | split terminal フォーカス中 | 文字入力 / 矢印 / `Enter` / `Backspace` / `Esc` / `Tab` | 入力を埋め込みシェルへ送る |
 | split terminal フォーカス中 | `Ctrl+T` | 埋め込み split terminal を閉じる |
+| split terminal フォーカス中 | `Ctrl+V` | クリップボードの内容をターミナルに貼り付け |
 | 名前入力中 | 文字入力 / `Backspace` / `Enter` / `Esc` | リネームや新規作成の入力値を編集、確定、キャンセル |
 | 確認ダイアログ表示中 | `Enter` / `Esc` | 削除確認を確定 / 中止 |
 | 確認ダイアログ表示中 | `o` / `s` / `r` / `Esc` | 貼り付け競合を overwrite / skip / rename / cancel |
@@ -208,7 +209,6 @@ paste_conflict_action = "prompt"
 | `Go to home directory` | 常に表示 | ホームディレクトリへ移動します。 |
 | `Reload directory` | 常に表示 | 現在ディレクトリを再読み込みします。 |
 | `Toggle split terminal` | 常に表示 | 埋め込み split terminal を開閉します。 |
-| `Show attributes` | 単一対象が選択中またはフォーカス中のとき | `Name`、`Type`、`Path`、`Size`、`Modified`、`Hidden`、`Permissions` を表示する読み取り専用ダイアログを開きます。 |
 | `Rename` | 単一対象が選択中またはフォーカス中のとき | 単一対象のリネーム入力を開始します。 |
 | `Open in editor` | 単一ファイルが選択中またはフォーカス中のとき | フォーカス中のファイルを `editor.command` -> `$EDITOR` -> 組み込み既定値の順でターミナルエディタで開きます。 |
 | `Copy path` | 対象が 1 件以上あるとき | 選択中のパス一覧、または未選択時はフォーカス中のパスをシステムクリップボードへコピーします。 |

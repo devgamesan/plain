@@ -306,6 +306,11 @@ class SendSplitTerminalInput:
 
 
 @dataclass(frozen=True)
+class PasteFromClipboardToTerminal:
+    """Paste clipboard contents into the active split terminal session."""
+
+
+@dataclass(frozen=True)
 class ToggleSelection:
     """Toggle selection for an entry in the current pane."""
 
@@ -630,6 +635,7 @@ Action = (
     | ToggleSplitTerminal
     | FocusSplitTerminal
     | SendSplitTerminalInput
+    | PasteFromClipboardToTerminal
     | ToggleSelection
     | ToggleSelectionAndAdvance
     | ClearSelection

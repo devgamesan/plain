@@ -73,6 +73,7 @@ from .actions import (
     OpenPathWithDefaultApp,
     OpenTerminalAtPath,
     PasteClipboard,
+    PasteFromClipboardToTerminal,
     ReloadDirectory,
     RequestBrowserSnapshot,
     RequestDirectorySizes,
@@ -107,6 +108,7 @@ from .effects import (
     Effect,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
+    PasteFromClipboardEffect,
     ReduceResult,
     RunClipboardPasteEffect,
     RunConfigSaveEffect,
@@ -1059,6 +1061,19 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
         return done(
             state,
             WriteSplitTerminalInputEffect(session_id=session_id, data=action.data),
+        )
+
+    if isinstance(action, PasteFromClipboardToTerminal):
+        session_id = state.split_terminal.session_id
+        if (
+            not state.split_terminal.visible
+            or state.split_terminal.status != "running"
+            or session_id is None
+        ):
+            return done(state)
+        return done(
+            state,
+            PasteFromClipboardEffect(session_id=session_id),
         )
 
     if isinstance(action, ToggleSelection):

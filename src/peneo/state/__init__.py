@@ -90,6 +90,7 @@ from .effects import (
     Effect,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
+    PasteFromClipboardEffect,
     ReduceResult,
     RunClipboardPasteEffect,
     RunConfigSaveEffect,
@@ -100,7 +101,6 @@ from .effects import (
     RunGrepSearchEffect,
     StartSplitTerminalEffect,
     WriteSplitTerminalInputEffect,
-    PasteFromClipboardEffect,
 )
 from .input import dispatch_key_input, iter_bound_keys
 from .models import (

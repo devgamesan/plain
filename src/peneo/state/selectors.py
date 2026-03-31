@@ -149,7 +149,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     """Return the help content for the active mode."""
 
     if state.split_terminal.visible:
-        return HelpBarState(("type in terminal | ctrl+t close | ctrl+v paste",))
+        return HelpBarState(("type in terminal | ctrl+t close | ctrl+shift+v paste",))
     if state.ui_mode == "CONFIRM":
         if state.delete_confirmation is not None:
             return HelpBarState(("enter confirm delete | esc cancel",))

@@ -110,7 +110,7 @@ CONFLICT_KEYMAP = {
 TERMINAL_KEYMAP = {
     "tab": "terminal_tab",
     "ctrl+t": "toggle_terminal",
-    "ctrl+v": "paste_from_clipboard",
+    "ctrl+shift+v": "paste_from_clipboard",
     "enter": "terminal_enter",
     "backspace": "terminal_backspace",
     "delete": "terminal_delete",

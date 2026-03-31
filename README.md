@@ -187,7 +187,8 @@ The main keys are listed below.
 | Filter input | `Enter` / `↓` | Apply the filter and return to list navigation |
 | Filter input | `Esc` | Clear the filter |
 | Command palette | Text input / `↑` / `↓` / `k` / `j` / `Enter` / `Esc` | Filter, select, run, or cancel commands |
-| Split terminal focus | Text input / arrows / `Enter` / `Backspace` / `Esc` / `Tab` | Send input directly to the embedded shell |
+| Split terminal focus | Text input / arrows / `Enter` / `Backspace` / `Tab` | Send input directly to the embedded shell |
+| Split terminal focus | `Esc` | Close the embedded split terminal |
 | Split terminal focus | `Ctrl+T` | Close the embedded split terminal |
 | Split terminal focus | `Ctrl+V` | Paste clipboard contents into the terminal |
 | Name input | Text input / `Backspace` / `Enter` / `Esc` | Edit, confirm, or cancel rename/create input |

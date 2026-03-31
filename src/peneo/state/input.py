@@ -319,6 +319,9 @@ def _dispatch_split_terminal_input(
     if command == "paste_from_clipboard":
         return _supported(PasteFromClipboardToTerminal())
 
+    if command == "terminal_escape":
+        return _supported(ToggleSplitTerminal())
+
     if key == "enter":
         return _supported(SendSplitTerminalInput("\r"))
 

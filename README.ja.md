@@ -187,7 +187,8 @@ paste_conflict_action = "prompt"
 | フィルタ入力中 | `Enter` / `↓` | フィルタを適用して一覧操作へ戻る |
 | フィルタ入力中 | `Esc` | フィルタを解除する |
 | コマンドパレット表示中 | 文字入力 / `↑` / `↓` / `k` / `j` / `Enter` / `Esc` | コマンドを絞り込み、選択、実行、キャンセル |
-| split terminal フォーカス中 | 文字入力 / 矢印 / `Enter` / `Backspace` / `Esc` / `Tab` | 入力を埋め込みシェルへ送る |
+| split terminal フォーカス中 | 文字入力 / 矢印 / `Enter` / `Backspace` / `Tab` | 入力を埋め込みシェルへ送る |
+| split terminal フォーカス中 | `Esc` | 埋め込み split terminal を閉じる |
 | split terminal フォーカス中 | `Ctrl+T` | 埋め込み split terminal を閉じる |
 | split terminal フォーカス中 | `Ctrl+V` | クリップボードの内容をターミナルに貼り付け |
 | 名前入力中 | 文字入力 / `Backspace` / `Enter` / `Esc` | リネームや新規作成の入力値を編集、確定、キャンセル |

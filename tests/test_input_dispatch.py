@@ -27,6 +27,7 @@ from peneo.state import (
     ExitCurrentPath,
     GoBack,
     GoForward,
+    GoToHomeDirectory,
     GoToParentDirectory,
     JumpCursor,
     MoveCommandPaletteCursor,
@@ -960,3 +961,11 @@ def test_browsing_alt_right_dispatches_go_forward() -> None:
     actions = dispatch_key_input(state, key="alt+right")
 
     assert actions == (SetNotification(None), GoForward())
+
+
+def test_browsing_alt_home_dispatches_go_to_home_directory() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="alt+home")
+
+    assert actions == (SetNotification(None), GoToHomeDirectory())

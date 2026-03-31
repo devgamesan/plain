@@ -64,6 +64,7 @@ from peneo.state import (
     GoBack,
     GoForward,
     GoToParentDirectory,
+    GoToHomeDirectory,
     GrepSearchCompleted,
     GrepSearchFailed,
     GrepSearchResultState,
@@ -399,6 +400,19 @@ def test_go_to_parent_directory_uses_current_path_parent() -> None:
     assert len(result.effects) == 1
     assert result.effects[0].path == "/tmp/work"
     assert result.effects[0].cursor_path == "/tmp/work/project"
+
+
+def test_go_to_home_directory_navigates_to_home() -> None:
+    state = build_initial_app_state()
+
+    result = reduce_app_state(state, GoToHomeDirectory())
+
+    assert result.state.pending_browser_snapshot_request_id == 1
+    assert result.state.ui_mode == "BUSY"
+    assert len(result.effects) == 1
+    # Home directory path will be expanded and resolved
+    assert result.effects[0].blocking is True
+    assert "home" in result.effects[0].path.lower()
 
 
 def test_reload_directory_requests_snapshot_with_current_cursor() -> None:

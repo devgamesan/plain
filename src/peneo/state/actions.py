@@ -239,6 +239,11 @@ class GoToParentDirectory:
 
 
 @dataclass(frozen=True)
+class GoToHomeDirectory:
+    """Navigate to the user's home directory."""
+
+
+@dataclass(frozen=True)
 class ReloadDirectory:
     """Reload the current directory snapshot."""
 
@@ -614,6 +619,7 @@ Action = (
     | SetCursorPath
     | EnterCursorDirectory
     | GoToParentDirectory
+    | GoToHomeDirectory
     | GoBack
     | GoForward
     | ReloadDirectory

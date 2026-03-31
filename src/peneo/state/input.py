@@ -30,6 +30,7 @@ from .actions import (
     ExitCurrentPath,
     GoBack,
     GoForward,
+    GoToHomeDirectory,
     GoToParentDirectory,
     JumpCursor,
     MoveCommandPaletteCursor,
@@ -93,6 +94,7 @@ BROWSING_KEYMAP = {
     "end": "cursor_end",
     "alt+left": "go_back",
     "alt+right": "go_forward",
+    "alt+home": "go_to_home_directory",
     "ctrl+o": "begin_history_search",
     "ctrl+j": "begin_go_to_path",
 }
@@ -227,6 +229,9 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
 
     if command == "begin_go_to_path":
         return _supported(BeginGoToPath())
+
+    if command == "go_to_home_directory":
+        return _supported(GoToHomeDirectory())
 
     if command == "toggle_split_terminal":
         return _supported(ToggleSplitTerminal())

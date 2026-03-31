@@ -60,6 +60,7 @@ from .actions import (
     FocusSplitTerminal,
     GoBack,
     GoForward,
+    GoToHomeDirectory,
     GoToParentDirectory,
     GrepSearchCompleted,
     GrepSearchFailed,
@@ -951,6 +952,13 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
                 cursor_path=state.current_path,
                 blocking=True,
             ),
+        )
+
+    if isinstance(action, GoToHomeDirectory):
+        home_path = str(Path("~").expanduser().resolve())
+        return reduce_app_state(
+            state,
+            RequestBrowserSnapshot(home_path, blocking=True),
         )
 
     if isinstance(action, GoBack):

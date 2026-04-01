@@ -58,6 +58,19 @@ from peneo.state import (
 )
 
 
+def _focused_split_terminal_state():
+    state = build_initial_app_state()
+    return replace(
+        state,
+        split_terminal=replace(
+            state.split_terminal,
+            visible=True,
+            status="running",
+            focus_target="terminal",
+        ),
+    )
+
+
 def test_browsing_down_dispatches_move_cursor() -> None:
     state = build_initial_app_state()
 
@@ -176,6 +189,14 @@ def test_browsing_q_dispatches_exit_current_path() -> None:
     actions = dispatch_key_input(state, key="q", character="q")
 
     assert actions == (SetNotification(None), ExitCurrentPath())
+
+
+def test_browsing_uppercase_printable_key_is_ignored() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="T", character="T")
+
+    assert actions == ()
 
 
 def test_browsing_ctrl_f_begins_file_search() -> None:
@@ -432,6 +453,14 @@ def test_palette_printable_key_updates_query() -> None:
     assert actions == (SetNotification(None), SetCommandPaletteQuery("f"))
 
 
+def test_palette_space_updates_query() -> None:
+    state = replace(build_initial_app_state(), ui_mode="PALETTE")
+
+    actions = dispatch_key_input(state, key="space", character=" ")
+
+    assert actions == (SetNotification(None), SetCommandPaletteQuery(" "))
+
+
 def test_palette_pageup_moves_cursor_by_page() -> None:
     state = replace(build_initial_app_state(), ui_mode="PALETTE")
 
@@ -448,16 +477,23 @@ def test_palette_pagedown_moves_cursor_by_page() -> None:
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=7))
 
 
-def test_split_terminal_focus_sends_printable_input() -> None:
-    state = replace(
-        build_initial_app_state(),
-        split_terminal=replace(
-            build_initial_app_state().split_terminal,
-            visible=True,
-            status="running",
-            focus_target="terminal",
+def test_palette_unbound_key_shows_guidance() -> None:
+    state = replace(build_initial_app_state(), ui_mode="PALETTE")
+
+    actions = dispatch_key_input(state, key="delete")
+
+    assert actions == (
+        SetNotification(
+            NotificationState(
+                level="warning",
+                message="Use arrows, type to filter, Enter to run, or Esc to cancel",
+            )
         ),
     )
+
+
+def test_split_terminal_focus_sends_printable_input() -> None:
+    state = _focused_split_terminal_state()
 
     actions = dispatch_key_input(state, key="a", character="a")
 
@@ -465,15 +501,7 @@ def test_split_terminal_focus_sends_printable_input() -> None:
 
 
 def test_split_terminal_focus_sends_tab_for_completion() -> None:
-    state = replace(
-        build_initial_app_state(),
-        split_terminal=replace(
-            build_initial_app_state().split_terminal,
-            visible=True,
-            status="running",
-            focus_target="terminal",
-        ),
-    )
+    state = _focused_split_terminal_state()
 
     actions = dispatch_key_input(state, key="tab")
 
@@ -481,15 +509,7 @@ def test_split_terminal_focus_sends_tab_for_completion() -> None:
 
 
 def test_split_terminal_focus_sends_delete_sequence() -> None:
-    state = replace(
-        build_initial_app_state(),
-        split_terminal=replace(
-            build_initial_app_state().split_terminal,
-            visible=True,
-            status="running",
-            focus_target="terminal",
-        ),
-    )
+    state = _focused_split_terminal_state()
 
     actions = dispatch_key_input(state, key="delete")
 
@@ -497,15 +517,7 @@ def test_split_terminal_focus_sends_delete_sequence() -> None:
 
 
 def test_split_terminal_focus_sends_navigation_sequences() -> None:
-    state = replace(
-        build_initial_app_state(),
-        split_terminal=replace(
-            build_initial_app_state().split_terminal,
-            visible=True,
-            status="running",
-            focus_target="terminal",
-        ),
-    )
+    state = _focused_split_terminal_state()
 
     assert dispatch_key_input(state, key="home") == (
         SetNotification(None),
@@ -525,16 +537,16 @@ def test_split_terminal_focus_sends_navigation_sequences() -> None:
     )
 
 
+def test_split_terminal_focus_takes_priority_over_browsing_navigation() -> None:
+    state = _focused_split_terminal_state()
+
+    actions = dispatch_key_input(state, key="left")
+
+    assert actions == (SetNotification(None), SendSplitTerminalInput("\x1b[D"))
+
+
 def test_split_terminal_focus_sends_ctrl_shortcuts_except_ctrl_t() -> None:
-    state = replace(
-        build_initial_app_state(),
-        split_terminal=replace(
-            build_initial_app_state().split_terminal,
-            visible=True,
-            status="running",
-            focus_target="terminal",
-        ),
-    )
+    state = _focused_split_terminal_state()
 
     assert dispatch_key_input(state, key="ctrl+d") == (
         SetNotification(None),
@@ -788,6 +800,31 @@ def test_config_escape_closes_editor() -> None:
     assert actions == (SetNotification(None), DismissConfigEditor())
 
 
+def test_config_unbound_key_shows_guidance() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/peneo/config.toml",
+            draft=build_initial_app_state().config,
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="x", character="x")
+
+    assert actions == (
+        SetNotification(
+            NotificationState(
+                level="warning",
+                message=(
+                    "Use arrows to change values, s to save, "
+                    "e to edit the file, or Esc to close"
+                ),
+            )
+        ),
+    )
+
+
 def test_confirm_o_selects_overwrite_resolution() -> None:
     state = replace(build_initial_app_state(), ui_mode="CONFIRM")
 
@@ -880,6 +917,23 @@ def test_pending_input_escape_cancels() -> None:
     actions = dispatch_key_input(state, key="escape")
 
     assert actions == (SetNotification(None), CancelPendingInput())
+
+
+def test_pending_input_unbound_key_shows_guidance() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        ui_mode="RENAME",
+        pending_input=PendingInputState(prompt="Rename: ", value="docs"),
+    )
+
+    actions = dispatch_key_input(state, key="left")
+
+    assert actions == (
+        SetNotification(
+            NotificationState(level="warning", message="Use Enter to apply or Esc to cancel")
+        ),
+    )
 
 
 def test_busy_key_shows_warning_message() -> None:

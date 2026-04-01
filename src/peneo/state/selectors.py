@@ -180,7 +180,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         return HelpBarState(("processing...",))
     return HelpBarState(
         (
-            "Enter open | e edit | / filter | ctrl+f find | ctrl+g grep | q quit",
+            "Enter open | e edit | / filter | : palette | ctrl+f find | ctrl+g grep | q quit",
             "Space select | y copy | x cut | p paste | s sort | d dirs | ctrl+t term",
         )
     )

@@ -190,8 +190,8 @@ def build_dummy_shell_data() -> ThreePaneShellData:
         ),
         help=HelpBarState(
             (
-                "Enter open | e edit | / filter | : palette | q quit",
-                "Space select | y copy | x cut | p paste | s sort | d dirs | F2 rename",
+                "Enter open | e edit | / filter | : palette | ctrl+f find | ctrl+g grep | q quit",
+                "Space select | y copy | x cut | p paste | s sort | d dirs | ctrl+t term",
             )
         ),
         command_palette=None,

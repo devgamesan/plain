@@ -1320,7 +1320,7 @@ async def test_app_displays_browsing_help_bar() -> None:
         help_bar = app.query_one("#help-bar", HelpBar)
 
         assert str(help_bar.renderable) == (
-            "Enter open | e edit | / filter | ctrl+f find | ctrl+g grep | q quit\n"
+            "Enter open | e edit | / filter | : palette | ctrl+f find | ctrl+g grep | q quit\n"
             "Space select | y copy | x cut | p paste | s sort | d dirs | ctrl+t term"
         )
 

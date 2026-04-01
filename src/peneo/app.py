@@ -411,21 +411,7 @@ class PeneoApp(App[None]):
     async def action_dispatch_bound_key(self, key: str) -> None:
         """Handle priority key bindings through the central dispatcher."""
 
-        character = None
-        if self._app_state.ui_mode in {"FILTER", "RENAME", "CREATE", "PALETTE"} or (
-            self._app_state.ui_mode == "BROWSING"
-            and self._app_state.split_terminal.visible
-            and self._app_state.split_terminal.focus_target == "terminal"
-        ):
-            if key == "space":
-                if self._app_state.ui_mode in {"RENAME", "CREATE", "PALETTE"} or (
-                    self._app_state.ui_mode == "BROWSING"
-                    and self._app_state.split_terminal.focus_target == "terminal"
-                ):
-                    character = " "
-            elif len(key) == 1 and key.isprintable():
-                character = key
-        await self._dispatch_key_press(key, character=character)
+        await self._dispatch_key_press(key)
 
     def _build_body(self, shell: ThreePaneShellData) -> Vertical:
         return build_body(shell)

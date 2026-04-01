@@ -152,6 +152,8 @@ def dispatch_key_input(
 ) -> DispatchedActions:
     """Return reducer actions for the current mode and key press."""
 
+    character = _normalize_input_character(state, key=key, character=character)
+
     if _terminal_has_focus(state):
         return _dispatch_split_terminal_input(key=key, character=character)
 
@@ -177,6 +179,41 @@ def dispatch_key_input(
         return _dispatch_pending_input(state, key=key, character=character)
 
     return _dispatch_browsing_input(state, key)
+
+
+def _normalize_input_character(
+    state: AppState,
+    *,
+    key: str,
+    character: str | None,
+) -> str | None:
+    resolved_character = _resolve_printable_character(key=key, character=character)
+    if resolved_character is None:
+        return None
+
+    if _terminal_has_focus(state):
+        return resolved_character
+
+    if state.ui_mode in {"PALETTE", "RENAME", "CREATE"}:
+        return resolved_character
+
+    if state.ui_mode == "FILTER" and not resolved_character.isspace():
+        return resolved_character
+
+    return None
+
+
+def _resolve_printable_character(*, key: str, character: str | None) -> str | None:
+    if character is not None and character.isprintable():
+        return character
+
+    if key == "space":
+        return " "
+
+    if len(key) == 1 and key.isprintable():
+        return key
+
+    return None
 
 
 def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
@@ -381,9 +418,6 @@ def _terminal_control_character(key: str) -> str | None:
 
     letter = suffix.lower()
     return chr(ord(letter) - ord("a") + 1)
-
-
-
 
 def _dispatch_command_palette_input(
     state: AppState,

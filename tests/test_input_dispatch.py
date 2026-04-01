@@ -229,6 +229,21 @@ def test_filter_q_updates_query_instead_of_exiting() -> None:
     assert actions == (SetNotification(None), SetFilterQuery("q", active=True))
 
 
+def test_filter_bound_space_without_character_is_rejected() -> None:
+    state = replace(build_initial_app_state(), ui_mode="FILTER")
+
+    actions = dispatch_key_input(state, key="space")
+
+    assert actions == (
+        SetNotification(
+            NotificationState(
+                level="warning",
+                message="This key is unavailable while editing the filter",
+            )
+        ),
+    )
+
+
 def test_browsing_y_dispatches_copy_targets() -> None:
     state = build_initial_app_state()
 
@@ -461,6 +476,14 @@ def test_palette_space_updates_query() -> None:
     assert actions == (SetNotification(None), SetCommandPaletteQuery(" "))
 
 
+def test_palette_bound_space_without_character_updates_query() -> None:
+    state = replace(build_initial_app_state(), ui_mode="PALETTE")
+
+    actions = dispatch_key_input(state, key="space")
+
+    assert actions == (SetNotification(None), SetCommandPaletteQuery(" "))
+
+
 def test_palette_pageup_moves_cursor_by_page() -> None:
     state = replace(build_initial_app_state(), ui_mode="PALETTE")
 
@@ -498,6 +521,14 @@ def test_split_terminal_focus_sends_printable_input() -> None:
     actions = dispatch_key_input(state, key="a", character="a")
 
     assert actions == (SetNotification(None), SendSplitTerminalInput("a"))
+
+
+def test_split_terminal_focus_sends_bound_space_without_character() -> None:
+    state = _focused_split_terminal_state()
+
+    actions = dispatch_key_input(state, key="space")
+
+    assert actions == (SetNotification(None), SendSplitTerminalInput(" "))
 
 
 def test_split_terminal_focus_sends_tab_for_completion() -> None:

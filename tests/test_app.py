@@ -2734,6 +2734,35 @@ async def test_app_filter_mode_accepts_printable_bound_keys() -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_action_dispatch_bound_key_uses_dispatcher_character_rules() -> None:
+    path = "/tmp/peneo-palette-bound-space"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await app.action_dispatch_bound_key("space")
+        await app.action_dispatch_bound_key("y")
+        await asyncio.sleep(0.05)
+
+        palette = await _wait_for_command_palette(app)
+
+        assert app.app_state.ui_mode == "PALETTE"
+        assert app.app_state.command_palette is not None
+        assert app.app_state.command_palette.query == " y"
+        assert palette.display is True
+
+
+@pytest.mark.asyncio
 async def test_app_confirmed_filter_stays_visible_in_current_pane() -> None:
     path = "/tmp/peneo-filter-confirm"
     loader = FakeBrowserSnapshotLoader(

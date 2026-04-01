@@ -1321,8 +1321,7 @@ async def test_app_displays_browsing_help_bar() -> None:
 
         assert str(help_bar.renderable) == (
             "Enter open | e edit | / filter | ctrl+f find | ctrl+g grep | q quit\n"
-            "Space select | y copy | x cut | p paste | s sort | d dirs | F2 rename | ctrl+t term\n"
-            "alt+\u2190 back | alt+\u2192 fwd | ctrl+o history"
+            "Space select | y copy | x cut | p paste | s sort | d dirs | ctrl+t term"
         )
 
 
@@ -1372,7 +1371,7 @@ async def test_app_colon_shows_command_palette() -> None:
 
         assert app.app_state.ui_mode == "PALETTE"
         assert palette.display is True
-        assert "Show attributes" in str(items.renderable)
+        assert "Go back" in str(items.renderable)
 
 
 @pytest.mark.asyncio

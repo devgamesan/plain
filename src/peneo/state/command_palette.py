@@ -129,6 +129,18 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             enabled=True,
         ),
         CommandPaletteItem(
+            id="go_back",
+            label="Go back",
+            shortcut="Alt+Left",
+            enabled=bool(state.history.back),
+        ),
+        CommandPaletteItem(
+            id="go_forward",
+            label="Go forward",
+            shortcut="Alt+Right",
+            enabled=bool(state.history.forward),
+        ),
+        CommandPaletteItem(
             id="go_to_path",
             label="Go to path",
             shortcut="Ctrl+J",

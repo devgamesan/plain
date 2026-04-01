@@ -206,11 +206,12 @@ Less frequent actions are grouped in the command palette opened with `:`.
 | `Find files` | Always | Opens recursive file search. |
 | `Grep search` | Always | Opens recursive grep search (`ripgrep` / `rg` required on `PATH`). |
 | `History search` | Always | Opens directory history list and jump to a selected directory. |
+| `Go back` | Directory history has a previous entry | Moves to the previous directory in history. |
+| `Go forward` | Directory history has a forward entry | Moves to the next directory in history. |
 | `Go to path` | Always | Opens go-to-path input to navigate to a specific path. |
 | `Go to home directory` | Always | Navigates to the home directory. |
 | `Reload directory` | Always | Reloads the current directory. |
 | `Toggle split terminal` | Always | Opens or closes the embedded split terminal. |
-| `Paste to terminal` | Split terminal is visible and focused | Pastes clipboard contents into the active split terminal session. |
 | `Rename` | Exactly one target is selected or focused | Starts rename input for a single target. |
 | `Open in editor` | Exactly one file is selected or focused | Opens the focused file in a terminal editor, using `editor.command` -> `$EDITOR` -> built-in defaults. |
 | `Copy path` | At least one target is selected or focused | Copies the selected path list, or the focused path when nothing is selected, to the system clipboard. |

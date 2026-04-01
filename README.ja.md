@@ -206,6 +206,8 @@ paste_conflict_action = "prompt"
 | `Find files` | 常に表示 | 再帰ファイル検索を開きます。 |
 | `Grep search` | 常に表示 | 再帰 grep 検索を開きます（`ripgrep` / `rg` が `PATH` 上に必要）。 |
 | `History search` | 常に表示 | ディレクトリ履歴リストを開き、選択したディレクトリへ移動します。 |
+| `Go back` | ディレクトリ履歴に戻り先があるとき | 履歴を一つ戻ります。 |
+| `Go forward` | ディレクトリ履歴に進み先があるとき | 履歴を一つ進みます。 |
 | `Go to path` | 常に表示 | 特定のパスへ移動するための入力を開きます。 |
 | `Go to home directory` | 常に表示 | ホームディレクトリへ移動します。 |
 | `Reload directory` | 常に表示 | 現在ディレクトリを再読み込みします。 |

@@ -17,6 +17,7 @@ from peneo.state import (
     DirectorySizeCacheEntry,
     FileSearchResultState,
     GrepSearchResultState,
+    HistoryState,
     NameConflictState,
     NotificationState,
     PaneState,
@@ -511,13 +512,11 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
 
     assert help_state.lines == (
         "Enter open | e edit | / filter | ctrl+f find | ctrl+g grep | q quit",
-        "Space select | y copy | x cut | p paste | s sort | d dirs | F2 rename | ctrl+t term",
-        "alt+\u2190 back | alt+\u2192 fwd | ctrl+o history",
+        "Space select | y copy | x cut | p paste | s sort | d dirs | ctrl+t term",
     )
     assert help_state.text == (
         "Enter open | e edit | / filter | ctrl+f find | ctrl+g grep | q quit\n"
-        "Space select | y copy | x cut | p paste | s sort | d dirs | F2 rename | ctrl+t term\n"
-        "alt+\u2190 back | alt+\u2192 fwd | ctrl+o history"
+        "Space select | y copy | x cut | p paste | s sort | d dirs | ctrl+t term"
     )
 
 
@@ -594,8 +593,38 @@ def test_select_command_palette_state_marks_selected_and_enabled_items() -> None
     ]
     assert palette_state.items[0].selected is True
     assert palette_state.items[0].enabled is True
-    assert any(item.label == "Show attributes" and item.enabled for item in palette_state.items)
-    assert any(item.label == "Rename" and item.enabled for item in palette_state.items)
+    assert any(item.label == "Go back" and not item.enabled for item in palette_state.items)
+    assert any(item.label == "Go forward" and not item.enabled for item in palette_state.items)
+
+
+def test_select_command_palette_state_shows_single_target_commands_when_filtered() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = replace(
+        state,
+        command_palette=replace(state.command_palette, query="rename"),
+    )
+
+    palette_state = select_command_palette_state(state)
+
+    assert palette_state is not None
+    assert [item.label for item in palette_state.items] == ["Rename"]
+    assert palette_state.items[0].enabled is True
+
+
+def test_select_command_palette_state_enables_history_navigation_items() -> None:
+    state = replace(
+        _reduce_state(build_initial_app_state(), BeginCommandPalette()),
+        history=HistoryState(
+            back=("/tmp/a",),
+            forward=("/tmp/b",),
+        ),
+    )
+
+    palette_state = select_command_palette_state(state)
+
+    assert palette_state is not None
+    assert any(item.label == "Go back" and item.enabled for item in palette_state.items)
+    assert any(item.label == "Go forward" and item.enabled for item in palette_state.items)
 
 
 def test_select_command_palette_state_filters_query() -> None:

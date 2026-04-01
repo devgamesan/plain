@@ -181,8 +181,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     return HelpBarState(
         (
             "Enter open | e edit | / filter | ctrl+f find | ctrl+g grep | q quit",
-            "Space select | y copy | x cut | p paste | s sort | d dirs | F2 rename | ctrl+t term",
-            "alt+\u2190 back | alt+\u2192 fwd | ctrl+o history",
+            "Space select | y copy | x cut | p paste | s sort | d dirs | ctrl+t term",
         )
     )
 

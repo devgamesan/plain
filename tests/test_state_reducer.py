@@ -563,7 +563,7 @@ def test_move_command_palette_cursor_clamps_to_visible_commands() -> None:
     next_state = _reduce_state(state, MoveCommandPaletteCursor(delta=20))
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.cursor_index == 17
+    assert next_state.command_palette.cursor_index == 19
 
 
 def test_set_command_palette_query_resets_cursor() -> None:
@@ -1015,6 +1015,39 @@ def test_submit_command_palette_begins_history_search() -> None:
     assert result.state.ui_mode == "PALETTE"
     assert result.state.command_palette is not None
     assert result.state.command_palette.source == "history"
+
+
+def test_submit_command_palette_goes_back() -> None:
+    state = replace(
+        _reduce_state(build_initial_app_state(), BeginCommandPalette()),
+        history=HistoryState(
+            back=("/home/tadashi/downloads",),
+            forward=(),
+        ),
+    )
+    state = _reduce_state(state, SetCommandPaletteQuery("go back"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "BUSY"
+    assert result.state.command_palette is None
+    assert len(result.effects) == 1
+    assert isinstance(result.effects[0], LoadBrowserSnapshotEffect)
+    assert result.effects[0].path == "/home/tadashi/downloads"
+
+
+def test_submit_command_palette_go_forward_is_unavailable_without_history() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("go forward"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "PALETTE"
+    assert result.state.command_palette is not None
+    assert result.state.notification == NotificationState(
+        level="warning",
+        message="Go forward is not available yet",
+    )
 
 
 def test_submit_command_palette_reloads_directory() -> None:

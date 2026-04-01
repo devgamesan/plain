@@ -656,6 +656,73 @@ async def test_app_can_start_in_narrow_headless_mode() -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_truncates_long_labels_in_all_panes_when_narrow() -> None:
+    path = "/tmp/peneo-narrow-truncate"
+    current_entries = (
+        DirectoryEntryState(
+            f"{path}/reducer_common_directory",
+            "reducer_common_directory",
+            "dir",
+        ),
+        DirectoryEntryState(f"{path}/reducer_common.py", "reducer_common.py", "file"),
+    )
+    child_entries = (
+        DirectoryEntryState(
+            f"{path}/reducer_common_directory/child_reducer_entry.py",
+            "child_reducer_entry.py",
+            "file",
+        ),
+    )
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: BrowserSnapshot(
+                current_path=path,
+                    parent_pane=PaneState(
+                        directory_path="/tmp",
+                        entries=(
+                            DirectoryEntryState(
+                                path,
+                                "parent_directory_with_long_name_that_keeps_going.py",
+                                "dir",
+                            ),
+                            DirectoryEntryState("/tmp/sibling", "another_parent_entry.py", "file"),
+                        ),
+                        cursor_path=path,
+                    ),
+                current_pane=PaneState(
+                    directory_path=path,
+                    entries=current_entries,
+                    cursor_path=current_entries[0].path,
+                ),
+                child_pane=PaneState(
+                    directory_path=current_entries[0].path,
+                    entries=child_entries,
+                ),
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(100, 20)):
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 2)
+        await asyncio.sleep(0.05)
+
+        parent_list = app.query_one("#parent-pane-list", ListView)
+        child_list = app.query_one("#child-pane-list", ListView)
+        current_table = app.query_one("#current-pane-table", DataTable)
+
+        parent_label = str(parent_list.children[0].query_one(Label).renderable)
+        child_label = str(child_list.children[0].query_one(Label).renderable)
+        current_name = current_table.get_row_at(0)[2]
+
+        assert "~" in parent_label
+        assert "~" in child_label
+        assert isinstance(current_name, Text)
+        assert "~" in current_name.plain
+
+
+@pytest.mark.asyncio
 async def test_app_tab_keeps_focus_on_current_pane() -> None:
     path = "/tmp/peneo-tab-focus"
     loader = FakeBrowserSnapshotLoader(

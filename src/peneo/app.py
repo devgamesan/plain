@@ -118,18 +118,18 @@ class PeneoApp(App[None]):
 
     .pane {
         height: 1fr;
-        min-width: 24;
+        min-width: 20;
         border: round $surface;
         background: $boost;
     }
 
     .side-pane {
-        width: 1fr;
+        width: 0.9fr;
     }
 
     .main-pane {
-        width: 2fr;
-        min-width: 40;
+        width: 2.2fr;
+        min-width: 44;
     }
 
     .pane-title {

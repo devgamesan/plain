@@ -679,9 +679,9 @@ def test_submit_history_palette_with_empty_history_shows_warning() -> None:
     assert result.state.notification.message == "No directory history"
 
 
-def test_set_command_palette_query_updates_go_to_path_preview() -> None:
+def test_set_command_palette_query_updates_go_to_path_preview(tmp_path) -> None:
     state = _reduce_state(build_initial_app_state(), BeginGoToPath())
-    target_path = state.current_path
+    target_path = str(tmp_path)
 
     next_state = _reduce_state(
         state,
@@ -692,12 +692,13 @@ def test_set_command_palette_query_updates_go_to_path_preview() -> None:
     assert next_state.command_palette.go_to_path_preview == target_path
 
 
-def test_submit_go_to_path_palette_requests_snapshot() -> None:
+def test_submit_go_to_path_palette_requests_snapshot(tmp_path) -> None:
     state = _reduce_state(build_initial_app_state(), BeginGoToPath())
-    target_path = f"{state.current_path}/docs"
+    target_path = tmp_path / "docs"
+    target_path.mkdir()
     state = _reduce_state(
         state,
-        SetCommandPaletteQuery(target_path),
+        SetCommandPaletteQuery(str(target_path)),
     )
 
     result = reduce_app_state(state, SubmitCommandPalette())
@@ -707,7 +708,7 @@ def test_submit_go_to_path_palette_requests_snapshot() -> None:
     assert result.effects == (
         LoadBrowserSnapshotEffect(
             request_id=1,
-            path=target_path,
+            path=str(target_path),
             cursor_path=None,
             blocking=True,
         ),

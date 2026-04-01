@@ -681,21 +681,23 @@ def test_submit_history_palette_with_empty_history_shows_warning() -> None:
 
 def test_set_command_palette_query_updates_go_to_path_preview() -> None:
     state = _reduce_state(build_initial_app_state(), BeginGoToPath())
+    target_path = state.current_path
 
     next_state = _reduce_state(
         state,
-        SetCommandPaletteQuery("/home/tadashi/develop/peneo"),
+        SetCommandPaletteQuery(target_path),
     )
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.go_to_path_preview == "/home/tadashi/develop/peneo"
+    assert next_state.command_palette.go_to_path_preview == target_path
 
 
 def test_submit_go_to_path_palette_requests_snapshot() -> None:
     state = _reduce_state(build_initial_app_state(), BeginGoToPath())
+    target_path = f"{state.current_path}/docs"
     state = _reduce_state(
         state,
-        SetCommandPaletteQuery("/home/tadashi/develop/peneo/docs"),
+        SetCommandPaletteQuery(target_path),
     )
 
     result = reduce_app_state(state, SubmitCommandPalette())
@@ -705,7 +707,7 @@ def test_submit_go_to_path_palette_requests_snapshot() -> None:
     assert result.effects == (
         LoadBrowserSnapshotEffect(
             request_id=1,
-            path="/home/tadashi/develop/peneo/docs",
+            path=target_path,
             cursor_path=None,
             blocking=True,
         ),

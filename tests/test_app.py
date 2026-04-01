@@ -193,6 +193,21 @@ async def _wait_for_snapshot_loaded(app, expected_path: str, timeout: float = 0.
         await asyncio.sleep(0.01)
 
 
+async def _wait_for_help_bar_text(app, expected: str, timeout: float = 0.5) -> HelpBar:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        try:
+            help_bar = app.query_one("#help-bar", HelpBar)
+        except NoMatches:
+            help_bar = None
+        if help_bar is not None and str(help_bar.renderable) == expected:
+            return help_bar
+        if asyncio.get_running_loop().time() >= deadline:
+            actual = None if help_bar is None else str(help_bar.renderable)
+            raise AssertionError(f"help bar did not become {expected!r}; actual={actual!r}")
+        await asyncio.sleep(0.01)
+
+
 async def _wait_for_notification_message(app, expected: str, timeout: float = 0.5) -> None:
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
@@ -1380,16 +1395,16 @@ async def test_app_displays_browsing_help_bar() -> None:
         }
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
+    expected_help = (
+        "Enter open | e edit | / filter | : palette | ctrl+f find | ctrl+g grep | q quit\n"
+        "Space select | y copy | x cut | p paste | s sort | d dirs | ctrl+t term"
+    )
 
     async with app.run_test():
         await _wait_for_snapshot_loaded(app, path)
-        await asyncio.sleep(0.05)
-        help_bar = app.query_one("#help-bar", HelpBar)
+        help_bar = await _wait_for_help_bar_text(app, expected_help)
 
-        assert str(help_bar.renderable) == (
-            "Enter open | e edit | / filter | : palette | ctrl+f find | ctrl+g grep | q quit\n"
-            "Space select | y copy | x cut | p paste | s sort | d dirs | ctrl+t term"
-        )
+        assert str(help_bar.renderable) == expected_help
 
 
 @pytest.mark.asyncio

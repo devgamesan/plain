@@ -26,6 +26,7 @@ from peneo.models import (
     ThreePaneShellData,
 )
 from peneo.services import (
+    ArchiveExtractService,
     BrowserSnapshotLoader,
     ClipboardOperationService,
     ConfigSaveService,
@@ -34,6 +35,7 @@ from peneo.services import (
     FileMutationService,
     FileSearchService,
     GrepSearchService,
+    LiveArchiveExtractService,
     LiveBrowserSnapshotLoader,
     LiveClipboardOperationService,
     LiveConfigSaveService,
@@ -319,6 +321,7 @@ class PeneoApp(App[None]):
         config_save_service: ConfigSaveService | None = None,
         directory_size_service: DirectorySizeService | None = None,
         file_mutation_service: FileMutationService | None = None,
+        archive_extract_service: ArchiveExtractService | None = None,
         external_launch_service: ExternalLaunchService | None = None,
         file_search_service: FileSearchService | None = None,
         grep_search_service: GrepSearchService | None = None,
@@ -348,6 +351,7 @@ class PeneoApp(App[None]):
         self._config_save_service = config_save_service or LiveConfigSaveService()
         self._directory_size_service = directory_size_service or LiveDirectorySizeService()
         self._file_mutation_service = file_mutation_service or LiveFileMutationService()
+        self._archive_extract_service = archive_extract_service or LiveArchiveExtractService()
         self._uses_live_external_launch_service = external_launch_service is None
         self._external_launch_service = (
             external_launch_service or self._build_external_launch_service(self._app_config)
@@ -542,6 +546,7 @@ def create_app(
     config_save_service: ConfigSaveService | None = None,
     directory_size_service: DirectorySizeService | None = None,
     file_mutation_service: FileMutationService | None = None,
+    archive_extract_service: ArchiveExtractService | None = None,
     external_launch_service: ExternalLaunchService | None = None,
     file_search_service: FileSearchService | None = None,
     grep_search_service: GrepSearchService | None = None,
@@ -560,6 +565,7 @@ def create_app(
         config_save_service=config_save_service,
         directory_size_service=directory_size_service,
         file_mutation_service=file_mutation_service,
+        archive_extract_service=archive_extract_service,
         external_launch_service=external_launch_service,
         file_search_service=file_search_service,
         grep_search_service=grep_search_service,

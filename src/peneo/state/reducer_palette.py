@@ -3,6 +3,7 @@
 from dataclasses import replace
 from pathlib import Path
 
+from peneo.archive_utils import is_supported_archive_path
 from peneo.models import ExternalLaunchRequest
 
 from .actions import (
@@ -12,6 +13,7 @@ from .actions import (
     BeginCommandPalette,
     BeginCreateInput,
     BeginDeleteTargets,
+    BeginExtractArchiveInput,
     BeginFileSearch,
     BeginGoToPath,
     BeginGrepSearch,
@@ -477,6 +479,8 @@ def _run_palette_command_item(
         return _run_copy_path_command(state, next_state)
     if item_id == "rename":
         return _run_rename_command(state, next_state, reduce_state)
+    if item_id == "extract_archive":
+        return _run_extract_archive_command(state, next_state, reduce_state)
     if item_id == "open_in_editor":
         return _run_open_in_editor_command(state, next_state, reduce_state)
     if item_id == "delete_targets":
@@ -648,6 +652,27 @@ def _run_open_in_editor_command(
             message="Can only open files in editor",
         )
     return reduce_state(next_state, OpenPathInEditor(path=entry.path))
+
+
+def _run_extract_archive_command(
+    state: AppState,
+    next_state: AppState,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    entry = single_target_entry(state)
+    if entry is None:
+        return _notify(
+            next_state,
+            level="warning",
+            message="Extract archive requires a single target",
+        )
+    if entry.kind != "file" or not is_supported_archive_path(entry.path):
+        return _notify(
+            next_state,
+            level="warning",
+            message="Extract archive requires a supported archive file",
+        )
+    return reduce_state(next_state, BeginExtractArchiveInput(source_path=entry.path))
 
 
 def _run_delete_targets_command(

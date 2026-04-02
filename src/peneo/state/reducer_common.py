@@ -8,6 +8,7 @@ from peneo.models import (
     AppConfig,
     CreatePathRequest,
     ExternalLaunchRequest,
+    ExtractArchiveRequest,
     FileMutationResult,
     PasteRequest,
     PasteSummary,
@@ -21,6 +22,8 @@ from .effects import (
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
     ReduceResult,
+    RunArchiveExtractEffect,
+    RunArchivePreparationEffect,
     RunClipboardPasteEffect,
     RunExternalLaunchEffect,
     RunFileMutationEffect,
@@ -152,6 +155,47 @@ def run_file_mutation_request(
     )
 
 
+def run_archive_prepare_request(
+    state: AppState,
+    request: ExtractArchiveRequest,
+) -> ReduceResult:
+    request_id = state.next_request_id
+    next_state = replace(
+        state,
+        notification=NotificationState(level="info", message="Preparing archive extraction"),
+        delete_confirmation=None,
+        archive_extract_confirmation=None,
+        archive_extract_progress=None,
+        pending_archive_prepare_request_id=request_id,
+        next_request_id=request_id + 1,
+        ui_mode="BUSY",
+    )
+    return ReduceResult(
+        state=next_state,
+        effects=(RunArchivePreparationEffect(request_id=request_id, request=request),),
+    )
+
+
+def run_archive_extract_request(
+    state: AppState,
+    request: ExtractArchiveRequest,
+) -> ReduceResult:
+    request_id = state.next_request_id
+    next_state = replace(
+        state,
+        notification=NotificationState(level="info", message="Extracting archive..."),
+        archive_extract_confirmation=None,
+        archive_extract_progress=None,
+        pending_archive_extract_request_id=request_id,
+        next_request_id=request_id + 1,
+        ui_mode="BUSY",
+    )
+    return ReduceResult(
+        state=next_state,
+        effects=(RunArchiveExtractEffect(request_id=request_id, request=request),),
+    )
+
+
 def cursor_path_after_file_mutation(
     state: AppState,
     result: FileMutationResult,
@@ -180,6 +224,8 @@ def cursor_path_after_file_mutation(
 def restore_ui_mode_after_pending_input(state: AppState) -> str:
     if state.pending_input is None:
         return "BROWSING"
+    if state.pending_input.extract_source_path is not None:
+        return "EXTRACT"
     if state.pending_input.create_kind is not None:
         return "CREATE"
     return "RENAME"
@@ -513,6 +559,21 @@ def validate_pending_input(state: AppState) -> str | None:
     if state.pending_input is None:
         return "No input is active"
 
+    if state.pending_input.extract_source_path is not None:
+        destination = state.pending_input.value.strip()
+        if not destination:
+            return "Destination path cannot be empty"
+        source_path = Path(state.pending_input.extract_source_path)
+        resolved_destination = Path(destination).expanduser()
+        if not resolved_destination.is_absolute():
+            resolved_destination = source_path.parent / resolved_destination
+        resolved_destination = resolved_destination.resolve(strict=False)
+        if resolved_destination == source_path:
+            return "Destination path cannot be the archive file itself"
+        if resolved_destination.exists() and not resolved_destination.is_dir():
+            return "Destination path must be a directory"
+        return None
+
     name = state.pending_input.value
     if not name:
         return "Name cannot be empty"
@@ -565,6 +626,25 @@ def build_file_mutation_request(
     return None
 
 
+def build_extract_archive_request(state: AppState) -> ExtractArchiveRequest | None:
+    if state.pending_input is None or state.pending_input.extract_source_path is None:
+        return None
+
+    destination = state.pending_input.value.strip()
+    if not destination:
+        return None
+
+    source_path = Path(state.pending_input.extract_source_path).expanduser().resolve()
+    resolved_destination = Path(destination).expanduser()
+    if not resolved_destination.is_absolute():
+        resolved_destination = source_path.parent / resolved_destination
+
+    return ExtractArchiveRequest(
+        source_path=str(source_path),
+        destination_path=str(resolved_destination.resolve(strict=False)),
+    )
+
+
 def pending_input_parent_and_target(state: AppState) -> tuple[str | None, str | None]:
     if state.pending_input is None:
         return (None, None)
@@ -573,6 +653,9 @@ def pending_input_parent_and_target(state: AppState) -> tuple[str | None, str | 
         return (str(target_path.parent), str(target_path))
     if state.ui_mode == "CREATE":
         return (state.current_pane.directory_path, None)
+    if state.ui_mode == "EXTRACT" and state.pending_input.extract_source_path is not None:
+        source_path = Path(state.pending_input.extract_source_path)
+        return (str(source_path.parent), None)
     return (None, None)
 
 

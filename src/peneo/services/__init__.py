@@ -1,5 +1,17 @@
 """Application services and effect orchestration."""
 
+from peneo.archive_utils import (
+    default_extract_destination,
+    detect_archive_format,
+    is_supported_archive_path,
+    resolve_extract_destination_input,
+)
+
+from .archive_extract import (
+    ArchiveExtractService,
+    FakeArchiveExtractService,
+    LiveArchiveExtractService,
+)
 from .browser_snapshot import (
     BrowserSnapshotLoader,
     FakeBrowserSnapshotLoader,
@@ -55,6 +67,7 @@ from .split_terminal import (
 
 __all__ = [
     "AppConfigLoader",
+    "ArchiveExtractService",
     "BrowserSnapshotLoader",
     "ClipboardOperationService",
     "ConfigSaveService",
@@ -62,6 +75,7 @@ __all__ = [
     "ExternalLaunchService",
     "FileSearchService",
     "GrepSearchService",
+    "FakeArchiveExtractService",
     "FakeFileMutationService",
     "FakeFileSearchService",
     "FakeGrepSearchService",
@@ -72,6 +86,7 @@ __all__ = [
     "FakeClipboardOperationService",
     "FakeExternalLaunchService",
     "FileMutationService",
+    "LiveArchiveExtractService",
     "LiveExternalLaunchService",
     "LiveFileSearchService",
     "LiveGrepSearchService",
@@ -84,8 +99,12 @@ __all__ = [
     "FakeSplitTerminalService",
     "SplitTerminalService",
     "SplitTerminalSession",
+    "default_extract_destination",
+    "detect_archive_format",
+    "is_supported_archive_path",
     "load_app_config",
     "render_app_config",
+    "resolve_extract_destination_input",
     "resolve_config_path",
     "snapshot_from_app_state",
 ]

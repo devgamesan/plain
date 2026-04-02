@@ -3,6 +3,8 @@
 import os
 from dataclasses import dataclass
 
+from peneo.archive_utils import is_supported_archive_path
+
 from .models import AppState, DirectoryEntryState
 
 
@@ -205,6 +207,15 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 label="Rename",
                 shortcut="F2",
                 enabled=True,
+            )
+        )
+        items.append(
+            CommandPaletteItem(
+                id="extract_archive",
+                label="Extract archive",
+                shortcut=None,
+                enabled=single_target_entry.kind == "file"
+                and is_supported_archive_path(single_target_entry.path),
             )
         )
         items.append(

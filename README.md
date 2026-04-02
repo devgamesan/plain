@@ -6,7 +6,7 @@ Peneo is a Textual-based TUI file manager for environments where you want to kee
 
 ## Features
 
-- Simple three-pane layout for parent / current / child directories. You can navigate directories, multi-select items, copy, cut, paste, move to trash, rename, and create files or directories entirely from the keyboard.
+- Simple three-pane layout for parent / current / child directories. You can navigate directories, multi-select items, copy, cut, paste, move to trash, rename, create files or directories, and extract supported archives entirely from the keyboard.
   ![](docs/resources/screen-entire-screen.png)
   _Operating the current directory while keeping surrounding hierarchy visible in the three-pane layout._
 - Common actions stay visible in the on-screen help so the interface is easy to pick up without memorizing a large keymap.
@@ -219,6 +219,7 @@ Less frequent actions are grouped in the command palette opened with `:`.
 | `Reload directory` | Always | Reloads the current directory. |
 | `Toggle split terminal` | Always | Opens or closes the embedded split terminal. |
 | `Rename` | Exactly one target is selected or focused | Starts rename input for a single target. |
+| `Extract archive` | Exactly one supported archive file is selected or focused | Starts archive extraction for `.zip`, `.tar`, `.tar.gz`, or `.tar.bz2`. The destination input accepts absolute and relative paths. Relative paths are resolved from the archive file's parent directory, and the default value is a same-name directory next to the archive. Existing destination paths are confirmed before extraction, and the status bar shows entry-count progress while the extraction runs. |
 | `Open in editor` | Exactly one file is selected or focused | Opens the focused file in a terminal editor, using `editor.command` -> `$EDITOR` -> built-in defaults. |
 | `Copy path` | At least one target is selected or focused | Copies the selected path list, or the focused path when nothing is selected, to the system clipboard. |
 | `Move to trash` | At least one target is selected or focused | Moves the selected items, or the focused item, to trash (confirmation is enabled by default and can be configured). |

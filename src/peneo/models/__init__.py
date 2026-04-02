@@ -14,9 +14,14 @@ from .config import (
 )
 from .external_launch import ExternalLaunchKind, ExternalLaunchRequest
 from .file_operations import (
+    ArchiveFormat,
     ConflictResolution,
     CreateKind,
     CreatePathRequest,
+    ExtractArchiveConflict,
+    ExtractArchivePreparationResult,
+    ExtractArchiveRequest,
+    ExtractArchiveResult,
     FileMutationRequest,
     FileMutationResult,
     MutationResultLevel,
@@ -47,6 +52,7 @@ from .shell_data import (
 
 __all__ = [
     "AppConfig",
+    "ArchiveFormat",
     "AttributeDialogState",
     "BehaviorConfig",
     "BookmarkConfig",
@@ -63,6 +69,10 @@ __all__ = [
     "CreatePathRequest",
     "DisplayConfig",
     "EditorConfig",
+    "ExtractArchiveConflict",
+    "ExtractArchivePreparationResult",
+    "ExtractArchiveRequest",
+    "ExtractArchiveResult",
     "ExternalLaunchKind",
     "ExternalLaunchRequest",
     "FileMutationResult",

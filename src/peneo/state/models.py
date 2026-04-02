@@ -9,13 +9,24 @@ from peneo.models import (
     AppConfig,
     ConflictResolution,
     CreateKind,
+    ExtractArchiveRequest,
     PasteConflict,
     PasteConflictAction,
     PasteRequest,
 )
 from peneo.models.shell_data import EntryKind, NotificationLevel
 
-UiMode = Literal["BROWSING", "FILTER", "RENAME", "CREATE", "PALETTE", "CONFIRM", "CONFIG", "BUSY"]
+UiMode = Literal[
+    "BROWSING",
+    "FILTER",
+    "RENAME",
+    "CREATE",
+    "EXTRACT",
+    "PALETTE",
+    "CONFIRM",
+    "CONFIG",
+    "BUSY",
+]
 SortField = Literal["name", "modified", "size"]
 ClipboardMode = Literal["copy", "cut", "none"]
 NameConflictKind = Literal["rename", "create_file", "create_dir"]
@@ -117,6 +128,25 @@ class NameConflictState:
 
 
 @dataclass(frozen=True)
+class ArchiveExtractConfirmationState:
+    """Pending confirmation dialog state for archive extraction conflicts."""
+
+    request: ExtractArchiveRequest
+    conflict_count: int
+    first_conflict_path: str
+    total_entries: int
+
+
+@dataclass(frozen=True)
+class ArchiveExtractProgressState:
+    """Transient progress state for an archive extraction."""
+
+    completed_entries: int
+    total_entries: int
+    current_path: str | None = None
+
+
+@dataclass(frozen=True)
 class AttributeInspectionState:
     """Pending read-only attribute dialog state."""
 
@@ -163,6 +193,7 @@ class PendingInputState:
     value: str = ""
     target_path: str | None = None
     create_kind: CreateKind | None = None
+    extract_source_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -265,6 +296,8 @@ class AppState:
     paste_conflict: PasteConflictState | None = None
     delete_confirmation: DeleteConfirmationState | None = None
     name_conflict: NameConflictState | None = None
+    archive_extract_confirmation: ArchiveExtractConfirmationState | None = None
+    archive_extract_progress: ArchiveExtractProgressState | None = None
     attribute_inspection: AttributeInspectionState | None = None
     config_editor: ConfigEditorState | None = None
     post_reload_notification: NotificationState | None = None
@@ -273,6 +306,8 @@ class AppState:
     pending_child_pane_request_id: int | None = None
     pending_paste_request_id: int | None = None
     pending_file_mutation_request_id: int | None = None
+    pending_archive_prepare_request_id: int | None = None
+    pending_archive_extract_request_id: int | None = None
     pending_file_search_request_id: int | None = None
     pending_grep_search_request_id: int | None = None
     pending_directory_size_request_id: int | None = None

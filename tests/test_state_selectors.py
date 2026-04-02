@@ -2,8 +2,16 @@ from dataclasses import replace
 from stat import S_IFREG
 
 import peneo.state.selectors as selectors_module
-from peneo.models import AppConfig, BookmarkConfig, EditorConfig, PasteConflict, PasteRequest
+from peneo.models import (
+    AppConfig,
+    BookmarkConfig,
+    EditorConfig,
+    ExtractArchiveRequest,
+    PasteConflict,
+    PasteRequest,
+)
 from peneo.state import (
+    ArchiveExtractConfirmationState,
     AttributeInspectionState,
     BeginCommandPalette,
     BeginCreateInput,
@@ -722,6 +730,48 @@ def test_select_command_palette_state_switches_bookmark_command_label() -> None:
     assert any(item.label == "Remove bookmark" for item in bookmarked_palette_state.items)
 
 
+def test_select_command_palette_state_shows_extract_archive_for_supported_file() -> None:
+    archive_path = "/home/tadashi/develop/peneo/archive.tar.gz"
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/peneo",
+            entries=(
+                DirectoryEntryState(archive_path, "archive.tar.gz", "file"),
+            ),
+            cursor_path=archive_path,
+        ),
+    )
+    palette_state = select_command_palette_state(
+        replace(
+            _reduce_state(state, BeginCommandPalette()),
+            command_palette=replace(CommandPaletteState(), query="extract"),
+        )
+    )
+
+    assert palette_state is not None
+    assert [item.label for item in palette_state.items] == ["Extract archive"]
+
+
+def test_select_input_bar_state_formats_extract_mode() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="EXTRACT",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="/tmp/output/archive",
+            extract_source_path="/home/tadashi/develop/peneo/archive.zip",
+        ),
+    )
+
+    input_state = select_input_bar_state(state)
+
+    assert input_state is not None
+    assert input_state.mode_label == "EXTRACT"
+    assert input_state.prompt == "Extract to: "
+    assert input_state.hint == "enter extract | esc cancel"
+
+
 def test_select_attribute_dialog_state_formats_selected_entry() -> None:
     state = replace(
         build_initial_app_state(),
@@ -1028,6 +1078,28 @@ def test_select_conflict_dialog_state_formats_delete_confirmation() -> None:
     assert dialog is not None
     assert dialog.title == "Delete Confirmation"
     assert dialog.options == ("enter confirm", "esc cancel")
+
+
+def test_select_conflict_dialog_state_formats_extract_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        archive_extract_confirmation=ArchiveExtractConfirmationState(
+            request=ExtractArchiveRequest(
+                source_path="/home/tadashi/develop/peneo/archive.zip",
+                destination_path="/tmp/output/archive",
+            ),
+            conflict_count=2,
+            first_conflict_path="/tmp/output/archive/notes.txt",
+            total_entries=5,
+        ),
+    )
+
+    dialog = select_conflict_dialog_state(state)
+
+    assert dialog is not None
+    assert dialog.title == "Extract Archive Confirmation"
+    assert "2 archive path(s) already exist" in dialog.message
+    assert dialog.options == ("enter continue", "esc return to input")
 
 
 def test_select_conflict_dialog_state_formats_rename_conflict() -> None:

@@ -136,8 +136,13 @@ sequenceDiagram
 ### `src/peneo/state/command_palette.py`
 
 - コマンドパレット候補の構築と query フィルタリングを担当する
-- 現在の palette には `Find file`、`Grep`、`Show attributes`、`Copy path`、`Open in file manager`、`Open terminal here`、`Open/Close split terminal`、`Show/Hide hidden files`、`Edit config`、`Create file`、`Create directory` がある
+- 現在の palette には `Find file`、`Grep`、`Show attributes`、`Rename`、`Extract archive`、`Copy path`、`Open in file manager`、`Open terminal here`、`Open/Close split terminal`、`Show/Hide hidden files`、`Edit config`、`Create file`、`Create directory` がある
 - `Show attributes` は単一対象がある場合にだけ表示し、`Name` / `Type` / `Path` / `Size` / `Modified` / `Hidden` / `Permissions` を持つ read-only の属性ダイアログを開く
+- `Extract archive` は単一の対応アーカイブ (`.zip` / `.tar` / `.tar.gz` / `.tar.bz2`) にだけ表示し、既存の pending input bar を使って展開先パスを編集する
+  - 入力値は絶対パスと相対パスの両方を受け付け、相対パスはアーカイブ親ディレクトリ基準で解決する
+  - 初期値はアーカイブと同じ階層にある同名ディレクトリの絶対パス
+  - 実行前に展開先の競合を走査し、必要なら confirm dialog で続行可否を確認する
+  - 展開中は `BUSY` モードで entry-count ベースの進捗を status bar に反映する
 - `Find file` 選択後は palette をファイル検索モードに切り替え、現在ディレクトリ以下を再帰検索した結果を同じ UI で表示する
   - 通常入力は basename 対象の大文字小文字を無視した部分一致
   - `re:` 接頭辞付き入力は basename 対象の Python regex として扱い、無効な regex は palette 内メッセージで表示する
@@ -154,6 +159,7 @@ sequenceDiagram
 - `file_search.py`: 現在ディレクトリ以下の再帰ファイル検索を担当し、通常入力と `re:` regex 入力を解釈したうえで hidden 設定に応じて結果を絞る
 - `grep_search.py`: `rg` を使った再帰内容検索を担当し、通常入力は固定文字列、`re:` 入力は regex として hidden 設定に応じて結果を返す
 - `file_mutations.py`: rename / create / trash delete を担当
+- `archive_extract.py`: 対応アーカイブの事前走査、競合検出、標準ライブラリ (`zipfile` / `tarfile`) を使った安全な展開、進捗通知を担当
 - `external_launcher.py`: 既定アプリ起動、現在のターミナル内エディタ起動、ターミナル起動、システムクリップボードへのパスコピーを担当し、editor config -> `$EDITOR` -> 既定値の順でエディタ候補を解決する
 - `split_terminal.py`: 埋め込み split terminal の PTY セッション起動、入出力、終了通知を担当
 

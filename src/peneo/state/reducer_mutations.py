@@ -3,13 +3,21 @@
 from dataclasses import replace
 from pathlib import Path
 
+from peneo.archive_utils import default_extract_destination
 from peneo.models import PasteRequest, RenameRequest, TrashDeleteRequest
 
 from .actions import (
     Action,
+    ArchiveExtractCompleted,
+    ArchiveExtractFailed,
+    ArchiveExtractProgress,
+    ArchivePreparationCompleted,
+    ArchivePreparationFailed,
     BeginCreateInput,
     BeginDeleteTargets,
+    BeginExtractArchiveInput,
     BeginRenameInput,
+    CancelArchiveExtractConfirmation,
     CancelDeleteConfirmation,
     CancelPasteConflict,
     CancelPendingInput,
@@ -17,6 +25,7 @@ from .actions import (
     ClipboardPasteCompleted,
     ClipboardPasteFailed,
     ClipboardPasteNeedsResolution,
+    ConfirmArchiveExtract,
     ConfirmDeleteTargets,
     CopyTargets,
     CutTargets,
@@ -24,6 +33,7 @@ from .actions import (
     FileMutationCompleted,
     FileMutationFailed,
     PasteClipboard,
+    RequestBrowserSnapshot,
     ResolvePasteConflict,
     SetPendingInputValue,
     SubmitPendingInput,
@@ -33,6 +43,8 @@ from .actions import (
 from .effects import ReduceResult
 from .models import (
     AppState,
+    ArchiveExtractConfirmationState,
+    ArchiveExtractProgressState,
     ClipboardState,
     DeleteConfirmationState,
     NameConflictState,
@@ -43,6 +55,7 @@ from .models import (
 from .reducer_common import (
     ReducerFn,
     active_current_entries,
+    build_extract_archive_request,
     build_file_mutation_request,
     current_entry_for_path,
     current_entry_paths,
@@ -56,6 +69,8 @@ from .reducer_common import (
     notification_for_paste_summary,
     request_snapshot_refresh,
     restore_ui_mode_after_pending_input,
+    run_archive_extract_request,
+    run_archive_prepare_request,
     run_file_mutation_request,
     run_paste_request,
     sync_child_pane,
@@ -68,6 +83,28 @@ def handle_mutation_action(
     action: Action,
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
+    if isinstance(action, BeginExtractArchiveInput):
+        return done(
+            replace(
+                state,
+                ui_mode="EXTRACT",
+                notification=None,
+                pending_input=PendingInputState(
+                    prompt="Extract to: ",
+                    value=default_extract_destination(action.source_path),
+                    extract_source_path=action.source_path,
+                ),
+                command_palette=None,
+                pending_file_search_request_id=None,
+                pending_grep_search_request_id=None,
+                delete_confirmation=None,
+                archive_extract_confirmation=None,
+                archive_extract_progress=None,
+                name_conflict=None,
+                attribute_inspection=None,
+            )
+        )
+
     if isinstance(action, BeginRenameInput):
         entry = current_entry_for_path(state, action.path)
         if entry is None:
@@ -86,6 +123,8 @@ def handle_mutation_action(
                 pending_file_search_request_id=None,
                 pending_grep_search_request_id=None,
                 delete_confirmation=None,
+                archive_extract_confirmation=None,
+                archive_extract_progress=None,
                 name_conflict=None,
                 attribute_inspection=None,
             )
@@ -106,6 +145,8 @@ def handle_mutation_action(
                     pending_grep_search_request_id=None,
                     paste_conflict=None,
                     delete_confirmation=DeleteConfirmationState(paths=action.paths),
+                    archive_extract_confirmation=None,
+                    archive_extract_progress=None,
                     name_conflict=None,
                     attribute_inspection=None,
                 )
@@ -116,6 +157,8 @@ def handle_mutation_action(
                 notification=None,
                 paste_conflict=None,
                 delete_confirmation=None,
+                archive_extract_confirmation=None,
+                archive_extract_progress=None,
                 name_conflict=None,
                 attribute_inspection=None,
             ),
@@ -137,6 +180,8 @@ def handle_mutation_action(
                 pending_file_search_request_id=None,
                 pending_grep_search_request_id=None,
                 delete_confirmation=None,
+                archive_extract_confirmation=None,
+                archive_extract_progress=None,
                 name_conflict=None,
                 attribute_inspection=None,
             )
@@ -162,7 +207,11 @@ def handle_mutation_action(
                 command_palette=None,
                 pending_file_search_request_id=None,
                 pending_grep_search_request_id=None,
+                pending_archive_prepare_request_id=None,
+                pending_archive_extract_request_id=None,
                 delete_confirmation=None,
+                archive_extract_confirmation=None,
+                archive_extract_progress=None,
                 name_conflict=None,
                 attribute_inspection=None,
             )
@@ -195,6 +244,9 @@ def handle_mutation_action(
                 )
             )
         request = build_file_mutation_request(state)
+        extract_request = build_extract_archive_request(state)
+        if extract_request is not None:
+            return run_archive_prepare_request(state, extract_request)
         if request is None:
             return done(state)
         if isinstance(request, RenameRequest):
@@ -365,6 +417,19 @@ def handle_mutation_action(
             TrashDeleteRequest(paths=state.delete_confirmation.paths),
         )
 
+    if isinstance(action, ConfirmArchiveExtract):
+        if state.archive_extract_confirmation is None:
+            return done(state)
+        return run_archive_extract_request(
+            replace(
+                state,
+                archive_extract_confirmation=None,
+                archive_extract_progress=None,
+                notification=None,
+            ),
+            state.archive_extract_confirmation.request,
+        )
+
     if isinstance(action, CancelDeleteConfirmation):
         return done(
             replace(
@@ -372,6 +437,19 @@ def handle_mutation_action(
                 delete_confirmation=None,
                 ui_mode="BROWSING",
                 notification=NotificationState(level="warning", message="Delete cancelled"),
+            )
+        )
+
+    if isinstance(action, CancelArchiveExtractConfirmation):
+        if state.archive_extract_confirmation is None:
+            return done(state)
+        return done(
+            replace(
+                state,
+                archive_extract_confirmation=None,
+                archive_extract_progress=None,
+                notification=NotificationState(level="warning", message="Extraction cancelled"),
+                ui_mode=restore_ui_mode_after_pending_input(state),
             )
         )
 
@@ -446,6 +524,112 @@ def handle_mutation_action(
             )
         )
 
+    if isinstance(action, ArchivePreparationCompleted):
+        if action.request_id != state.pending_archive_prepare_request_id:
+            return done(state)
+
+        if action.conflict_count > 0 and action.first_conflict_path is not None:
+            return done(
+                replace(
+                    state,
+                    notification=None,
+                    pending_archive_prepare_request_id=None,
+                    archive_extract_progress=None,
+                    archive_extract_confirmation=ArchiveExtractConfirmationState(
+                        request=action.request,
+                        conflict_count=action.conflict_count,
+                        first_conflict_path=action.first_conflict_path,
+                        total_entries=action.total_entries,
+                    ),
+                    ui_mode="CONFIRM",
+                )
+            )
+
+        return run_archive_extract_request(
+            replace(
+                state,
+                notification=None,
+                pending_archive_prepare_request_id=None,
+                archive_extract_confirmation=None,
+                archive_extract_progress=None,
+            ),
+            action.request,
+        )
+
+    if isinstance(action, ArchivePreparationFailed):
+        if action.request_id != state.pending_archive_prepare_request_id:
+            return done(state)
+        return done(
+            replace(
+                state,
+                notification=NotificationState(level="error", message=action.message),
+                pending_archive_prepare_request_id=None,
+                archive_extract_confirmation=None,
+                archive_extract_progress=None,
+                ui_mode=restore_ui_mode_after_pending_input(state),
+            )
+        )
+
+    if isinstance(action, ArchiveExtractProgress):
+        if action.request_id != state.pending_archive_extract_request_id:
+            return done(state)
+
+        message = f"Extracting archive {action.completed_entries}/{action.total_entries}"
+        if action.current_path is not None:
+            message = f"{message}: {Path(action.current_path).name}"
+        return done(
+            replace(
+                state,
+                archive_extract_progress=ArchiveExtractProgressState(
+                    completed_entries=action.completed_entries,
+                    total_entries=action.total_entries,
+                    current_path=action.current_path,
+                ),
+                notification=NotificationState(level="info", message=message),
+            )
+        )
+
+    if isinstance(action, ArchiveExtractCompleted):
+        if action.request_id != state.pending_archive_extract_request_id:
+            return done(state)
+
+        next_state = replace(
+            state,
+            notification=None,
+            pending_input=None,
+            archive_extract_confirmation=None,
+            archive_extract_progress=None,
+            pending_archive_prepare_request_id=None,
+            pending_archive_extract_request_id=None,
+            post_reload_notification=NotificationState(
+                level=action.result.level,
+                message=action.result.message,
+            ),
+            ui_mode="BROWSING",
+        )
+        return reduce_state(
+            next_state,
+            RequestBrowserSnapshot(
+                path=str(Path(action.result.destination_path).parent),
+                cursor_path=action.result.destination_path,
+                blocking=True,
+            ),
+        )
+
+    if isinstance(action, ArchiveExtractFailed):
+        if action.request_id != state.pending_archive_extract_request_id:
+            return done(state)
+        return done(
+            replace(
+                state,
+                notification=NotificationState(level="error", message=action.message),
+                pending_archive_extract_request_id=None,
+                archive_extract_progress=None,
+                archive_extract_confirmation=None,
+                ui_mode=restore_ui_mode_after_pending_input(state),
+            )
+        )
+
     if isinstance(action, FileMutationCompleted):
         if action.request_id != state.pending_file_mutation_request_id:
             return done(state)
@@ -460,6 +644,8 @@ def handle_mutation_action(
             current_pane=replace(state.current_pane, selected_paths=selected_paths),
             pending_input=None,
             delete_confirmation=None,
+            archive_extract_confirmation=None,
+            archive_extract_progress=None,
             name_conflict=None,
             pending_file_mutation_request_id=None,
             post_reload_notification=NotificationState(
@@ -483,6 +669,8 @@ def handle_mutation_action(
                 notification=NotificationState(level="error", message=action.message),
                 pending_file_mutation_request_id=None,
                 delete_confirmation=None,
+                archive_extract_confirmation=None,
+                archive_extract_progress=None,
                 name_conflict=None,
                 ui_mode=restore_ui_mode_after_pending_input(state),
             )

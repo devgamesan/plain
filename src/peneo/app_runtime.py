@@ -12,9 +12,20 @@ from textual.app import SuspendNotSupported
 from textual.timer import Timer
 from textual.worker import Worker, WorkerState
 
-from peneo.models import FileMutationResult, PasteConflictPrompt, PasteExecutionResult
+from peneo.models import (
+    ExtractArchivePreparationResult,
+    ExtractArchiveResult,
+    FileMutationResult,
+    PasteConflictPrompt,
+    PasteExecutionResult,
+)
 from peneo.services import InvalidFileSearchQueryError, InvalidGrepSearchQueryError
 from peneo.state import (
+    ArchiveExtractCompleted,
+    ArchiveExtractFailed,
+    ArchiveExtractProgress,
+    ArchivePreparationCompleted,
+    ArchivePreparationFailed,
     BrowserSnapshotFailed,
     BrowserSnapshotLoaded,
     ChildPaneSnapshotFailed,
@@ -40,6 +51,8 @@ from peneo.state import (
     LoadChildPaneSnapshotEffect,
     NotificationState,
     PasteFromClipboardEffect,
+    RunArchiveExtractEffect,
+    RunArchivePreparationEffect,
     RunClipboardPasteEffect,
     RunConfigSaveEffect,
     RunDirectorySizeEffect,
@@ -307,6 +320,38 @@ def schedule_file_mutation(app: Any, effect: RunFileMutationEffect) -> None:
             name=f"file-mutation:{effect.request_id}",
             group="file-mutation",
             description=str(effect.request),
+            exclusive=True,
+        ),
+    )
+
+
+def schedule_archive_preparation(app: Any, effect: RunArchivePreparationEffect) -> None:
+    _run_worker(
+        app,
+        effect,
+        partial(app._archive_extract_service.prepare, effect.request),
+        _WorkerSpec(
+            name=f"archive-prepare:{effect.request_id}",
+            group="archive-prepare",
+            description=effect.request.source_path,
+            exclusive=True,
+        ),
+    )
+
+
+def schedule_archive_extract(app: Any, effect: RunArchiveExtractEffect) -> None:
+    _run_worker(
+        app,
+        effect,
+        partial(
+            app._archive_extract_service.execute,
+            effect.request,
+            progress_callback=partial(report_archive_extract_progress, app, effect.request_id),
+        ),
+        _WorkerSpec(
+            name=f"archive-extract:{effect.request_id}",
+            group="archive-extract",
+            description=effect.request.source_path,
             exclusive=True,
         ),
     )
@@ -585,6 +630,30 @@ def handle_split_terminal_exit(app: Any, session_id: int, exit_code: int | None)
         return
 
 
+def report_archive_extract_progress(
+    app: Any,
+    request_id: int,
+    completed_entries: int,
+    total_entries: int,
+    current_path: str | None,
+) -> None:
+    actions = (
+        ArchiveExtractProgress(
+            request_id=request_id,
+            completed_entries=completed_entries,
+            total_entries=total_entries,
+            current_path=current_path,
+        ),
+    )
+    try:
+        if app._thread_id == threading.get_ident():
+            app.call_next(app.dispatch_actions, actions)
+            return
+        app.call_from_thread(app.call_next, app.dispatch_actions, actions)
+    except (RuntimeError, FutureCancelledError):
+        return
+
+
 def _schedule_external_launch_effect(app: Any, effect: RunExternalLaunchEffect) -> None:
     if effect.request.kind == "copy_paths":
         run_copy_paths(app, effect)
@@ -602,6 +671,8 @@ def _close_split_terminal_effect(app: Any, effect: CloseSplitTerminalEffect) -> 
 _EFFECT_SCHEDULERS = (
     (LoadBrowserSnapshotEffect, schedule_browser_snapshot),
     (LoadChildPaneSnapshotEffect, schedule_child_pane_snapshot),
+    (RunArchivePreparationEffect, schedule_archive_preparation),
+    (RunArchiveExtractEffect, schedule_archive_extract),
     (RunClipboardPasteEffect, schedule_clipboard_paste),
     (RunConfigSaveEffect, schedule_config_save),
     (RunDirectorySizeEffect, schedule_directory_sizes),
@@ -669,6 +740,36 @@ def _complete_clipboard_paste(
 def _complete_file_mutation(effect: Effect, result: FileMutationResult) -> tuple[Any, ...]:
     return (
         FileMutationCompleted(
+            request_id=effect.request_id,
+            result=result,
+        ),
+    )
+
+
+def _complete_archive_preparation(
+    effect: RunArchivePreparationEffect,
+    result: ExtractArchivePreparationResult,
+) -> tuple[Any, ...]:
+    first_conflict_path = None
+    if result.conflicts:
+        first_conflict_path = result.conflicts[0].destination_path
+    return (
+        ArchivePreparationCompleted(
+            request_id=effect.request_id,
+            request=result.request,
+            total_entries=result.total_entries,
+            conflict_count=len(result.conflicts),
+            first_conflict_path=first_conflict_path,
+        ),
+    )
+
+
+def _complete_archive_extract(
+    effect: RunArchiveExtractEffect,
+    result: ExtractArchiveResult,
+) -> tuple[Any, ...]:
+    return (
+        ArchiveExtractCompleted(
             request_id=effect.request_id,
             result=result,
         ),
@@ -784,6 +885,32 @@ def _failed_file_mutation(
     )
 
 
+def _failed_archive_preparation(
+    effect: RunArchivePreparationEffect,
+    error: BaseException | None,
+    message: str,
+) -> tuple[Any, ...]:
+    return (
+        ArchivePreparationFailed(
+            request_id=effect.request_id,
+            message=message,
+        ),
+    )
+
+
+def _failed_archive_extract(
+    effect: RunArchiveExtractEffect,
+    error: BaseException | None,
+    message: str,
+) -> tuple[Any, ...]:
+    return (
+        ArchiveExtractFailed(
+            request_id=effect.request_id,
+            message=message,
+        ),
+    )
+
+
 def _failed_config_save(
     effect: RunConfigSaveEffect,
     error: BaseException | None,
@@ -858,6 +985,8 @@ def _failed_grep_search(
 _RESULT_COMPLETE_HANDLERS: tuple[tuple[type[Any], CompleteActionHandler], ...] = (
     (PasteConflictPrompt, _complete_clipboard_paste_conflicts),
     (PasteExecutionResult, _complete_clipboard_paste),
+    (ExtractArchivePreparationResult, _complete_archive_preparation),
+    (ExtractArchiveResult, _complete_archive_extract),
     (FileMutationResult, _complete_file_mutation),
 )
 
@@ -874,6 +1003,8 @@ _COMPLETE_ACTION_HANDLERS: tuple[tuple[type[Any], CompleteActionHandler], ...] =
 _FAILED_ACTION_HANDLERS: tuple[tuple[type[Any], FailureActionHandler], ...] = (
     (LoadBrowserSnapshotEffect, _failed_browser_snapshot),
     (LoadChildPaneSnapshotEffect, _failed_child_pane_snapshot),
+    (RunArchivePreparationEffect, _failed_archive_preparation),
+    (RunArchiveExtractEffect, _failed_archive_extract),
     (RunClipboardPasteEffect, _failed_clipboard_paste),
     (RunFileMutationEffect, _failed_file_mutation),
     (RunConfigSaveEffect, _failed_config_save),

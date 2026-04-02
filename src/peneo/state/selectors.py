@@ -153,6 +153,8 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     if state.ui_mode == "CONFIRM":
         if state.delete_confirmation is not None:
             return HelpBarState(("enter confirm delete | esc cancel",))
+        if state.archive_extract_confirmation is not None:
+            return HelpBarState(("enter continue extraction | esc return to input",))
         if state.name_conflict is not None:
             return HelpBarState(("enter return to input | esc return to input",))
         return HelpBarState(("resolve conflict in dialog",))
@@ -168,6 +170,8 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         return HelpBarState(("type name | enter apply | esc cancel",))
     if state.ui_mode == "CREATE":
         return HelpBarState(("type name | enter apply | esc cancel",))
+    if state.ui_mode == "EXTRACT":
+        return HelpBarState(("type destination path | enter extract | esc cancel",))
     if state.ui_mode == "PALETTE":
         if state.command_palette is not None and state.command_palette.source == "file_search":
             return HelpBarState(("type filename | enter jump | esc cancel",))
@@ -202,18 +206,24 @@ def select_input_bar_state(state: AppState) -> InputBarState | None:
             hint=hint,
         )
 
-    if state.ui_mode not in {"RENAME", "CREATE"}:
+    if state.ui_mode not in {"RENAME", "CREATE", "EXTRACT"}:
         return None
     if state.pending_input is None:
         return None
     mode_label = "RENAME"
     if state.ui_mode == "CREATE":
         mode_label = "NEW FILE" if state.pending_input.create_kind == "file" else "NEW DIR"
+    if state.ui_mode == "EXTRACT":
+        mode_label = "EXTRACT"
     return InputBarState(
         mode_label=mode_label,
         prompt=state.pending_input.prompt,
         value=state.pending_input.value,
-        hint="enter apply | esc cancel",
+        hint=(
+            "enter extract | esc cancel"
+            if state.ui_mode == "EXTRACT"
+            else "enter apply | esc cancel"
+        ),
     )
 
 
@@ -384,6 +394,19 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
             title="Delete Confirmation",
             message=message,
             options=("enter confirm", "esc cancel"),
+        )
+
+    if state.archive_extract_confirmation is not None:
+        confirmation = state.archive_extract_confirmation
+        destination_name = Path(confirmation.first_conflict_path).name
+        message = (
+            f"{confirmation.conflict_count} archive path(s) already exist in the destination. "
+            f"The first conflict is {destination_name}. Continue extraction?"
+        )
+        return ConflictDialogState(
+            title="Extract Archive Confirmation",
+            message=message,
+            options=("enter continue", "esc return to input"),
         )
 
     if state.name_conflict is not None:

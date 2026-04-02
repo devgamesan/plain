@@ -8,6 +8,8 @@ from peneo.models import (
     ConflictResolution,
     CreateKind,
     ExternalLaunchRequest,
+    ExtractArchiveRequest,
+    ExtractArchiveResult,
     FileMutationResult,
     PasteConflict,
     PasteRequest,
@@ -75,6 +77,13 @@ class BeginCreateInput:
     """Enter create input mode for a new file or directory."""
 
     kind: CreateKind
+
+
+@dataclass(frozen=True)
+class BeginExtractArchiveInput:
+    """Enter extract input mode for a supported archive."""
+
+    source_path: str
 
 
 @dataclass(frozen=True)
@@ -391,6 +400,16 @@ class CancelDeleteConfirmation:
 
 
 @dataclass(frozen=True)
+class ConfirmArchiveExtract:
+    """Confirm the pending archive extraction request."""
+
+
+@dataclass(frozen=True)
+class CancelArchiveExtractConfirmation:
+    """Return from archive extraction confirmation to input editing."""
+
+
+@dataclass(frozen=True)
 class DismissNameConflict:
     """Dismiss the pending rename/create conflict dialog."""
 
@@ -523,6 +542,51 @@ class ClipboardPasteFailed:
 
 
 @dataclass(frozen=True)
+class ArchivePreparationCompleted:
+    """Apply preflight archive scan details before extraction begins."""
+
+    request_id: int
+    request: ExtractArchiveRequest
+    total_entries: int
+    conflict_count: int = 0
+    first_conflict_path: str | None = None
+
+
+@dataclass(frozen=True)
+class ArchivePreparationFailed:
+    """Apply a terminal archive preparation failure."""
+
+    request_id: int
+    message: str
+
+
+@dataclass(frozen=True)
+class ArchiveExtractProgress:
+    """Apply archive extraction progress updates."""
+
+    request_id: int
+    completed_entries: int
+    total_entries: int
+    current_path: str | None = None
+
+
+@dataclass(frozen=True)
+class ArchiveExtractCompleted:
+    """Apply the completed archive extraction result."""
+
+    request_id: int
+    result: ExtractArchiveResult
+
+
+@dataclass(frozen=True)
+class ArchiveExtractFailed:
+    """Apply a terminal archive extraction failure."""
+
+    request_id: int
+    message: str
+
+
+@dataclass(frozen=True)
 class FileMutationCompleted:
     """Apply a completed rename/create operation."""
 
@@ -619,6 +683,7 @@ Action = (
     | CancelFilterInput
     | BeginRenameInput
     | BeginCreateInput
+    | BeginExtractArchiveInput
     | BeginFileSearch
     | BeginGrepSearch
     | BeginHistorySearch
@@ -666,6 +731,10 @@ Action = (
     | PasteClipboard
     | ResolvePasteConflict
     | CancelPasteConflict
+    | ConfirmDeleteTargets
+    | CancelDeleteConfirmation
+    | ConfirmArchiveExtract
+    | CancelArchiveExtractConfirmation
     | DismissNameConflict
     | DismissAttributeDialog
     | SetFilterQuery
@@ -683,6 +752,11 @@ Action = (
     | ClipboardPasteNeedsResolution
     | ClipboardPasteCompleted
     | ClipboardPasteFailed
+    | ArchivePreparationCompleted
+    | ArchivePreparationFailed
+    | ArchiveExtractProgress
+    | ArchiveExtractCompleted
+    | ArchiveExtractFailed
     | FileMutationCompleted
     | FileMutationFailed
     | ExternalLaunchCompleted

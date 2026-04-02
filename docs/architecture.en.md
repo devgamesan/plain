@@ -136,8 +136,13 @@ sequenceDiagram
 ### `src/peneo/state/command_palette.py`
 
 - Builds command palette candidates and filters them by query
-- The current palette includes `Find file`, `Grep`, `Show attributes`, `Copy path`, `Open in file manager`, `Open terminal here`, `Open/Close split terminal`, `Show/Hide hidden files`, `Edit config`, `Create file`, and `Create directory`
+- The current palette includes `Find file`, `Grep`, `Show attributes`, `Rename`, `Extract archive`, `Copy path`, `Open in file manager`, `Open terminal here`, `Open/Close split terminal`, `Show/Hide hidden files`, `Edit config`, `Create file`, and `Create directory`
 - `Show attributes` appears only for a single target and opens a read-only attribute dialog with `Name`, `Type`, `Path`, `Size`, `Modified`, `Hidden`, and `Permissions`
+- `Extract archive` appears only for a single supported archive (`.zip` / `.tar` / `.tar.gz` / `.tar.bz2`) and reuses the pending input bar to edit the destination path
+  - The input accepts both absolute and relative paths, and relative paths are resolved from the archive file's parent directory
+  - The default value is the absolute path to a same-name directory next to the archive
+  - The reducer performs a preflight scan for destination conflicts and uses the confirm dialog before continuing when conflicts are found
+  - Extraction runs in `BUSY` mode and reports entry-count progress through the status bar
 - `Find file` switches the palette into file-search mode and reuses the same UI to show recursive matches under the current directory
   - Plain input runs a case-insensitive partial basename match
   - `re:`-prefixed input is treated as a Python regex against basenames, and invalid regex patterns are surfaced inline in the palette
@@ -154,6 +159,7 @@ sequenceDiagram
 - `file_search.py`: handles recursive file search under the current directory, interpreting both plain input and `re:` regex input before filtering results according to hidden-file visibility
 - `grep_search.py`: handles recursive content search through `rg`, treating plain input as fixed-string search and `re:` input as regex before applying hidden-file visibility rules
 - `file_mutations.py`: handles rename / create / trash delete
+- `archive_extract.py`: handles preflight archive scans, destination conflict detection, safe extraction with the standard-library `zipfile` / `tarfile` modules, and progress notifications
 - `external_launcher.py`: handles default-app open, editor-in-current-terminal launch, terminal launch, and copying a path to the system clipboard, resolving editors in config -> `$EDITOR` -> built-in order
 - `split_terminal.py`: starts PTY-backed embedded terminal sessions, forwards I/O, and reports exit events
 

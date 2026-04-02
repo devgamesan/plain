@@ -13,12 +13,14 @@ from .actions import (
     BeginGrepSearch,
     BeginHistorySearch,
     BeginRenameInput,
+    CancelArchiveExtractConfirmation,
     CancelCommandPalette,
     CancelDeleteConfirmation,
     CancelFilterInput,
     CancelPasteConflict,
     CancelPendingInput,
     ClearSelection,
+    ConfirmArchiveExtract,
     ConfirmDeleteTargets,
     ConfirmFilterInput,
     CopyTargets,
@@ -177,7 +179,7 @@ def dispatch_key_input(
     if state.ui_mode == "PALETTE":
         return _dispatch_command_palette_input(state, key=key, character=character)
 
-    if state.ui_mode in {"RENAME", "CREATE"}:
+    if state.ui_mode in {"RENAME", "CREATE", "EXTRACT"}:
         return _dispatch_pending_input(state, key=key, character=character)
 
     return _dispatch_browsing_input(state, key)
@@ -196,7 +198,7 @@ def _normalize_input_character(
     if _terminal_has_focus(state):
         return resolved_character
 
-    if state.ui_mode in {"PALETTE", "RENAME", "CREATE"}:
+    if state.ui_mode in {"PALETTE", "RENAME", "CREATE", "EXTRACT"}:
         return resolved_character
 
     if state.ui_mode == "FILTER" and not resolved_character.isspace():
@@ -496,6 +498,13 @@ def _dispatch_confirm_input(state: AppState, key: str) -> DispatchedActions:
         if key == "enter":
             return _supported(ConfirmDeleteTargets())
         return _warn("Use Enter to confirm delete or Esc to cancel")
+
+    if state.archive_extract_confirmation is not None:
+        if key == "escape":
+            return _supported(CancelArchiveExtractConfirmation())
+        if key == "enter":
+            return _supported(ConfirmArchiveExtract())
+        return _warn("Use Enter to continue extraction or Esc to return")
 
     if state.name_conflict is not None:
         if key in {"enter", "escape"}:

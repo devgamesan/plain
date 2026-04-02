@@ -7,6 +7,7 @@ ClipboardOperationMode = Literal["copy", "cut"]
 ConflictResolution = Literal["overwrite", "skip", "rename"]
 CreateKind = Literal["file", "dir"]
 MutationResultLevel = Literal["info", "warning", "error"]
+ArchiveFormat = Literal["zip", "tar", "tar.gz", "tar.bz2"]
 
 
 @dataclass(frozen=True)
@@ -95,6 +96,43 @@ class TrashDeleteRequest:
 
 
 FileMutationRequest = RenameRequest | CreatePathRequest | TrashDeleteRequest
+
+
+@dataclass(frozen=True)
+class ExtractArchiveRequest:
+    """A request to extract a supported archive into a destination directory."""
+
+    source_path: str
+    destination_path: str
+
+
+@dataclass(frozen=True)
+class ExtractArchiveConflict:
+    """A destination path that already exists before extraction begins."""
+
+    archive_path: str
+    destination_path: str
+
+
+@dataclass(frozen=True)
+class ExtractArchivePreparationResult:
+    """Preflight archive scan details returned before extraction begins."""
+
+    request: ExtractArchiveRequest
+    format: ArchiveFormat
+    total_entries: int
+    conflicts: tuple[ExtractArchiveConflict, ...] = ()
+
+
+@dataclass(frozen=True)
+class ExtractArchiveResult:
+    """Completed extraction payload returned from the archive service."""
+
+    destination_path: str
+    extracted_entries: int
+    total_entries: int
+    message: str
+    level: MutationResultLevel = "info"
 
 
 @dataclass(frozen=True)

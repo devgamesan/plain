@@ -6,6 +6,7 @@ from peneo.models import (
     AppConfig,
     CreatePathRequest,
     ExternalLaunchRequest,
+    ExtractArchiveRequest,
     PasteRequest,
     RenameRequest,
     TrashDeleteRequest,
@@ -55,6 +56,22 @@ class RunFileMutationEffect:
 
     request_id: int
     request: RenameRequest | CreatePathRequest | TrashDeleteRequest
+
+
+@dataclass(frozen=True)
+class RunArchivePreparationEffect:
+    """Inspect an archive before extraction begins."""
+
+    request_id: int
+    request: ExtractArchiveRequest
+
+
+@dataclass(frozen=True)
+class RunArchiveExtractEffect:
+    """Execute archive extraction outside the reducer."""
+
+    request_id: int
+    request: ExtractArchiveRequest
 
 
 @dataclass(frozen=True)
@@ -130,6 +147,8 @@ Effect = (
     | RunDirectorySizeEffect
     | RunClipboardPasteEffect
     | RunFileMutationEffect
+    | RunArchivePreparationEffect
+    | RunArchiveExtractEffect
     | RunExternalLaunchEffect
     | RunFileSearchEffect
     | RunGrepSearchEffect

@@ -5,6 +5,8 @@ from peneo.models import (
     BookmarkConfig,
     CreatePathRequest,
     ExternalLaunchRequest,
+    ExtractArchiveRequest,
+    ExtractArchiveResult,
     FileMutationResult,
     PasteConflict,
     PasteRequest,
@@ -14,11 +16,19 @@ from peneo.models import (
 )
 from peneo.state import (
     AddBookmark,
+    ArchiveExtractCompleted,
+    ArchiveExtractConfirmationState,
+    ArchiveExtractFailed,
+    ArchiveExtractProgress,
+    ArchiveExtractProgressState,
+    ArchivePreparationCompleted,
+    ArchivePreparationFailed,
     AttributeInspectionState,
     BeginBookmarkSearch,
     BeginCommandPalette,
     BeginCreateInput,
     BeginDeleteTargets,
+    BeginExtractArchiveInput,
     BeginFileSearch,
     BeginFilterInput,
     BeginGoToPath,
@@ -28,6 +38,7 @@ from peneo.state import (
     BrowserSnapshot,
     BrowserSnapshotFailed,
     BrowserSnapshotLoaded,
+    CancelArchiveExtractConfirmation,
     CancelCommandPalette,
     CancelDeleteConfirmation,
     CancelFilterInput,
@@ -44,6 +55,7 @@ from peneo.state import (
     ConfigEditorState,
     ConfigSaveCompleted,
     ConfigSaveFailed,
+    ConfirmArchiveExtract,
     ConfirmDeleteTargets,
     ConfirmFilterInput,
     CopyTargets,
@@ -94,6 +106,8 @@ from peneo.state import (
     RequestBrowserSnapshot,
     RequestDirectorySizes,
     ResolvePasteConflict,
+    RunArchiveExtractEffect,
+    RunArchivePreparationEffect,
     RunClipboardPasteEffect,
     RunConfigSaveEffect,
     RunDirectorySizeEffect,
@@ -596,6 +610,44 @@ def test_submit_command_palette_runs_create_file_flow() -> None:
         value="",
         create_kind="file",
     )
+
+
+def test_begin_extract_archive_input_sets_default_destination() -> None:
+    next_state = _reduce_state(
+        build_initial_app_state(),
+        BeginExtractArchiveInput("/home/tadashi/develop/peneo/archive.tar.gz"),
+    )
+
+    assert next_state.ui_mode == "EXTRACT"
+    assert next_state.pending_input == PendingInputState(
+        prompt="Extract to: ",
+        value="/home/tadashi/develop/peneo/archive",
+        extract_source_path="/home/tadashi/develop/peneo/archive.tar.gz",
+    )
+
+
+def test_submit_command_palette_begins_extract_archive_flow() -> None:
+    archive_path = "/home/tadashi/develop/peneo/archive.zip"
+    state = replace(
+        build_initial_app_state(),
+        current_pane=replace(
+            build_initial_app_state().current_pane,
+            entries=(
+                DirectoryEntryState(archive_path, "archive.zip", "file"),
+                *build_initial_app_state().current_pane.entries[1:],
+            ),
+            cursor_path=archive_path,
+        ),
+    )
+    state = _reduce_state(state, BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("extract"))
+
+    next_state = _reduce_state(state, SubmitCommandPalette())
+
+    assert next_state.ui_mode == "EXTRACT"
+    assert next_state.pending_input is not None
+    assert next_state.pending_input.value == "/home/tadashi/develop/peneo/archive"
+    assert next_state.pending_input.extract_source_path == archive_path
 
 
 def test_begin_file_search_enters_find_file_mode() -> None:
@@ -2094,6 +2146,273 @@ def test_cancel_delete_confirmation_returns_to_browsing_with_warning() -> None:
 
     assert next_state.ui_mode == "BROWSING"
     assert next_state.notification == NotificationState(level="warning", message="Delete cancelled")
+
+
+def test_submit_pending_extract_starts_archive_preparation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="EXTRACT",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="/tmp/output/archive",
+            extract_source_path="/home/tadashi/develop/peneo/archive.zip",
+        ),
+    )
+
+    result = reduce_app_state(state, SubmitPendingInput())
+
+    assert result.state.pending_archive_prepare_request_id == 1
+    assert result.state.ui_mode == "BUSY"
+    assert result.effects == (
+        RunArchivePreparationEffect(
+            request_id=1,
+            request=ExtractArchiveRequest(
+                source_path="/home/tadashi/develop/peneo/archive.zip",
+                destination_path="/tmp/output/archive",
+            ),
+        ),
+    )
+
+
+def test_submit_pending_extract_resolves_relative_destination_from_archive_parent() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="EXTRACT",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="../exports/archive",
+            extract_source_path="/home/tadashi/develop/peneo/docs/archive.tar.bz2",
+        ),
+    )
+
+    result = reduce_app_state(state, SubmitPendingInput())
+
+    assert result.effects == (
+        RunArchivePreparationEffect(
+            request_id=1,
+            request=ExtractArchiveRequest(
+                source_path="/home/tadashi/develop/peneo/docs/archive.tar.bz2",
+                destination_path="/home/tadashi/develop/peneo/exports/archive",
+            ),
+        ),
+    )
+
+
+def test_archive_preparation_with_conflicts_enters_confirm_mode() -> None:
+    request = ExtractArchiveRequest(
+        source_path="/home/tadashi/develop/peneo/archive.zip",
+        destination_path="/tmp/output/archive",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="/tmp/output/archive",
+            extract_source_path=request.source_path,
+        ),
+        pending_archive_prepare_request_id=4,
+    )
+
+    next_state = _reduce_state(
+        state,
+        ArchivePreparationCompleted(
+            request_id=4,
+            request=request,
+            total_entries=7,
+            conflict_count=2,
+            first_conflict_path="/tmp/output/archive/notes.txt",
+        ),
+    )
+
+    assert next_state.ui_mode == "CONFIRM"
+    assert next_state.pending_archive_prepare_request_id is None
+    assert next_state.archive_extract_confirmation == ArchiveExtractConfirmationState(
+        request=request,
+        conflict_count=2,
+        first_conflict_path="/tmp/output/archive/notes.txt",
+        total_entries=7,
+    )
+
+
+def test_confirm_archive_extract_runs_extract_effect() -> None:
+    request = ExtractArchiveRequest(
+        source_path="/home/tadashi/develop/peneo/archive.zip",
+        destination_path="/tmp/output/archive",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="/tmp/output/archive",
+            extract_source_path=request.source_path,
+        ),
+        archive_extract_confirmation=ArchiveExtractConfirmationState(
+            request=request,
+            conflict_count=1,
+            first_conflict_path="/tmp/output/archive/notes.txt",
+            total_entries=3,
+        ),
+    )
+
+    result = reduce_app_state(state, ConfirmArchiveExtract())
+
+    assert result.state.pending_archive_extract_request_id == 1
+    assert result.effects == (
+        RunArchiveExtractEffect(
+            request_id=1,
+            request=request,
+        ),
+    )
+
+
+def test_cancel_archive_extract_confirmation_returns_to_extract_mode() -> None:
+    request = ExtractArchiveRequest(
+        source_path="/home/tadashi/develop/peneo/archive.zip",
+        destination_path="/tmp/output/archive",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="/tmp/output/archive",
+            extract_source_path=request.source_path,
+        ),
+        archive_extract_confirmation=ArchiveExtractConfirmationState(
+            request=request,
+            conflict_count=1,
+            first_conflict_path="/tmp/output/archive/notes.txt",
+            total_entries=3,
+        ),
+    )
+
+    next_state = _reduce_state(state, CancelArchiveExtractConfirmation())
+
+    assert next_state.ui_mode == "EXTRACT"
+    assert next_state.archive_extract_confirmation is None
+    assert next_state.notification == NotificationState(
+        level="warning",
+        message="Extraction cancelled",
+    )
+
+
+def test_archive_extract_progress_updates_notification() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_archive_extract_request_id=6,
+    )
+
+    next_state = _reduce_state(
+        state,
+        ArchiveExtractProgress(
+            request_id=6,
+            completed_entries=2,
+            total_entries=5,
+            current_path="/tmp/output/archive/notes.txt",
+        ),
+    )
+
+    assert next_state.archive_extract_progress == ArchiveExtractProgressState(
+        completed_entries=2,
+        total_entries=5,
+        current_path="/tmp/output/archive/notes.txt",
+    )
+    assert next_state.notification == NotificationState(
+        level="info",
+        message="Extracting archive 2/5: notes.txt",
+    )
+
+
+def test_archive_extract_completed_requests_snapshot_for_destination_parent() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="/tmp/output/archive",
+            extract_source_path="/home/tadashi/develop/peneo/archive.zip",
+        ),
+        pending_archive_extract_request_id=9,
+    )
+
+    result = reduce_app_state(
+        state,
+        ArchiveExtractCompleted(
+            request_id=9,
+            result=ExtractArchiveResult(
+                destination_path="/tmp/output/archive",
+                extracted_entries=2,
+                total_entries=2,
+                message="Extracted 2 entries to archive",
+            ),
+        ),
+    )
+
+    assert result.state.post_reload_notification == NotificationState(
+        level="info",
+        message="Extracted 2 entries to archive",
+    )
+    assert result.effects == (
+        LoadBrowserSnapshotEffect(
+            request_id=1,
+            path="/tmp/output",
+            cursor_path="/tmp/output/archive",
+            blocking=True,
+        ),
+    )
+
+
+def test_archive_extract_failed_returns_to_extract_mode() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="/tmp/output/archive",
+            extract_source_path="/home/tadashi/develop/peneo/archive.zip",
+        ),
+        pending_archive_extract_request_id=12,
+    )
+
+    next_state = _reduce_state(
+        state,
+        ArchiveExtractFailed(request_id=12, message="Unsupported archive member type: link"),
+    )
+
+    assert next_state.ui_mode == "EXTRACT"
+    assert next_state.pending_archive_extract_request_id is None
+    assert next_state.notification == NotificationState(
+        level="error",
+        message="Unsupported archive member type: link",
+    )
+
+
+def test_archive_preparation_failed_returns_to_extract_mode() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="/tmp/output/archive",
+            extract_source_path="/home/tadashi/develop/peneo/archive.zip",
+        ),
+        pending_archive_prepare_request_id=7,
+    )
+
+    next_state = _reduce_state(
+        state,
+        ArchivePreparationFailed(request_id=7, message="Unsupported archive format: archive.rar"),
+    )
+
+    assert next_state.ui_mode == "EXTRACT"
+    assert next_state.pending_archive_prepare_request_id is None
+    assert next_state.notification == NotificationState(
+        level="error",
+        message="Unsupported archive format: archive.rar",
+    )
 
 
 def test_set_pending_input_value_updates_current_value() -> None:

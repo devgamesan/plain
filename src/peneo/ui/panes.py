@@ -7,6 +7,7 @@ from rich.text import Text
 from textual import events
 from textual.app import ComposeResult
 from textual.containers import Vertical
+from textual.css.query import NoMatches
 from textual.widgets import DataTable, Label, ListItem, ListView
 
 from peneo.models.shell_data import CurrentSummaryState, InputBarState, PaneEntry
@@ -149,7 +150,10 @@ class SidePane(Vertical):
         if render_width <= 0 or render_width == self._last_render_width:
             return
         for item, entry in zip(list_view.children, self._entries, strict=False):
-            item.query_one(Label).update(self._render_label(entry, render_width))
+            try:
+                item.query_one(Label).update(self._render_label(entry, render_width))
+            except NoMatches:
+                continue
         self._last_render_width = render_width
 
     @classmethod

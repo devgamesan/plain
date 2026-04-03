@@ -528,12 +528,12 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     help_state = select_help_bar_state(state)
 
     assert help_state.lines == (
-        "Enter open | e edit | / filter | : palette | ctrl+f find | ctrl+g grep | q quit",
-        "Space select | ctrl+a all | y copy | x cut | p paste | s sort | d dirs | ctrl+t term",
+        "Enter open | e edit | i info | / filter | : palette | ctrl+f find | ctrl+g grep | q quit",
+        "Space select | y copy | x cut | p paste | c path | . hidden | b bookmark | ctrl+t term",
     )
     assert help_state.text == (
-        "Enter open | e edit | / filter | : palette | ctrl+f find | ctrl+g grep | q quit\n"
-        "Space select | ctrl+a all | y copy | x cut | p paste | s sort | d dirs | ctrl+t term"
+        "Enter open | e edit | i info | / filter | : palette | ctrl+f find | ctrl+g grep | q quit\n"
+        "Space select | y copy | x cut | p paste | c path | . hidden | b bookmark | ctrl+t term"
     )
 
 
@@ -694,12 +694,14 @@ def test_select_command_palette_state_uses_hidden_toggle_label_from_state() -> N
 
     assert palette_state is not None
     assert [item.label for item in palette_state.items] == ["Show hidden files"]
+    assert palette_state.items[0].shortcut == "."
 
     visible_state = replace(state, show_hidden=True)
     visible_palette_state = select_command_palette_state(visible_state)
 
     assert visible_palette_state is not None
     assert [item.label for item in visible_palette_state.items] == ["Hide hidden files"]
+    assert visible_palette_state.items[0].shortcut == "."
 
 
 def test_select_command_palette_state_switches_bookmark_command_label() -> None:
@@ -713,6 +715,10 @@ def test_select_command_palette_state_switches_bookmark_command_label() -> None:
 
     assert palette_state is not None
     assert any(item.label == "Bookmark this directory" for item in palette_state.items)
+    assert any(
+        item.label == "Bookmark this directory" and item.shortcut == "B"
+        for item in palette_state.items
+    )
 
     bookmarked_state = build_initial_app_state(
         config=AppConfig(
@@ -730,6 +736,10 @@ def test_select_command_palette_state_switches_bookmark_command_label() -> None:
 
     assert bookmarked_palette_state is not None
     assert any(item.label == "Remove bookmark" for item in bookmarked_palette_state.items)
+    assert any(
+        item.label == "Remove bookmark" and item.shortcut == "B"
+        for item in bookmarked_palette_state.items
+    )
 
 
 def test_select_command_palette_state_disables_select_all_without_visible_entries() -> None:
@@ -795,6 +805,32 @@ def test_select_command_palette_state_shows_extract_archive_for_supported_file()
 
     assert palette_state is not None
     assert [item.label for item in palette_state.items] == ["Extract archive"]
+
+
+def test_select_command_palette_state_shows_single_target_shortcuts() -> None:
+    state = select_command_palette_state(
+        replace(
+            _reduce_state(build_initial_app_state(), BeginCommandPalette()),
+            command_palette=replace(CommandPaletteState(), query="attributes"),
+        )
+    )
+
+    assert state is not None
+    assert [item.label for item in state.items] == ["Show attributes"]
+    assert [item.shortcut for item in state.items] == ["I"]
+
+
+def test_select_command_palette_state_shows_copy_path_shortcut() -> None:
+    state = select_command_palette_state(
+        replace(
+            _reduce_state(build_initial_app_state(), BeginCommandPalette()),
+            command_palette=replace(CommandPaletteState(), query="copy path"),
+        )
+    )
+
+    assert state is not None
+    assert [item.label for item in state.items] == ["Copy path"]
+    assert state.items[0].shortcut == "C"
 
 
 def test_select_command_palette_state_shows_compress_as_zip_for_multiple_targets() -> None:

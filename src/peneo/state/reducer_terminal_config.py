@@ -9,6 +9,7 @@ from .actions import (
     AddBookmark,
     ConfigSaveCompleted,
     ConfigSaveFailed,
+    CopyPathsToClipboard,
     CycleConfigEditorValue,
     DismissConfigEditor,
     ExternalLaunchCompleted,
@@ -49,6 +50,7 @@ from .reducer_common import (
     run_external_launch_request,
     split_terminal_exit_message,
 )
+from .selectors import select_target_paths
 
 
 def handle_terminal_config_action(
@@ -198,6 +200,20 @@ def handle_terminal_config_action(
         return run_external_launch_request(
             replace(state, notification=None),
             ExternalLaunchRequest(kind="open_terminal", path=action.path),
+        )
+
+    if isinstance(action, CopyPathsToClipboard):
+        target_paths = select_target_paths(state)
+        if not target_paths:
+            return done(
+                replace(
+                    state,
+                    notification=NotificationState(level="warning", message="Nothing to copy"),
+                )
+            )
+        return run_external_launch_request(
+            replace(state, notification=None),
+            ExternalLaunchRequest(kind="copy_paths", paths=target_paths),
         )
 
     if isinstance(action, ToggleSplitTerminal):

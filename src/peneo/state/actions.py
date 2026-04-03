@@ -318,6 +318,16 @@ class OpenTerminalAtPath:
 
 
 @dataclass(frozen=True)
+class ShowAttributes:
+    """Open the attribute dialog for the current single target."""
+
+
+@dataclass(frozen=True)
+class CopyPathsToClipboard:
+    """Copy the current target path list to the system clipboard."""
+
+
+@dataclass(frozen=True)
 class AddBookmark:
     """Persist the supplied directory path as a bookmark."""
 
@@ -797,6 +807,8 @@ Action = (
     | OpenPathWithDefaultApp
     | OpenPathInEditor
     | OpenTerminalAtPath
+    | ShowAttributes
+    | CopyPathsToClipboard
     | AddBookmark
     | RemoveBookmark
     | ToggleSplitTerminal

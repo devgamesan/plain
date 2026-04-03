@@ -4,6 +4,7 @@ import string
 
 from .actions import (
     Action,
+    AddBookmark,
     BeginBookmarkSearch,
     BeginCommandPalette,
     BeginDeleteTargets,
@@ -25,6 +26,7 @@ from .actions import (
     ConfirmDeleteTargets,
     ConfirmFilterInput,
     ConfirmZipCompress,
+    CopyPathsToClipboard,
     CopyTargets,
     CutTargets,
     CycleConfigEditorValue,
@@ -47,6 +49,7 @@ from .actions import (
     PasteClipboard,
     PasteFromClipboardToTerminal,
     ReloadDirectory,
+    RemoveBookmark,
     ResolvePasteConflict,
     SaveConfigEditor,
     SelectAllVisibleEntries,
@@ -56,8 +59,10 @@ from .actions import (
     SetNotification,
     SetPendingInputValue,
     SetSort,
+    ShowAttributes,
     SubmitCommandPalette,
     SubmitPendingInput,
+    ToggleHiddenFiles,
     ToggleSelectionAndAdvance,
     ToggleSplitTerminal,
 )
@@ -75,8 +80,10 @@ BROWSING_KEYMAP = {
     "shift+up": "cursor_up_selecting",
     "down": "cursor_down",
     "shift+down": "cursor_down_selecting",
+    "i": "show_attributes",
     "k": "cursor_up",
     "j": "cursor_down",
+    ".": "toggle_hidden",
     "space": "toggle_selection",
     "escape": "clear_selection",
     "/": "begin_filter",
@@ -108,6 +115,8 @@ BROWSING_KEYMAP = {
     "alt+home": "go_to_home_directory",
     "ctrl+o": "begin_history_search",
     "ctrl+b": "begin_bookmark_search",
+    "b": "toggle_bookmark",
+    "c": "copy_paths_to_clipboard",
     "ctrl+j": "begin_go_to_path",
 }
 
@@ -288,11 +297,19 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
     if command == "begin_bookmark_search":
         return _supported(BeginBookmarkSearch())
 
+    if command == "toggle_bookmark":
+        if state.current_path in state.config.bookmarks.paths:
+            return _supported(RemoveBookmark(path=state.current_path))
+        return _supported(AddBookmark(path=state.current_path))
+
     if command == "copy_targets":
         return _supported(CopyTargets(target_paths))
 
     if command == "cut_targets":
         return _supported(CutTargets(target_paths))
+
+    if command == "copy_paths_to_clipboard":
+        return _supported(CopyPathsToClipboard())
 
     if command == "paste_clipboard":
         return _supported(PasteClipboard())
@@ -352,10 +369,16 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
             )
         )
 
+    if command == "toggle_hidden":
+        return _supported(ToggleHiddenFiles())
+
     if command == "delete_targets":
         if not target_paths:
             return _warn("Nothing to delete")
         return _supported(BeginDeleteTargets(target_paths))
+
+    if command == "show_attributes":
+        return _supported(ShowAttributes())
 
     if command == "open_in_editor":
         if cursor_entry is not None and cursor_entry.kind == "file":

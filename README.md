@@ -1,5 +1,11 @@
 # Peneo
 
+![CI](https://github.com/devgamesan/peneo/workflows/Python%20CI/badge.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python](https://img.shields.io/badge/python-3.12+-blue.svg)
+![Release](https://img.shields.io/github/v/release/devgamesan/peneo)
+![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)
+
 [日本語版 README](README.ja.md)
 
 Peneo is a Textual-based TUI file manager for environments where you want to keep working in the terminal while still moving smoothly into GUI applications. Its three-pane layout shows the parent, current, and child directories side by side, aiming to feel closer to a GUI file explorer than to a keyboard-heavy power-user tool. Common actions stay visible in the on-screen help, and files can be opened in the OS default app directly from Peneo.

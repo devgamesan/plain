@@ -139,6 +139,7 @@ class ThreePaneShellData:
     current_entries: tuple[PaneEntry, ...]
     child_entries: tuple[PaneEntry, ...]
     current_cursor_index: int | None
+    current_cursor_visible: bool
     current_summary: CurrentSummaryState
     current_context_input: InputBarState | None
     split_terminal: SplitTerminalViewState
@@ -175,6 +176,7 @@ def build_dummy_shell_data() -> ThreePaneShellData:
             PaneEntry("wireframes", "dir"),
         ),
         current_cursor_index=0,
+        current_cursor_visible=True,
         current_summary=CurrentSummaryState(
             item_count=len(current_entries),
             selected_count=0,

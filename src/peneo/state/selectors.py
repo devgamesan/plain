@@ -65,6 +65,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         ),
         child_entries=_select_child_entries_for_cursor(state, current_pane.cursor_entry),
         current_cursor_index=current_pane.cursor_index,
+        current_cursor_visible=state.ui_mode != "FILTER",
         current_summary=current_pane.summary,
         current_context_input=select_input_bar_state(state),
         split_terminal=select_split_terminal_state(state),

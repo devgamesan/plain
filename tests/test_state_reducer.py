@@ -594,6 +594,17 @@ def test_begin_command_palette_sets_mode_and_empty_query() -> None:
     assert next_state.command_palette.cursor_index == 0
 
 
+def test_begin_command_palette_keeps_current_cursor_path() -> None:
+    state = _reduce_state(
+        build_initial_app_state(),
+        SetCursorPath("/home/tadashi/develop/peneo/tests"),
+    )
+
+    next_state = _reduce_state(state, BeginCommandPalette())
+
+    assert next_state.current_pane.cursor_path == "/home/tadashi/develop/peneo/tests"
+
+
 def test_move_command_palette_cursor_clamps_to_visible_commands() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
 

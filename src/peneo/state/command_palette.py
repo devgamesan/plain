@@ -128,6 +128,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
     has_target = bool(target_paths)
     has_single_target = single_target_entry is not None
     current_path_is_bookmarked = state.current_path in state.config.bookmarks.paths
+    has_visible_entries = _has_visible_current_entries(state)
 
     items = [
         CommandPaletteItem(
@@ -189,6 +190,12 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             label="Toggle split terminal",
             shortcut="Ctrl+T",
             enabled=True,
+        ),
+        CommandPaletteItem(
+            id="select_all",
+            label="Select all",
+            shortcut="Ctrl+A",
+            enabled=has_visible_entries,
         ),
     ]
 
@@ -376,3 +383,15 @@ def _entry_for_path(state: AppState, path: str | None) -> DirectoryEntryState | 
 
 def _active_current_entries(state: AppState) -> tuple[DirectoryEntryState, ...]:
     return state.current_pane.entries
+
+
+def _has_visible_current_entries(state: AppState) -> bool:
+    query = state.filter.query.casefold()
+    filter_is_active = state.filter.active and bool(state.filter.query)
+    for entry in _active_current_entries(state):
+        if entry.hidden and not state.show_hidden:
+            continue
+        if filter_is_active and query not in entry.name.casefold():
+            continue
+        return True
+    return False

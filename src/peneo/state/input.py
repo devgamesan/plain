@@ -48,6 +48,7 @@ from .actions import (
     ReloadDirectory,
     ResolvePasteConflict,
     SaveConfigEditor,
+    SelectAllVisibleEntries,
     SendSplitTerminalInput,
     SetCommandPaletteQuery,
     SetFilterQuery,
@@ -93,6 +94,7 @@ BROWSING_KEYMAP = {
     "ctrl+t": "toggle_split_terminal",
     "ctrl+f": "begin_file_search",
     "ctrl+g": "begin_grep_search",
+    "ctrl+a": "select_all",
     "y": "copy_targets",
     "x": "cut_targets",
     "p": "paste_clipboard",
@@ -253,6 +255,9 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
         if filter_is_active:
             return _supported(CancelFilterInput())
         return _supported(ClearSelection())
+
+    if command == "select_all":
+        return _supported(SelectAllVisibleEntries(visible_paths))
 
     if command == "begin_filter":
         return _supported(BeginFilterInput())

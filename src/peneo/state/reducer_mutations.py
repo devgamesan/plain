@@ -38,6 +38,7 @@ from .actions import (
     PasteClipboard,
     RequestBrowserSnapshot,
     ResolvePasteConflict,
+    SelectAllVisibleEntries,
     SetPendingInputValue,
     SubmitPendingInput,
     ToggleSelection,
@@ -374,6 +375,20 @@ def handle_mutation_action(
             replace(
                 state,
                 current_pane=replace(state.current_pane, selected_paths=frozenset()),
+            )
+        )
+
+    if isinstance(action, SelectAllVisibleEntries):
+        active_entries = active_current_entries(state)
+        selected_paths = normalize_selected_paths(
+            frozenset(action.paths),
+            active_entries,
+        )
+        return done(
+            replace(
+                state,
+                current_pane=replace(state.current_pane, selected_paths=selected_paths),
+                notification=None,
             )
         )
 

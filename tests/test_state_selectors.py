@@ -529,11 +529,11 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
 
     assert help_state.lines == (
         "Enter open | e edit | / filter | : palette | ctrl+f find | ctrl+g grep | q quit",
-        "Space select | y copy | x cut | p paste | s sort | d dirs | ctrl+t term",
+        "Space select | ctrl+a all | y copy | x cut | p paste | s sort | d dirs | ctrl+t term",
     )
     assert help_state.text == (
         "Enter open | e edit | / filter | : palette | ctrl+f find | ctrl+g grep | q quit\n"
-        "Space select | y copy | x cut | p paste | s sort | d dirs | ctrl+t term"
+        "Space select | ctrl+a all | y copy | x cut | p paste | s sort | d dirs | ctrl+t term"
     )
 
 
@@ -730,6 +730,48 @@ def test_select_command_palette_state_switches_bookmark_command_label() -> None:
 
     assert bookmarked_palette_state is not None
     assert any(item.label == "Remove bookmark" for item in bookmarked_palette_state.items)
+
+
+def test_select_command_palette_state_disables_select_all_without_visible_entries() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/peneo",
+            entries=(
+                DirectoryEntryState(
+                    "/home/tadashi/develop/peneo/.env",
+                    ".env",
+                    "file",
+                    hidden=True,
+                ),
+            ),
+            cursor_path=None,
+        ),
+    )
+    palette_state = select_command_palette_state(
+        replace(
+            _reduce_state(state, BeginCommandPalette()),
+            command_palette=replace(CommandPaletteState(), query="select all"),
+        )
+    )
+
+    assert palette_state is not None
+    assert [item.label for item in palette_state.items] == ["Select all"]
+    assert palette_state.items[0].enabled is False
+
+
+def test_select_command_palette_state_enables_select_all_with_visible_entries() -> None:
+    state = select_command_palette_state(
+        replace(
+            _reduce_state(build_initial_app_state(), BeginCommandPalette()),
+            command_palette=replace(CommandPaletteState(), query="select all"),
+        )
+    )
+
+    assert state is not None
+    assert [item.label for item in state.items] == ["Select all"]
+    assert state.items[0].enabled is True
+    assert state.items[0].shortcut == "Ctrl+A"
 
 
 def test_select_command_palette_state_shows_extract_archive_for_supported_file() -> None:

@@ -172,6 +172,7 @@ The main keys are listed below.
 | Normal | `e` | Open the focused file in a terminal editor, using `editor.command` -> `$EDITOR` -> built-in defaults |
 | Normal | `F5` | Reload the current directory |
 | Normal | `Space` | Toggle selection, then move to the next row |
+| Normal | `Ctrl+A` | Select all currently visible entries in the current directory |
 | Normal | `y` | Copy the selected items, or the focused item if nothing is selected |
 | Normal | `x` | Cut the selected items, or the focused item if nothing is selected |
 | Normal | `p` | Paste into the current directory |
@@ -218,6 +219,7 @@ Less frequent actions are grouped in the command palette opened with `:`.
 | `Go to home directory` | Always | Navigates to the home directory. |
 | `Reload directory` | Always | Reloads the current directory. |
 | `Toggle split terminal` | Always | Opens or closes the embedded split terminal. |
+| `Select all` | Current directory has at least one visible entry | Selects every currently visible entry in the current directory, respecting hidden-file visibility and any active filter. |
 | `Rename` | Exactly one target is selected or focused | Starts rename input for a single target. |
 | `Compress as zip` | At least one target is selected or focused | Starts zip compression for the selected items, or the focused item when nothing is selected. The destination input accepts absolute and relative paths resolved from the current directory, defaults to a `.zip` path next to the selected content, and asks for confirmation before overwriting an existing zip file. |
 | `Extract archive` | Exactly one supported archive file is selected or focused | Starts archive extraction for `.zip`, `.tar`, `.tar.gz`, or `.tar.bz2`. The destination input accepts absolute and relative paths. Relative paths are resolved from the archive file's parent directory, and the default value is a same-name directory next to the archive. Existing destination paths are confirmed before extraction, and the status bar shows entry-count progress while the extraction runs. |

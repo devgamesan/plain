@@ -123,6 +123,7 @@ from peneo.state import (
     RunZipCompressEffect,
     RunZipCompressPreparationEffect,
     SaveConfigEditor,
+    SelectAllVisibleEntries,
     SendSplitTerminalInput,
     SetCommandPaletteQuery,
     SetCursorPath,
@@ -1626,6 +1627,83 @@ def test_submit_command_palette_uses_selected_paths_for_copy_path() -> None:
                 ),
             ),
         ),
+    )
+
+
+def test_submit_command_palette_select_all_uses_visible_entries() -> None:
+    initial_state = build_initial_app_state()
+    state = replace(
+        initial_state,
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/peneo",
+            entries=(
+                DirectoryEntryState(
+                    "/home/tadashi/develop/peneo/.env",
+                    ".env",
+                    "file",
+                    hidden=True,
+                ),
+                DirectoryEntryState("/home/tadashi/develop/peneo/docs", "docs", "dir"),
+                DirectoryEntryState("/home/tadashi/develop/peneo/src", "src", "dir"),
+            ),
+            cursor_path="/home/tadashi/develop/peneo/docs",
+        ),
+        filter=replace(initial_state.filter, query="s", active=True),
+    )
+    state = _reduce_state(state, BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("select all"))
+
+    next_state = _reduce_state(state, SubmitCommandPalette())
+
+    assert next_state.current_pane.selected_paths == frozenset(
+        {
+            "/home/tadashi/develop/peneo/docs",
+            "/home/tadashi/develop/peneo/src",
+        }
+    )
+
+
+def test_select_all_visible_entries_replaces_selection_with_visible_paths() -> None:
+    initial_state = build_initial_app_state()
+    state = replace(
+        initial_state,
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/peneo",
+            entries=(
+                DirectoryEntryState(
+                    "/home/tadashi/develop/peneo/.env",
+                    ".env",
+                    "file",
+                    hidden=True,
+                ),
+                DirectoryEntryState("/home/tadashi/develop/peneo/docs", "docs", "dir"),
+                DirectoryEntryState("/home/tadashi/develop/peneo/src", "src", "dir"),
+            ),
+            cursor_path="/home/tadashi/develop/peneo/docs",
+            selected_paths=frozenset(
+                {
+                    "/home/tadashi/develop/peneo/.env",
+                    "/home/tadashi/develop/peneo/docs",
+                }
+            ),
+        ),
+    )
+
+    next_state = _reduce_state(
+        state,
+        SelectAllVisibleEntries(
+            (
+                "/home/tadashi/develop/peneo/docs",
+                "/home/tadashi/develop/peneo/src",
+            )
+        ),
+    )
+
+    assert next_state.current_pane.selected_paths == frozenset(
+        {
+            "/home/tadashi/develop/peneo/docs",
+            "/home/tadashi/develop/peneo/src",
+        }
     )
 
 

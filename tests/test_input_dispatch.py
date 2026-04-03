@@ -46,6 +46,7 @@ from peneo.state import (
     ReloadDirectory,
     ResolvePasteConflict,
     SaveConfigEditor,
+    SelectAllVisibleEntries,
     SendSplitTerminalInput,
     SetCommandPaletteQuery,
     SetFilterQuery,
@@ -102,6 +103,7 @@ def test_iter_bound_keys_includes_printable_text_input_keys() -> None:
     assert "/" in keys
     assert ":" in keys
     assert "space" in keys
+    assert "ctrl+a" in keys
     assert "ctrl+g" in keys
     assert "ctrl+b" in keys
     assert "enter" in keys
@@ -662,6 +664,25 @@ def test_browsing_delete_warns_when_no_target_exists() -> None:
 
     assert actions == (
         SetNotification(NotificationState(level="warning", message="Nothing to delete")),
+    )
+
+
+def test_browsing_ctrl_a_selects_all_visible_entries() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="ctrl+a")
+
+    assert actions == (
+        SetNotification(None),
+        SelectAllVisibleEntries(
+            (
+                "/home/tadashi/develop/peneo/docs",
+                "/home/tadashi/develop/peneo/src",
+                "/home/tadashi/develop/peneo/tests",
+                "/home/tadashi/develop/peneo/pyproject.toml",
+                "/home/tadashi/develop/peneo/README.md",
+            )
+        ),
     )
 
 

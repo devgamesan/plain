@@ -36,6 +36,7 @@ from .actions import (
     ReloadDirectory,
     RemoveBookmark,
     RequestBrowserSnapshot,
+    SelectAllVisibleEntries,
     SetCommandPaletteQuery,
     SubmitCommandPalette,
     ToggleHiddenFiles,
@@ -60,7 +61,7 @@ from .reducer_common import (
     single_target_entry,
     single_target_path,
 )
-from .selectors import select_target_paths
+from .selectors import select_target_paths, select_visible_current_entry_states
 
 
 def _notify(
@@ -474,6 +475,8 @@ def _run_palette_command_item(
         return _run_reload_directory_command(next_state, reduce_state)
     if item_id == "toggle_split_terminal":
         return _run_toggle_split_terminal_command(next_state, reduce_state)
+    if item_id == "select_all":
+        return _run_select_all_command(next_state, reduce_state)
     if item_id == "show_attributes":
         return _run_show_attributes_command(state)
     if item_id == "copy_path":
@@ -575,6 +578,14 @@ def _run_toggle_split_terminal_command(
     reduce_state: ReducerFn,
 ) -> ReduceResult:
     return reduce_state(state, ToggleSplitTerminal())
+
+
+def _run_select_all_command(
+    state: AppState,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    visible_paths = tuple(entry.path for entry in select_visible_current_entry_states(state))
+    return reduce_state(state, SelectAllVisibleEntries(visible_paths))
 
 
 def _run_show_attributes_command(state: AppState) -> ReduceResult:

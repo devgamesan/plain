@@ -368,6 +368,13 @@ class ClearSelection:
 
 
 @dataclass(frozen=True)
+class SelectAllVisibleEntries:
+    """Select every currently visible entry in the current pane."""
+
+    paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class CopyTargets:
     """Copy the current selection or cursor target into the clipboard."""
 
@@ -790,6 +797,7 @@ Action = (
     | ToggleSelection
     | ToggleSelectionAndAdvance
     | ClearSelection
+    | SelectAllVisibleEntries
     | CopyTargets
     | CutTargets
     | PasteClipboard

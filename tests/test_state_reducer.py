@@ -63,6 +63,7 @@ from peneo.state import (
     ConfirmDeleteTargets,
     ConfirmFilterInput,
     ConfirmZipCompress,
+    CopyPathsToClipboard,
     CopyTargets,
     CutTargets,
     CycleConfigEditorValue,
@@ -133,6 +134,7 @@ from peneo.state import (
     SetSort,
     SetTerminalHeight,
     SetUiMode,
+    ShowAttributes,
     SplitTerminalExited,
     SplitTerminalOutputReceived,
     SplitTerminalStarted,
@@ -1321,6 +1323,60 @@ def test_submit_command_palette_adds_current_directory_bookmark() -> None:
             path="/tmp/peneo/config.toml",
             config=AppConfig(
                 bookmarks=BookmarkConfig(paths=("/home/tadashi/develop/peneo",))
+            ),
+        ),
+    )
+
+
+def test_show_attributes_enters_detail_mode_for_single_target() -> None:
+    state = build_initial_app_state()
+
+    result = reduce_app_state(state, ShowAttributes())
+
+    assert result.state.ui_mode == "DETAIL"
+    assert result.state.attribute_inspection == AttributeInspectionState(
+        name="docs",
+        kind="dir",
+        path="/home/tadashi/develop/peneo/docs",
+        size_bytes=None,
+        modified_at=state.current_pane.entries[0].modified_at,
+        hidden=False,
+        permissions_mode=state.current_pane.entries[0].permissions_mode,
+    )
+
+
+def test_show_attributes_warns_without_single_target() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=replace(
+            build_initial_app_state().current_pane,
+            selected_paths=frozenset(
+                {
+                    "/home/tadashi/develop/peneo/docs",
+                    "/home/tadashi/develop/peneo/src",
+                }
+            ),
+        ),
+    )
+
+    next_state = _reduce_state(state, ShowAttributes())
+
+    assert next_state.notification == NotificationState(
+        level="warning",
+        message="Show attributes requires a single target",
+    )
+
+
+def test_copy_paths_to_clipboard_emits_external_launch_effect() -> None:
+    result = reduce_app_state(build_initial_app_state(), CopyPathsToClipboard())
+
+    assert result.state.next_request_id == 2
+    assert result.effects == (
+        RunExternalLaunchEffect(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="copy_paths",
+                paths=("/home/tadashi/develop/peneo/docs",),
             ),
         ),
     )

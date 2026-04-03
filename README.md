@@ -171,14 +171,18 @@ The main keys are listed below.
 | Normal | `Ctrl+B` | Open the bookmark list and jump to a selected directory |
 | Normal | `Enter` | Enter a directory, or open a file with the default app |
 | Normal | `e` | Open the focused file in a terminal editor, using `editor.command` -> `$EDITOR` -> built-in defaults |
+| Normal | `i` | Show attributes for the selected item, or the focused item if nothing is selected |
 | Normal | `F5` | Reload the current directory |
 | Normal | `Space` | Toggle selection, then move to the next row |
 | Normal | `Ctrl+A` | Select all currently visible entries in the current directory |
 | Normal | `y` | Copy the selected items, or the focused item if nothing is selected |
 | Normal | `x` | Cut the selected items, or the focused item if nothing is selected |
 | Normal | `p` | Paste into the current directory |
+| Normal | `c` | Copy the selected path list, or the focused path when nothing is selected, to the system clipboard |
 | Normal | `Delete` | Move the selected items, or the focused item, to trash (confirmation is enabled by default and can be configured) |
 | Normal | `F2` | Start rename input for a single target |
+| Normal | `b` | Add or remove the current directory from bookmarks |
+| Normal | `.` | Toggle hidden-file visibility |
 | Normal | `/` | Start filter input |
 | Normal | `s` | Cycle the sort order |
 | Normal | `d` | Toggle directories-first ordering |
@@ -221,16 +225,17 @@ Less frequent actions are grouped in the command palette opened with `:`.
 | `Reload directory` | Always | Reloads the current directory. |
 | `Toggle split terminal` | Always | Opens or closes the embedded split terminal. |
 | `Select all` | Current directory has at least one visible entry | Selects every currently visible entry in the current directory, respecting hidden-file visibility and any active filter. |
+| `Show attributes` | Exactly one target is selected or focused | Opens the read-only attribute dialog for the selected item. Also available with `i`. |
 | `Rename` | Exactly one target is selected or focused | Starts rename input for a single target. |
 | `Compress as zip` | At least one target is selected or focused | Starts zip compression for the selected items, or the focused item when nothing is selected. The destination input accepts absolute and relative paths resolved from the current directory, defaults to a `.zip` path next to the selected content, and asks for confirmation before overwriting an existing zip file. |
 | `Extract archive` | Exactly one supported archive file is selected or focused | Starts archive extraction for `.zip`, `.tar`, `.tar.gz`, or `.tar.bz2`. The destination input accepts absolute and relative paths. Relative paths are resolved from the archive file's parent directory, and the default value is a same-name directory next to the archive. Existing destination paths are confirmed before extraction, and the status bar shows entry-count progress while the extraction runs. |
 | `Open in editor` | Exactly one file is selected or focused | Opens the focused file in a terminal editor, using `editor.command` -> `$EDITOR` -> built-in defaults. |
-| `Copy path` | At least one target is selected or focused | Copies the selected path list, or the focused path when nothing is selected, to the system clipboard. |
+| `Copy path` | At least one target is selected or focused | Copies the selected path list, or the focused path when nothing is selected, to the system clipboard. Also available with `c`. |
 | `Move to trash` | At least one target is selected or focused | Moves the selected items, or the focused item, to trash (confirmation is enabled by default and can be configured). |
 | `Open in file manager` | Always | Opens the current directory in the OS file manager. |
 | `Open terminal` | Always | Launches an external terminal rooted at the current directory, using `config.toml` templates before built-in fallbacks. |
-| `Bookmark this directory` / `Remove bookmark` | Always | Saves or removes the current directory in `[bookmarks].paths`. The label reflects whether the current directory is already bookmarked. |
-| `Show hidden files` / `Hide hidden files` | Always | Toggles hidden-file visibility for the browser panes. The label reflects the current visibility state. |
+| `Bookmark this directory` / `Remove bookmark` | Always | Saves or removes the current directory in `[bookmarks].paths`. The label reflects whether the current directory is already bookmarked. Also available with `b`. |
+| `Show hidden files` / `Hide hidden files` | Always | Toggles hidden-file visibility for the browser panes. The label reflects the current visibility state. Also available with `.`. |
 | `Edit config` | Always | Opens the settings overlay for startup defaults. You can edit the preferred terminal editor, hidden-file visibility, directory-size visibility, theme, sorting, default paste-conflict behavior, and delete confirmation. Use `↑` / `↓` to move, `←` / `→` / `Enter` to change values, `s` to save `config.toml`, and `e` to open the raw config file in a terminal editor. |
 | `Create file` | Always | Starts the inline create-file flow in the current directory. |
 | `Create directory` | Always | Starts the inline create-directory flow in the current directory. |

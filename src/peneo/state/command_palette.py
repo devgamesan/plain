@@ -204,7 +204,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="show_attributes",
                 label="Show attributes",
-                shortcut=None,
+                shortcut="I",
                 enabled=True,
             )
         )
@@ -256,7 +256,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="copy_path",
                 label="Copy path",
-                shortcut=None,
+                shortcut="C",
                 enabled=True,
             )
         )
@@ -290,13 +290,13 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                     if current_path_is_bookmarked
                     else "Bookmark this directory"
                 ),
-                shortcut=None,
+                shortcut="B",
                 enabled=True,
             ),
             CommandPaletteItem(
                 id="toggle_hidden",
                 label=_hidden_files_label(state),
-                shortcut=None,
+                shortcut=".",
                 enabled=True,
             ),
             CommandPaletteItem(

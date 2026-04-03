@@ -4,7 +4,6 @@ from dataclasses import replace
 from pathlib import Path
 
 from peneo.archive_utils import is_supported_archive_path
-from peneo.models import ExternalLaunchRequest
 
 from .actions import (
     Action,
@@ -21,6 +20,7 @@ from .actions import (
     BeginRenameInput,
     BeginZipCompressInput,
     CancelCommandPalette,
+    CopyPathsToClipboard,
     DismissAttributeDialog,
     FileSearchCompleted,
     FileSearchFailed,
@@ -38,6 +38,7 @@ from .actions import (
     RequestBrowserSnapshot,
     SelectAllVisibleEntries,
     SetCommandPaletteQuery,
+    ShowAttributes,
     SubmitCommandPalette,
     ToggleHiddenFiles,
     ToggleSplitTerminal,
@@ -57,7 +58,6 @@ from .reducer_common import (
     expand_and_validate_path,
     filter_file_search_results,
     is_regex_file_search_query,
-    run_external_launch_request,
     single_target_entry,
     single_target_path,
 )
@@ -478,9 +478,9 @@ def _run_palette_command_item(
     if item_id == "select_all":
         return _run_select_all_command(next_state, reduce_state)
     if item_id == "show_attributes":
-        return _run_show_attributes_command(state)
+        return reduce_state(next_state, ShowAttributes())
     if item_id == "copy_path":
-        return _run_copy_path_command(state, next_state)
+        return _run_copy_path_command(next_state, reduce_state)
     if item_id == "rename":
         return _run_rename_command(state, next_state, reduce_state)
     if item_id == "compress_as_zip":
@@ -619,17 +619,10 @@ def _run_show_attributes_command(state: AppState) -> ReduceResult:
 
 
 def _run_copy_path_command(
-    state: AppState,
     next_state: AppState,
+    reduce_state: ReducerFn,
 ) -> ReduceResult:
-    target_paths = select_target_paths(state)
-    if not target_paths:
-        return _notify(state, level="warning", message="Nothing to copy")
-
-    return run_external_launch_request(
-        next_state,
-        ExternalLaunchRequest(kind="copy_paths", paths=target_paths),
-    )
+    return reduce_state(next_state, CopyPathsToClipboard())
 
 
 def _run_rename_command(
@@ -955,6 +948,9 @@ def handle_palette_action(
                 attribute_inspection=None,
             )
         )
+
+    if isinstance(action, ShowAttributes):
+        return _run_show_attributes_command(state)
 
     if isinstance(action, MoveCommandPaletteCursor):
         return _handle_move_palette_cursor(state, action)

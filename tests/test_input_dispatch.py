@@ -1,7 +1,8 @@
 from dataclasses import replace
 
-from peneo.models import CreateZipArchiveRequest
+from peneo.models import AppConfig, BookmarkConfig, CreateZipArchiveRequest
 from peneo.state import (
+    AddBookmark,
     BeginBookmarkSearch,
     BeginCommandPalette,
     BeginDeleteTargets,
@@ -20,6 +21,7 @@ from peneo.state import (
     ConfirmDeleteTargets,
     ConfirmFilterInput,
     ConfirmZipCompress,
+    CopyPathsToClipboard,
     CopyTargets,
     CutTargets,
     CycleConfigEditorValue,
@@ -45,6 +47,7 @@ from peneo.state import (
     PasteClipboard,
     PendingInputState,
     ReloadDirectory,
+    RemoveBookmark,
     ResolvePasteConflict,
     SaveConfigEditor,
     SelectAllVisibleEntries,
@@ -54,8 +57,10 @@ from peneo.state import (
     SetNotification,
     SetPendingInputValue,
     SetSort,
+    ShowAttributes,
     SubmitCommandPalette,
     SubmitPendingInput,
+    ToggleHiddenFiles,
     ToggleSelectionAndAdvance,
     ToggleSplitTerminal,
     ZipCompressConfirmationState,
@@ -107,6 +112,7 @@ def test_iter_bound_keys_includes_printable_text_input_keys() -> None:
     assert "ctrl+a" in keys
     assert "ctrl+g" in keys
     assert "ctrl+b" in keys
+    assert "." in keys
     assert "enter" in keys
     assert "shift+up" in keys
     assert "shift+down" in keys
@@ -289,6 +295,30 @@ def test_browsing_ctrl_b_begins_bookmark_search() -> None:
     assert isinstance(actions[1], BeginBookmarkSearch)
 
 
+def test_browsing_b_adds_bookmark_for_current_directory() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="b", character="b")
+
+    assert actions == (
+        SetNotification(None),
+        AddBookmark(path="/home/tadashi/develop/peneo"),
+    )
+
+
+def test_browsing_b_removes_bookmark_for_current_directory() -> None:
+    state = build_initial_app_state(
+        config=AppConfig(bookmarks=BookmarkConfig(paths=("/home/tadashi/develop/peneo",)))
+    )
+
+    actions = dispatch_key_input(state, key="b", character="b")
+
+    assert actions == (
+        SetNotification(None),
+        RemoveBookmark(path="/home/tadashi/develop/peneo"),
+    )
+
+
 def test_filter_q_updates_query_instead_of_exiting() -> None:
     state = build_initial_app_state()
     state = replace(
@@ -344,6 +374,30 @@ def test_browsing_p_dispatches_paste_clipboard() -> None:
     actions = dispatch_key_input(state, key="p", character="p")
 
     assert actions == (SetNotification(None), PasteClipboard())
+
+
+def test_browsing_c_dispatches_copy_paths_to_clipboard() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="c", character="c")
+
+    assert actions == (SetNotification(None), CopyPathsToClipboard())
+
+
+def test_browsing_i_dispatches_show_attributes() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="i", character="i")
+
+    assert actions == (SetNotification(None), ShowAttributes())
+
+
+def test_browsing_dot_toggles_hidden_files() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key=".", character=".")
+
+    assert actions == (SetNotification(None), ToggleHiddenFiles())
 
 
 def test_browsing_h_goes_to_parent_directory() -> None:

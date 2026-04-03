@@ -45,8 +45,10 @@ from peneo.services import (
     LiveFileSearchService,
     LiveGrepSearchService,
     LiveSplitTerminalService,
+    LiveZipCompressService,
     SplitTerminalService,
     SplitTerminalSession,
+    ZipCompressService,
     resolve_config_path,
 )
 from peneo.state import (
@@ -322,6 +324,7 @@ class PeneoApp(App[None]):
         directory_size_service: DirectorySizeService | None = None,
         file_mutation_service: FileMutationService | None = None,
         archive_extract_service: ArchiveExtractService | None = None,
+        zip_compress_service: ZipCompressService | None = None,
         external_launch_service: ExternalLaunchService | None = None,
         file_search_service: FileSearchService | None = None,
         grep_search_service: GrepSearchService | None = None,
@@ -352,6 +355,7 @@ class PeneoApp(App[None]):
         self._directory_size_service = directory_size_service or LiveDirectorySizeService()
         self._file_mutation_service = file_mutation_service or LiveFileMutationService()
         self._archive_extract_service = archive_extract_service or LiveArchiveExtractService()
+        self._zip_compress_service = zip_compress_service or LiveZipCompressService()
         self._uses_live_external_launch_service = external_launch_service is None
         self._external_launch_service = (
             external_launch_service or self._build_external_launch_service(self._app_config)
@@ -547,6 +551,7 @@ def create_app(
     directory_size_service: DirectorySizeService | None = None,
     file_mutation_service: FileMutationService | None = None,
     archive_extract_service: ArchiveExtractService | None = None,
+    zip_compress_service: ZipCompressService | None = None,
     external_launch_service: ExternalLaunchService | None = None,
     file_search_service: FileSearchService | None = None,
     grep_search_service: GrepSearchService | None = None,
@@ -566,6 +571,7 @@ def create_app(
         directory_size_service=directory_size_service,
         file_mutation_service=file_mutation_service,
         archive_extract_service=archive_extract_service,
+        zip_compress_service=zip_compress_service,
         external_launch_service=external_launch_service,
         file_search_service=file_search_service,
         grep_search_service=grep_search_service,

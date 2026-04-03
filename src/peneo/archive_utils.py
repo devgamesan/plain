@@ -54,3 +54,32 @@ def resolve_extract_destination_input(source_path: str | Path, value: str) -> st
     if not destination.is_absolute():
         destination = source.parent / destination
     return str(destination.resolve(strict=False))
+
+
+def default_zip_destination(
+    source_paths: tuple[str, ...],
+    root_dir: str | Path,
+) -> str:
+    """Return the default destination path for zip compression."""
+
+    root = Path(root_dir).expanduser().resolve()
+    if len(source_paths) == 1:
+        target = Path(source_paths[0]).expanduser().resolve()
+        stripped_name = strip_archive_suffix(target.name)
+        stripped_path = Path(stripped_name)
+        base_name = stripped_path.stem if stripped_path.suffix else stripped_name
+        if not base_name:
+            base_name = "archive"
+    else:
+        base_name = root.name or "archive"
+    return str((root / f"{base_name}.zip").resolve(strict=False))
+
+
+def resolve_zip_destination_input(root_dir: str | Path, value: str) -> str:
+    """Resolve an absolute or relative zip destination input."""
+
+    root = Path(root_dir).expanduser().resolve()
+    destination = Path(value).expanduser()
+    if not destination.is_absolute():
+        destination = root / destination
+    return str(destination.resolve(strict=False))

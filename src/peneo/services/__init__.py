@@ -2,9 +2,11 @@
 
 from peneo.archive_utils import (
     default_extract_destination,
+    default_zip_destination,
     detect_archive_format,
     is_supported_archive_path,
     resolve_extract_destination_input,
+    resolve_zip_destination_input,
 )
 
 from .archive_extract import (
@@ -64,6 +66,11 @@ from .split_terminal import (
     SplitTerminalService,
     SplitTerminalSession,
 )
+from .zip_compress import (
+    FakeZipCompressService,
+    LiveZipCompressService,
+    ZipCompressService,
+)
 
 __all__ = [
     "AppConfigLoader",
@@ -71,8 +78,10 @@ __all__ = [
     "BrowserSnapshotLoader",
     "ClipboardOperationService",
     "ConfigSaveService",
+    "default_zip_destination",
     "DirectorySizeService",
     "ExternalLaunchService",
+    "FakeZipCompressService",
     "FileSearchService",
     "GrepSearchService",
     "FakeArchiveExtractService",
@@ -96,6 +105,7 @@ __all__ = [
     "LiveBrowserSnapshotLoader",
     "LiveConfigSaveService",
     "LiveSplitTerminalService",
+    "LiveZipCompressService",
     "FakeSplitTerminalService",
     "SplitTerminalService",
     "SplitTerminalSession",
@@ -106,5 +116,7 @@ __all__ = [
     "render_app_config",
     "resolve_extract_destination_input",
     "resolve_config_path",
+    "resolve_zip_destination_input",
     "snapshot_from_app_state",
+    "ZipCompressService",
 ]

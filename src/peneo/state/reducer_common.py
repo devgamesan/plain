@@ -4,9 +4,11 @@ from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
+from peneo.archive_utils import resolve_zip_destination_input
 from peneo.models import (
     AppConfig,
     CreatePathRequest,
+    CreateZipArchiveRequest,
     ExternalLaunchRequest,
     ExtractArchiveRequest,
     FileMutationResult,
@@ -27,6 +29,8 @@ from .effects import (
     RunClipboardPasteEffect,
     RunExternalLaunchEffect,
     RunFileMutationEffect,
+    RunZipCompressEffect,
+    RunZipCompressPreparationEffect,
 )
 from .models import (
     AppState,
@@ -196,6 +200,49 @@ def run_archive_extract_request(
     )
 
 
+def run_zip_compress_prepare_request(
+    state: AppState,
+    request: CreateZipArchiveRequest,
+) -> ReduceResult:
+    request_id = state.next_request_id
+    next_state = replace(
+        state,
+        notification=NotificationState(level="info", message="Preparing zip compression"),
+        delete_confirmation=None,
+        archive_extract_confirmation=None,
+        archive_extract_progress=None,
+        zip_compress_confirmation=None,
+        zip_compress_progress=None,
+        pending_zip_compress_prepare_request_id=request_id,
+        next_request_id=request_id + 1,
+        ui_mode="BUSY",
+    )
+    return ReduceResult(
+        state=next_state,
+        effects=(RunZipCompressPreparationEffect(request_id=request_id, request=request),),
+    )
+
+
+def run_zip_compress_request(
+    state: AppState,
+    request: CreateZipArchiveRequest,
+) -> ReduceResult:
+    request_id = state.next_request_id
+    next_state = replace(
+        state,
+        notification=NotificationState(level="info", message="Compressing as zip..."),
+        zip_compress_confirmation=None,
+        zip_compress_progress=None,
+        pending_zip_compress_request_id=request_id,
+        next_request_id=request_id + 1,
+        ui_mode="BUSY",
+    )
+    return ReduceResult(
+        state=next_state,
+        effects=(RunZipCompressEffect(request_id=request_id, request=request),),
+    )
+
+
 def cursor_path_after_file_mutation(
     state: AppState,
     result: FileMutationResult,
@@ -226,6 +273,8 @@ def restore_ui_mode_after_pending_input(state: AppState) -> str:
         return "BROWSING"
     if state.pending_input.extract_source_path is not None:
         return "EXTRACT"
+    if state.pending_input.zip_source_paths is not None:
+        return "ZIP"
     if state.pending_input.create_kind is not None:
         return "CREATE"
     return "RENAME"
@@ -574,6 +623,27 @@ def validate_pending_input(state: AppState) -> str | None:
             return "Destination path must be a directory"
         return None
 
+    if state.pending_input.zip_source_paths is not None:
+        destination = state.pending_input.value.strip()
+        if not destination:
+            return "Destination path cannot be empty"
+        resolved_destination = Path(
+            resolve_zip_destination_input(state.current_pane.directory_path, destination)
+        )
+        if resolved_destination.suffix.casefold() != ".zip":
+            return "Destination path must end with .zip"
+        if resolved_destination.exists() and resolved_destination.is_dir():
+            return "Destination path already exists as a directory"
+
+        for source_path_str in state.pending_input.zip_source_paths:
+            source_path = Path(source_path_str).expanduser().resolve()
+            if resolved_destination == source_path:
+                return "Destination path cannot be one of the source paths"
+            if source_path.is_dir() and not source_path.is_symlink():
+                if resolved_destination.is_relative_to(source_path):
+                    return "Destination path cannot be inside a directory being compressed"
+        return None
+
     name = state.pending_input.value
     if not name:
         return "Name cannot be empty"
@@ -645,6 +715,24 @@ def build_extract_archive_request(state: AppState) -> ExtractArchiveRequest | No
     )
 
 
+def build_zip_compress_request(state: AppState) -> CreateZipArchiveRequest | None:
+    if state.pending_input is None or state.pending_input.zip_source_paths is None:
+        return None
+
+    destination = state.pending_input.value.strip()
+    if not destination:
+        return None
+
+    return CreateZipArchiveRequest(
+        source_paths=state.pending_input.zip_source_paths,
+        destination_path=resolve_zip_destination_input(
+            state.current_pane.directory_path,
+            destination,
+        ),
+        root_dir=state.current_pane.directory_path,
+    )
+
+
 def pending_input_parent_and_target(state: AppState) -> tuple[str | None, str | None]:
     if state.pending_input is None:
         return (None, None)
@@ -656,6 +744,8 @@ def pending_input_parent_and_target(state: AppState) -> tuple[str | None, str | 
     if state.ui_mode == "EXTRACT" and state.pending_input.extract_source_path is not None:
         source_path = Path(state.pending_input.extract_source_path)
         return (str(source_path.parent), None)
+    if state.ui_mode == "ZIP" and state.pending_input.zip_source_paths is not None:
+        return (state.current_pane.directory_path, None)
     return (None, None)
 
 

@@ -19,10 +19,12 @@ from .actions import (
     CancelFilterInput,
     CancelPasteConflict,
     CancelPendingInput,
+    CancelZipCompressConfirmation,
     ClearSelection,
     ConfirmArchiveExtract,
     ConfirmDeleteTargets,
     ConfirmFilterInput,
+    ConfirmZipCompress,
     CopyTargets,
     CutTargets,
     CycleConfigEditorValue,
@@ -505,6 +507,13 @@ def _dispatch_confirm_input(state: AppState, key: str) -> DispatchedActions:
         if key == "enter":
             return _supported(ConfirmArchiveExtract())
         return _warn("Use Enter to continue extraction or Esc to return")
+
+    if state.zip_compress_confirmation is not None:
+        if key == "escape":
+            return _supported(CancelZipCompressConfirmation())
+        if key == "enter":
+            return _supported(ConfirmZipCompress())
+        return _warn("Use Enter to overwrite the zip or Esc to return")
 
     if state.name_conflict is not None:
         if key in {"enter", "escape"}:

@@ -7,6 +7,8 @@ from peneo.models import (
     AppConfig,
     ConflictResolution,
     CreateKind,
+    CreateZipArchiveRequest,
+    CreateZipArchiveResult,
     ExternalLaunchRequest,
     ExtractArchiveRequest,
     ExtractArchiveResult,
@@ -84,6 +86,13 @@ class BeginExtractArchiveInput:
     """Enter extract input mode for a supported archive."""
 
     source_path: str
+
+
+@dataclass(frozen=True)
+class BeginZipCompressInput:
+    """Enter zip-compression input mode for one or more paths."""
+
+    source_paths: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -410,6 +419,16 @@ class CancelArchiveExtractConfirmation:
 
 
 @dataclass(frozen=True)
+class ConfirmZipCompress:
+    """Confirm the pending zip compression request."""
+
+
+@dataclass(frozen=True)
+class CancelZipCompressConfirmation:
+    """Return from zip-compression confirmation to input editing."""
+
+
+@dataclass(frozen=True)
 class DismissNameConflict:
     """Dismiss the pending rename/create conflict dialog."""
 
@@ -587,6 +606,50 @@ class ArchiveExtractFailed:
 
 
 @dataclass(frozen=True)
+class ZipCompressPreparationCompleted:
+    """Apply preflight zip-compression details before execution begins."""
+
+    request_id: int
+    request: CreateZipArchiveRequest
+    total_entries: int
+    destination_exists: bool = False
+
+
+@dataclass(frozen=True)
+class ZipCompressPreparationFailed:
+    """Apply a terminal zip-compression preparation failure."""
+
+    request_id: int
+    message: str
+
+
+@dataclass(frozen=True)
+class ZipCompressProgress:
+    """Apply zip-compression progress updates."""
+
+    request_id: int
+    completed_entries: int
+    total_entries: int
+    current_path: str | None = None
+
+
+@dataclass(frozen=True)
+class ZipCompressCompleted:
+    """Apply the completed zip-compression result."""
+
+    request_id: int
+    result: CreateZipArchiveResult
+
+
+@dataclass(frozen=True)
+class ZipCompressFailed:
+    """Apply a terminal zip-compression failure."""
+
+    request_id: int
+    message: str
+
+
+@dataclass(frozen=True)
 class FileMutationCompleted:
     """Apply a completed rename/create operation."""
 
@@ -684,6 +747,7 @@ Action = (
     | BeginRenameInput
     | BeginCreateInput
     | BeginExtractArchiveInput
+    | BeginZipCompressInput
     | BeginFileSearch
     | BeginGrepSearch
     | BeginHistorySearch
@@ -735,6 +799,8 @@ Action = (
     | CancelDeleteConfirmation
     | ConfirmArchiveExtract
     | CancelArchiveExtractConfirmation
+    | ConfirmZipCompress
+    | CancelZipCompressConfirmation
     | DismissNameConflict
     | DismissAttributeDialog
     | SetFilterQuery
@@ -757,6 +823,11 @@ Action = (
     | ArchiveExtractProgress
     | ArchiveExtractCompleted
     | ArchiveExtractFailed
+    | ZipCompressPreparationCompleted
+    | ZipCompressPreparationFailed
+    | ZipCompressProgress
+    | ZipCompressCompleted
+    | ZipCompressFailed
     | FileMutationCompleted
     | FileMutationFailed
     | ExternalLaunchCompleted

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from peneo.models import (
     AppConfig,
     CreatePathRequest,
+    CreateZipArchiveRequest,
     ExternalLaunchRequest,
     ExtractArchiveRequest,
     PasteRequest,
@@ -72,6 +73,22 @@ class RunArchiveExtractEffect:
 
     request_id: int
     request: ExtractArchiveRequest
+
+
+@dataclass(frozen=True)
+class RunZipCompressPreparationEffect:
+    """Inspect zip-compression inputs before execution begins."""
+
+    request_id: int
+    request: CreateZipArchiveRequest
+
+
+@dataclass(frozen=True)
+class RunZipCompressEffect:
+    """Execute zip compression outside the reducer."""
+
+    request_id: int
+    request: CreateZipArchiveRequest
 
 
 @dataclass(frozen=True)
@@ -149,6 +166,8 @@ Effect = (
     | RunFileMutationEffect
     | RunArchivePreparationEffect
     | RunArchiveExtractEffect
+    | RunZipCompressPreparationEffect
+    | RunZipCompressEffect
     | RunExternalLaunchEffect
     | RunFileSearchEffect
     | RunGrepSearchEffect

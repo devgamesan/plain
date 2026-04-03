@@ -9,6 +9,7 @@ from peneo.models import (
     AppConfig,
     ConflictResolution,
     CreateKind,
+    CreateZipArchiveRequest,
     ExtractArchiveRequest,
     PasteConflict,
     PasteConflictAction,
@@ -22,6 +23,7 @@ UiMode = Literal[
     "RENAME",
     "CREATE",
     "EXTRACT",
+    "ZIP",
     "PALETTE",
     "CONFIRM",
     "CONFIG",
@@ -147,6 +149,23 @@ class ArchiveExtractProgressState:
 
 
 @dataclass(frozen=True)
+class ZipCompressConfirmationState:
+    """Pending confirmation dialog state for zip compression conflicts."""
+
+    request: CreateZipArchiveRequest
+    total_entries: int
+
+
+@dataclass(frozen=True)
+class ZipCompressProgressState:
+    """Transient progress state for zip compression."""
+
+    completed_entries: int
+    total_entries: int
+    current_path: str | None = None
+
+
+@dataclass(frozen=True)
 class AttributeInspectionState:
     """Pending read-only attribute dialog state."""
 
@@ -187,13 +206,14 @@ class NotificationState:
 
 @dataclass(frozen=True)
 class PendingInputState:
-    """Transient text input state used by rename/create flows."""
+    """Transient text input state used by rename/create/archive flows."""
 
     prompt: str
     value: str = ""
     target_path: str | None = None
     create_kind: CreateKind | None = None
     extract_source_path: str | None = None
+    zip_source_paths: tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -298,6 +318,8 @@ class AppState:
     name_conflict: NameConflictState | None = None
     archive_extract_confirmation: ArchiveExtractConfirmationState | None = None
     archive_extract_progress: ArchiveExtractProgressState | None = None
+    zip_compress_confirmation: ZipCompressConfirmationState | None = None
+    zip_compress_progress: ZipCompressProgressState | None = None
     attribute_inspection: AttributeInspectionState | None = None
     config_editor: ConfigEditorState | None = None
     post_reload_notification: NotificationState | None = None
@@ -308,6 +330,8 @@ class AppState:
     pending_file_mutation_request_id: int | None = None
     pending_archive_prepare_request_id: int | None = None
     pending_archive_extract_request_id: int | None = None
+    pending_zip_compress_prepare_request_id: int | None = None
+    pending_zip_compress_request_id: int | None = None
     pending_file_search_request_id: int | None = None
     pending_grep_search_request_id: int | None = None
     pending_directory_size_request_id: int | None = None

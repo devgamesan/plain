@@ -5,6 +5,7 @@ import peneo.state.selectors as selectors_module
 from peneo.models import (
     AppConfig,
     BookmarkConfig,
+    CreateZipArchiveRequest,
     EditorConfig,
     ExtractArchiveRequest,
     PasteConflict,
@@ -36,6 +37,7 @@ from peneo.state import (
     SetNotification,
     SetSort,
     ToggleSelection,
+    ZipCompressConfirmationState,
     build_initial_app_state,
     select_attribute_dialog_state,
     select_child_entries,
@@ -753,6 +755,30 @@ def test_select_command_palette_state_shows_extract_archive_for_supported_file()
     assert [item.label for item in palette_state.items] == ["Extract archive"]
 
 
+def test_select_command_palette_state_shows_compress_as_zip_for_multiple_targets() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=replace(
+            build_initial_app_state().current_pane,
+            selected_paths=frozenset(
+                {
+                    "/home/tadashi/develop/peneo/docs",
+                    "/home/tadashi/develop/peneo/src",
+                }
+            ),
+        ),
+    )
+    palette_state = select_command_palette_state(
+        replace(
+            _reduce_state(state, BeginCommandPalette()),
+            command_palette=replace(CommandPaletteState(), query="compress"),
+        )
+    )
+
+    assert palette_state is not None
+    assert [item.label for item in palette_state.items] == ["Compress as zip"]
+
+
 def test_select_input_bar_state_formats_extract_mode() -> None:
     state = replace(
         build_initial_app_state(),
@@ -770,6 +796,25 @@ def test_select_input_bar_state_formats_extract_mode() -> None:
     assert input_state.mode_label == "EXTRACT"
     assert input_state.prompt == "Extract to: "
     assert input_state.hint == "enter extract | esc cancel"
+
+
+def test_select_input_bar_state_formats_zip_mode() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="ZIP",
+        pending_input=PendingInputState(
+            prompt="Compress to: ",
+            value="/tmp/output.zip",
+            zip_source_paths=("/home/tadashi/develop/peneo/docs",),
+        ),
+    )
+
+    input_state = select_input_bar_state(state)
+
+    assert input_state is not None
+    assert input_state.mode_label == "ZIP"
+    assert input_state.prompt == "Compress to: "
+    assert input_state.hint == "enter compress | esc cancel"
 
 
 def test_select_attribute_dialog_state_formats_selected_entry() -> None:
@@ -1100,6 +1145,27 @@ def test_select_conflict_dialog_state_formats_extract_confirmation() -> None:
     assert dialog.title == "Extract Archive Confirmation"
     assert "2 archive path(s) already exist" in dialog.message
     assert dialog.options == ("enter continue", "esc return to input")
+
+
+def test_select_conflict_dialog_state_formats_zip_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        zip_compress_confirmation=ZipCompressConfirmationState(
+            request=CreateZipArchiveRequest(
+                source_paths=("/home/tadashi/develop/peneo/docs",),
+                destination_path="/home/tadashi/develop/peneo/docs.zip",
+                root_dir="/home/tadashi/develop/peneo",
+            ),
+            total_entries=4,
+        ),
+    )
+
+    dialog = select_conflict_dialog_state(state)
+
+    assert dialog is not None
+    assert dialog.title == "Zip Compression Confirmation"
+    assert "docs.zip already exists" in dialog.message
+    assert dialog.options == ("enter overwrite", "esc return to input")
 
 
 def test_select_conflict_dialog_state_formats_rename_conflict() -> None:

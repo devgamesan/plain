@@ -136,6 +136,35 @@ class ExtractArchiveResult:
 
 
 @dataclass(frozen=True)
+class CreateZipArchiveRequest:
+    """A request to compress one or more paths into a zip archive."""
+
+    source_paths: tuple[str, ...]
+    destination_path: str
+    root_dir: str
+
+
+@dataclass(frozen=True)
+class CreateZipArchivePreparationResult:
+    """Preflight zip-compression details returned before execution begins."""
+
+    request: CreateZipArchiveRequest
+    total_entries: int
+    destination_exists: bool = False
+
+
+@dataclass(frozen=True)
+class CreateZipArchiveResult:
+    """Completed zip-compression payload returned from the zip service."""
+
+    destination_path: str
+    archived_entries: int
+    total_entries: int
+    message: str
+    level: MutationResultLevel = "info"
+
+
+@dataclass(frozen=True)
 class FileMutationResult:
     """Completed execution payload returned from the file mutation service."""
 

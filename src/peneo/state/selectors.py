@@ -155,6 +155,8 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             return HelpBarState(("enter confirm delete | esc cancel",))
         if state.archive_extract_confirmation is not None:
             return HelpBarState(("enter continue extraction | esc return to input",))
+        if state.zip_compress_confirmation is not None:
+            return HelpBarState(("enter overwrite zip | esc return to input",))
         if state.name_conflict is not None:
             return HelpBarState(("enter return to input | esc return to input",))
         return HelpBarState(("resolve conflict in dialog",))
@@ -172,6 +174,8 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         return HelpBarState(("type name | enter apply | esc cancel",))
     if state.ui_mode == "EXTRACT":
         return HelpBarState(("type destination path | enter extract | esc cancel",))
+    if state.ui_mode == "ZIP":
+        return HelpBarState(("type zip path | enter compress | esc cancel",))
     if state.ui_mode == "PALETTE":
         if state.command_palette is not None and state.command_palette.source == "file_search":
             return HelpBarState(("type filename | enter jump | esc cancel",))
@@ -206,7 +210,7 @@ def select_input_bar_state(state: AppState) -> InputBarState | None:
             hint=hint,
         )
 
-    if state.ui_mode not in {"RENAME", "CREATE", "EXTRACT"}:
+    if state.ui_mode not in {"RENAME", "CREATE", "EXTRACT", "ZIP"}:
         return None
     if state.pending_input is None:
         return None
@@ -215,6 +219,8 @@ def select_input_bar_state(state: AppState) -> InputBarState | None:
         mode_label = "NEW FILE" if state.pending_input.create_kind == "file" else "NEW DIR"
     if state.ui_mode == "EXTRACT":
         mode_label = "EXTRACT"
+    if state.ui_mode == "ZIP":
+        mode_label = "ZIP"
     return InputBarState(
         mode_label=mode_label,
         prompt=state.pending_input.prompt,
@@ -222,6 +228,8 @@ def select_input_bar_state(state: AppState) -> InputBarState | None:
         hint=(
             "enter extract | esc cancel"
             if state.ui_mode == "EXTRACT"
+            else "enter compress | esc cancel"
+            if state.ui_mode == "ZIP"
             else "enter apply | esc cancel"
         ),
     )
@@ -407,6 +415,18 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
             title="Extract Archive Confirmation",
             message=message,
             options=("enter continue", "esc return to input"),
+        )
+
+    if state.zip_compress_confirmation is not None:
+        confirmation = state.zip_compress_confirmation
+        destination_name = Path(confirmation.request.destination_path).name
+        return ConflictDialogState(
+            title="Zip Compression Confirmation",
+            message=(
+                f"{destination_name} already exists. "
+                f"Overwrite it and continue compressing {confirmation.total_entries} item(s)?"
+            ),
+            options=("enter overwrite", "esc return to input"),
         )
 
     if state.name_conflict is not None:

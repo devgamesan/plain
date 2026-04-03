@@ -1,5 +1,6 @@
 from dataclasses import replace
 
+from peneo.models import CreateZipArchiveRequest
 from peneo.state import (
     BeginBookmarkSearch,
     BeginCommandPalette,
@@ -13,10 +14,12 @@ from peneo.state import (
     CancelFilterInput,
     CancelPasteConflict,
     CancelPendingInput,
+    CancelZipCompressConfirmation,
     ClearSelection,
     ConfigEditorState,
     ConfirmDeleteTargets,
     ConfirmFilterInput,
+    ConfirmZipCompress,
     CopyTargets,
     CutTargets,
     CycleConfigEditorValue,
@@ -53,6 +56,7 @@ from peneo.state import (
     SubmitPendingInput,
     ToggleSelectionAndAdvance,
     ToggleSplitTerminal,
+    ZipCompressConfirmationState,
     build_initial_app_state,
     dispatch_key_input,
     iter_bound_keys,
@@ -904,6 +908,44 @@ def test_delete_confirm_escape_cancels_confirmation() -> None:
     actions = dispatch_key_input(state, key="escape")
 
     assert actions == (SetNotification(None), CancelDeleteConfirmation())
+
+
+def test_zip_compress_confirm_enter_dispatches_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        zip_compress_confirmation=ZipCompressConfirmationState(
+            request=CreateZipArchiveRequest(
+                source_paths=("/home/tadashi/develop/peneo/docs",),
+                destination_path="/home/tadashi/develop/peneo/docs.zip",
+                root_dir="/home/tadashi/develop/peneo",
+            ),
+            total_entries=3,
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="enter")
+
+    assert actions == (SetNotification(None), ConfirmZipCompress())
+
+
+def test_zip_compress_confirm_escape_cancels_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        zip_compress_confirmation=ZipCompressConfirmationState(
+            request=CreateZipArchiveRequest(
+                source_paths=("/home/tadashi/develop/peneo/docs",),
+                destination_path="/home/tadashi/develop/peneo/docs.zip",
+                root_dir="/home/tadashi/develop/peneo",
+            ),
+            total_entries=3,
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="escape")
+
+    assert actions == (SetNotification(None), CancelZipCompressConfirmation())
 
 
 def test_rename_character_dispatches_input_update() -> None:

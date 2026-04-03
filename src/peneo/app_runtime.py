@@ -13,6 +13,8 @@ from textual.timer import Timer
 from textual.worker import Worker, WorkerState
 
 from peneo.models import (
+    CreateZipArchivePreparationResult,
+    CreateZipArchiveResult,
     ExtractArchivePreparationResult,
     ExtractArchiveResult,
     FileMutationResult,
@@ -60,11 +62,18 @@ from peneo.state import (
     RunFileMutationEffect,
     RunFileSearchEffect,
     RunGrepSearchEffect,
+    RunZipCompressEffect,
+    RunZipCompressPreparationEffect,
     SetNotification,
     SplitTerminalStarted,
     SplitTerminalStartFailed,
     StartSplitTerminalEffect,
     WriteSplitTerminalInputEffect,
+    ZipCompressCompleted,
+    ZipCompressFailed,
+    ZipCompressPreparationCompleted,
+    ZipCompressPreparationFailed,
+    ZipCompressProgress,
 )
 
 FILE_SEARCH_DEBOUNCE_SECONDS = 0.2
@@ -352,6 +361,38 @@ def schedule_archive_extract(app: Any, effect: RunArchiveExtractEffect) -> None:
             name=f"archive-extract:{effect.request_id}",
             group="archive-extract",
             description=effect.request.source_path,
+            exclusive=True,
+        ),
+    )
+
+
+def schedule_zip_compress_preparation(app: Any, effect: RunZipCompressPreparationEffect) -> None:
+    _run_worker(
+        app,
+        effect,
+        partial(app._zip_compress_service.prepare, effect.request),
+        _WorkerSpec(
+            name=f"zip-compress-prepare:{effect.request_id}",
+            group="zip-compress-prepare",
+            description=effect.request.destination_path,
+            exclusive=True,
+        ),
+    )
+
+
+def schedule_zip_compress(app: Any, effect: RunZipCompressEffect) -> None:
+    _run_worker(
+        app,
+        effect,
+        partial(
+            app._zip_compress_service.execute,
+            effect.request,
+            progress_callback=partial(report_zip_compress_progress, app, effect.request_id),
+        ),
+        _WorkerSpec(
+            name=f"zip-compress:{effect.request_id}",
+            group="zip-compress",
+            description=effect.request.destination_path,
             exclusive=True,
         ),
     )
@@ -654,6 +695,30 @@ def report_archive_extract_progress(
         return
 
 
+def report_zip_compress_progress(
+    app: Any,
+    request_id: int,
+    completed_entries: int,
+    total_entries: int,
+    current_path: str | None,
+) -> None:
+    actions = (
+        ZipCompressProgress(
+            request_id=request_id,
+            completed_entries=completed_entries,
+            total_entries=total_entries,
+            current_path=current_path,
+        ),
+    )
+    try:
+        if app._thread_id == threading.get_ident():
+            app.call_next(app.dispatch_actions, actions)
+            return
+        app.call_from_thread(app.call_next, app.dispatch_actions, actions)
+    except (RuntimeError, FutureCancelledError):
+        return
+
+
 def _schedule_external_launch_effect(app: Any, effect: RunExternalLaunchEffect) -> None:
     if effect.request.kind == "copy_paths":
         run_copy_paths(app, effect)
@@ -673,6 +738,8 @@ _EFFECT_SCHEDULERS = (
     (LoadChildPaneSnapshotEffect, schedule_child_pane_snapshot),
     (RunArchivePreparationEffect, schedule_archive_preparation),
     (RunArchiveExtractEffect, schedule_archive_extract),
+    (RunZipCompressPreparationEffect, schedule_zip_compress_preparation),
+    (RunZipCompressEffect, schedule_zip_compress),
     (RunClipboardPasteEffect, schedule_clipboard_paste),
     (RunConfigSaveEffect, schedule_config_save),
     (RunDirectorySizeEffect, schedule_directory_sizes),
@@ -770,6 +837,32 @@ def _complete_archive_extract(
 ) -> tuple[Any, ...]:
     return (
         ArchiveExtractCompleted(
+            request_id=effect.request_id,
+            result=result,
+        ),
+    )
+
+
+def _complete_zip_compress_preparation(
+    effect: RunZipCompressPreparationEffect,
+    result: CreateZipArchivePreparationResult,
+) -> tuple[Any, ...]:
+    return (
+        ZipCompressPreparationCompleted(
+            request_id=effect.request_id,
+            request=result.request,
+            total_entries=result.total_entries,
+            destination_exists=result.destination_exists,
+        ),
+    )
+
+
+def _complete_zip_compress(
+    effect: RunZipCompressEffect,
+    result: CreateZipArchiveResult,
+) -> tuple[Any, ...]:
+    return (
+        ZipCompressCompleted(
             request_id=effect.request_id,
             result=result,
         ),
@@ -911,6 +1004,32 @@ def _failed_archive_extract(
     )
 
 
+def _failed_zip_compress_preparation(
+    effect: RunZipCompressPreparationEffect,
+    error: BaseException | None,
+    message: str,
+) -> tuple[Any, ...]:
+    return (
+        ZipCompressPreparationFailed(
+            request_id=effect.request_id,
+            message=message,
+        ),
+    )
+
+
+def _failed_zip_compress(
+    effect: RunZipCompressEffect,
+    error: BaseException | None,
+    message: str,
+) -> tuple[Any, ...]:
+    return (
+        ZipCompressFailed(
+            request_id=effect.request_id,
+            message=message,
+        ),
+    )
+
+
 def _failed_config_save(
     effect: RunConfigSaveEffect,
     error: BaseException | None,
@@ -987,6 +1106,8 @@ _RESULT_COMPLETE_HANDLERS: tuple[tuple[type[Any], CompleteActionHandler], ...] =
     (PasteExecutionResult, _complete_clipboard_paste),
     (ExtractArchivePreparationResult, _complete_archive_preparation),
     (ExtractArchiveResult, _complete_archive_extract),
+    (CreateZipArchivePreparationResult, _complete_zip_compress_preparation),
+    (CreateZipArchiveResult, _complete_zip_compress),
     (FileMutationResult, _complete_file_mutation),
 )
 
@@ -1005,6 +1126,8 @@ _FAILED_ACTION_HANDLERS: tuple[tuple[type[Any], FailureActionHandler], ...] = (
     (LoadChildPaneSnapshotEffect, _failed_child_pane_snapshot),
     (RunArchivePreparationEffect, _failed_archive_preparation),
     (RunArchiveExtractEffect, _failed_archive_extract),
+    (RunZipCompressPreparationEffect, _failed_zip_compress_preparation),
+    (RunZipCompressEffect, _failed_zip_compress),
     (RunClipboardPasteEffect, _failed_clipboard_paste),
     (RunFileMutationEffect, _failed_file_mutation),
     (RunConfigSaveEffect, _failed_config_save),

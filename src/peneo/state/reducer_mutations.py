@@ -3,7 +3,7 @@
 from dataclasses import replace
 from pathlib import Path
 
-from peneo.archive_utils import default_extract_destination
+from peneo.archive_utils import default_extract_destination, default_zip_destination
 from peneo.models import PasteRequest, RenameRequest, TrashDeleteRequest
 
 from .actions import (
@@ -17,16 +17,19 @@ from .actions import (
     BeginDeleteTargets,
     BeginExtractArchiveInput,
     BeginRenameInput,
+    BeginZipCompressInput,
     CancelArchiveExtractConfirmation,
     CancelDeleteConfirmation,
     CancelPasteConflict,
     CancelPendingInput,
+    CancelZipCompressConfirmation,
     ClearSelection,
     ClipboardPasteCompleted,
     ClipboardPasteFailed,
     ClipboardPasteNeedsResolution,
     ConfirmArchiveExtract,
     ConfirmDeleteTargets,
+    ConfirmZipCompress,
     CopyTargets,
     CutTargets,
     DismissNameConflict,
@@ -39,6 +42,11 @@ from .actions import (
     SubmitPendingInput,
     ToggleSelection,
     ToggleSelectionAndAdvance,
+    ZipCompressCompleted,
+    ZipCompressFailed,
+    ZipCompressPreparationCompleted,
+    ZipCompressPreparationFailed,
+    ZipCompressProgress,
 )
 from .effects import ReduceResult
 from .models import (
@@ -51,12 +59,15 @@ from .models import (
     NotificationState,
     PasteConflictState,
     PendingInputState,
+    ZipCompressConfirmationState,
+    ZipCompressProgressState,
 )
 from .reducer_common import (
     ReducerFn,
     active_current_entries,
     build_extract_archive_request,
     build_file_mutation_request,
+    build_zip_compress_request,
     current_entry_for_path,
     current_entry_paths,
     cursor_path_after_file_mutation,
@@ -73,6 +84,8 @@ from .reducer_common import (
     run_archive_prepare_request,
     run_file_mutation_request,
     run_paste_request,
+    run_zip_compress_prepare_request,
+    run_zip_compress_request,
     sync_child_pane,
     validate_pending_input,
 )
@@ -100,6 +113,35 @@ def handle_mutation_action(
                 delete_confirmation=None,
                 archive_extract_confirmation=None,
                 archive_extract_progress=None,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
+                name_conflict=None,
+                attribute_inspection=None,
+            )
+        )
+
+    if isinstance(action, BeginZipCompressInput):
+        return done(
+            replace(
+                state,
+                ui_mode="ZIP",
+                notification=None,
+                pending_input=PendingInputState(
+                    prompt="Compress to: ",
+                    value=default_zip_destination(
+                        action.source_paths,
+                        state.current_pane.directory_path,
+                    ),
+                    zip_source_paths=action.source_paths,
+                ),
+                command_palette=None,
+                pending_file_search_request_id=None,
+                pending_grep_search_request_id=None,
+                delete_confirmation=None,
+                archive_extract_confirmation=None,
+                archive_extract_progress=None,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
                 name_conflict=None,
                 attribute_inspection=None,
             )
@@ -125,6 +167,8 @@ def handle_mutation_action(
                 delete_confirmation=None,
                 archive_extract_confirmation=None,
                 archive_extract_progress=None,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
                 name_conflict=None,
                 attribute_inspection=None,
             )
@@ -147,6 +191,8 @@ def handle_mutation_action(
                     delete_confirmation=DeleteConfirmationState(paths=action.paths),
                     archive_extract_confirmation=None,
                     archive_extract_progress=None,
+                    zip_compress_confirmation=None,
+                    zip_compress_progress=None,
                     name_conflict=None,
                     attribute_inspection=None,
                 )
@@ -159,6 +205,8 @@ def handle_mutation_action(
                 delete_confirmation=None,
                 archive_extract_confirmation=None,
                 archive_extract_progress=None,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
                 name_conflict=None,
                 attribute_inspection=None,
             ),
@@ -182,6 +230,8 @@ def handle_mutation_action(
                 delete_confirmation=None,
                 archive_extract_confirmation=None,
                 archive_extract_progress=None,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
                 name_conflict=None,
                 attribute_inspection=None,
             )
@@ -209,9 +259,13 @@ def handle_mutation_action(
                 pending_grep_search_request_id=None,
                 pending_archive_prepare_request_id=None,
                 pending_archive_extract_request_id=None,
+                pending_zip_compress_prepare_request_id=None,
+                pending_zip_compress_request_id=None,
                 delete_confirmation=None,
                 archive_extract_confirmation=None,
                 archive_extract_progress=None,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
                 name_conflict=None,
                 attribute_inspection=None,
             )
@@ -245,8 +299,11 @@ def handle_mutation_action(
             )
         request = build_file_mutation_request(state)
         extract_request = build_extract_archive_request(state)
+        zip_request = build_zip_compress_request(state)
         if extract_request is not None:
             return run_archive_prepare_request(state, extract_request)
+        if zip_request is not None:
+            return run_zip_compress_prepare_request(state, zip_request)
         if request is None:
             return done(state)
         if isinstance(request, RenameRequest):
@@ -425,9 +482,24 @@ def handle_mutation_action(
                 state,
                 archive_extract_confirmation=None,
                 archive_extract_progress=None,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
                 notification=None,
             ),
             state.archive_extract_confirmation.request,
+        )
+
+    if isinstance(action, ConfirmZipCompress):
+        if state.zip_compress_confirmation is None:
+            return done(state)
+        return run_zip_compress_request(
+            replace(
+                state,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
+                notification=None,
+            ),
+            state.zip_compress_confirmation.request,
         )
 
     if isinstance(action, CancelDeleteConfirmation):
@@ -448,7 +520,25 @@ def handle_mutation_action(
                 state,
                 archive_extract_confirmation=None,
                 archive_extract_progress=None,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
                 notification=NotificationState(level="warning", message="Extraction cancelled"),
+                ui_mode=restore_ui_mode_after_pending_input(state),
+            )
+        )
+
+    if isinstance(action, CancelZipCompressConfirmation):
+        if state.zip_compress_confirmation is None:
+            return done(state)
+        return done(
+            replace(
+                state,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
+                notification=NotificationState(
+                    level="warning",
+                    message="Zip compression cancelled",
+                ),
                 ui_mode=restore_ui_mode_after_pending_input(state),
             )
         )
@@ -552,6 +642,8 @@ def handle_mutation_action(
                 pending_archive_prepare_request_id=None,
                 archive_extract_confirmation=None,
                 archive_extract_progress=None,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
             ),
             action.request,
         )
@@ -566,6 +658,8 @@ def handle_mutation_action(
                 pending_archive_prepare_request_id=None,
                 archive_extract_confirmation=None,
                 archive_extract_progress=None,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
                 ui_mode=restore_ui_mode_after_pending_input(state),
             )
         )
@@ -601,6 +695,8 @@ def handle_mutation_action(
             archive_extract_progress=None,
             pending_archive_prepare_request_id=None,
             pending_archive_extract_request_id=None,
+            zip_compress_confirmation=None,
+            zip_compress_progress=None,
             post_reload_notification=NotificationState(
                 level=action.result.level,
                 message=action.result.message,
@@ -626,6 +722,112 @@ def handle_mutation_action(
                 pending_archive_extract_request_id=None,
                 archive_extract_progress=None,
                 archive_extract_confirmation=None,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
+                ui_mode=restore_ui_mode_after_pending_input(state),
+            )
+        )
+
+    if isinstance(action, ZipCompressPreparationCompleted):
+        if action.request_id != state.pending_zip_compress_prepare_request_id:
+            return done(state)
+
+        if action.destination_exists:
+            return done(
+                replace(
+                    state,
+                    notification=None,
+                    pending_zip_compress_prepare_request_id=None,
+                    zip_compress_progress=None,
+                    zip_compress_confirmation=ZipCompressConfirmationState(
+                        request=action.request,
+                        total_entries=action.total_entries,
+                    ),
+                    ui_mode="CONFIRM",
+                )
+            )
+
+        return run_zip_compress_request(
+            replace(
+                state,
+                notification=None,
+                pending_zip_compress_prepare_request_id=None,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
+            ),
+            action.request,
+        )
+
+    if isinstance(action, ZipCompressPreparationFailed):
+        if action.request_id != state.pending_zip_compress_prepare_request_id:
+            return done(state)
+        return done(
+            replace(
+                state,
+                notification=NotificationState(level="error", message=action.message),
+                pending_zip_compress_prepare_request_id=None,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
+                ui_mode=restore_ui_mode_after_pending_input(state),
+            )
+        )
+
+    if isinstance(action, ZipCompressProgress):
+        if action.request_id != state.pending_zip_compress_request_id:
+            return done(state)
+
+        message = f"Compressing as zip {action.completed_entries}/{action.total_entries}"
+        if action.current_path is not None:
+            message = f"{message}: {Path(action.current_path).name}"
+        return done(
+            replace(
+                state,
+                zip_compress_progress=ZipCompressProgressState(
+                    completed_entries=action.completed_entries,
+                    total_entries=action.total_entries,
+                    current_path=action.current_path,
+                ),
+                notification=NotificationState(level="info", message=message),
+            )
+        )
+
+    if isinstance(action, ZipCompressCompleted):
+        if action.request_id != state.pending_zip_compress_request_id:
+            return done(state)
+
+        next_state = replace(
+            state,
+            notification=None,
+            pending_input=None,
+            zip_compress_confirmation=None,
+            zip_compress_progress=None,
+            pending_zip_compress_prepare_request_id=None,
+            pending_zip_compress_request_id=None,
+            post_reload_notification=NotificationState(
+                level=action.result.level,
+                message=action.result.message,
+            ),
+            ui_mode="BROWSING",
+        )
+        return reduce_state(
+            next_state,
+            RequestBrowserSnapshot(
+                path=str(Path(action.result.destination_path).parent),
+                cursor_path=action.result.destination_path,
+                blocking=True,
+            ),
+        )
+
+    if isinstance(action, ZipCompressFailed):
+        if action.request_id != state.pending_zip_compress_request_id:
+            return done(state)
+        return done(
+            replace(
+                state,
+                notification=NotificationState(level="error", message=action.message),
+                pending_zip_compress_request_id=None,
+                zip_compress_progress=None,
+                zip_compress_confirmation=None,
                 ui_mode=restore_ui_mode_after_pending_input(state),
             )
         )
@@ -646,6 +848,8 @@ def handle_mutation_action(
             delete_confirmation=None,
             archive_extract_confirmation=None,
             archive_extract_progress=None,
+            zip_compress_confirmation=None,
+            zip_compress_progress=None,
             name_conflict=None,
             pending_file_mutation_request_id=None,
             post_reload_notification=NotificationState(
@@ -671,6 +875,8 @@ def handle_mutation_action(
                 delete_confirmation=None,
                 archive_extract_confirmation=None,
                 archive_extract_progress=None,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
                 name_conflict=None,
                 ui_mode=restore_ui_mode_after_pending_input(state),
             )

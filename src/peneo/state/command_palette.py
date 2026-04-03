@@ -211,6 +211,14 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         )
         items.append(
             CommandPaletteItem(
+                id="compress_as_zip",
+                label="Compress as zip",
+                shortcut=None,
+                enabled=True,
+            )
+        )
+        items.append(
+            CommandPaletteItem(
                 id="extract_archive",
                 label="Extract archive",
                 shortcut=None,
@@ -224,6 +232,15 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 label="Open in editor",
                 shortcut="E",
                 enabled=single_target_entry.kind == "file",
+            )
+        )
+    elif has_target:
+        items.append(
+            CommandPaletteItem(
+                id="compress_as_zip",
+                label="Compress as zip",
+                shortcut=None,
+                enabled=True,
             )
         )
 

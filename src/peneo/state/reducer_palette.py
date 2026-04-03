@@ -19,6 +19,7 @@ from .actions import (
     BeginGrepSearch,
     BeginHistorySearch,
     BeginRenameInput,
+    BeginZipCompressInput,
     CancelCommandPalette,
     DismissAttributeDialog,
     FileSearchCompleted,
@@ -479,6 +480,8 @@ def _run_palette_command_item(
         return _run_copy_path_command(state, next_state)
     if item_id == "rename":
         return _run_rename_command(state, next_state, reduce_state)
+    if item_id == "compress_as_zip":
+        return _run_compress_as_zip_command(state, next_state, reduce_state)
     if item_id == "extract_archive":
         return _run_extract_archive_command(state, next_state, reduce_state)
     if item_id == "open_in_editor":
@@ -673,6 +676,21 @@ def _run_extract_archive_command(
             message="Extract archive requires a supported archive file",
         )
     return reduce_state(next_state, BeginExtractArchiveInput(source_path=entry.path))
+
+
+def _run_compress_as_zip_command(
+    state: AppState,
+    next_state: AppState,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    target_paths = select_target_paths(state)
+    if not target_paths:
+        return _notify(
+            next_state,
+            level="warning",
+            message="Compress as zip requires at least one target",
+        )
+    return reduce_state(next_state, BeginZipCompressInput(source_paths=target_paths))
 
 
 def _run_delete_targets_command(

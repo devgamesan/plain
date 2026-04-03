@@ -4,6 +4,8 @@ from peneo.models import (
     AppConfig,
     BookmarkConfig,
     CreatePathRequest,
+    CreateZipArchiveRequest,
+    CreateZipArchiveResult,
     ExternalLaunchRequest,
     ExtractArchiveRequest,
     ExtractArchiveResult,
@@ -35,6 +37,7 @@ from peneo.state import (
     BeginGrepSearch,
     BeginHistorySearch,
     BeginRenameInput,
+    BeginZipCompressInput,
     BrowserSnapshot,
     BrowserSnapshotFailed,
     BrowserSnapshotLoaded,
@@ -44,6 +47,7 @@ from peneo.state import (
     CancelFilterInput,
     CancelPasteConflict,
     CancelPendingInput,
+    CancelZipCompressConfirmation,
     ChildPaneSnapshotFailed,
     ChildPaneSnapshotLoaded,
     ClearSelection,
@@ -58,6 +62,7 @@ from peneo.state import (
     ConfirmArchiveExtract,
     ConfirmDeleteTargets,
     ConfirmFilterInput,
+    ConfirmZipCompress,
     CopyTargets,
     CutTargets,
     CycleConfigEditorValue,
@@ -115,6 +120,8 @@ from peneo.state import (
     RunFileMutationEffect,
     RunFileSearchEffect,
     RunGrepSearchEffect,
+    RunZipCompressEffect,
+    RunZipCompressPreparationEffect,
     SaveConfigEditor,
     SendSplitTerminalInput,
     SetCommandPaletteQuery,
@@ -135,6 +142,12 @@ from peneo.state import (
     ToggleSelectionAndAdvance,
     ToggleSplitTerminal,
     WriteSplitTerminalInputEffect,
+    ZipCompressCompleted,
+    ZipCompressConfirmationState,
+    ZipCompressFailed,
+    ZipCompressPreparationCompleted,
+    ZipCompressProgress,
+    ZipCompressProgressState,
     build_initial_app_state,
     reduce_app_state,
 )
@@ -626,6 +639,20 @@ def test_begin_extract_archive_input_sets_default_destination() -> None:
     )
 
 
+def test_begin_zip_compress_input_sets_default_destination() -> None:
+    next_state = _reduce_state(
+        build_initial_app_state(),
+        BeginZipCompressInput(("/home/tadashi/develop/peneo/README.md",)),
+    )
+
+    assert next_state.ui_mode == "ZIP"
+    assert next_state.pending_input == PendingInputState(
+        prompt="Compress to: ",
+        value="/home/tadashi/develop/peneo/README.zip",
+        zip_source_paths=("/home/tadashi/develop/peneo/README.md",),
+    )
+
+
 def test_submit_command_palette_begins_extract_archive_flow() -> None:
     archive_path = "/home/tadashi/develop/peneo/archive.zip"
     state = replace(
@@ -648,6 +675,33 @@ def test_submit_command_palette_begins_extract_archive_flow() -> None:
     assert next_state.pending_input is not None
     assert next_state.pending_input.value == "/home/tadashi/develop/peneo/archive"
     assert next_state.pending_input.extract_source_path == archive_path
+
+
+def test_submit_command_palette_begins_zip_compress_flow() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=replace(
+            build_initial_app_state().current_pane,
+            selected_paths=frozenset(
+                {
+                    "/home/tadashi/develop/peneo/docs",
+                    "/home/tadashi/develop/peneo/src",
+                }
+            ),
+        ),
+    )
+    state = _reduce_state(state, BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("compress"))
+
+    next_state = _reduce_state(state, SubmitCommandPalette())
+
+    assert next_state.ui_mode == "ZIP"
+    assert next_state.pending_input is not None
+    assert next_state.pending_input.value == "/home/tadashi/develop/peneo/peneo.zip"
+    assert next_state.pending_input.zip_source_paths == (
+        "/home/tadashi/develop/peneo/docs",
+        "/home/tadashi/develop/peneo/src",
+    )
 
 
 def test_begin_file_search_enters_find_file_mode() -> None:
@@ -2174,6 +2228,39 @@ def test_submit_pending_extract_starts_archive_preparation() -> None:
     )
 
 
+def test_submit_pending_zip_compress_starts_preparation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="ZIP",
+        pending_input=PendingInputState(
+            prompt="Compress to: ",
+            value="/tmp/output.zip",
+            zip_source_paths=(
+                "/home/tadashi/develop/peneo/docs",
+                "/home/tadashi/develop/peneo/src",
+            ),
+        ),
+    )
+
+    result = reduce_app_state(state, SubmitPendingInput())
+
+    assert result.state.pending_zip_compress_prepare_request_id == 1
+    assert result.state.ui_mode == "BUSY"
+    assert result.effects == (
+        RunZipCompressPreparationEffect(
+            request_id=1,
+            request=CreateZipArchiveRequest(
+                source_paths=(
+                    "/home/tadashi/develop/peneo/docs",
+                    "/home/tadashi/develop/peneo/src",
+                ),
+                destination_path="/tmp/output.zip",
+                root_dir="/home/tadashi/develop/peneo",
+            ),
+        ),
+    )
+
+
 def test_submit_pending_extract_resolves_relative_destination_from_archive_parent() -> None:
     state = replace(
         build_initial_app_state(),
@@ -2235,6 +2322,41 @@ def test_archive_preparation_with_conflicts_enters_confirm_mode() -> None:
     )
 
 
+def test_zip_compress_preparation_with_existing_destination_enters_confirm_mode() -> None:
+    request = CreateZipArchiveRequest(
+        source_paths=("/home/tadashi/develop/peneo/docs",),
+        destination_path="/home/tadashi/develop/peneo/docs.zip",
+        root_dir="/home/tadashi/develop/peneo",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_input=PendingInputState(
+            prompt="Compress to: ",
+            value="/home/tadashi/develop/peneo/docs.zip",
+            zip_source_paths=request.source_paths,
+        ),
+        pending_zip_compress_prepare_request_id=4,
+    )
+
+    next_state = _reduce_state(
+        state,
+        ZipCompressPreparationCompleted(
+            request_id=4,
+            request=request,
+            total_entries=7,
+            destination_exists=True,
+        ),
+    )
+
+    assert next_state.ui_mode == "CONFIRM"
+    assert next_state.pending_zip_compress_prepare_request_id is None
+    assert next_state.zip_compress_confirmation == ZipCompressConfirmationState(
+        request=request,
+        total_entries=7,
+    )
+
+
 def test_confirm_archive_extract_runs_extract_effect() -> None:
     request = ExtractArchiveRequest(
         source_path="/home/tadashi/develop/peneo/archive.zip",
@@ -2261,6 +2383,37 @@ def test_confirm_archive_extract_runs_extract_effect() -> None:
     assert result.state.pending_archive_extract_request_id == 1
     assert result.effects == (
         RunArchiveExtractEffect(
+            request_id=1,
+            request=request,
+        ),
+    )
+
+
+def test_confirm_zip_compress_runs_effect() -> None:
+    request = CreateZipArchiveRequest(
+        source_paths=("/home/tadashi/develop/peneo/docs",),
+        destination_path="/home/tadashi/develop/peneo/docs.zip",
+        root_dir="/home/tadashi/develop/peneo",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        pending_input=PendingInputState(
+            prompt="Compress to: ",
+            value="/home/tadashi/develop/peneo/docs.zip",
+            zip_source_paths=request.source_paths,
+        ),
+        zip_compress_confirmation=ZipCompressConfirmationState(
+            request=request,
+            total_entries=3,
+        ),
+    )
+
+    result = reduce_app_state(state, ConfirmZipCompress())
+
+    assert result.state.pending_zip_compress_request_id == 1
+    assert result.effects == (
+        RunZipCompressEffect(
             request_id=1,
             request=request,
         ),
@@ -2298,6 +2451,36 @@ def test_cancel_archive_extract_confirmation_returns_to_extract_mode() -> None:
     )
 
 
+def test_cancel_zip_compress_confirmation_returns_to_zip_mode() -> None:
+    request = CreateZipArchiveRequest(
+        source_paths=("/home/tadashi/develop/peneo/docs",),
+        destination_path="/home/tadashi/develop/peneo/docs.zip",
+        root_dir="/home/tadashi/develop/peneo",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        pending_input=PendingInputState(
+            prompt="Compress to: ",
+            value="/home/tadashi/develop/peneo/docs.zip",
+            zip_source_paths=request.source_paths,
+        ),
+        zip_compress_confirmation=ZipCompressConfirmationState(
+            request=request,
+            total_entries=3,
+        ),
+    )
+
+    next_state = _reduce_state(state, CancelZipCompressConfirmation())
+
+    assert next_state.ui_mode == "ZIP"
+    assert next_state.zip_compress_confirmation is None
+    assert next_state.notification == NotificationState(
+        level="warning",
+        message="Zip compression cancelled",
+    )
+
+
 def test_archive_extract_progress_updates_notification() -> None:
     state = replace(
         build_initial_app_state(),
@@ -2323,6 +2506,34 @@ def test_archive_extract_progress_updates_notification() -> None:
     assert next_state.notification == NotificationState(
         level="info",
         message="Extracting archive 2/5: notes.txt",
+    )
+
+
+def test_zip_compress_progress_updates_notification() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_zip_compress_request_id=6,
+    )
+
+    next_state = _reduce_state(
+        state,
+        ZipCompressProgress(
+            request_id=6,
+            completed_entries=2,
+            total_entries=5,
+            current_path="/home/tadashi/develop/peneo/docs/readme.txt",
+        ),
+    )
+
+    assert next_state.zip_compress_progress == ZipCompressProgressState(
+        completed_entries=2,
+        total_entries=5,
+        current_path="/home/tadashi/develop/peneo/docs/readme.txt",
+    )
+    assert next_state.notification == NotificationState(
+        level="info",
+        message="Compressing as zip 2/5: readme.txt",
     )
 
 
@@ -2365,6 +2576,45 @@ def test_archive_extract_completed_requests_snapshot_for_destination_parent() ->
     )
 
 
+def test_zip_compress_completed_requests_snapshot_for_destination_parent() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_input=PendingInputState(
+            prompt="Compress to: ",
+            value="/tmp/output.zip",
+            zip_source_paths=("/home/tadashi/develop/peneo/docs",),
+        ),
+        pending_zip_compress_request_id=9,
+    )
+
+    result = reduce_app_state(
+        state,
+        ZipCompressCompleted(
+            request_id=9,
+            result=CreateZipArchiveResult(
+                destination_path="/tmp/output.zip",
+                archived_entries=2,
+                total_entries=2,
+                message="Created output.zip with 2 entries",
+            ),
+        ),
+    )
+
+    assert result.state.post_reload_notification == NotificationState(
+        level="info",
+        message="Created output.zip with 2 entries",
+    )
+    assert result.effects == (
+        LoadBrowserSnapshotEffect(
+            request_id=1,
+            path="/tmp",
+            cursor_path="/tmp/output.zip",
+            blocking=True,
+        ),
+    )
+
+
 def test_archive_extract_failed_returns_to_extract_mode() -> None:
     state = replace(
         build_initial_app_state(),
@@ -2387,6 +2637,31 @@ def test_archive_extract_failed_returns_to_extract_mode() -> None:
     assert next_state.notification == NotificationState(
         level="error",
         message="Unsupported archive member type: link",
+    )
+
+
+def test_zip_compress_failed_returns_to_zip_mode() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_input=PendingInputState(
+            prompt="Compress to: ",
+            value="/tmp/output.zip",
+            zip_source_paths=("/home/tadashi/develop/peneo/docs",),
+        ),
+        pending_zip_compress_request_id=12,
+    )
+
+    next_state = _reduce_state(
+        state,
+        ZipCompressFailed(request_id=12, message="Destination path already exists as a directory"),
+    )
+
+    assert next_state.ui_mode == "ZIP"
+    assert next_state.pending_zip_compress_request_id is None
+    assert next_state.notification == NotificationState(
+        level="error",
+        message="Destination path already exists as a directory",
     )
 
 

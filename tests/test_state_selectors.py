@@ -407,6 +407,23 @@ def test_select_shell_data_exposes_visible_cursor_index() -> None:
 
     assert shell.current_path == "/home/tadashi/develop/peneo"
     assert shell.current_cursor_index == 2
+    assert shell.current_cursor_visible is True
+
+
+def test_select_shell_data_hides_cursor_while_filtering() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFilterInput())
+
+    shell = select_shell_data(state)
+
+    assert shell.current_cursor_visible is False
+
+
+def test_select_shell_data_keeps_cursor_visible_in_palette_mode() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+
+    shell = select_shell_data(state)
+
+    assert shell.current_cursor_visible is True
 
 
 def test_select_shell_data_reuses_current_visible_entries(monkeypatch) -> None:

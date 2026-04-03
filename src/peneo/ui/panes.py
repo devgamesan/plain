@@ -208,6 +208,7 @@ class MainPane(Vertical):
         entries: Sequence[PaneEntry],
         summary: CurrentSummaryState,
         cursor_index: int | None = None,
+        cursor_visible: bool = True,
         context_input: InputBarState | None = None,
         *,
         id: str | None = None,
@@ -218,6 +219,7 @@ class MainPane(Vertical):
         self._entries = tuple(entries)
         self._summary = summary
         self._cursor_index = cursor_index
+        self._cursor_visible = cursor_visible
         self._context_input = context_input
         self._last_table_width = 0
 
@@ -248,9 +250,10 @@ class MainPane(Vertical):
         """Populate the table after the widget is attached to an app."""
         table = self.query_one(DataTable)
         table.cursor_type = "row"
-        table.show_cursor = True
+        table.show_cursor = self._cursor_visible
         table.zebra_stripes = True
         self._rebuild_table(table)
+        self._apply_cursor_state(table)
         self.call_after_refresh(self._refresh_table_width)
 
     def on_resize(self, _event: events.Resize) -> None:
@@ -275,7 +278,27 @@ class MainPane(Vertical):
         if entries_changed:
             self._rebuild_table(table)
         if entries_changed or cursor_changed:
-            self._sync_cursor(table)
+            self._apply_cursor_state(table)
+
+    def set_cursor_state(
+        self,
+        cursor_index: int | None,
+        cursor_visible: bool,
+        *,
+        force_sync: bool = False,
+    ) -> None:
+        """Update cursor position and visibility without rebuilding rows."""
+
+        cursor_changed = cursor_index != self._cursor_index
+        visibility_changed = cursor_visible != self._cursor_visible
+        if not force_sync and not cursor_changed and not visibility_changed:
+            return
+
+        self._cursor_index = cursor_index
+        self._cursor_visible = cursor_visible
+        table = self.query_one(DataTable)
+        self._apply_cursor_state(table)
+        self.call_after_refresh(self._refresh_cursor_state)
 
     def set_context_input(self, state: InputBarState | None) -> None:
         """Update the contextual input line without remounting the pane."""
@@ -300,6 +323,13 @@ class MainPane(Vertical):
             return
         clamped_index = max(0, min(len(self._entries) - 1, self._cursor_index))
         table.move_cursor(row=clamped_index, animate=False, scroll=True)
+
+    def _apply_cursor_state(self, table: DataTable) -> None:
+        table.show_cursor = self._cursor_visible
+        self._sync_cursor(table)
+
+    def _refresh_cursor_state(self) -> None:
+        self._apply_cursor_state(self.query_one(DataTable))
 
     def _refresh_table_width(self) -> None:
         table = self.query_one(DataTable)

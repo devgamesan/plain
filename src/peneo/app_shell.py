@@ -36,6 +36,7 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
                 shell.current_entries,
                 summary=shell.current_summary,
                 cursor_index=shell.current_cursor_index,
+                cursor_visible=shell.current_cursor_visible,
                 context_input=shell.current_context_input,
                 id="current-pane",
                 classes="pane main-pane",
@@ -100,8 +101,13 @@ async def refresh_shell(
 
     current_path_bar.set_path(shell.current_path)
     await parent_pane.set_entries(shell.parent_entries)
-    current_pane.set_summary(shell.current_summary)
     current_pane.set_entries(shell.current_entries, shell.current_cursor_index)
+    current_pane.set_cursor_state(
+        shell.current_cursor_index,
+        shell.current_cursor_visible,
+        force_sync=True,
+    )
+    current_pane.set_summary(shell.current_summary)
     current_pane.set_context_input(shell.current_context_input)
     await child_pane.set_entries(shell.child_entries)
     split_terminal.set_state(shell.split_terminal)
@@ -113,17 +119,14 @@ async def refresh_shell(
     attribute_dialog.set_state(shell.attribute_dialog)
     config_dialog.set_state(shell.config_dialog)
 
-    if (
-        app_state.ui_mode == "BROWSING"
-        and app_state.split_terminal.visible
-        and app_state.split_terminal.focus_target == "terminal"
-    ):
-        app.set_focus(split_terminal)
-    else:
-        try:
-            app.set_focus(current_pane.query_one("#current-pane-table"))
-        except NoMatches:
-            pass
+    if app_state.ui_mode == "BROWSING":
+        if app_state.split_terminal.visible and app_state.split_terminal.focus_target == "terminal":
+            app.set_focus(split_terminal)
+        else:
+            try:
+                app.set_focus(current_pane.query_one("#current-pane-table"))
+            except NoMatches:
+                pass
 
 
 def resize_split_terminal_session(

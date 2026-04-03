@@ -1505,6 +1505,40 @@ async def test_app_colon_shows_command_palette() -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_palette_keeps_current_table_cursor_row() -> None:
+    path = "/tmp/peneo-command-palette-cursor"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/src", "src", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        current_table = app.query_one("#current-pane-table", DataTable)
+
+        await pilot.press("down")
+        await asyncio.sleep(0.05)
+        assert current_table.cursor_row == 1
+
+        await pilot.press(":")
+        await asyncio.sleep(0.05)
+
+        assert app.app_state.ui_mode == "PALETTE"
+        assert current_table.cursor_row == 1
+        assert current_table.show_cursor is True
+
+
+@pytest.mark.asyncio
 async def test_app_command_palette_create_file_opens_context_input() -> None:
     path = "/tmp/peneo-command-palette-create"
     loader = FakeBrowserSnapshotLoader(
@@ -2772,9 +2806,11 @@ async def test_app_filter_mode_accepts_printable_bound_keys() -> None:
         await asyncio.sleep(0.05)
 
         input_bar = await _wait_for_context_input(app)
+        current_table = app.query_one("#current-pane-table", DataTable)
 
         assert app.app_state.ui_mode == "FILTER"
         assert app.app_state.filter.query == "yxp"
+        assert current_table.show_cursor is False
         assert str(input_bar.renderable) == "[FILTER] Filter: yxp  enter/down apply | esc clear"
 
 

@@ -242,9 +242,7 @@ async def _wait_for_table_cell(
             return
         if asyncio.get_running_loop().time() >= deadline:
             actual = table.get_cell_at((row, col))
-            raise AssertionError(
-                f"table cell ({row}, {col}) is {actual!r}, expected {expected!r}"
-            )
+            raise AssertionError(f"table cell ({row}, {col}) is {actual!r}, expected {expected!r}")
         await asyncio.sleep(0.01)
 
 
@@ -265,8 +263,7 @@ async def _wait_for_child_list_label(
                 pass
         if asyncio.get_running_loop().time() >= deadline:
             raise AssertionError(
-                f"child list label at index {index} "
-                f"did not contain {expected_substring!r}"
+                f"child list label at index {index} did not contain {expected_substring!r}"
             )
         await asyncio.sleep(0.01)
 
@@ -692,18 +689,18 @@ async def test_app_truncates_long_labels_in_all_panes_when_narrow() -> None:
         snapshots={
             path: BrowserSnapshot(
                 current_path=path,
-                    parent_pane=PaneState(
-                        directory_path="/tmp",
-                        entries=(
-                            DirectoryEntryState(
-                                path,
-                                "parent_directory_with_long_name_that_keeps_going.py",
-                                "dir",
-                            ),
-                            DirectoryEntryState("/tmp/sibling", "another_parent_entry.py", "file"),
+                parent_pane=PaneState(
+                    directory_path="/tmp",
+                    entries=(
+                        DirectoryEntryState(
+                            path,
+                            "parent_directory_with_long_name_that_keeps_going.py",
+                            "dir",
                         ),
-                        cursor_path=path,
+                        DirectoryEntryState("/tmp/sibling", "another_parent_entry.py", "file"),
                     ),
+                    cursor_path=path,
+                ),
                 current_pane=PaneState(
                     directory_path=path,
                     entries=current_entries,
@@ -832,6 +829,57 @@ async def test_app_keyboard_input_updates_selection_and_child_pane() -> None:
         assert first_row[0].plain == "*"
         assert first_row[0].style == "bold green"
         assert first_row[2].plain == "docs"
+
+
+@pytest.mark.asyncio
+async def test_app_shift_down_selects_range_and_down_clears_it() -> None:
+    path = "/tmp/peneo-range-selection"
+    current_entries = (
+        DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+        DirectoryEntryState(f"{path}/src", "src", "dir"),
+        DirectoryEntryState(f"{path}/tests", "tests", "dir"),
+    )
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                current_entries,
+                child_path=f"{path}/docs",
+                child_entries=(DirectoryEntryState(f"{path}/docs/spec.md", "spec.md", "file"),),
+            )
+        },
+        child_panes={
+            (path, f"{path}/src"): PaneState(
+                directory_path=f"{path}/src",
+                entries=(DirectoryEntryState(f"{path}/src/main.py", "main.py", "file"),),
+            ),
+            (path, f"{path}/tests"): PaneState(
+                directory_path=f"{path}/tests",
+                entries=(
+                    DirectoryEntryState(f"{path}/tests/test_main.py", "test_main.py", "file"),
+                ),
+            ),
+        },
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test():
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 3)
+
+        await app.action_dispatch_bound_key("shift+down")
+        await asyncio.sleep(0.05)
+
+        assert app.app_state.current_pane.selected_paths == {f"{path}/docs", f"{path}/src"}
+        assert app.app_state.current_pane.cursor_path == f"{path}/src"
+        assert app.app_state.current_pane.selection_anchor_path == f"{path}/docs"
+
+        await app.action_dispatch_bound_key("down")
+        await asyncio.sleep(0.05)
+
+        assert app.app_state.current_pane.selected_paths == set()
+        assert app.app_state.current_pane.cursor_path == f"{path}/tests"
+        assert app.app_state.current_pane.selection_anchor_path is None
 
 
 @pytest.mark.asyncio
@@ -1696,9 +1744,7 @@ async def test_app_file_search_shows_invalid_regex_message_in_palette(tmp_path) 
     path = str(tmp_path)
     (tmp_path / "README.md").write_text("readme\n", encoding="utf-8")
     file_search_service = FakeFileSearchService(
-        invalid_query_messages={
-            (path, "re:[", False): "Invalid regex: unterminated character set"
-        }
+        invalid_query_messages={(path, "re:[", False): "Invalid regex: unterminated character set"}
     )
     app = create_app(file_search_service=file_search_service, initial_path=path)
 
@@ -2090,8 +2136,7 @@ async def test_app_config_save_refreshes_live_external_launch_service() -> None:
 
         assert isinstance(app._external_launch_service, LiveExternalLaunchService)
         assert (
-            app._external_launch_service.adapter.editor_command_template.command
-            == "nvim -u NONE"
+            app._external_launch_service.adapter.editor_command_template.command == "nvim -u NONE"
         )
 
 

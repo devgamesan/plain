@@ -37,6 +37,7 @@ from peneo.state import (
     MoveCommandPaletteCursor,
     MoveConfigEditorCursor,
     MoveCursor,
+    MoveCursorAndSelectRange,
     NameConflictState,
     NotificationState,
     OpenPathInEditor,
@@ -107,6 +108,8 @@ def test_iter_bound_keys_includes_printable_text_input_keys() -> None:
     assert "ctrl+g" in keys
     assert "ctrl+b" in keys
     assert "enter" in keys
+    assert "shift+up" in keys
+    assert "shift+down" in keys
 
 
 def test_browsing_j_dispatches_move_cursor() -> None:
@@ -141,6 +144,58 @@ def test_browsing_k_dispatches_move_cursor() -> None:
             "/home/tadashi/develop/peneo/tests",
             "/home/tadashi/develop/peneo/pyproject.toml",
             "/home/tadashi/develop/peneo/README.md",
+        ),
+    )
+
+
+def test_browsing_shift_down_dispatches_range_selection_move() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="shift+down")
+
+    assert actions[0] == SetNotification(None)
+    assert actions[1] == MoveCursorAndSelectRange(
+        delta=1,
+        visible_paths=(
+            "/home/tadashi/develop/peneo/docs",
+            "/home/tadashi/develop/peneo/src",
+            "/home/tadashi/develop/peneo/tests",
+            "/home/tadashi/develop/peneo/pyproject.toml",
+            "/home/tadashi/develop/peneo/README.md",
+        ),
+    )
+
+
+def test_browsing_down_clears_range_selection_before_moving_cursor() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        current_pane=replace(
+            state.current_pane,
+            selected_paths=frozenset(
+                {
+                    "/home/tadashi/develop/peneo/docs",
+                    "/home/tadashi/develop/peneo/src",
+                }
+            ),
+            selection_anchor_path="/home/tadashi/develop/peneo/docs",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="down")
+
+    assert actions == (
+        SetNotification(None),
+        ClearSelection(),
+        MoveCursor(
+            delta=1,
+            visible_paths=(
+                "/home/tadashi/develop/peneo/docs",
+                "/home/tadashi/develop/peneo/src",
+                "/home/tadashi/develop/peneo/tests",
+                "/home/tadashi/develop/peneo/pyproject.toml",
+                "/home/tadashi/develop/peneo/README.md",
+            ),
         ),
     )
 

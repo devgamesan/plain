@@ -160,6 +160,7 @@ The main keys are listed below.
 | --- | --- | --- |
 | Normal | `↑` / `k` | Move the cursor |
 | Normal | `↓` / `j` | Move the cursor |
+| Normal | `Shift+↑` / `Shift+↓` | Expand or shrink a contiguous selection from the current anchor |
 | Normal | `←` / `h` / `Backspace` | Move to the parent directory |
 | Normal | `→` / `l` | Enter the item if it is a directory |
 | Normal | `Alt+←` | Go back to the previous directory in history |

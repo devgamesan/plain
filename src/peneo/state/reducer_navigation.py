@@ -21,6 +21,7 @@ from .actions import (
     GoToParentDirectory,
     JumpCursor,
     MoveCursor,
+    MoveCursorAndSelectRange,
     ReloadDirectory,
     RequestBrowserSnapshot,
     RequestDirectorySizes,
@@ -41,6 +42,8 @@ from .reducer_common import (
     move_cursor,
     normalize_cursor_path,
     normalize_selected_paths,
+    normalize_selection_anchor_path,
+    select_range_paths,
     sync_child_pane,
     upsert_directory_size_entries,
 )
@@ -57,6 +60,10 @@ def handle_navigation_action(
             replace(
                 state,
                 ui_mode="FILTER",
+                current_pane=replace(
+                    state.current_pane,
+                    selection_anchor_path=None,
+                ),
                 notification=None,
                 pending_input=None,
                 command_palette=None,
@@ -69,7 +76,17 @@ def handle_navigation_action(
         )
 
     if isinstance(action, ConfirmFilterInput):
-        return done(replace(state, ui_mode="BROWSING", notification=None))
+        return done(
+            replace(
+                state,
+                ui_mode="BROWSING",
+                current_pane=replace(
+                    state.current_pane,
+                    selection_anchor_path=None,
+                ),
+                notification=None,
+            )
+        )
 
     if isinstance(action, CancelFilterInput):
         return done(
@@ -77,6 +94,10 @@ def handle_navigation_action(
                 state,
                 ui_mode="BROWSING",
                 filter=replace(state.filter, query="", active=False),
+                current_pane=replace(
+                    state.current_pane,
+                    selection_anchor_path=None,
+                ),
                 notification=None,
                 pending_input=None,
                 command_palette=None,
@@ -94,7 +115,44 @@ def handle_navigation_action(
         )
         next_state = replace(
             state,
-            current_pane=replace(state.current_pane, cursor_path=cursor_path),
+            current_pane=replace(
+                state.current_pane,
+                cursor_path=cursor_path,
+                selection_anchor_path=None,
+            ),
+            notification=None,
+        )
+        return sync_child_pane(next_state, cursor_path, reduce_state)
+
+    if isinstance(action, MoveCursorAndSelectRange):
+        if not action.visible_paths:
+            return done(state)
+        base_cursor_path = (
+            state.current_pane.cursor_path
+            if state.current_pane.cursor_path in action.visible_paths
+            else action.visible_paths[0]
+        )
+        anchor_path = normalize_selection_anchor_path(
+            state.current_pane.selection_anchor_path,
+            action.visible_paths,
+        )
+        if anchor_path is None:
+            anchor_path = base_cursor_path
+        cursor_path = move_cursor(base_cursor_path, action.visible_paths, action.delta)
+        if cursor_path is None:
+            return done(state)
+        next_state = replace(
+            state,
+            current_pane=replace(
+                state.current_pane,
+                cursor_path=cursor_path,
+                selected_paths=select_range_paths(
+                    anchor_path,
+                    cursor_path,
+                    action.visible_paths,
+                ),
+                selection_anchor_path=anchor_path,
+            ),
             notification=None,
         )
         return sync_child_pane(next_state, cursor_path, reduce_state)
@@ -109,7 +167,11 @@ def handle_navigation_action(
         )
         next_state = replace(
             state,
-            current_pane=replace(state.current_pane, cursor_path=cursor_path),
+            current_pane=replace(
+                state.current_pane,
+                cursor_path=cursor_path,
+                selection_anchor_path=None,
+            ),
             notification=None,
         )
         return sync_child_pane(next_state, cursor_path, reduce_state)
@@ -119,7 +181,11 @@ def handle_navigation_action(
             return done(state)
         next_state = replace(
             state,
-            current_pane=replace(state.current_pane, cursor_path=action.path),
+            current_pane=replace(
+                state.current_pane,
+                cursor_path=action.path,
+                selection_anchor_path=None,
+            ),
             notification=None,
         )
         return sync_child_pane(next_state, action.path, reduce_state)
@@ -179,10 +245,23 @@ def handle_navigation_action(
 
     if isinstance(action, SetFilterQuery):
         active = bool(action.query) if action.active is None else action.active
+        next_state = replace(
+            state,
+            filter=replace(state.filter, query=action.query, active=active),
+        )
+        visible_paths = tuple(
+            entry.path for entry in select_visible_current_entry_states(next_state)
+        )
         return done(
             replace(
-                state,
-                filter=replace(state.filter, query=action.query, active=active),
+                next_state,
+                current_pane=replace(
+                    next_state.current_pane,
+                    selection_anchor_path=normalize_selection_anchor_path(
+                        state.current_pane.selection_anchor_path,
+                        visible_paths,
+                    ),
+                ),
             )
         )
 
@@ -196,6 +275,7 @@ def handle_navigation_action(
             ),
         )
         visible_entries = select_visible_current_entry_states(next_state)
+        visible_paths = tuple(entry.path for entry in visible_entries)
         selected_paths = normalize_selected_paths(
             state.current_pane.selected_paths,
             visible_entries,
@@ -207,6 +287,10 @@ def handle_navigation_action(
                 next_state.current_pane,
                 cursor_path=cursor_path,
                 selected_paths=selected_paths,
+                selection_anchor_path=normalize_selection_anchor_path(
+                    state.current_pane.selection_anchor_path,
+                    visible_paths,
+                ),
             ),
         )
         return sync_child_pane(next_state, cursor_path, reduce_state)
@@ -224,8 +308,10 @@ def handle_navigation_action(
                 directories_first=directories_first,
             ),
         )
+        visible_entries = select_visible_current_entry_states(next_state)
+        visible_paths = tuple(entry.path for entry in visible_entries)
         cursor_path = normalize_cursor_path(
-            select_visible_current_entry_states(next_state),
+            visible_entries,
             state.current_pane.cursor_path,
         )
         next_state = replace(
@@ -233,6 +319,10 @@ def handle_navigation_action(
             current_pane=replace(
                 next_state.current_pane,
                 cursor_path=cursor_path,
+                selection_anchor_path=normalize_selection_anchor_path(
+                    state.current_pane.selection_anchor_path,
+                    visible_paths,
+                ),
             ),
         )
         return sync_child_pane(next_state, cursor_path, reduce_state)
@@ -286,10 +376,15 @@ def handle_navigation_action(
         if action.request_id != state.pending_browser_snapshot_request_id:
             return done(state)
         selected_paths = frozenset()
+        selection_anchor_path = None
         if action.snapshot.current_path == state.current_path:
             selected_paths = normalize_selected_paths(
                 state.current_pane.selected_paths,
                 action.snapshot.current_pane.entries,
+            )
+            selection_anchor_path = normalize_selection_anchor_path(
+                state.current_pane.selection_anchor_path,
+                tuple(entry.path for entry in action.snapshot.current_pane.entries),
             )
         next_state = replace(
             state,
@@ -298,6 +393,7 @@ def handle_navigation_action(
             current_pane=replace(
                 action.snapshot.current_pane,
                 selected_paths=selected_paths,
+                selection_anchor_path=selection_anchor_path,
             ),
             child_pane=action.snapshot.child_pane,
             notification=state.post_reload_notification,

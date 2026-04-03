@@ -340,6 +340,7 @@ def handle_mutation_action(
                 current_pane=replace(
                     state.current_pane,
                     selected_paths=frozenset(selected_paths),
+                    selection_anchor_path=None,
                 ),
             )
         )
@@ -365,6 +366,7 @@ def handle_mutation_action(
                 state.current_pane,
                 cursor_path=cursor_path,
                 selected_paths=frozenset(selected_paths),
+                selection_anchor_path=None,
             ),
             notification=None,
         )
@@ -374,7 +376,11 @@ def handle_mutation_action(
         return done(
             replace(
                 state,
-                current_pane=replace(state.current_pane, selected_paths=frozenset()),
+                current_pane=replace(
+                    state.current_pane,
+                    selected_paths=frozenset(),
+                    selection_anchor_path=None,
+                ),
             )
         )
 
@@ -387,7 +393,11 @@ def handle_mutation_action(
         return done(
             replace(
                 state,
-                current_pane=replace(state.current_pane, selected_paths=selected_paths),
+                current_pane=replace(
+                    state.current_pane,
+                    selected_paths=selected_paths,
+                    selection_anchor_path=None,
+                ),
                 notification=None,
             )
         )
@@ -858,7 +868,11 @@ def handle_mutation_action(
         next_state = replace(
             state,
             notification=None,
-            current_pane=replace(state.current_pane, selected_paths=selected_paths),
+            current_pane=replace(
+                state.current_pane,
+                selected_paths=selected_paths,
+                selection_anchor_path=None,
+            ),
             pending_input=None,
             delete_confirmation=None,
             archive_extract_confirmation=None,

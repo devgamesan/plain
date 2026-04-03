@@ -97,6 +97,7 @@ from peneo.state import (
     MoveCommandPaletteCursor,
     MoveConfigEditorCursor,
     MoveCursor,
+    MoveCursorAndSelectRange,
     NameConflictState,
     NotificationState,
     OpenPathInEditor,
@@ -2139,6 +2140,7 @@ def test_toggle_hidden_files_normalizes_cursor_and_selection() -> None:
             ),
             cursor_path=hidden_path,
             selected_paths=frozenset({hidden_path, visible_path}),
+            selection_anchor_path=hidden_path,
         ),
     )
 
@@ -2147,6 +2149,7 @@ def test_toggle_hidden_files_normalizes_cursor_and_selection() -> None:
     assert next_state.show_hidden is False
     assert next_state.current_pane.cursor_path == visible_path
     assert next_state.current_pane.selected_paths == frozenset({visible_path})
+    assert next_state.current_pane.selection_anchor_path is None
     assert next_state.notification == NotificationState(
         level="info",
         message="Hidden files hidden",
@@ -3412,6 +3415,103 @@ def test_toggle_selection_and_advance_moves_cursor_to_next_visible_entry() -> No
             cursor_path="/home/tadashi/develop/peneo/src",
         ),
     )
+
+
+def test_move_cursor_and_select_range_sets_anchor_and_selects_contiguous_entries() -> None:
+    state = build_initial_app_state()
+    visible_paths = (
+        "/home/tadashi/develop/peneo/docs",
+        "/home/tadashi/develop/peneo/src",
+        "/home/tadashi/develop/peneo/tests",
+        "/home/tadashi/develop/peneo/README.md",
+        "/home/tadashi/develop/peneo/pyproject.toml",
+    )
+
+    result = reduce_app_state(
+        state,
+        MoveCursorAndSelectRange(delta=1, visible_paths=visible_paths),
+    )
+
+    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/peneo/src"
+    assert result.state.current_pane.selected_paths == frozenset(
+        {
+            "/home/tadashi/develop/peneo/docs",
+            "/home/tadashi/develop/peneo/src",
+        }
+    )
+    assert result.state.current_pane.selection_anchor_path == "/home/tadashi/develop/peneo/docs"
+    assert result.effects == (
+        LoadChildPaneSnapshotEffect(
+            request_id=1,
+            current_path="/home/tadashi/develop/peneo",
+            cursor_path="/home/tadashi/develop/peneo/src",
+        ),
+    )
+
+
+def test_move_cursor_and_select_range_reuses_anchor_when_shrinking_selection() -> None:
+    visible_paths = (
+        "/home/tadashi/develop/peneo/docs",
+        "/home/tadashi/develop/peneo/src",
+        "/home/tadashi/develop/peneo/tests",
+        "/home/tadashi/develop/peneo/README.md",
+        "/home/tadashi/develop/peneo/pyproject.toml",
+    )
+    state = reduce_app_state(
+        build_initial_app_state(),
+        MoveCursorAndSelectRange(delta=1, visible_paths=visible_paths),
+    ).state
+    state = reduce_app_state(
+        state,
+        MoveCursorAndSelectRange(delta=1, visible_paths=visible_paths),
+    ).state
+
+    result = reduce_app_state(
+        state,
+        MoveCursorAndSelectRange(delta=-1, visible_paths=visible_paths),
+    )
+
+    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/peneo/src"
+    assert result.state.current_pane.selected_paths == frozenset(
+        {
+            "/home/tadashi/develop/peneo/docs",
+            "/home/tadashi/develop/peneo/src",
+        }
+    )
+    assert result.state.current_pane.selection_anchor_path == "/home/tadashi/develop/peneo/docs"
+
+
+def test_move_cursor_clears_range_selection_anchor() -> None:
+    visible_paths = (
+        "/home/tadashi/develop/peneo/docs",
+        "/home/tadashi/develop/peneo/src",
+        "/home/tadashi/develop/peneo/tests",
+    )
+    initial_state = build_initial_app_state()
+    state = replace(
+        initial_state,
+        current_pane=replace(
+            initial_state.current_pane,
+            selected_paths=frozenset(
+                {
+                    "/home/tadashi/develop/peneo/docs",
+                    "/home/tadashi/develop/peneo/src",
+                }
+            ),
+            selection_anchor_path="/home/tadashi/develop/peneo/docs",
+        ),
+    )
+
+    result = reduce_app_state(state, MoveCursor(delta=1, visible_paths=visible_paths))
+
+    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/peneo/src"
+    assert result.state.current_pane.selected_paths == frozenset(
+        {
+            "/home/tadashi/develop/peneo/docs",
+            "/home/tadashi/develop/peneo/src",
+        }
+    )
+    assert result.state.current_pane.selection_anchor_path is None
 
 
 def test_request_browser_snapshot_returns_effect_and_updates_pending_request() -> None:

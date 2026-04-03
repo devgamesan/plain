@@ -245,6 +245,14 @@ class JumpCursor:
 
 
 @dataclass(frozen=True)
+class MoveCursorAndSelectRange:
+    """Move the cursor and replace the current selection with an anchored range."""
+
+    delta: int
+    visible_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class SetCursorPath:
     """Set the current pane cursor to a specific absolute path."""
 
@@ -776,6 +784,7 @@ Action = (
     | SubmitPendingInput
     | CancelPendingInput
     | MoveCursor
+    | MoveCursorAndSelectRange
     | JumpCursor
     | SetCursorPath
     | EnterCursorDirectory

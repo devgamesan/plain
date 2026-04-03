@@ -77,6 +77,7 @@ class PaneState:
     entries: tuple[DirectoryEntryState, ...]
     cursor_path: str | None = None
     selected_paths: frozenset[str] = frozenset()
+    selection_anchor_path: str | None = None
 
 
 @dataclass(frozen=True)

@@ -41,6 +41,7 @@ from .actions import (
     MoveCommandPaletteCursor,
     MoveConfigEditorCursor,
     MoveCursor,
+    MoveCursorAndSelectRange,
     OpenPathInEditor,
     OpenPathWithDefaultApp,
     PasteClipboard,
@@ -71,7 +72,9 @@ DispatchedActions = tuple[Action, ...]
 
 BROWSING_KEYMAP = {
     "up": "cursor_up",
+    "shift+up": "cursor_up_selecting",
     "down": "cursor_down",
+    "shift+down": "cursor_down_selecting",
     "k": "cursor_up",
     "j": "cursor_down",
     "space": "toggle_selection",
@@ -232,10 +235,30 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
     command = BROWSING_KEYMAP.get(key)
 
     if command == "cursor_up":
+        if state.current_pane.selection_anchor_path is not None:
+            return _supported(
+                ClearSelection(),
+                MoveCursor(delta=-1, visible_paths=visible_paths),
+            )
         return _supported(MoveCursor(delta=-1, visible_paths=visible_paths))
 
     if command == "cursor_down":
+        if state.current_pane.selection_anchor_path is not None:
+            return _supported(
+                ClearSelection(),
+                MoveCursor(delta=1, visible_paths=visible_paths),
+            )
         return _supported(MoveCursor(delta=1, visible_paths=visible_paths))
+
+    if command == "cursor_up_selecting":
+        return _supported(
+            MoveCursorAndSelectRange(delta=-1, visible_paths=visible_paths)
+        )
+
+    if command == "cursor_down_selecting":
+        return _supported(
+            MoveCursorAndSelectRange(delta=1, visible_paths=visible_paths)
+        )
 
     if command == "cursor_home":
         return _supported(JumpCursor(position="start", visible_paths=visible_paths))

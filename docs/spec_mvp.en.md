@@ -127,11 +127,14 @@ The bottom status bar is used for notifications such as warning / error / info.
 | Input | Behavior |
 |------|------|
 | Space | Toggle selection and move to the next row |
+| Shift+↑ / Shift+↓ | Expand or shrink a contiguous range selection |
 | Esc | Clear all selections |
 
 #### Rules
 
 - If one or more items are selected, operations target the selection
+- Range selection covers the contiguous entries from the anchor to the current cursor
+- Returning to plain ↑ / ↓ clears the active range selection
 - If nothing is selected, operations target the focused item
 
 ---

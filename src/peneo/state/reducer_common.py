@@ -91,6 +91,15 @@ def normalize_selected_paths(
     return frozenset(path for path in selected_paths if path in entry_paths)
 
 
+def normalize_selection_anchor_path(
+    anchor_path: str | None,
+    visible_paths: tuple[str, ...],
+) -> str | None:
+    if anchor_path in visible_paths:
+        return anchor_path
+    return None
+
+
 def move_cursor(
     current_path: str | None,
     visible_paths: tuple[str, ...],
@@ -106,6 +115,18 @@ def move_cursor(
 
     next_index = max(0, min(len(visible_paths) - 1, current_index + delta))
     return visible_paths[next_index]
+
+
+def select_range_paths(
+    anchor_path: str,
+    cursor_path: str,
+    visible_paths: tuple[str, ...],
+) -> frozenset[str]:
+    anchor_index = visible_paths.index(anchor_path)
+    cursor_index = visible_paths.index(cursor_path)
+    start = min(anchor_index, cursor_index)
+    end = max(anchor_index, cursor_index)
+    return frozenset(visible_paths[start : end + 1])
 
 
 def run_paste_request(state: AppState, request: PasteRequest) -> ReduceResult:

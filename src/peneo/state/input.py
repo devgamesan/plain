@@ -582,6 +582,10 @@ def _dispatch_command_palette_input(
         current_query = state.command_palette.query if state.command_palette is not None else ""
         return _supported(SetCommandPaletteQuery(f"{current_query}{character}"))
 
+    source = state.command_palette.source if state.command_palette is not None else None
+    if source in ("grep_search", "file_search"):
+        return _warn("Use arrows, type to filter, Enter to run, Ctrl+E to open in editor, or Esc to cancel")
+
     return _warn("Use arrows, type to filter, Enter to run, or Esc to cancel")
 
 

@@ -129,6 +129,8 @@ BROWSING_KEYMAP = {
     "ctrl+j": "begin_go_to_path",
     "ctrl+n": "create_file",
     "ctrl+d": "create_dir",
+    "pageup": "cursor_pageup",
+    "pagedown": "cursor_pagedown",
 }
 
 CONFLICT_KEYMAP = {
@@ -288,6 +290,14 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
 
     if command == "cursor_end":
         return _supported(JumpCursor(position="end", visible_paths=visible_paths))
+
+    if command == "cursor_pageup":
+        visible = compute_search_visible_window(state.terminal_height)
+        return _supported(MoveCursor(delta=-visible, visible_paths=visible_paths))
+
+    if command == "cursor_pagedown":
+        visible = compute_search_visible_window(state.terminal_height)
+        return _supported(MoveCursor(delta=visible, visible_paths=visible_paths))
 
     if command == "toggle_selection" and state.current_pane.cursor_path is not None:
         return _supported(

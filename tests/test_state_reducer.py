@@ -590,6 +590,11 @@ def test_reload_directory_requests_snapshot_with_current_cursor() -> None:
     assert result.effects[0].path == "/home/tadashi/develop/peneo"
     assert result.effects[0].cursor_path == "/home/tadashi/develop/peneo/src"
     assert result.effects[0].blocking is True
+    assert result.effects[0].invalidate_paths == (
+        "/home/tadashi/develop/peneo",
+        "/home/tadashi/develop",
+        "/home/tadashi/develop/peneo/src",
+    )
 
 
 def test_open_path_with_default_app_emits_external_launch_effect() -> None:
@@ -2939,6 +2944,7 @@ def test_archive_extract_completed_requests_snapshot_for_destination_parent() ->
             path="/tmp/output",
             cursor_path="/tmp/output/archive",
             blocking=True,
+            invalidate_paths=("/tmp/output", "/tmp", "/tmp/output/archive"),
         ),
     )
 
@@ -2978,6 +2984,7 @@ def test_zip_compress_completed_requests_snapshot_for_destination_parent() -> No
             path="/tmp",
             cursor_path="/tmp/output.zip",
             blocking=True,
+            invalidate_paths=("/tmp", "/", "/tmp/output.zip"),
         ),
     )
 
@@ -3445,6 +3452,19 @@ def test_clipboard_paste_completed_for_cut_clears_clipboard_and_requests_reload(
 
     assert result.state.clipboard.mode == "none"
     assert result.state.pending_browser_snapshot_request_id == 1
+    assert result.effects == (
+        LoadBrowserSnapshotEffect(
+            request_id=1,
+            path="/home/tadashi/develop/peneo",
+            cursor_path="/home/tadashi/develop/peneo/docs",
+            blocking=False,
+            invalidate_paths=(
+                "/home/tadashi/develop/peneo",
+                "/home/tadashi/develop",
+                "/home/tadashi/develop/peneo/docs",
+            ),
+        ),
+    )
 
 
 def test_file_mutation_completed_requests_reload_with_result_cursor() -> None:
@@ -3479,6 +3499,11 @@ def test_file_mutation_completed_requests_reload_with_result_cursor() -> None:
             path="/home/tadashi/develop/peneo",
             cursor_path="/home/tadashi/develop/peneo/notes.txt",
             blocking=False,
+            invalidate_paths=(
+                "/home/tadashi/develop/peneo",
+                "/home/tadashi/develop",
+                "/home/tadashi/develop/peneo/notes.txt",
+            ),
         ),
     )
 
@@ -3513,6 +3538,11 @@ def test_delete_file_mutation_completed_requests_reload_without_deleted_cursor()
             path="/home/tadashi/develop/peneo",
             cursor_path="/home/tadashi/develop/peneo/src",
             blocking=False,
+            invalidate_paths=(
+                "/home/tadashi/develop/peneo",
+                "/home/tadashi/develop",
+                "/home/tadashi/develop/peneo/src",
+            ),
         ),
     )
 

@@ -1,5 +1,7 @@
 """Snapshot loading services for three-pane browser state."""
 
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from time import sleep
@@ -11,9 +13,12 @@ from peneo.services import ArchiveListService, LiveArchiveListService
 from peneo.state.models import (
     AppState,
     BrowserSnapshot,
+    DirectoryEntryState,
     PaneState,
     build_initial_app_state,
 )
+
+DEFAULT_DIRECTORY_CACHE_CAPACITY = 64
 
 
 class BrowserSnapshotLoader(Protocol):
@@ -31,6 +36,11 @@ class BrowserSnapshotLoader(Protocol):
         cursor_path: str | None,
     ) -> PaneState: ...
 
+    def invalidate_directory_listing_cache(
+        self,
+        paths: tuple[str, ...] = (),
+    ) -> None: ...
+
 
 @dataclass(frozen=True)
 class LiveBrowserSnapshotLoader:
@@ -38,6 +48,19 @@ class LiveBrowserSnapshotLoader:
 
     filesystem: DirectoryReader = field(default_factory=LocalFilesystemAdapter)
     archive_list: ArchiveListService = field(default_factory=LiveArchiveListService)
+    directory_cache_capacity: int = DEFAULT_DIRECTORY_CACHE_CAPACITY
+    _directory_entries_cache: OrderedDict[str, tuple[DirectoryEntryState, ...]] = field(
+        default_factory=OrderedDict,
+        init=False,
+        repr=False,
+        compare=False,
+    )
+    _directory_entries_cache_lock: threading.Lock = field(
+        default_factory=threading.Lock,
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     def load_browser_snapshot(
         self,
@@ -91,7 +114,54 @@ class LiveBrowserSnapshotLoader:
 
         return PaneState(directory_path=current_path, entries=())
 
+    def invalidate_directory_listing_cache(
+        self,
+        paths: tuple[str, ...] = (),
+    ) -> None:
+        normalized_paths = tuple(
+            dict.fromkeys(_normalize_directory_cache_path(path) for path in paths)
+        )
+        with self._directory_entries_cache_lock:
+            if not normalized_paths:
+                self._directory_entries_cache.clear()
+                return
+            for path in normalized_paths:
+                self._directory_entries_cache.pop(path, None)
+
     def _list_directory(self, path: str):
+        resolved_path = _normalize_directory_cache_path(path)
+        cached_entries = self._get_cached_directory_entries(resolved_path)
+        if cached_entries is not None:
+            return cached_entries
+        entries = self._read_directory(resolved_path)
+        self._store_cached_directory_entries(resolved_path, entries)
+        return entries
+
+    def _get_cached_directory_entries(
+        self,
+        path: str,
+    ) -> tuple[DirectoryEntryState, ...] | None:
+        with self._directory_entries_cache_lock:
+            entries = self._directory_entries_cache.get(path)
+            if entries is None:
+                return None
+            self._directory_entries_cache.move_to_end(path)
+            return entries
+
+    def _store_cached_directory_entries(
+        self,
+        path: str,
+        entries: tuple[DirectoryEntryState, ...],
+    ) -> None:
+        if self.directory_cache_capacity <= 0:
+            return
+        with self._directory_entries_cache_lock:
+            self._directory_entries_cache[path] = entries
+            self._directory_entries_cache.move_to_end(path)
+            while len(self._directory_entries_cache) > self.directory_cache_capacity:
+                self._directory_entries_cache.popitem(last=False)
+
+    def _read_directory(self, path: str):
         try:
             return self.filesystem.list_directory(path)
         except PermissionError as error:
@@ -117,6 +187,7 @@ class FakeBrowserSnapshotLoader:
     child_delay_seconds: Mapping[tuple[str, str | None], float] = field(default_factory=dict)
     archive_list: ArchiveListService = field(default_factory=LiveArchiveListService)
     executed_child_pane_requests: list[tuple[str, str | None]] = field(default_factory=list)
+    invalidated_directory_listing_paths: list[tuple[str, ...]] = field(default_factory=list)
 
     def load_browser_snapshot(
         self,
@@ -155,6 +226,15 @@ class FakeBrowserSnapshotLoader:
             return pane
 
         return PaneState(directory_path=current_path, entries=())
+
+    def invalidate_directory_listing_cache(
+        self,
+        paths: tuple[str, ...] = (),
+    ) -> None:
+        normalized_paths = tuple(
+            dict.fromkeys(_normalize_directory_cache_path(path) for path in paths)
+        )
+        self.invalidated_directory_listing_paths.append(normalized_paths)
 
     def _resolve_snapshot(
         self,
@@ -222,3 +302,7 @@ def _resolve_cursor_path(entries, cursor_path: str | None) -> str | None:
 
 def _contains_path(entries, path: str) -> bool:
     return any(entry.path == path for entry in entries)
+
+
+def _normalize_directory_cache_path(path: str) -> str:
+    return str(Path(path).expanduser().resolve())

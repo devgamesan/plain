@@ -24,6 +24,7 @@ class LoadBrowserSnapshotEffect:
     path: str
     cursor_path: str | None = None
     blocking: bool = False
+    invalidate_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

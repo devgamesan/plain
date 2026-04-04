@@ -66,6 +66,7 @@ from .models import (
 from .reducer_common import (
     ReducerFn,
     active_current_entries,
+    browser_snapshot_invalidation_paths,
     build_extract_archive_request,
     build_file_mutation_request,
     build_zip_compress_request,
@@ -734,6 +735,10 @@ def handle_mutation_action(
                 path=str(Path(action.result.destination_path).parent),
                 cursor_path=action.result.destination_path,
                 blocking=True,
+                invalidate_paths=browser_snapshot_invalidation_paths(
+                    str(Path(action.result.destination_path).parent),
+                    action.result.destination_path,
+                ),
             ),
         )
 
@@ -840,6 +845,10 @@ def handle_mutation_action(
                 path=str(Path(action.result.destination_path).parent),
                 cursor_path=action.result.destination_path,
                 blocking=True,
+                invalidate_paths=browser_snapshot_invalidation_paths(
+                    str(Path(action.result.destination_path).parent),
+                    action.result.destination_path,
+                ),
             ),
         )
 

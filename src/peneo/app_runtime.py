@@ -248,6 +248,8 @@ def _clear_tracking_for_request(app: Any, tracking: _TrackingConfig, request_id:
 
 
 def schedule_browser_snapshot(app: Any, effect: LoadBrowserSnapshotEffect) -> None:
+    if effect.invalidate_paths:
+        app._snapshot_loader.invalidate_directory_listing_cache(effect.invalidate_paths)
     _run_worker(
         app,
         effect,

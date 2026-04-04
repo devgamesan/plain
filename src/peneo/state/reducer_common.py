@@ -386,6 +386,17 @@ def restore_ui_mode_after_pending_input(state: AppState) -> str:
     return "RENAME"
 
 
+def browser_snapshot_invalidation_paths(
+    path: str,
+    cursor_path: str | None = None,
+) -> tuple[str, ...]:
+    resolved_path = str(Path(path).expanduser().resolve())
+    paths = [resolved_path, str(Path(resolved_path).parent)]
+    if cursor_path is not None:
+        paths.append(str(Path(cursor_path).expanduser().resolve()))
+    return tuple(dict.fromkeys(paths))
+
+
 def request_snapshot_refresh(
     state: AppState,
     *,
@@ -393,6 +404,11 @@ def request_snapshot_refresh(
     keep_current_cursor: bool = True,
 ) -> ReduceResult:
     request_id = state.next_request_id
+    resolved_cursor_path = (
+        state.current_pane.cursor_path
+        if keep_current_cursor and cursor_path is None
+        else cursor_path
+    )
     next_state = replace(
         state,
         pending_browser_snapshot_request_id=request_id,
@@ -405,12 +421,12 @@ def request_snapshot_refresh(
             LoadBrowserSnapshotEffect(
                 request_id=request_id,
                 path=state.current_path,
-                cursor_path=(
-                    state.current_pane.cursor_path
-                    if keep_current_cursor and cursor_path is None
-                    else cursor_path
-                ),
+                cursor_path=resolved_cursor_path,
                 blocking=False,
+                invalidate_paths=browser_snapshot_invalidation_paths(
+                    state.current_path,
+                    resolved_cursor_path,
+                ),
             ),
         ),
     )

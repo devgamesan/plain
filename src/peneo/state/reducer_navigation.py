@@ -34,6 +34,7 @@ from .effects import LoadBrowserSnapshotEffect, ReduceResult, RunDirectorySizeEf
 from .models import AppState, DirectorySizeCacheEntry, FilterState, NotificationState, PaneState
 from .reducer_common import (
     ReducerFn,
+    browser_snapshot_invalidation_paths,
     build_history_after_snapshot_load,
     current_entry_for_path,
     current_entry_paths,
@@ -286,6 +287,10 @@ def handle_navigation_action(
                 state.current_path,
                 cursor_path=state.current_pane.cursor_path,
                 blocking=True,
+                invalidate_paths=browser_snapshot_invalidation_paths(
+                    state.current_path,
+                    state.current_pane.cursor_path,
+                ),
             ),
         )
 
@@ -393,6 +398,7 @@ def handle_navigation_action(
                 path=action.path,
                 cursor_path=action.cursor_path,
                 blocking=action.blocking,
+                invalidate_paths=action.invalidate_paths,
             ),
         )
 

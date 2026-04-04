@@ -18,6 +18,7 @@ from peneo.app_runtime import (
     failed_worker_actions,
     handle_worker_state_changed,
     run_foreground_external_launch,
+    schedule_browser_snapshot,
     schedule_child_pane_snapshot,
     schedule_file_search,
     start_child_pane_snapshot,
@@ -65,8 +66,26 @@ class _RecordingTimer:
 
 
 @dataclass
+class _RecordingSnapshotLoader:
+    invalidated_paths: list[tuple[str, ...]] = field(default_factory=list)
+    load_browser_snapshot_calls: list[tuple[str, str | None]] = field(default_factory=list)
+
+    def invalidate_directory_listing_cache(self, paths: tuple[str, ...] = ()) -> None:
+        self.invalidated_paths.append(paths)
+
+    def load_browser_snapshot(
+        self,
+        path: str,
+        cursor_path: str | None = None,
+    ) -> None:
+        self.load_browser_snapshot_calls.append((path, cursor_path))
+        return None
+
+
+@dataclass
 class _RecordingApp:
     _app_state: Any = field(default_factory=build_initial_app_state)
+    _snapshot_loader: Any = field(default_factory=_RecordingSnapshotLoader)
     _pending_workers: dict[str, object] = field(default_factory=dict)
     _child_pane_timer: Any = None
     _file_search_timer: Any = None
@@ -186,6 +205,25 @@ def test_complete_worker_actions_maps_browser_snapshot_load() -> None:
             blocking=True,
         ),
     )
+
+
+def test_schedule_browser_snapshot_invalidates_requested_paths_before_worker() -> None:
+    loader = _RecordingSnapshotLoader()
+    app = _RecordingApp(_snapshot_loader=loader)
+    effect = LoadBrowserSnapshotEffect(
+        request_id=7,
+        path="/tmp/project",
+        cursor_path="/tmp/project/docs",
+        blocking=True,
+        invalidate_paths=("/tmp/project", "/tmp", "/tmp/project/docs"),
+    )
+
+    schedule_browser_snapshot(app, effect)
+    worker_fn = app.run_worker_calls[0]["worker_fn"]
+    worker_fn()
+
+    assert loader.invalidated_paths == [("/tmp/project", "/tmp", "/tmp/project/docs")]
+    assert loader.load_browser_snapshot_calls == [("/tmp/project", "/tmp/project/docs")]
 
 
 def test_complete_worker_actions_maps_directory_size_result() -> None:

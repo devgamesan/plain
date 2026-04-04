@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
+from peneo.adapters import LocalFilesystemAdapter
 from peneo.services import FakeBrowserSnapshotLoader, LiveBrowserSnapshotLoader
 from peneo.state import BrowserSnapshot, DirectoryEntryState, PaneState
 
@@ -10,11 +11,21 @@ from peneo.state import BrowserSnapshot, DirectoryEntryState, PaneState
 class StubFilesystemAdapter:
     entries_by_path: dict[str, tuple[DirectoryEntryState, ...]] = field(default_factory=dict)
     errors_by_path: dict[str, Exception] = field(default_factory=dict)
+    list_directory_calls: list[str] = field(default_factory=list)
 
     def list_directory(self, path: str) -> tuple[DirectoryEntryState, ...]:
+        self.list_directory_calls.append(path)
         if path in self.errors_by_path:
             raise self.errors_by_path[path]
         return self.entries_by_path[path]
+
+
+def _build_stub_filesystem(*paths: str) -> StubFilesystemAdapter:
+    live_filesystem = LocalFilesystemAdapter()
+    filesystem = StubFilesystemAdapter()
+    for path in paths:
+        filesystem.entries_by_path[path] = live_filesystem.list_directory(path)
+    return filesystem
 
 
 def test_live_browser_snapshot_loader_builds_three_pane_snapshot(tmp_path) -> None:
@@ -89,6 +100,63 @@ def test_live_browser_snapshot_loader_normalizes_permission_error() -> None:
         loader.load_browser_snapshot("/secret")
 
 
+def test_live_browser_snapshot_loader_reuses_directory_listings_across_snapshot_requests(
+    tmp_path,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    docs = project / "docs"
+    docs.mkdir()
+    (docs / "spec.md").write_text("spec\n", encoding="utf-8")
+
+    filesystem = _build_stub_filesystem(str(project), str(tmp_path), str(docs))
+    loader = LiveBrowserSnapshotLoader(filesystem=filesystem)
+
+    first = loader.load_browser_snapshot(str(project), cursor_path=str(docs))
+    second = loader.load_browser_snapshot(str(project), cursor_path=str(docs))
+
+    assert first == second
+    assert filesystem.list_directory_calls == [str(project), str(tmp_path), str(docs)]
+
+
+def test_live_browser_snapshot_loader_reuses_cached_child_directory_snapshot(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    docs = project / "docs"
+    docs.mkdir()
+    (docs / "spec.md").write_text("spec\n", encoding="utf-8")
+
+    filesystem = _build_stub_filesystem(str(project), str(tmp_path), str(docs))
+    loader = LiveBrowserSnapshotLoader(filesystem=filesystem)
+
+    loader.load_browser_snapshot(str(project), cursor_path=str(docs))
+    loader.load_child_pane_snapshot(str(project), str(docs))
+
+    assert filesystem.list_directory_calls == [str(project), str(tmp_path), str(docs)]
+
+
+def test_live_browser_snapshot_loader_invalidates_selected_directory_cache_entry(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    docs = project / "docs"
+    docs.mkdir()
+    (docs / "spec.md").write_text("spec\n", encoding="utf-8")
+
+    filesystem = _build_stub_filesystem(str(project), str(tmp_path), str(docs))
+    loader = LiveBrowserSnapshotLoader(filesystem=filesystem)
+
+    loader.load_browser_snapshot(str(project), cursor_path=str(docs))
+    loader.invalidate_directory_listing_cache((str(project),))
+    loader.load_browser_snapshot(str(project), cursor_path=str(docs))
+
+    assert filesystem.list_directory_calls == [
+        str(project),
+        str(tmp_path),
+        str(docs),
+        str(project),
+    ]
+
+
 def test_fake_browser_snapshot_loader_prefers_requested_cursor_path() -> None:
     path = "/tmp/peneo"
     docs = f"{path}/docs"
@@ -115,3 +183,13 @@ def test_fake_browser_snapshot_loader_prefers_requested_cursor_path() -> None:
 
     assert resolved.current_pane.cursor_path == src
     assert resolved.child_pane.directory_path == src
+
+
+def test_fake_browser_snapshot_loader_records_invalidated_directory_listing_paths() -> None:
+    loader = FakeBrowserSnapshotLoader()
+
+    loader.invalidate_directory_listing_cache(("/tmp/project", "/tmp/project/docs"))
+
+    assert loader.invalidated_directory_listing_paths == [
+        ("/tmp/project", "/tmp/project/docs"),
+    ]

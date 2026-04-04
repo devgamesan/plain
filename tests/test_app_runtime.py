@@ -9,6 +9,7 @@ from textual.app import SuspendNotSupported
 from textual.worker import WorkerState
 
 from peneo.app_runtime import (
+    cancel_pending_child_pane,
     cancel_pending_directory_size,
     cancel_pending_file_search,
     cancel_pending_grep_search,
@@ -17,7 +18,9 @@ from peneo.app_runtime import (
     failed_worker_actions,
     handle_worker_state_changed,
     run_foreground_external_launch,
+    schedule_child_pane_snapshot,
     schedule_file_search,
+    start_child_pane_snapshot,
     start_file_search_worker,
     start_grep_search_worker,
     start_split_terminal,
@@ -28,6 +31,7 @@ from peneo.services import InvalidFileSearchQueryError
 from peneo.state import (
     BrowserSnapshot,
     BrowserSnapshotLoaded,
+    ChildPaneSnapshotLoaded,
     ConfigSaveCompleted,
     DirectoryEntryState,
     DirectorySizesLoaded,
@@ -35,6 +39,7 @@ from peneo.state import (
     FileSearchCompleted,
     FileSearchFailed,
     LoadBrowserSnapshotEffect,
+    LoadChildPaneSnapshotEffect,
     PaneState,
     RunConfigSaveEffect,
     RunDirectorySizeEffect,
@@ -63,8 +68,11 @@ class _RecordingTimer:
 class _RecordingApp:
     _app_state: Any = field(default_factory=build_initial_app_state)
     _pending_workers: dict[str, object] = field(default_factory=dict)
+    _child_pane_timer: Any = None
     _file_search_timer: Any = None
     _grep_search_timer: Any = None
+    _active_child_pane_cancel_event: threading.Event | None = None
+    _active_child_pane_request_id: int | None = None
     _active_file_search_cancel_event: threading.Event | None = None
     _active_file_search_request_id: int | None = None
     _active_grep_search_cancel_event: threading.Event | None = None
@@ -261,6 +269,26 @@ def test_start_file_search_worker_ignores_stale_request() -> None:
     assert app._active_file_search_request_id is None
 
 
+def test_start_child_pane_snapshot_ignores_stale_request() -> None:
+    app = _RecordingApp(
+        _app_state=replace(build_initial_app_state(), pending_child_pane_request_id=99),
+    )
+
+    start_child_pane_snapshot(
+        app,
+        LoadChildPaneSnapshotEffect(
+            request_id=7,
+            current_path="/tmp/project",
+            cursor_path="/tmp/project/docs",
+        ),
+    )
+
+    assert app.run_worker_calls == []
+    assert app._pending_workers == {}
+    assert app._active_child_pane_cancel_event is None
+    assert app._active_child_pane_request_id is None
+
+
 def test_start_grep_search_worker_ignores_stale_request() -> None:
     app = _RecordingApp(
         _app_state=replace(build_initial_app_state(), pending_grep_search_request_id=99),
@@ -303,15 +331,44 @@ def test_schedule_file_search_replaces_existing_timer() -> None:
     assert app._file_search_timer is app.set_timer_calls[0]["timer"]
 
 
+def test_schedule_child_pane_snapshot_replaces_existing_timer() -> None:
+    app = _RecordingApp()
+    existing_timer = _RecordingTimer(
+        interval=0.1,
+        callback=lambda: None,
+        name="old-child-pane",
+    )
+    app._child_pane_timer = existing_timer
+
+    schedule_child_pane_snapshot(
+        app,
+        LoadChildPaneSnapshotEffect(
+            request_id=5,
+            current_path="/tmp/project",
+            cursor_path="/tmp/project/docs",
+        ),
+    )
+
+    assert existing_timer.stopped is True
+    assert len(app.set_timer_calls) == 1
+    assert app.set_timer_calls[0]["name"] == "child-pane-snapshot-debounce:5"
+    assert app._child_pane_timer is app.set_timer_calls[0]["timer"]
+
+
 def test_cancel_pending_runtime_helpers_clear_active_tracking() -> None:
     app = _RecordingApp()
+    child_pane_timer = _RecordingTimer(interval=0.1, callback=lambda: None, name="child-pane")
     file_search_timer = _RecordingTimer(interval=0.1, callback=lambda: None, name="file-search")
     grep_search_timer = _RecordingTimer(interval=0.1, callback=lambda: None, name="grep-search")
+    child_pane_cancel = threading.Event()
     file_search_cancel = threading.Event()
     grep_search_cancel = threading.Event()
     directory_size_cancel = threading.Event()
+    app._child_pane_timer = child_pane_timer
     app._file_search_timer = file_search_timer
     app._grep_search_timer = grep_search_timer
+    app._active_child_pane_cancel_event = child_pane_cancel
+    app._active_child_pane_request_id = 2
     app._active_file_search_cancel_event = file_search_cancel
     app._active_file_search_request_id = 3
     app._active_grep_search_cancel_event = grep_search_cancel
@@ -319,10 +376,16 @@ def test_cancel_pending_runtime_helpers_clear_active_tracking() -> None:
     app._active_directory_size_cancel_event = directory_size_cancel
     app._active_directory_size_request_id = 5
 
+    cancel_pending_child_pane(app)
     cancel_pending_file_search(app)
     cancel_pending_grep_search(app)
     cancel_pending_directory_size(app)
 
+    assert child_pane_timer.stopped is True
+    assert app._child_pane_timer is None
+    assert child_pane_cancel.is_set()
+    assert app._active_child_pane_cancel_event is None
+    assert app._active_child_pane_request_id is None
     assert file_search_timer.stopped is True
     assert app._file_search_timer is None
     assert file_search_cancel.is_set()
@@ -340,9 +403,12 @@ def test_cancel_pending_runtime_helpers_clear_active_tracking() -> None:
 
 def test_clear_effect_tracking_only_clears_matching_request() -> None:
     app = _RecordingApp()
+    child_pane_cancel = threading.Event()
     file_search_cancel = threading.Event()
     grep_search_cancel = threading.Event()
     directory_size_cancel = threading.Event()
+    app._active_child_pane_cancel_event = child_pane_cancel
+    app._active_child_pane_request_id = 2
     app._active_file_search_cancel_event = file_search_cancel
     app._active_file_search_request_id = 3
     app._active_grep_search_cancel_event = grep_search_cancel
@@ -350,6 +416,22 @@ def test_clear_effect_tracking_only_clears_matching_request() -> None:
     app._active_directory_size_cancel_event = directory_size_cancel
     app._active_directory_size_request_id = 5
 
+    clear_effect_tracking(
+        app,
+        LoadChildPaneSnapshotEffect(
+            request_id=99,
+            current_path="/tmp/project",
+            cursor_path="/tmp/project/docs",
+        ),
+    )
+    clear_effect_tracking(
+        app,
+        LoadChildPaneSnapshotEffect(
+            request_id=2,
+            current_path="/tmp/project",
+            cursor_path="/tmp/project/docs",
+        ),
+    )
     clear_effect_tracking(
         app,
         RunFileSearchEffect(
@@ -369,12 +451,57 @@ def test_clear_effect_tracking_only_clears_matching_request() -> None:
         ),
     )
 
+    assert app._active_child_pane_cancel_event is None
+    assert app._active_child_pane_request_id is None
     assert app._active_file_search_cancel_event is None
     assert app._active_file_search_request_id is None
     assert app._active_grep_search_cancel_event is grep_search_cancel
     assert app._active_grep_search_request_id == 4
     assert app._active_directory_size_cancel_event is directory_size_cancel
     assert app._active_directory_size_request_id == 5
+
+
+def test_handle_worker_state_changed_clears_child_pane_tracking_and_dispatches_actions() -> None:
+    app = _RecordingApp()
+    cancel_event = threading.Event()
+    effect = LoadChildPaneSnapshotEffect(
+        request_id=3,
+        current_path="/tmp/project",
+        cursor_path="/tmp/project/docs",
+    )
+    pane = PaneState(
+        directory_path="/tmp/project/docs",
+        entries=(DirectoryEntryState("/tmp/project/docs/README.md", "README.md", "file"),),
+    )
+    app._pending_workers["child-pane-snapshot:3"] = effect
+    app._active_child_pane_cancel_event = cancel_event
+    app._active_child_pane_request_id = 3
+
+    asyncio.run(
+        handle_worker_state_changed(
+            app,
+            SimpleNamespace(
+                worker=SimpleNamespace(
+                    name="child-pane-snapshot:3",
+                    result=pane,
+                    error=None,
+                ),
+                state=WorkerState.SUCCESS,
+            ),
+        )
+    )
+
+    assert app._pending_workers == {}
+    assert app._active_child_pane_cancel_event is None
+    assert app._active_child_pane_request_id is None
+    assert app.dispatched_actions == [
+        (
+            ChildPaneSnapshotLoaded(
+                request_id=3,
+                pane=pane,
+            ),
+        )
+    ]
 
 
 def test_handle_worker_state_changed_clears_matching_tracking_and_dispatches_actions() -> None:

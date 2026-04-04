@@ -3851,6 +3851,7 @@ def test_move_cursor_emits_child_snapshot_effect_only_when_target_changes() -> N
     moved = reduce_app_state(state, SetCursorPath("/home/tadashi/develop/peneo/src"))
 
     assert moved.state.pending_child_pane_request_id == 1
+    assert moved.state.child_pane == state.child_pane
     assert moved.effects == (
         LoadChildPaneSnapshotEffect(
             request_id=1,

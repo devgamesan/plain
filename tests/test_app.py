@@ -105,6 +105,17 @@ async def _wait_for_status_bar(app, timeout: float = 0.5) -> StatusBar:
             await asyncio.sleep(0.01)
 
 
+async def _wait_for_status_message(app, expected_text: str, timeout: float = 0.5) -> None:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        status_bar = await _wait_for_status_bar(app, timeout=timeout)
+        if str(status_bar.renderable) == expected_text:
+            return
+        if asyncio.get_running_loop().time() >= deadline:
+            raise AssertionError(f"status message did not become {expected_text}")
+        await asyncio.sleep(0.01)
+
+
 async def _wait_for_current_path_bar(app, timeout: float = 0.5) -> CurrentPathBar:
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
@@ -477,6 +488,20 @@ async def _wait_for_request_count(service, expected_count: int, timeout: float =
         await asyncio.sleep(0.01)
 
 
+async def _wait_for_child_pane_request_count(
+    loader,
+    expected_count: int,
+    timeout: float = 0.5,
+) -> None:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        if len(loader.executed_child_pane_requests) >= expected_count:
+            return
+        if asyncio.get_running_loop().time() >= deadline:
+            raise AssertionError(f"child pane request count did not reach {expected_count}")
+        await asyncio.sleep(0.01)
+
+
 def test_create_app_returns_peneo_app() -> None:
     app = create_app()
 
@@ -846,7 +871,7 @@ async def test_app_keyboard_input_updates_selection_and_child_pane() -> None:
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 3)
         await pilot.press("space")
-        await asyncio.sleep(0.05)
+        await _wait_for_child_entries(app, ["main.py"], timeout=1.0)
 
         child_list = app.query_one("#child-pane-list", ListView)
         child_names = [str(item.query_one(Label).renderable) for item in child_list.children]
@@ -868,6 +893,53 @@ async def test_app_keyboard_input_updates_selection_and_child_pane() -> None:
         assert first_row[0].plain == "*"
         assert first_row[0].style == "bold blue"
         assert first_row[1].plain == "docs"
+
+
+@pytest.mark.asyncio
+async def test_app_child_pane_debounces_rapid_cursor_moves() -> None:
+    path = "/tmp/peneo-child-pane-debounce"
+    current_entries = (
+        DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+        DirectoryEntryState(f"{path}/src", "src", "dir"),
+        DirectoryEntryState(f"{path}/tests", "tests", "dir"),
+    )
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                current_entries,
+                child_path=f"{path}/docs",
+                child_entries=(DirectoryEntryState(f"{path}/docs/spec.md", "spec.md", "file"),),
+            )
+        },
+        child_panes={
+            (path, f"{path}/src"): PaneState(
+                directory_path=f"{path}/src",
+                entries=(DirectoryEntryState(f"{path}/src/main.py", "main.py", "file"),),
+            ),
+            (path, f"{path}/tests"): PaneState(
+                directory_path=f"{path}/tests",
+                entries=(
+                    DirectoryEntryState(f"{path}/tests/test_main.py", "test_main.py", "file"),
+                ),
+            ),
+        },
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 3)
+        await pilot.press("down", "down")
+        await _wait_for_cursor_path(app, f"{path}/tests")
+
+        child_list = app.query_one("#child-pane-list", ListView)
+        child_names = [str(item.query_one(Label).renderable) for item in child_list.children]
+        assert child_names == ["spec.md"]
+
+        await _wait_for_child_pane_request_count(loader, 1, timeout=1.0)
+        assert loader.executed_child_pane_requests == [(path, f"{path}/tests")]
+        await _wait_for_child_entries(app, ["test_main.py"], timeout=1.0)
 
 
 @pytest.mark.asyncio
@@ -1536,7 +1608,7 @@ async def test_app_file_cursor_clears_child_pane() -> None:
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 2)
         await pilot.press("down")
-        await asyncio.sleep(0.05)
+        await _wait_for_child_entries(app, [])
 
         child_list = app.query_one("#child-pane-list", ListView)
 
@@ -1568,7 +1640,8 @@ async def test_app_child_snapshot_failure_shows_error() -> None:
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 2)
         await pilot.press("down")
-        await asyncio.sleep(0.05)
+        await _wait_for_child_entries(app, [], timeout=1.0)
+        await _wait_for_status_message(app, "error: permission denied", timeout=1.0)
 
         child_list = app.query_one("#child-pane-list", ListView)
         current_path_bar = await _wait_for_current_path_bar(app)

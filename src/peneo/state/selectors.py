@@ -129,7 +129,10 @@ def _select_child_entries_for_cursor(
     is_archive = cursor_entry.kind == "file" and is_supported_archive_path(cursor_entry.path)
     if cursor_entry.kind != "dir" and not is_archive:
         return ()
-    if cursor_entry.path != state.child_pane.directory_path:
+    if (
+        cursor_entry.path != state.child_pane.directory_path
+        and state.pending_child_pane_request_id is None
+    ):
         return ()
     visible_entries = _select_side_pane_entry_states(state.child_pane.entries, state.show_hidden)
     return _select_side_pane_entries(

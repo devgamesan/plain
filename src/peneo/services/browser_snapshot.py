@@ -116,6 +116,7 @@ class FakeBrowserSnapshotLoader:
     per_path_delay_seconds: Mapping[str, float] = field(default_factory=dict)
     child_delay_seconds: Mapping[tuple[str, str | None], float] = field(default_factory=dict)
     archive_list: ArchiveListService = field(default_factory=LiveArchiveListService)
+    executed_child_pane_requests: list[tuple[str, str | None]] = field(default_factory=list)
 
     def load_browser_snapshot(
         self,
@@ -141,6 +142,7 @@ class FakeBrowserSnapshotLoader:
         cursor_path: str | None,
     ) -> PaneState:
         key = (current_path, cursor_path)
+        self.executed_child_pane_requests.append(key)
         delay = self.child_delay_seconds.get(key, self.default_delay_seconds)
         if delay > 0:
             sleep(delay)

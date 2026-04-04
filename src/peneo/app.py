@@ -400,6 +400,9 @@ class PeneoApp(App[None]):
         self._split_terminal_service = split_terminal_service or LiveSplitTerminalService()
         self._pending_workers: dict[str, Effect] = {}
         self._split_terminal_session: SplitTerminalSession | None = None
+        self._child_pane_timer: Timer | None = None
+        self._active_child_pane_cancel_event: threading.Event | None = None
+        self._active_child_pane_request_id: int | None = None
         self._file_search_timer: Timer | None = None
         self._active_file_search_cancel_event: threading.Event | None = None
         self._active_file_search_request_id: int | None = None

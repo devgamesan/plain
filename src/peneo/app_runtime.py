@@ -80,6 +80,7 @@ from peneo.state import (
     ZipCompressProgress,
 )
 
+CHILD_PANE_DEBOUNCE_SECONDS = 0.12
 FILE_SEARCH_DEBOUNCE_SECONDS = 0.2
 GREP_SEARCH_DEBOUNCE_SECONDS = 0.2
 
@@ -145,7 +146,14 @@ _DIRECTORY_SIZE_TRACKING = _TrackingConfig(
     request_id_attr="_active_directory_size_request_id",
 )
 
+_CHILD_PANE_TRACKING = _TrackingConfig(
+    effect_type=LoadChildPaneSnapshotEffect,
+    cancel_event_attr="_active_child_pane_cancel_event",
+    request_id_attr="_active_child_pane_request_id",
+)
+
 _TRACKING_CONFIGS = (
+    _CHILD_PANE_TRACKING,
     _FILE_SEARCH_RUNTIME.tracking,
     _GREP_SEARCH_RUNTIME.tracking,
     _DIRECTORY_SIZE_TRACKING,
@@ -153,6 +161,8 @@ _TRACKING_CONFIGS = (
 
 
 def sync_runtime_state(app: Any, previous_state: Any, next_state: Any) -> None:
+    if previous_state.pending_child_pane_request_id != next_state.pending_child_pane_request_id:
+        cancel_pending_child_pane(app)
     if previous_state.pending_file_search_request_id != next_state.pending_file_search_request_id:
         cancel_pending_file_search(app)
     if previous_state.pending_grep_search_request_id != next_state.pending_grep_search_request_id:
@@ -165,6 +175,7 @@ def sync_runtime_state(app: Any, previous_state: Any, next_state: Any) -> None:
 
 
 def cancel_pending_runtime_work(app: Any) -> None:
+    cancel_pending_child_pane(app)
     cancel_pending_file_search(app)
     cancel_pending_grep_search(app)
     cancel_pending_directory_size(app)
@@ -255,6 +266,21 @@ def schedule_browser_snapshot(app: Any, effect: LoadBrowserSnapshotEffect) -> No
 
 
 def schedule_child_pane_snapshot(app: Any, effect: LoadChildPaneSnapshotEffect) -> None:
+    _cancel_timer(app, "_child_pane_timer")
+    timer = app.set_timer(
+        CHILD_PANE_DEBOUNCE_SECONDS,
+        partial(start_child_pane_snapshot, app, effect),
+        name=f"child-pane-snapshot-debounce:{effect.request_id}",
+    )
+    setattr(app, "_child_pane_timer", timer)
+
+
+def start_child_pane_snapshot(app: Any, effect: LoadChildPaneSnapshotEffect) -> None:
+    setattr(app, "_child_pane_timer", None)
+    if app._app_state.pending_child_pane_request_id != effect.request_id:
+        return
+    cancel_event = threading.Event()
+    _set_active_tracking(app, _CHILD_PANE_TRACKING, effect.request_id, cancel_event)
     _run_worker(
         app,
         effect,
@@ -519,6 +545,11 @@ def cancel_active_grep_search(app: Any) -> None:
 
 def cancel_pending_directory_size(app: Any) -> None:
     _cancel_active_tracking(app, _DIRECTORY_SIZE_TRACKING)
+
+
+def cancel_pending_child_pane(app: Any) -> None:
+    _cancel_timer(app, "_child_pane_timer")
+    _cancel_active_tracking(app, _CHILD_PANE_TRACKING)
 
 
 def _cancel_pending_search(app: Any, config: _SearchRuntimeConfig) -> None:

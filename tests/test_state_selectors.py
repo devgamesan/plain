@@ -265,6 +265,33 @@ def test_select_parent_and_child_entries_hide_hidden_unless_enabled() -> None:
     ]
 
 
+def test_select_child_entries_keeps_previous_snapshot_visible_while_request_is_pending() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/peneo",
+            entries=(
+                DirectoryEntryState("/home/tadashi/develop/peneo/docs", "docs", "dir"),
+                DirectoryEntryState("/home/tadashi/develop/peneo/src", "src", "dir"),
+            ),
+            cursor_path="/home/tadashi/develop/peneo/src",
+        ),
+        child_pane=PaneState(
+            directory_path="/home/tadashi/develop/peneo/docs",
+            entries=(
+                DirectoryEntryState(
+                    "/home/tadashi/develop/peneo/docs/spec.md",
+                    "spec.md",
+                    "file",
+                ),
+            ),
+        ),
+        pending_child_pane_request_id=7,
+    )
+
+    assert [entry.name for entry in select_child_entries(state)] == ["spec.md"]
+
+
 def test_select_pane_entries_show_directory_sizes_from_cache() -> None:
     state = replace(
         build_initial_app_state(
@@ -533,7 +560,7 @@ def test_select_shell_data_reuses_current_entries_when_only_cursor_changes() -> 
 
     assert moved_shell.current_entries is initial_shell.current_entries
     assert moved_shell.current_cursor_index == 2
-    assert moved_shell.child_entries == ()
+    assert moved_shell.child_entries == initial_shell.child_entries
 
 
 def test_select_shell_data_rebuilds_only_current_entries_when_selection_changes() -> None:

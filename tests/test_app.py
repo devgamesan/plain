@@ -458,7 +458,13 @@ async def _wait_for_child_entries(
         except NoMatches:
             child_list = None
         if child_list is not None:
-            child_names = [str(item.query_one(Label).renderable) for item in child_list.children]
+            child_names: list[str] = []
+            for item in child_list.children:
+                try:
+                    child_names.append(str(item.query_one(Label).renderable))
+                except NoMatches:
+                    child_names = []
+                    break
             if child_names == expected_names:
                 return
         if asyncio.get_running_loop().time() >= deadline:

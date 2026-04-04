@@ -446,30 +446,47 @@ async def _wait_for_cursor_path(app, expected_path: str, timeout: float = 0.5) -
         await asyncio.sleep(0.01)
 
 
-async def _wait_for_child_entries(
+async def _wait_for_list_entries(
     app,
+    list_selector: str,
     expected_names: list[str],
     timeout: float = 0.5,
 ) -> None:
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
         try:
-            child_list = app.query_one("#child-pane-list", ListView)
+            pane_list = app.query_one(list_selector, ListView)
         except NoMatches:
-            child_list = None
-        if child_list is not None:
-            child_names: list[str] = []
-            for item in child_list.children:
+            pane_list = None
+        if pane_list is not None:
+            actual_names: list[str] = []
+            for item in pane_list.children:
                 try:
-                    child_names.append(str(item.query_one(Label).renderable))
+                    actual_names.append(str(item.query_one(Label).renderable))
                 except NoMatches:
-                    child_names = []
+                    actual_names = []
                     break
-            if child_names == expected_names:
+            if actual_names == expected_names:
                 return
         if asyncio.get_running_loop().time() >= deadline:
-            raise AssertionError(f"child entries did not become {expected_names}")
+            raise AssertionError(f"{list_selector} entries did not become {expected_names}")
         await asyncio.sleep(0.01)
+
+
+async def _wait_for_child_entries(
+    app,
+    expected_names: list[str],
+    timeout: float = 0.5,
+) -> None:
+    await _wait_for_list_entries(app, "#child-pane-list", expected_names, timeout=timeout)
+
+
+async def _wait_for_parent_entries(
+    app,
+    expected_names: list[str],
+    timeout: float = 0.5,
+) -> None:
+    await _wait_for_list_entries(app, "#parent-pane-list", expected_names, timeout=timeout)
 
 
 async def _wait_for_external_launch_count(app, expected_count: int, timeout: float = 0.5) -> None:
@@ -711,6 +728,8 @@ async def test_app_renders_loaded_three_pane_shell() -> None:
     async with app.run_test():
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 2)
+        await _wait_for_parent_entries(app, ["peneo-app", "sibling"])
+        await _wait_for_child_entries(app, ["spec.md"])
 
         parent_list = app.query_one("#parent-pane-list", ListView)
         current_table = app.query_one("#current-pane-table", DataTable)
@@ -3763,3 +3782,79 @@ async def test_app_large_directory_smoke_with_1000_entries(tmp_path) -> None:
         current_table = app.query_one("#current-pane-table", DataTable)
         assert current_table.row_count == 1000
         assert current_table.cursor_row == 150
+
+
+@pytest.mark.asyncio
+async def test_app_cursor_move_updates_large_child_pane_without_clearing(monkeypatch) -> None:
+    path = "/tmp/peneo-large-child-pane"
+    current_entries = (
+        DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+        DirectoryEntryState(f"{path}/src", "src", "dir"),
+    )
+    docs_child_entries = tuple(
+        DirectoryEntryState(
+            f"{path}/docs/child-{index:04d}.txt",
+            f"child-{index:04d}.txt",
+            "file",
+        )
+        for index in range(1000)
+    )
+    src_child_entries = tuple(
+        DirectoryEntryState(
+            f"{path}/src/module-{index:04d}.py",
+            f"module-{index:04d}.py",
+            "file",
+        )
+        for index in range(1000)
+    )
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                current_entries,
+                child_path=f"{path}/docs",
+                child_entries=docs_child_entries,
+            )
+        },
+        child_panes={
+            (path, f"{path}/src"): PaneState(
+                directory_path=f"{path}/src",
+                entries=src_child_entries,
+            )
+        },
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 2)
+        await _wait_for_child_list_label(app, "child-0999.txt", index=999, timeout=2.0)
+
+        child_list = app.query_one("#child-pane-list", ListView)
+        original_clear = ListView.clear
+        original_extend = ListView.extend
+        clear_calls = 0
+        extend_calls = 0
+
+        async def counting_clear(self, *args, **kwargs):
+            nonlocal clear_calls
+            if self is child_list:
+                clear_calls += 1
+            return await original_clear(self, *args, **kwargs)
+
+        async def counting_extend(self, *args, **kwargs):
+            nonlocal extend_calls
+            if self is child_list:
+                extend_calls += 1
+            return await original_extend(self, *args, **kwargs)
+
+        monkeypatch.setattr(ListView, "clear", counting_clear)
+        monkeypatch.setattr(ListView, "extend", counting_extend)
+
+        await pilot.press("down")
+        await _wait_for_child_list_label(app, "module-0999.py", index=999, timeout=2.0)
+
+        assert app.query_one("#child-pane-list", ListView) is child_list
+        assert len(child_list.children) == 1000
+        assert clear_calls == 0
+        assert extend_calls == 0

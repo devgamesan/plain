@@ -104,7 +104,6 @@ async def refresh_shell(
         return
 
     current_path_bar.set_path(shell.current_path)
-    await parent_pane.set_entries(shell.parent_entries)
     current_pane.set_entries(shell.current_entries, shell.current_cursor_index)
     current_pane.set_cursor_state(
         shell.current_cursor_index,
@@ -113,6 +112,7 @@ async def refresh_shell(
     )
     current_pane.set_summary(shell.current_summary)
     current_pane.set_context_input(shell.current_context_input)
+    await parent_pane.set_entries(shell.parent_entries)
     await child_pane.set_entries(shell.child_entries)
     split_terminal.set_state(shell.split_terminal)
     resize_split_terminal_session(app, app_state, split_terminal_session)

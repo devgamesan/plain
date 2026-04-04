@@ -816,6 +816,30 @@ def test_select_help_bar_state_for_go_to_path_palette_mentions_tab_completion() 
     )
 
 
+def test_select_help_bar_state_for_file_search_palette() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(source="file_search"),
+    )
+
+    help_bar = select_help_bar_state(state)
+
+    assert help_bar.lines == ("type filename | enter jump | Ctrl+E edit | esc cancel",)
+
+
+def test_select_help_bar_state_for_grep_search_palette() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(source="grep_search"),
+    )
+
+    help_bar = select_help_bar_state(state)
+
+    assert help_bar.lines == ("type text / re:pattern | enter jump | Ctrl+E edit | esc cancel",)
+
+
 def test_select_command_palette_state_go_to_path_can_show_candidates_without_selection() -> None:
     state = replace(
         _reduce_state(build_initial_app_state(), BeginCommandPalette()),

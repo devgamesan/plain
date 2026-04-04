@@ -198,9 +198,9 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         return HelpBarState(("type zip path | enter compress | esc cancel",))
     if state.ui_mode == "PALETTE":
         if state.command_palette is not None and state.command_palette.source == "file_search":
-            return HelpBarState(("type filename | enter jump | esc cancel",))
+            return HelpBarState(("type filename | enter jump | Ctrl+E edit | esc cancel",))
         if state.command_palette is not None and state.command_palette.source == "grep_search":
-            return HelpBarState(("type text / re:pattern | enter jump | e edit | esc cancel",))
+            return HelpBarState(("type text / re:pattern | enter jump | Ctrl+E edit | esc cancel",))
         if state.command_palette is not None and state.command_palette.source == "history":
             return HelpBarState(("type path | enter jump | esc cancel",))
         if state.command_palette is not None and state.command_palette.source == "bookmarks":

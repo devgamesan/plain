@@ -5,9 +5,7 @@
 ## 目次
 
 1. [スモークテスト（既存）](#スモークテスト既存)
-2. [ベンチマーク基盤](#ベンチマーク基盤)
-3. [ベンチマークの実行](#ベンチマークの実行)
-4. [パフォーマンス回帰検知](#パフォーマンス回帰検知)
+2. [現在の方針](#現在の方針)
 
 ---
 
@@ -64,168 +62,17 @@ uv run python -m pytest tests/test_app.py -k 'refresh or large_directory_smoke_w
 
 ---
 
-## ベンチマーク基盤
+## 現在の方針
 
-Issue #279 で導入されたベンチマーク基盤により、主要な操作のパフォーマンスを継続的に測定できるようになりました。
+- 自動ベンチマークは削除した
+- CI と release workflow では通常のテストのみを実行する
+- 性能確認は必要な変更ごとに、人手で対象シナリオを決めて実施する
+- 大規模 fixture や反復回数の多い性能計測を、日常の自動チェックへ戻さない
 
-### 測定対象
-
-1. **起動時間**
-   - `import peneo`: モジュールインポート時間
-   - `peneo --help`: ヘルプ表示の起動時間
-   - `peneo init bash`: シェル統合スクリペット出力の起動時間
-
-2. **ディレクトリ操作**
-   - `LocalFilesystemAdapter.list_directory`: ディレクトリスキャン
-   - `DirectorySizeService.calculate_directory_sizes`: ディレクトリサイズ計算
-
-3. **セレクタ操作**
-   - `select_shell_data()`: UI データ構築
-   - `list_matching_directory_paths()`: go-to-path 候補生成
-   - `get_command_palette_items()`: コマンドパレットアイテム生成
-
-4. **検索操作**
-   - ファイル検索: ファイル名による検索
-   - grep 検索: ファイル内容による検索
-
-### ベンチマーク Baseline（2026-04-04）
-
-以下は、開発環境での初期測定値です。これらを baseline として、パフォーマンス改善の比較に使用します。
-
-#### 起動時間
-
-| 操作 | 平均時間 | 許容範囲 | 備考 |
-|------|----------|----------|------|
-| `import peneo` | ~200ms | 180-220ms | モジュールインポート |
-| `peneo --help` | ~200-245ms | 270ms | ヘルプ表示 |
-| `peneo init bash` | ~244ms | 270ms | シェル統合出力 |
-
-#### ディレクトリ操作
-
-| 操作 | データ规模 | 平均時間 | 許容範囲 |
-|------|------------|----------|----------|
-| `list_directory` | 1k entries | ~数ms | <1.0s |
-| `list_directory` | 10k entries | ~数十ms | <1.0s |
-| `calculate_directory_sizes` | 10 files | ~数百ms | <5.0s |
-
-#### セレクタ操作
-
-| 操作 | データ规模 | 平均時間 | 許容範囲 |
-|------|------------|----------|----------|
-| `select_shell_data` | 1k entries | ~1-2ms | <5ms |
-| `select_shell_data` | 10k entries | ~4.2ms | <5ms |
-| `list_matching_directory_paths` | 1k siblings | ~10ms | <12ms |
-| `list_matching_directory_paths` | 5k siblings | ~33ms | <40ms |
-| `get_command_palette_items` | 1k candidates | ~2ms | <3ms |
-| `get_command_palette_items` | 5k candidates | ~8.25ms | <10ms |
-
-#### 検索操作
-
-| 操作 | データ规模 | 平均時間 | 許容範囲 |
-|------|------------|----------|----------|
-| ファイル検索 | 550 entries | ~数十ms | <1.0s |
-| grep 検索 | 550 entries | ~数百ms | <2.0s |
-
-**注記**: これらの値は開発環境での測定値であり、CI 環境では異なる場合があります。CI は相対比較用として使用してください。
-
----
-
-## ベンチマークの実行
-
-### ローカルでの実行
-
-#### 全ベンチマーク実行
+### 手動での性能確認例
 
 ```bash
-# すべてのベンチマークを実行
-uv run pytest tests/test_benchmarks.py -v --durations=0
-
-# または便利スクリプトを使用
-./scripts/run_benchmarks.sh
+uv run pytest tests/test_app.py -k large_directory_smoke_with_1000_entries --durations=1 -q
+uv run pytest tests/test_app.py -k main_flow_round_trip_on_live_filesystem -q
+uv run pytest tests/test_state_selectors.py -q
 ```
-
-#### 特定カテゴリの実行
-
-```bash
-# 起動時間のみ
-uv run pytest tests/test_benchmarks.py::TestStartupBenchmarks -v
-
-# ディレクトリ操作のみ
-uv run pytest tests/test_benchmarks.py::TestDirectoryBenchmarks -v
-
-# セレクタ操作のみ
-uv run pytest tests/test_benchmarks.py::TestSelectorBenchmarks -v
-
-# 検索操作のみ
-uv run pytest tests/test_benchmarks.py::TestSearchBenchmarks -v
-```
-
-#### CI 向け高速ベンチマーク
-
-CI で実行する高速ベンチマーク（`TestQuickBenchmarks`）は、manual workflow で `benchmark_type=quick` を指定した場合に実行されます：
-
-```bash
-# ローカルでも実行可能
-uv run pytest tests/test_benchmarks.py::TestQuickBenchmarks -v
-```
-
-### CI での実行
-
-GitHub Actions の manual workflow を使用してベンチマークを実行できます：
-
-```bash
-# CLI から手動実行（quick benchmark）
-gh workflow run benchmark.yml -f benchmark_type=quick
-
-# CLI から手動実行（full benchmark）
-gh workflow run benchmark.yml -f benchmark_type=full
-
-# または GitHub Web UI から "Benchmark" workflow を実行
-```
-
-実行結果は GitHub Actions の artifacts として保存され、ダウンロードできます。
-
----
-
-## パフォーマンス回帰検知
-
-### 回帰検出の閾値
-
-以下の閾値を超える変化を検出した場合、パフォーマンス回帰または改善とみなします：
-
-- **回帰**: 10% 以上遅い
-- **改善**: 20% 以上早い
-
-これらの閾値は、測定のノイズと CI 環境の変動を考慮して設定されています。
-
-### 回帰検知の手順
-
-1. **ベンチマークを実行**: 現在のコードでベンチマークを実行
-2. **Baseline と比較**: 上記の baseline 値と比較
-3. **閾値を確認**: 10% 以上の遅延がないか確認
-4. **原因の調査**: 回帰が検出された場合は、変更履歴から原因を特定
-
-### CI での自動検知
-
-CI で実行される高速ベンチマーク（`TestQuickBenchmarks`）は、以下の条件で失敗します：
-
-- 起動時間が 300ms を超える
-- ディレクトリ操作が 500ms を超える
-- セレクタ操作が 5ms を超える
-
-これらの閾値を超えた場合、CI が失敗し、パフォーマンス回帰が通知されます。
-
-**注記**: ベンチマークは manual workflow でのみ実行されるため、CI の失敗はベンチマーク実行時にのみ検知されます。
-
-### 既知の制約
-
-- **環境依存**: 測定値はハードウェア、OS、負荷状況に依存します
-- **ノイズ**: 同じ環境でも測定ごとに数％の変動があります
-- **CI 変動**: CI 環境ではローカルよりも時間がかかる場合があります
-
-### 回帰時の対処
-
-1. **再実行**: ノイズの可能性があるため、一度再実行してください
-2. **変更の確認**: 最近の変更から原因となるコミットを特定
-3. **プロファイリング**: `cProfile` や `line_profiler` を使用してボトルネックを特定
-4. **修正と検証**: 修正後に再度ベンチマークを実行して改善を確認

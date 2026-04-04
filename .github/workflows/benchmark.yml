@@ -1,0 +1,71 @@
+name: Performance Benchmark
+
+on:
+  # 手動実行のみ
+  workflow_dispatch:
+    inputs:
+      benchmark_type:
+        description: 'Benchmark type to run'
+        required: true
+        default: 'quick'
+        type: choice
+        options:
+        - quick
+        - full
+      iterations:
+        description: 'Number of iterations for timing measurements'
+        required: false
+        default: '5'
+        type: string
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y ripgrep
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run quick benchmarks
+        if: github.event.inputs.benchmark_type == 'quick'
+        run: |
+          echo "Running quick benchmarks..."
+          uv run pytest tests/test_benchmarks.py::TestQuickBenchmarks -v --durations=0 --tb=short
+
+      - name: Run full benchmarks
+        if: github.event.inputs.benchmark_type == 'full'
+        run: |
+          echo "Running full benchmarks..."
+          uv run pytest tests/test_benchmarks.py -v --durations=0 --tb=short
+
+      - name: Run quick benchmarks
+        if: steps.benchmark_type.outputs.type == 'quick'
+        run: |
+          echo "Running quick benchmarks..."
+          uv run pytest tests/test_benchmarks.py::TestQuickBenchmarks -v --durations=0 --tb=short
+
+      - name: Run full benchmarks
+        if: steps.benchmark_type.outputs.type == 'full'
+        run: |
+          echo "Running full benchmarks..."
+          uv run pytest tests/test_benchmarks.py -v --durations=0 --tb=short
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.event.inputs.benchmark_type }}
+          path: |
+            pytest-logs.txt
+            benchmark-results.json
+          if-no-files-found: ignore
+          retention-days: 30

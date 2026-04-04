@@ -373,8 +373,14 @@ def test_set_cursor_path_ignores_unknown_path() -> None:
     assert next_state == state
 
 
-def test_enter_cursor_directory_requests_blocking_snapshot() -> None:
-    state = build_initial_app_state()
+def test_enter_cursor_directory_requests_blocking_snapshot_when_child_pane_is_stale() -> None:
+    state = replace(
+        build_initial_app_state(),
+        child_pane=PaneState(
+            directory_path="/home/tadashi/develop/peneo/src",
+            entries=(),
+        ),
+    )
 
     result = reduce_app_state(state, EnterCursorDirectory())
 
@@ -384,6 +390,126 @@ def test_enter_cursor_directory_requests_blocking_snapshot() -> None:
         LoadBrowserSnapshotEffect(
             request_id=1,
             path="/home/tadashi/develop/peneo/docs",
+            cursor_path=None,
+            blocking=True,
+        ),
+    )
+
+
+def test_enter_cursor_directory_promotes_matching_child_pane() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/tmp/project",
+        current_pane=PaneState(
+            directory_path="/tmp/project",
+            entries=(
+                DirectoryEntryState("/tmp/project/docs", "docs", "dir"),
+                DirectoryEntryState("/tmp/project/README.md", "README.md", "file"),
+            ),
+            cursor_path="/tmp/project/docs",
+        ),
+        child_pane=PaneState(
+            directory_path="/tmp/project/docs",
+            entries=(
+                DirectoryEntryState("/tmp/project/docs/api", "api", "dir"),
+                DirectoryEntryState("/tmp/project/docs/guide.md", "guide.md", "file"),
+            ),
+        ),
+        directory_size_cache=(
+            DirectorySizeCacheEntry(
+                path="/tmp/project/docs/api",
+                status="ready",
+                size_bytes=128,
+            ),
+        ),
+        pending_directory_size_request_id=99,
+    )
+
+    result = reduce_app_state(state, EnterCursorDirectory())
+
+    assert result.state.current_path == "/tmp/project/docs"
+    assert result.state.parent_pane == PaneState(
+        directory_path="/tmp/project",
+        entries=state.current_pane.entries,
+        cursor_path="/tmp/project/docs",
+    )
+    assert result.state.current_pane == PaneState(
+        directory_path="/tmp/project/docs",
+        entries=state.child_pane.entries,
+        cursor_path="/tmp/project/docs/api",
+    )
+    assert result.state.child_pane == PaneState(
+        directory_path="/tmp/project/docs",
+        entries=(),
+    )
+    assert result.state.directory_size_cache == ()
+    assert result.state.pending_browser_snapshot_request_id is None
+    assert result.state.pending_child_pane_request_id == 1
+    assert result.state.pending_directory_size_request_id is None
+    assert result.state.history.back == ("/tmp/project",)
+    assert result.state.history.forward == ()
+    assert result.effects == (
+        LoadChildPaneSnapshotEffect(
+            request_id=1,
+            current_path="/tmp/project/docs",
+            cursor_path="/tmp/project/docs/api",
+        ),
+    )
+
+
+def test_enter_cursor_directory_with_active_filter_falls_back_to_snapshot() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/tmp/project",
+        current_pane=PaneState(
+            directory_path="/tmp/project",
+            entries=(DirectoryEntryState("/tmp/project/docs", "docs", "dir"),),
+            cursor_path="/tmp/project/docs",
+        ),
+        child_pane=PaneState(
+            directory_path="/tmp/project/docs",
+            entries=(DirectoryEntryState("/tmp/project/docs/api", "api", "dir"),),
+        ),
+        filter=replace(build_initial_app_state().filter, query="do", active=True),
+    )
+
+    result = reduce_app_state(state, EnterCursorDirectory())
+
+    assert result.state.pending_browser_snapshot_request_id == 1
+    assert result.state.ui_mode == "BUSY"
+    assert result.effects == (
+        LoadBrowserSnapshotEffect(
+            request_id=1,
+            path="/tmp/project/docs",
+            cursor_path=None,
+            blocking=True,
+        ),
+    )
+
+
+def test_enter_cursor_directory_with_stale_child_pane_falls_back_to_snapshot() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/tmp/project",
+        current_pane=PaneState(
+            directory_path="/tmp/project",
+            entries=(DirectoryEntryState("/tmp/project/docs", "docs", "dir"),),
+            cursor_path="/tmp/project/docs",
+        ),
+        child_pane=PaneState(
+            directory_path="/tmp/project/src",
+            entries=(DirectoryEntryState("/tmp/project/src/main.py", "main.py", "file"),),
+        ),
+    )
+
+    result = reduce_app_state(state, EnterCursorDirectory())
+
+    assert result.state.pending_browser_snapshot_request_id == 1
+    assert result.state.ui_mode == "BUSY"
+    assert result.effects == (
+        LoadBrowserSnapshotEffect(
+            request_id=1,
+            path="/tmp/project/docs",
             cursor_path=None,
             blocking=True,
         ),

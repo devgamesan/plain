@@ -30,7 +30,7 @@ jobs:
         run: mkdir -p "$RUNNER_TEMP/peneo-tmp"
 
       - name: Run tests
-        run: TMPDIR="$RUNNER_TEMP/peneo-tmp" uv run pytest --ignore=tests/test_benchmarks.py
+        run: TMPDIR="$RUNNER_TEMP/peneo-tmp" uv run pytest
 
       - name: Build source distribution
         run: |

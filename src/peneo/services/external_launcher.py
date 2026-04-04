@@ -41,7 +41,7 @@ class LiveExternalLaunchService:
         if request.kind == "open_editor":
             path = _require_path(request)
             try:
-                self.adapter.open_in_editor(path)
+                self.adapter.open_in_editor(path, line_number=request.line_number)
             except OSError as error:
                 raise OSError(_format_editor_error(path, str(error))) from error
             return

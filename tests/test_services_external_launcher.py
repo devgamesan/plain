@@ -575,6 +575,25 @@ def test_local_external_launch_adapter_opens_nano_with_line_number(tmp_path) -> 
     ]
 
 
+def test_live_external_launch_service_opens_editor_with_line_number(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("plain\n", encoding="utf-8")
+    runner = StubForegroundRunner()
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Linux",
+        command_available=lambda command: command if command == "vim" else None,
+        foreground_command_runner=runner,
+        environment_variable=lambda name: None,
+    )
+    service = LiveExternalLaunchService(adapter=adapter)
+
+    service.execute(ExternalLaunchRequest(kind="open_editor", path=str(readme), line_number=42))
+
+    assert runner.executed == [
+        (("vim", "+42", str(readme.resolve())), str(tmp_path.resolve()))
+    ]
+
+
 def runner_not_expected(
     command: tuple[str, ...],
     cwd: str | None,

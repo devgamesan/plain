@@ -8,33 +8,56 @@
 
 [日本語版 README](README.ja.md)
 
-Peneo is a Textual-based TUI file manager for environments where you want to keep working in the terminal while still moving smoothly into GUI applications. Its three-pane layout shows the parent, current, and child directories side by side, aiming to feel closer to a GUI file explorer than to a keyboard-heavy power-user tool. Common actions stay visible in the on-screen help, and files can be opened in the OS default app directly from Peneo.
+Peneo is a simple TUI file manager. Its three-pane layout shows the parent, current, and child directories side by side, aiming to feel closer to a GUI file explorer than to a keyboard-heavy power-user tool. Peneo is designed so that you can operate it without memorizing a large keymap: common actions stay visible in the help bar at the bottom, and less-frequent actions are available from the command palette.
 
 ## Features
 
-- Simple three-pane layout for parent / current / child directories. You can navigate directories, multi-select items, copy, cut, paste, move to trash, rename, create files or directories, compress targets into zip archives, and extract supported archives entirely from the keyboard.
+- Simple three-pane layout for parent / current / child directories. You can navigate directories, multi-select items, copy, cut, paste, move items to trash, copy paths, rename, create files or directories, extract archives, create zip archives, search for files, and run grep searches entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
+
   ![](docs/resources/screen-entire-screen.png)
-  _Operating the current directory while keeping surrounding hierarchy visible in the three-pane layout._
-- Common actions stay visible in the on-screen help so the interface is easy to pick up without memorizing a large keymap.
-  ![](docs/resources/screen-help-bar.png)
-  _The help bar at the bottom keeps the main keys visible at all times._
-- Less frequent actions are grouped in the command palette.
+
+- Less frequent actions are grouped in the command palette, so you can discover and run them without memorizing every shortcut.
+
   ![](docs/resources/screen-command-palette.png)
-  _The command palette opened with `:`, showing the main commands._
-- An embedded split terminal can be opened below the browser panes. `Ctrl+T` switches quickly between the browser and terminal.
+
+- An embedded terminal can be opened below the browser panes. `Ctrl+T` switches quickly between the browser and terminal, and the terminal starts in the current directory so you can move between browsing and shell work without changing directories manually.
+
   ![](docs/resources/screen-split-terminal.png)
-  _The embedded split terminal opened with `Ctrl+T`, keeping the browser panes visible while shell output stays in view._
-- Filter input, recursive file search, recursive grep search, directory-size display, and sort switching are supported.
-  ![](docs/resources/screen-filter.png)
-  _Inline filter input opened with `/`, narrowing the current directory contents in place._
+
+- Recursive file search makes it easy to jump to the file you want without drilling through the directory tree manually.
+
   ![](docs/resources/screen-find-command.png)
-  _`Find file` opened with `Ctrl+F`, searching recursively under the current directory._
-- File and directory attributes can also be inspected.
-  ![](docs/resources/screen-attributes.png)
-  _The attribute dialog showing details such as path, size, modified time, and permissions._
-- Files can be opened with the OS default app. The current directory can also be handed off to the OS file manager or an external terminal, and `e` can launch a terminal editor in the current terminal session when needed.
-  ![](docs/resources/screen-open.png)
-  _Operations for opening files with the default app or handing off the current directory to external applications._
+
+- Recursive grep search is available under the current directory. You can jump from search results directly to the matching file.
+
+  ![](docs/resources/screen-grep-command.png)
+
+- Filter input and sort switching are supported. The example below filters by `.py` and sorts by modified time in descending order.
+
+  ![](docs/resources/screen-filter-sort.png)
+
+- Bookmarks let you jump directly to saved directories.
+
+  ![](docs/resources/screen-bookmark.png)
+
+- History lets you jump back to recently visited directories.
+
+  ![](docs/resources/screen-history.png)
+
+- Press `e` on a file to switch into a terminal editor in the current terminal session. Editors such as `nvim`, `vim`, and `nano` can be used seamlessly.
+
+  ![](docs/resources/screen-terminal-editor.png)
+
+- Files and directories can be opened with the OS default application. For example, you can open the current directory in the OS file manager, open a file in VS Code if it is associated on the OS side, or launch an external terminal window rooted at the current directory.
+
+## Supported OS
+
+| OS | Support Status | Notes |
+| --- | --- | --- |
+| Ubuntu | Supported | Primary verified environment at the moment. |
+| Ubuntu (WSL) | Supported | WSL running Ubuntu is part of the verified environments. |
+| macOS | Not supported at this time | Some fallback implementations exist, but it is not a formally verified target yet. |
+| Windows | Not supported at this time | Native Windows runtime is not supported. |
 
 ## Installation
 
@@ -48,28 +71,56 @@ uv tool install --from . peneo
 
 ### Dependencies
 
-Some features depend on external commands being available on `PATH`:
+Peneo itself can be installed and started with `uv`, but some features depend on external commands being available on `PATH`. The required tools vary by OS or environment.
 
-**Required for grep search (`Ctrl+G`):**
-- `ripgrep` (`rg`)
+#### Ubuntu / Debian
 
-**Required for copy path command:**
-- Linux: `xclip` or `wl-copy` (Wayland)
-- macOS: `pbcopy` (included with macOS)
-- WSL: `clip.exe` (included with WSL), or Linux commands above
+- For grep search (`Ctrl+G`): `ripgrep` (`rg`)
+- For copy path:
+  - X11: `xclip`
+  - Wayland: `wl-copy`
 
-**Recommended for WSL:**
-- `wslu` for bridge commands (`wslview`, etc.)
-
-Install dependencies on Ubuntu / Debian:
+Install example:
 
 ```bash
-# For grep search and copy path
 sudo apt install ripgrep xclip
-
-# For WSL (optional but recommended)
-sudo apt install wslu
 ```
+
+Wayland example:
+
+```bash
+sudo apt install ripgrep wl-clipboard
+```
+
+#### Ubuntu (WSL)
+
+- For grep search (`Ctrl+G`): `ripgrep` (`rg`)
+- For copy path:
+  - `clip.exe` is usually available
+  - Linux-side `xclip` / `wl-copy` can also be used when needed
+- `wslu` is recommended for GUI bridge commands such as `wslview`
+
+Install example:
+
+```bash
+sudo apt install ripgrep wslu
+```
+
+#### macOS
+
+- For grep search (`Ctrl+G`): `ripgrep` (`rg`)
+- For copy path: the built-in `pbcopy`
+
+Install example:
+
+```bash
+brew install ripgrep
+```
+
+#### Windows
+
+- Not supported at this time
+- Dependency guidance for native Windows runtime is out of scope
 
 To update, pull the latest changes and run the same install command again.
 
@@ -77,12 +128,6 @@ To update, pull the latest changes and run the same install command again.
 
 ```bash
 peneo
-```
-
-To launch directly from a local checkout during development, run this from the repository root:
-
-```bash
-uv run peneo
 ```
 
 `peneo` itself cannot change the current directory of the parent shell. If you want your shell to `cd` into the last directory you visited after quitting Peneo, add the following line to your shell startup file first, such as `.bashrc` or `.zshrc`:
@@ -98,7 +143,7 @@ Open a new shell, or run the same line once in your current shell to enable it i
 peneo-cd
 ```
 
-Use plain `peneo` or `uv run peneo` when you do not need that behavior.
+Use plain `peneo` when you do not need that behavior.
 
 When a file is focused, press `e` to switch into a terminal editor in the current terminal session. Peneo prefers `config.toml` `editor.command` when set, then falls back to `$EDITOR`, then built-in defaults such as `nvim`, `vim`, or `nano`.
 
@@ -205,6 +250,8 @@ The main keys are listed below.
 | Normal | `Ctrl+F` | Open recursive file search |
 | Normal | `Ctrl+G` | Open recursive grep search (`ripgrep` / `rg` required on `PATH`) |
 | Normal | `Ctrl+T` | Open or close the embedded split terminal |
+| Normal | `Ctrl+N` | Start creating a new file in the current directory |
+| Normal | `Ctrl+D` | Start creating a new directory in the current directory |
 | Normal (with split terminal open) | Text input and browser shortcuts | Disabled while the split terminal owns input |
 | Filter input | Text input | Update the filter string |
 | Filter input | `Backspace` | Delete one character |
@@ -253,15 +300,14 @@ Less frequent actions are grouped in the command palette opened with `:`.
 | `Create file` | Always | Starts the inline create-file flow in the current directory. |
 | `Create directory` | Always | Starts the inline create-directory flow in the current directory. |
 
-## Platform Notes
+## Notes
 
-- The project is currently verified on Ubuntu and Ubuntu running under WSL.
-- GUI integration paths such as default-app launch, file-manager launch, and terminal launch are currently validated primarily in those environments.
-- The embedded split terminal currently targets POSIX environments such as Ubuntu/Linux and WSL.
-- External-launch behavior includes Linux, macOS, and WSL-aware fallbacks. Native Windows is not a supported runtime for Peneo.
-- `config.toml` can override both the preferred terminal editor and external terminal launch commands before those built-in fallbacks are used.
-- On WSL, install `wslu` to make `wslview` available for the preferred bridge behavior.
-- WSL prefers Windows-side bridges such as `wslview`, `explorer.exe`, and `clip.exe` when available, with Linux-side fallbacks kept for WSLg and desktop Linux environments.
+- Refer to the "Supported OS" section above for current support status.
+- GUI integration such as default-app launch, file-manager launch, and external terminal launch is currently verified mainly on Ubuntu and Ubuntu running under WSL.
+- The embedded split terminal currently targets POSIX environments, especially Ubuntu/Linux and WSL.
+- `config.toml` can override both the preferred terminal editor and external terminal launch commands before built-in fallbacks are used.
+- On WSL, `wslu` is recommended so `wslview` is available for the preferred bridge behavior.
+- On WSL, Peneo prefers Windows-side bridges such as `wslview`, `explorer.exe`, and `clip.exe` when available, while keeping Linux-side fallbacks for WSLg and desktop Linux environments.
 - Behavior and keybindings may change in future revisions.
 - File mutations operate on the selected directory entry. If the selected item is a symlink, Peneo mutates the symlink itself instead of silently following and mutating the link target.
 
@@ -277,6 +323,12 @@ To prepare the development environment:
 
 ```bash
 uv sync --python 3.12 --dev
+```
+
+To launch the app directly from a local checkout, run this from the repository root:
+
+```bash
+uv run peneo
 ```
 
 Lint and test:

@@ -1,7 +1,11 @@
 from dataclasses import replace
 
+from peneo.models import AppConfig, BookmarkConfig, CreateZipArchiveRequest
 from peneo.state import (
+    AddBookmark,
+    BeginBookmarkSearch,
     BeginCommandPalette,
+    BeginCreateInput,
     BeginDeleteTargets,
     BeginFileSearch,
     BeginFilterInput,
@@ -12,10 +16,14 @@ from peneo.state import (
     CancelFilterInput,
     CancelPasteConflict,
     CancelPendingInput,
+    CancelZipCompressConfirmation,
     ClearSelection,
+    CommandPaletteState,
     ConfigEditorState,
     ConfirmDeleteTargets,
     ConfirmFilterInput,
+    ConfirmZipCompress,
+    CopyPathsToClipboard,
     CopyTargets,
     CutTargets,
     CycleConfigEditorValue,
@@ -27,11 +35,13 @@ from peneo.state import (
     ExitCurrentPath,
     GoBack,
     GoForward,
+    GoToHomeDirectory,
     GoToParentDirectory,
     JumpCursor,
     MoveCommandPaletteCursor,
     MoveConfigEditorCursor,
     MoveCursor,
+    MoveCursorAndSelectRange,
     NameConflictState,
     NotificationState,
     OpenPathInEditor,
@@ -39,22 +49,64 @@ from peneo.state import (
     PasteClipboard,
     PendingInputState,
     ReloadDirectory,
+    RemoveBookmark,
     ResolvePasteConflict,
     SaveConfigEditor,
+    SelectAllVisibleEntries,
     SendSplitTerminalInput,
     SetCommandPaletteQuery,
     SetFilterQuery,
     SetNotification,
     SetPendingInputValue,
     SetSort,
+    ShowAttributes,
     SubmitCommandPalette,
     SubmitPendingInput,
+    ToggleHiddenFiles,
     ToggleSelectionAndAdvance,
     ToggleSplitTerminal,
+    ZipCompressConfirmationState,
     build_initial_app_state,
     dispatch_key_input,
     iter_bound_keys,
 )
+
+
+def _focused_split_terminal_state():
+    state = build_initial_app_state()
+    return replace(
+        state,
+        split_terminal=replace(
+            state.split_terminal,
+            visible=True,
+            status="running",
+            focus_target="terminal",
+        ),
+    )
+
+
+def _reduce_go_to_path_state(
+    *,
+    query: str,
+    candidates: tuple[str, ...],
+    current_path: str,
+    cursor_index: int = 0,
+):
+    state = replace(
+        build_initial_app_state(),
+        current_path=current_path,
+    )
+    state = replace(
+        state,
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="go_to_path",
+            query=query,
+            cursor_index=cursor_index,
+            go_to_path_candidates=candidates,
+        ),
+    )
+    return state
 
 
 def test_browsing_down_dispatches_move_cursor() -> None:
@@ -83,8 +135,13 @@ def test_iter_bound_keys_includes_printable_text_input_keys() -> None:
     assert "/" in keys
     assert ":" in keys
     assert "space" in keys
+    assert "ctrl+a" in keys
     assert "ctrl+g" in keys
+    assert "ctrl+b" in keys
+    assert "." in keys
     assert "enter" in keys
+    assert "shift+up" in keys
+    assert "shift+down" in keys
 
 
 def test_browsing_j_dispatches_move_cursor() -> None:
@@ -119,6 +176,58 @@ def test_browsing_k_dispatches_move_cursor() -> None:
             "/home/tadashi/develop/peneo/tests",
             "/home/tadashi/develop/peneo/pyproject.toml",
             "/home/tadashi/develop/peneo/README.md",
+        ),
+    )
+
+
+def test_browsing_shift_down_dispatches_range_selection_move() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="shift+down")
+
+    assert actions[0] == SetNotification(None)
+    assert actions[1] == MoveCursorAndSelectRange(
+        delta=1,
+        visible_paths=(
+            "/home/tadashi/develop/peneo/docs",
+            "/home/tadashi/develop/peneo/src",
+            "/home/tadashi/develop/peneo/tests",
+            "/home/tadashi/develop/peneo/pyproject.toml",
+            "/home/tadashi/develop/peneo/README.md",
+        ),
+    )
+
+
+def test_browsing_down_clears_range_selection_before_moving_cursor() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        current_pane=replace(
+            state.current_pane,
+            selected_paths=frozenset(
+                {
+                    "/home/tadashi/develop/peneo/docs",
+                    "/home/tadashi/develop/peneo/src",
+                }
+            ),
+            selection_anchor_path="/home/tadashi/develop/peneo/docs",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="down")
+
+    assert actions == (
+        SetNotification(None),
+        ClearSelection(),
+        MoveCursor(
+            delta=1,
+            visible_paths=(
+                "/home/tadashi/develop/peneo/docs",
+                "/home/tadashi/develop/peneo/src",
+                "/home/tadashi/develop/peneo/tests",
+                "/home/tadashi/develop/peneo/pyproject.toml",
+                "/home/tadashi/develop/peneo/README.md",
+            ),
         ),
     )
 
@@ -177,6 +286,14 @@ def test_browsing_q_dispatches_exit_current_path() -> None:
     assert actions == (SetNotification(None), ExitCurrentPath())
 
 
+def test_browsing_uppercase_printable_key_is_ignored() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="T", character="T")
+
+    assert actions == ()
+
+
 def test_browsing_ctrl_f_begins_file_search() -> None:
     state = build_initial_app_state()
 
@@ -195,6 +312,59 @@ def test_browsing_ctrl_g_begins_grep_search() -> None:
     assert isinstance(actions[1], BeginGrepSearch)
 
 
+def test_browsing_ctrl_b_begins_bookmark_search() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="ctrl+b")
+
+    assert len(actions) == 2
+    assert isinstance(actions[1], BeginBookmarkSearch)
+
+
+def test_browsing_ctrl_n_begins_create_file() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="ctrl+n")
+
+    assert len(actions) == 2
+    assert isinstance(actions[1], BeginCreateInput)
+    assert actions[1].kind == "file"
+
+
+def test_browsing_ctrl_d_begins_create_directory() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="ctrl+d")
+
+    assert len(actions) == 2
+    assert isinstance(actions[1], BeginCreateInput)
+    assert actions[1].kind == "dir"
+
+
+def test_browsing_b_adds_bookmark_for_current_directory() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="b", character="b")
+
+    assert actions == (
+        SetNotification(None),
+        AddBookmark(path="/home/tadashi/develop/peneo"),
+    )
+
+
+def test_browsing_b_removes_bookmark_for_current_directory() -> None:
+    state = build_initial_app_state(
+        config=AppConfig(bookmarks=BookmarkConfig(paths=("/home/tadashi/develop/peneo",)))
+    )
+
+    actions = dispatch_key_input(state, key="b", character="b")
+
+    assert actions == (
+        SetNotification(None),
+        RemoveBookmark(path="/home/tadashi/develop/peneo"),
+    )
+
+
 def test_filter_q_updates_query_instead_of_exiting() -> None:
     state = build_initial_app_state()
     state = replace(
@@ -205,6 +375,21 @@ def test_filter_q_updates_query_instead_of_exiting() -> None:
     actions = dispatch_key_input(state, key="q", character="q")
 
     assert actions == (SetNotification(None), SetFilterQuery("q", active=True))
+
+
+def test_filter_bound_space_without_character_is_rejected() -> None:
+    state = replace(build_initial_app_state(), ui_mode="FILTER")
+
+    actions = dispatch_key_input(state, key="space")
+
+    assert actions == (
+        SetNotification(
+            NotificationState(
+                level="warning",
+                message="This key is unavailable while editing the filter",
+            )
+        ),
+    )
 
 
 def test_browsing_y_dispatches_copy_targets() -> None:
@@ -235,6 +420,30 @@ def test_browsing_p_dispatches_paste_clipboard() -> None:
     actions = dispatch_key_input(state, key="p", character="p")
 
     assert actions == (SetNotification(None), PasteClipboard())
+
+
+def test_browsing_c_dispatches_copy_paths_to_clipboard() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="c", character="c")
+
+    assert actions == (SetNotification(None), CopyPathsToClipboard())
+
+
+def test_browsing_i_dispatches_show_attributes() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="i", character="i")
+
+    assert actions == (SetNotification(None), ShowAttributes())
+
+
+def test_browsing_dot_toggles_hidden_files() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key=".", character=".")
+
+    assert actions == (SetNotification(None), ToggleHiddenFiles())
 
 
 def test_browsing_h_goes_to_parent_directory() -> None:
@@ -431,6 +640,66 @@ def test_palette_printable_key_updates_query() -> None:
     assert actions == (SetNotification(None), SetCommandPaletteQuery("f"))
 
 
+def test_palette_space_updates_query() -> None:
+    state = replace(build_initial_app_state(), ui_mode="PALETTE")
+
+    actions = dispatch_key_input(state, key="space", character=" ")
+
+    assert actions == (SetNotification(None), SetCommandPaletteQuery(" "))
+
+
+def test_palette_bound_space_without_character_updates_query() -> None:
+    state = replace(build_initial_app_state(), ui_mode="PALETTE")
+
+    actions = dispatch_key_input(state, key="space")
+
+    assert actions == (SetNotification(None), SetCommandPaletteQuery(" "))
+
+
+def test_go_to_path_palette_tab_completes_selected_candidate() -> None:
+    state = _reduce_go_to_path_state(
+        query="do",
+        candidates=("/tmp/project/docs", "/tmp/project/downloads"),
+        cursor_index=1,
+        current_path="/tmp/project",
+    )
+
+    actions = dispatch_key_input(state, key="tab")
+
+    assert actions == (SetNotification(None), SetCommandPaletteQuery("downloads"))
+
+
+def test_go_to_path_palette_tab_appends_separator_for_single_candidate() -> None:
+    state = _reduce_go_to_path_state(
+        query="do",
+        candidates=("/tmp/project/docs",),
+        current_path="/tmp/project",
+    )
+
+    actions = dispatch_key_input(state, key="tab")
+
+    assert actions == (SetNotification(None), SetCommandPaletteQuery("docs/"))
+
+
+def test_go_to_path_palette_tab_warns_without_candidates() -> None:
+    state = _reduce_go_to_path_state(
+        query="missing",
+        candidates=(),
+        current_path="/tmp/project",
+    )
+
+    actions = dispatch_key_input(state, key="tab")
+
+    assert actions == (
+        SetNotification(
+            NotificationState(
+                level="warning",
+                message="No matching directory to complete",
+            )
+        ),
+    )
+
+
 def test_palette_pageup_moves_cursor_by_page() -> None:
     state = replace(build_initial_app_state(), ui_mode="PALETTE")
 
@@ -447,32 +716,39 @@ def test_palette_pagedown_moves_cursor_by_page() -> None:
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=7))
 
 
-def test_split_terminal_focus_sends_printable_input() -> None:
-    state = replace(
-        build_initial_app_state(),
-        split_terminal=replace(
-            build_initial_app_state().split_terminal,
-            visible=True,
-            status="running",
-            focus_target="terminal",
+def test_palette_unbound_key_shows_guidance() -> None:
+    state = replace(build_initial_app_state(), ui_mode="PALETTE")
+
+    actions = dispatch_key_input(state, key="delete")
+
+    assert actions == (
+        SetNotification(
+            NotificationState(
+                level="warning",
+                message="Use arrows, type to filter, Enter to run, or Esc to cancel",
+            )
         ),
     )
+
+
+def test_split_terminal_focus_sends_printable_input() -> None:
+    state = _focused_split_terminal_state()
 
     actions = dispatch_key_input(state, key="a", character="a")
 
     assert actions == (SetNotification(None), SendSplitTerminalInput("a"))
 
 
+def test_split_terminal_focus_sends_bound_space_without_character() -> None:
+    state = _focused_split_terminal_state()
+
+    actions = dispatch_key_input(state, key="space")
+
+    assert actions == (SetNotification(None), SendSplitTerminalInput(" "))
+
+
 def test_split_terminal_focus_sends_tab_for_completion() -> None:
-    state = replace(
-        build_initial_app_state(),
-        split_terminal=replace(
-            build_initial_app_state().split_terminal,
-            visible=True,
-            status="running",
-            focus_target="terminal",
-        ),
-    )
+    state = _focused_split_terminal_state()
 
     actions = dispatch_key_input(state, key="tab")
 
@@ -480,15 +756,7 @@ def test_split_terminal_focus_sends_tab_for_completion() -> None:
 
 
 def test_split_terminal_focus_sends_delete_sequence() -> None:
-    state = replace(
-        build_initial_app_state(),
-        split_terminal=replace(
-            build_initial_app_state().split_terminal,
-            visible=True,
-            status="running",
-            focus_target="terminal",
-        ),
-    )
+    state = _focused_split_terminal_state()
 
     actions = dispatch_key_input(state, key="delete")
 
@@ -496,15 +764,7 @@ def test_split_terminal_focus_sends_delete_sequence() -> None:
 
 
 def test_split_terminal_focus_sends_navigation_sequences() -> None:
-    state = replace(
-        build_initial_app_state(),
-        split_terminal=replace(
-            build_initial_app_state().split_terminal,
-            visible=True,
-            status="running",
-            focus_target="terminal",
-        ),
-    )
+    state = _focused_split_terminal_state()
 
     assert dispatch_key_input(state, key="home") == (
         SetNotification(None),
@@ -524,16 +784,16 @@ def test_split_terminal_focus_sends_navigation_sequences() -> None:
     )
 
 
+def test_split_terminal_focus_takes_priority_over_browsing_navigation() -> None:
+    state = _focused_split_terminal_state()
+
+    actions = dispatch_key_input(state, key="left")
+
+    assert actions == (SetNotification(None), SendSplitTerminalInput("\x1b[D"))
+
+
 def test_split_terminal_focus_sends_ctrl_shortcuts_except_ctrl_t() -> None:
-    state = replace(
-        build_initial_app_state(),
-        split_terminal=replace(
-            build_initial_app_state().split_terminal,
-            visible=True,
-            status="running",
-            focus_target="terminal",
-        ),
-    )
+    state = _focused_split_terminal_state()
 
     assert dispatch_key_input(state, key="ctrl+d") == (
         SetNotification(None),
@@ -603,6 +863,25 @@ def test_browsing_delete_warns_when_no_target_exists() -> None:
 
     assert actions == (
         SetNotification(NotificationState(level="warning", message="Nothing to delete")),
+    )
+
+
+def test_browsing_ctrl_a_selects_all_visible_entries() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="ctrl+a")
+
+    assert actions == (
+        SetNotification(None),
+        SelectAllVisibleEntries(
+            (
+                "/home/tadashi/develop/peneo/docs",
+                "/home/tadashi/develop/peneo/src",
+                "/home/tadashi/develop/peneo/tests",
+                "/home/tadashi/develop/peneo/pyproject.toml",
+                "/home/tadashi/develop/peneo/README.md",
+            )
+        ),
     )
 
 
@@ -787,6 +1066,31 @@ def test_config_escape_closes_editor() -> None:
     assert actions == (SetNotification(None), DismissConfigEditor())
 
 
+def test_config_unbound_key_shows_guidance() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/peneo/config.toml",
+            draft=build_initial_app_state().config,
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="x", character="x")
+
+    assert actions == (
+        SetNotification(
+            NotificationState(
+                level="warning",
+                message=(
+                    "Use arrows to change values, s to save, "
+                    "e to edit the file, or Esc to close"
+                ),
+            )
+        ),
+    )
+
+
 def test_confirm_o_selects_overwrite_resolution() -> None:
     state = replace(build_initial_app_state(), ui_mode="CONFIRM")
 
@@ -826,6 +1130,44 @@ def test_delete_confirm_escape_cancels_confirmation() -> None:
     assert actions == (SetNotification(None), CancelDeleteConfirmation())
 
 
+def test_zip_compress_confirm_enter_dispatches_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        zip_compress_confirmation=ZipCompressConfirmationState(
+            request=CreateZipArchiveRequest(
+                source_paths=("/home/tadashi/develop/peneo/docs",),
+                destination_path="/home/tadashi/develop/peneo/docs.zip",
+                root_dir="/home/tadashi/develop/peneo",
+            ),
+            total_entries=3,
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="enter")
+
+    assert actions == (SetNotification(None), ConfirmZipCompress())
+
+
+def test_zip_compress_confirm_escape_cancels_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        zip_compress_confirmation=ZipCompressConfirmationState(
+            request=CreateZipArchiveRequest(
+                source_paths=("/home/tadashi/develop/peneo/docs",),
+                destination_path="/home/tadashi/develop/peneo/docs.zip",
+                root_dir="/home/tadashi/develop/peneo",
+            ),
+            total_entries=3,
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="escape")
+
+    assert actions == (SetNotification(None), CancelZipCompressConfirmation())
+
+
 def test_rename_character_dispatches_input_update() -> None:
     state = build_initial_app_state()
     state = replace(
@@ -850,6 +1192,38 @@ def test_create_space_dispatches_input_update() -> None:
     actions = dispatch_key_input(state, key="space", character=" ")
 
     assert actions == (SetNotification(None), SetPendingInputValue("new "))
+
+
+def test_zip_enter_dispatches_submit_pending_input() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="ZIP",
+        pending_input=PendingInputState(
+            prompt="Compress to: ",
+            value="/tmp/output.zip",
+            zip_source_paths=("/home/tadashi/develop/peneo/docs",),
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="enter")
+
+    assert actions == (SetNotification(None), SubmitPendingInput())
+
+
+def test_zip_printable_character_dispatches_input_update() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="ZIP",
+        pending_input=PendingInputState(
+            prompt="Compress to: ",
+            value="/tmp/output",
+            zip_source_paths=("/home/tadashi/develop/peneo/docs",),
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="z", character="z")
+
+    assert actions == (SetNotification(None), SetPendingInputValue("/tmp/outputz"))
 
 
 def test_pending_input_backspace_updates_value() -> None:
@@ -879,6 +1253,23 @@ def test_pending_input_escape_cancels() -> None:
     actions = dispatch_key_input(state, key="escape")
 
     assert actions == (SetNotification(None), CancelPendingInput())
+
+
+def test_pending_input_unbound_key_shows_guidance() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        ui_mode="RENAME",
+        pending_input=PendingInputState(prompt="Rename: ", value="docs"),
+    )
+
+    actions = dispatch_key_input(state, key="left")
+
+    assert actions == (
+        SetNotification(
+            NotificationState(level="warning", message="Use Enter to apply or Esc to cancel")
+        ),
+    )
 
 
 def test_busy_key_shows_warning_message() -> None:
@@ -960,3 +1351,11 @@ def test_browsing_alt_right_dispatches_go_forward() -> None:
     actions = dispatch_key_input(state, key="alt+right")
 
     assert actions == (SetNotification(None), GoForward())
+
+
+def test_browsing_alt_home_dispatches_go_to_home_directory() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="alt+home")
+
+    assert actions == (SetNotification(None), GoToHomeDirectory())

@@ -1,24 +1,34 @@
 """Keyboard dispatcher that normalizes Textual input into reducer actions."""
 
+import os
 import string
 
 from .actions import (
     Action,
+    AddBookmark,
+    BeginBookmarkSearch,
     BeginCommandPalette,
+    BeginCreateInput,
     BeginDeleteTargets,
     BeginFileSearch,
     BeginFilterInput,
+    BeginGoToPath,
     BeginGrepSearch,
     BeginHistorySearch,
     BeginRenameInput,
+    CancelArchiveExtractConfirmation,
     CancelCommandPalette,
     CancelDeleteConfirmation,
     CancelFilterInput,
     CancelPasteConflict,
     CancelPendingInput,
+    CancelZipCompressConfirmation,
     ClearSelection,
+    ConfirmArchiveExtract,
     ConfirmDeleteTargets,
     ConfirmFilterInput,
+    ConfirmZipCompress,
+    CopyPathsToClipboard,
     CopyTargets,
     CutTargets,
     CycleConfigEditorValue,
@@ -29,29 +39,38 @@ from .actions import (
     ExitCurrentPath,
     GoBack,
     GoForward,
+    GoToHomeDirectory,
     GoToParentDirectory,
     JumpCursor,
     MoveCommandPaletteCursor,
     MoveConfigEditorCursor,
     MoveCursor,
+    MoveCursorAndSelectRange,
     OpenPathInEditor,
     OpenPathWithDefaultApp,
     PasteClipboard,
+    PasteFromClipboardToTerminal,
     ReloadDirectory,
+    RemoveBookmark,
     ResolvePasteConflict,
     SaveConfigEditor,
+    SelectAllVisibleEntries,
     SendSplitTerminalInput,
     SetCommandPaletteQuery,
     SetFilterQuery,
     SetNotification,
     SetPendingInputValue,
     SetSort,
+    ShowAttributes,
     SubmitCommandPalette,
     SubmitPendingInput,
+    ToggleHiddenFiles,
     ToggleSelectionAndAdvance,
     ToggleSplitTerminal,
 )
+from .command_palette import normalize_command_palette_cursor
 from .models import AppState, DirectoryEntryState, NotificationState
+from .reducer_common import format_go_to_path_completion
 from .selectors import (
     compute_search_visible_window,
     select_target_paths,
@@ -62,9 +81,13 @@ DispatchedActions = tuple[Action, ...]
 
 BROWSING_KEYMAP = {
     "up": "cursor_up",
+    "shift+up": "cursor_up_selecting",
     "down": "cursor_down",
+    "shift+down": "cursor_down_selecting",
+    "i": "show_attributes",
     "k": "cursor_up",
     "j": "cursor_down",
+    ".": "toggle_hidden",
     "space": "toggle_selection",
     "escape": "clear_selection",
     "/": "begin_filter",
@@ -85,6 +108,7 @@ BROWSING_KEYMAP = {
     "ctrl+t": "toggle_split_terminal",
     "ctrl+f": "begin_file_search",
     "ctrl+g": "begin_grep_search",
+    "ctrl+a": "select_all",
     "y": "copy_targets",
     "x": "cut_targets",
     "p": "paste_clipboard",
@@ -92,7 +116,14 @@ BROWSING_KEYMAP = {
     "end": "cursor_end",
     "alt+left": "go_back",
     "alt+right": "go_forward",
+    "alt+home": "go_to_home_directory",
     "ctrl+o": "begin_history_search",
+    "ctrl+b": "begin_bookmark_search",
+    "b": "toggle_bookmark",
+    "c": "copy_paths_to_clipboard",
+    "ctrl+j": "begin_go_to_path",
+    "ctrl+n": "create_file",
+    "ctrl+d": "create_dir",
 }
 
 CONFLICT_KEYMAP = {
@@ -102,6 +133,25 @@ CONFLICT_KEYMAP = {
     "r": "rename",
 }
 
+TERMINAL_KEYMAP = {
+    "tab": "terminal_tab",
+    "ctrl+t": "toggle_terminal",
+    "ctrl+v": "paste_from_clipboard",
+    "enter": "terminal_enter",
+    "backspace": "terminal_backspace",
+    "delete": "terminal_delete",
+    "escape": "terminal_escape",
+    "home": "terminal_home",
+    "end": "terminal_end",
+    "pageup": "terminal_pageup",
+    "pagedown": "terminal_pagedown",
+    "up": "terminal_up",
+    "down": "terminal_down",
+    "left": "terminal_left",
+    "right": "terminal_right",
+    "ctrl+c": "terminal_ctrl_c",
+}
+
 PRINTABLE_BINDING_KEYS = tuple((*string.ascii_letters, *string.digits))
 
 
@@ -109,7 +159,14 @@ def iter_bound_keys() -> tuple[str, ...]:
     """Return the keys that should be installed as app bindings."""
 
     return tuple(
-        dict.fromkeys((*BROWSING_KEYMAP.keys(), *CONFLICT_KEYMAP.keys(), *PRINTABLE_BINDING_KEYS))
+        dict.fromkeys(
+            (
+                *BROWSING_KEYMAP.keys(),
+                *CONFLICT_KEYMAP.keys(),
+                *TERMINAL_KEYMAP.keys(),
+                *PRINTABLE_BINDING_KEYS,
+            )
+        )
     )
 
 
@@ -120,6 +177,8 @@ def dispatch_key_input(
     character: str | None = None,
 ) -> DispatchedActions:
     """Return reducer actions for the current mode and key press."""
+
+    character = _normalize_input_character(state, key=key, character=character)
 
     if _terminal_has_focus(state):
         return _dispatch_split_terminal_input(key=key, character=character)
@@ -142,10 +201,45 @@ def dispatch_key_input(
     if state.ui_mode == "PALETTE":
         return _dispatch_command_palette_input(state, key=key, character=character)
 
-    if state.ui_mode in {"RENAME", "CREATE"}:
+    if state.ui_mode in {"RENAME", "CREATE", "EXTRACT", "ZIP"}:
         return _dispatch_pending_input(state, key=key, character=character)
 
     return _dispatch_browsing_input(state, key)
+
+
+def _normalize_input_character(
+    state: AppState,
+    *,
+    key: str,
+    character: str | None,
+) -> str | None:
+    resolved_character = _resolve_printable_character(key=key, character=character)
+    if resolved_character is None:
+        return None
+
+    if _terminal_has_focus(state):
+        return resolved_character
+
+    if state.ui_mode in {"PALETTE", "RENAME", "CREATE", "EXTRACT", "ZIP"}:
+        return resolved_character
+
+    if state.ui_mode == "FILTER" and not resolved_character.isspace():
+        return resolved_character
+
+    return None
+
+
+def _resolve_printable_character(*, key: str, character: str | None) -> str | None:
+    if character is not None and character.isprintable():
+        return character
+
+    if key == "space":
+        return " "
+
+    if len(key) == 1 and key.isprintable():
+        return key
+
+    return None
 
 
 def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
@@ -156,10 +250,30 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
     command = BROWSING_KEYMAP.get(key)
 
     if command == "cursor_up":
+        if state.current_pane.selection_anchor_path is not None:
+            return _supported(
+                ClearSelection(),
+                MoveCursor(delta=-1, visible_paths=visible_paths),
+            )
         return _supported(MoveCursor(delta=-1, visible_paths=visible_paths))
 
     if command == "cursor_down":
+        if state.current_pane.selection_anchor_path is not None:
+            return _supported(
+                ClearSelection(),
+                MoveCursor(delta=1, visible_paths=visible_paths),
+            )
         return _supported(MoveCursor(delta=1, visible_paths=visible_paths))
+
+    if command == "cursor_up_selecting":
+        return _supported(
+            MoveCursorAndSelectRange(delta=-1, visible_paths=visible_paths)
+        )
+
+    if command == "cursor_down_selecting":
+        return _supported(
+            MoveCursorAndSelectRange(delta=1, visible_paths=visible_paths)
+        )
 
     if command == "cursor_home":
         return _supported(JumpCursor(position="start", visible_paths=visible_paths))
@@ -180,14 +294,28 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
             return _supported(CancelFilterInput())
         return _supported(ClearSelection())
 
+    if command == "select_all":
+        return _supported(SelectAllVisibleEntries(visible_paths))
+
     if command == "begin_filter":
         return _supported(BeginFilterInput())
+
+    if command == "begin_bookmark_search":
+        return _supported(BeginBookmarkSearch())
+
+    if command == "toggle_bookmark":
+        if state.current_path in state.config.bookmarks.paths:
+            return _supported(RemoveBookmark(path=state.current_path))
+        return _supported(AddBookmark(path=state.current_path))
 
     if command == "copy_targets":
         return _supported(CopyTargets(target_paths))
 
     if command == "cut_targets":
         return _supported(CutTargets(target_paths))
+
+    if command == "copy_paths_to_clipboard":
+        return _supported(CopyPathsToClipboard())
 
     if command == "paste_clipboard":
         return _supported(PasteClipboard())
@@ -223,6 +351,18 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
     if command == "begin_history_search":
         return _supported(BeginHistorySearch())
 
+    if command == "begin_go_to_path":
+        return _supported(BeginGoToPath())
+
+    if command == "go_to_home_directory":
+        return _supported(GoToHomeDirectory())
+
+    if command == "create_file":
+        return _supported(BeginCreateInput("file"))
+
+    if command == "create_dir":
+        return _supported(BeginCreateInput("dir"))
+
     if command == "toggle_split_terminal":
         return _supported(ToggleSplitTerminal())
 
@@ -241,10 +381,16 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
             )
         )
 
+    if command == "toggle_hidden":
+        return _supported(ToggleHiddenFiles())
+
     if command == "delete_targets":
         if not target_paths:
             return _warn("Nothing to delete")
         return _supported(BeginDeleteTargets(target_paths))
+
+    if command == "show_attributes":
+        return _supported(ShowAttributes())
 
     if command == "open_in_editor":
         if cursor_entry is not None and cursor_entry.kind == "file":
@@ -271,10 +417,18 @@ def _dispatch_split_terminal_input(
     key: str,
     character: str | None,
 ) -> DispatchedActions:
-    if key == "tab":
+    command = TERMINAL_KEYMAP.get(key)
+
+    if command == "terminal_tab":
         return _supported(SendSplitTerminalInput("\t"))
 
-    if key == "ctrl+t":
+    if command == "toggle_terminal":
+        return _supported(ToggleSplitTerminal())
+
+    if command == "paste_from_clipboard":
+        return _supported(PasteFromClipboardToTerminal())
+
+    if command == "terminal_escape":
         return _supported(ToggleSplitTerminal())
 
     if key == "enter":
@@ -327,7 +481,7 @@ def _dispatch_split_terminal_input(
 
 
 def _terminal_control_character(key: str) -> str | None:
-    if not key.startswith("ctrl+") or key == "ctrl+t":
+    if not key.startswith("ctrl+") or key in ("ctrl+t", "ctrl+v"):
         return None
 
     suffix = key[5:]
@@ -337,15 +491,34 @@ def _terminal_control_character(key: str) -> str | None:
     letter = suffix.lower()
     return chr(ord(letter) - ord("a") + 1)
 
-
-
-
 def _dispatch_command_palette_input(
     state: AppState,
     *,
     key: str,
     character: str | None,
 ) -> DispatchedActions:
+    if (
+        key == "tab"
+        and state.command_palette is not None
+        and state.command_palette.source == "go_to_path"
+    ):
+        candidates = state.command_palette.go_to_path_candidates
+        if not candidates:
+            return _warn("No matching directory to complete")
+
+        selected_path = candidates[
+            normalize_command_palette_cursor(state, state.command_palette.cursor_index)
+        ]
+        completed_query = format_go_to_path_completion(
+            selected_path,
+            state.command_palette.query,
+            state.current_path,
+            append_separator=len(candidates) == 1,
+        )
+        if len(candidates) == 1 and completed_query != os.sep:
+            completed_query = completed_query.rstrip(os.sep) + os.sep
+        return _supported(SetCommandPaletteQuery(completed_query))
+
     if key == "escape":
         return _supported(CancelCommandPalette())
 
@@ -412,6 +585,20 @@ def _dispatch_confirm_input(state: AppState, key: str) -> DispatchedActions:
         if key == "enter":
             return _supported(ConfirmDeleteTargets())
         return _warn("Use Enter to confirm delete or Esc to cancel")
+
+    if state.archive_extract_confirmation is not None:
+        if key == "escape":
+            return _supported(CancelArchiveExtractConfirmation())
+        if key == "enter":
+            return _supported(ConfirmArchiveExtract())
+        return _warn("Use Enter to continue extraction or Esc to return")
+
+    if state.zip_compress_confirmation is not None:
+        if key == "escape":
+            return _supported(CancelZipCompressConfirmation())
+        if key == "enter":
+            return _supported(ConfirmZipCompress())
+        return _warn("Use Enter to overwrite the zip or Esc to return")
 
     if state.name_conflict is not None:
         if key in {"enter", "escape"}:

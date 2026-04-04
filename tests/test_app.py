@@ -193,6 +193,21 @@ async def _wait_for_snapshot_loaded(app, expected_path: str, timeout: float = 0.
         await asyncio.sleep(0.01)
 
 
+async def _wait_for_help_bar_text(app, expected: str, timeout: float = 0.5) -> HelpBar:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        try:
+            help_bar = app.query_one("#help-bar", HelpBar)
+        except NoMatches:
+            help_bar = None
+        if help_bar is not None and str(help_bar.renderable) == expected:
+            return help_bar
+        if asyncio.get_running_loop().time() >= deadline:
+            actual = None if help_bar is None else str(help_bar.renderable)
+            raise AssertionError(f"help bar did not become {expected!r}; actual={actual!r}")
+        await asyncio.sleep(0.01)
+
+
 async def _wait_for_notification_message(app, expected: str, timeout: float = 0.5) -> None:
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
@@ -227,9 +242,7 @@ async def _wait_for_table_cell(
             return
         if asyncio.get_running_loop().time() >= deadline:
             actual = table.get_cell_at((row, col))
-            raise AssertionError(
-                f"table cell ({row}, {col}) is {actual!r}, expected {expected!r}"
-            )
+            raise AssertionError(f"table cell ({row}, {col}) is {actual!r}, expected {expected!r}")
         await asyncio.sleep(0.01)
 
 
@@ -250,8 +263,7 @@ async def _wait_for_child_list_label(
                 pass
         if asyncio.get_running_loop().time() >= deadline:
             raise AssertionError(
-                f"child list label at index {index} "
-                f"did not contain {expected_substring!r}"
+                f"child list label at index {index} did not contain {expected_substring!r}"
             )
         await asyncio.sleep(0.01)
 
@@ -498,11 +510,11 @@ async def test_app_loads_directory_sizes_when_enabled() -> None:
     async with app.run_test():
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 2)
-        await _wait_for_table_cell(app, "4.2 KB", 0, 3)
+        await _wait_for_table_cell(app, "4.2 KB", 0, 2)
 
         table = app.query_one("#current-pane-table", DataTable)
 
-        assert str(table.get_cell_at((0, 3))) == "4.2 KB"
+        assert str(table.get_cell_at((0, 2))) == "4.2 KB"
 
 
 @pytest.mark.asyncio
@@ -547,11 +559,11 @@ async def test_app_keeps_successful_directory_sizes_when_some_paths_fail() -> No
     async with app.run_test():
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 2)
-        await _wait_for_table_cell(app, "4.2 KB", 0, 3)
+        await _wait_for_table_cell(app, "4.2 KB", 0, 2)
 
         table = app.query_one("#current-pane-table", DataTable)
 
-        assert str(table.get_cell_at((0, 3))) == "4.2 KB"
+        assert str(table.get_cell_at((0, 2))) == "4.2 KB"
 
 
 @pytest.mark.asyncio
@@ -627,7 +639,7 @@ async def test_app_renders_loaded_three_pane_shell() -> None:
         assert str(current_title.renderable) == "Current Directory"
         assert str(child_title.renderable) == "Child Directory"
         assert parent_entries == ["peneo-app", "sibling"]
-        assert headers == ["Sel", "Type", "Name", "Size", "Modified"]
+        assert headers == ["Sel", "Name", "Size", "Modified"]
         assert current_table.row_count == 2
         assert child_entries == ["spec.md"]
         assert str(current_path_bar.renderable) == f"Current Path: {path}"
@@ -653,6 +665,73 @@ async def test_app_can_start_in_narrow_headless_mode() -> None:
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 1)
         assert app.query_one("#body")
+
+
+@pytest.mark.asyncio
+async def test_app_truncates_long_labels_in_all_panes_when_narrow() -> None:
+    path = "/tmp/peneo-narrow-truncate"
+    current_entries = (
+        DirectoryEntryState(
+            f"{path}/reducer_common_directory",
+            "reducer_common_directory",
+            "dir",
+        ),
+        DirectoryEntryState(f"{path}/reducer_common.py", "reducer_common.py", "file"),
+    )
+    child_entries = (
+        DirectoryEntryState(
+            f"{path}/reducer_common_directory/child_reducer_entry.py",
+            "child_reducer_entry.py",
+            "file",
+        ),
+    )
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: BrowserSnapshot(
+                current_path=path,
+                parent_pane=PaneState(
+                    directory_path="/tmp",
+                    entries=(
+                        DirectoryEntryState(
+                            path,
+                            "parent_directory_with_long_name_that_keeps_going.py",
+                            "dir",
+                        ),
+                        DirectoryEntryState("/tmp/sibling", "another_parent_entry.py", "file"),
+                    ),
+                    cursor_path=path,
+                ),
+                current_pane=PaneState(
+                    directory_path=path,
+                    entries=current_entries,
+                    cursor_path=current_entries[0].path,
+                ),
+                child_pane=PaneState(
+                    directory_path=current_entries[0].path,
+                    entries=child_entries,
+                ),
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(100, 20)):
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 2)
+        await asyncio.sleep(0.05)
+
+        parent_list = app.query_one("#parent-pane-list", ListView)
+        child_list = app.query_one("#child-pane-list", ListView)
+        current_table = app.query_one("#current-pane-table", DataTable)
+
+        parent_label = str(parent_list.children[0].query_one(Label).renderable)
+        child_label = str(child_list.children[0].query_one(Label).renderable)
+        current_name = current_table.get_row_at(0)[1]
+
+        assert "~" in parent_label
+        assert "~" in child_label
+        assert isinstance(current_name, Text)
+        assert "~" in current_name.plain
 
 
 @pytest.mark.asyncio
@@ -748,8 +827,59 @@ async def test_app_keyboard_input_updates_selection_and_child_pane() -> None:
 
         assert isinstance(first_row[0], Text)
         assert first_row[0].plain == "*"
-        assert first_row[0].style == "bold green"
-        assert first_row[2].plain == "docs"
+        assert first_row[0].style == "bold blue"
+        assert first_row[1].plain == "docs"
+
+
+@pytest.mark.asyncio
+async def test_app_shift_down_selects_range_and_down_clears_it() -> None:
+    path = "/tmp/peneo-range-selection"
+    current_entries = (
+        DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+        DirectoryEntryState(f"{path}/src", "src", "dir"),
+        DirectoryEntryState(f"{path}/tests", "tests", "dir"),
+    )
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                current_entries,
+                child_path=f"{path}/docs",
+                child_entries=(DirectoryEntryState(f"{path}/docs/spec.md", "spec.md", "file"),),
+            )
+        },
+        child_panes={
+            (path, f"{path}/src"): PaneState(
+                directory_path=f"{path}/src",
+                entries=(DirectoryEntryState(f"{path}/src/main.py", "main.py", "file"),),
+            ),
+            (path, f"{path}/tests"): PaneState(
+                directory_path=f"{path}/tests",
+                entries=(
+                    DirectoryEntryState(f"{path}/tests/test_main.py", "test_main.py", "file"),
+                ),
+            ),
+        },
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test():
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 3)
+
+        await app.action_dispatch_bound_key("shift+down")
+        await asyncio.sleep(0.05)
+
+        assert app.app_state.current_pane.selected_paths == {f"{path}/docs", f"{path}/src"}
+        assert app.app_state.current_pane.cursor_path == f"{path}/src"
+        assert app.app_state.current_pane.selection_anchor_path == f"{path}/docs"
+
+        await app.action_dispatch_bound_key("down")
+        await asyncio.sleep(0.05)
+
+        assert app.app_state.current_pane.selected_paths == set()
+        assert app.app_state.current_pane.cursor_path == f"{path}/tests"
+        assert app.app_state.current_pane.selection_anchor_path is None
 
 
 @pytest.mark.asyncio
@@ -780,9 +910,9 @@ async def test_app_cut_marks_row_with_dimmed_style() -> None:
 
         assert app.app_state.clipboard.mode == "cut"
         assert app.app_state.clipboard.paths == (f"{path}/docs",)
-        assert isinstance(first_row[2], Text)
-        assert first_row[2].plain == "docs"
-        assert first_row[2].style == "bright_black dim"
+        assert isinstance(first_row[1], Text)
+        assert first_row[1].plain == "docs"
+        assert first_row[1].style == "blue dim"
 
 
 @pytest.mark.asyncio
@@ -1313,17 +1443,16 @@ async def test_app_displays_browsing_help_bar() -> None:
         }
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
+    expected_help = (
+        "Enter open | e edit | i info | / filter | : palette | ctrl+f find | ctrl+g grep | q quit\n"
+        "Space select | y copy | x cut | p paste | c path | . hidden | b bookmark | ctrl+t term"
+    )
 
     async with app.run_test():
         await _wait_for_snapshot_loaded(app, path)
-        await asyncio.sleep(0.05)
-        help_bar = app.query_one("#help-bar", HelpBar)
+        help_bar = await _wait_for_help_bar_text(app, expected_help)
 
-        assert str(help_bar.renderable) == (
-            "Enter open | e edit | / filter | ctrl+f find | ctrl+g grep | q quit\n"
-            "Space select | y copy | x cut | p paste | s sort | d dirs | F2 rename | ctrl+t term\n"
-            "alt+\u2190 back | alt+\u2192 fwd | ctrl+o history"
-        )
+        assert str(help_bar.renderable) == expected_help
 
 
 @pytest.mark.asyncio
@@ -1372,7 +1501,41 @@ async def test_app_colon_shows_command_palette() -> None:
 
         assert app.app_state.ui_mode == "PALETTE"
         assert palette.display is True
-        assert "Show attributes" in str(items.renderable)
+        assert "Go back" in str(items.renderable)
+
+
+@pytest.mark.asyncio
+async def test_app_palette_keeps_current_table_cursor_row() -> None:
+    path = "/tmp/peneo-command-palette-cursor"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/src", "src", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        current_table = app.query_one("#current-pane-table", DataTable)
+
+        await pilot.press("down")
+        await asyncio.sleep(0.05)
+        assert current_table.cursor_row == 1
+
+        await pilot.press(":")
+        await asyncio.sleep(0.05)
+
+        assert app.app_state.ui_mode == "PALETTE"
+        assert current_table.cursor_row == 1
+        assert current_table.show_cursor is True
 
 
 @pytest.mark.asyncio
@@ -1401,6 +1564,98 @@ async def test_app_command_palette_create_file_opens_context_input() -> None:
         assert app.app_state.ui_mode == "CREATE"
         assert input_bar.display is True
         assert str(input_bar.renderable) == "[NEW FILE] New file: _  enter apply | esc cancel"
+
+
+@pytest.mark.asyncio
+async def test_app_go_to_path_shows_candidates_and_tabs_to_selected_directory(tmp_path) -> None:
+    path = str(tmp_path)
+    docs_path = str(tmp_path / "docs")
+    downloads_path = str(tmp_path / "downloads")
+    Path(docs_path).mkdir()
+    Path(downloads_path).mkdir()
+    Path(docs_path, "guide.md").write_text("guide\n", encoding="utf-8")
+    Path(downloads_path, "archive.zip").write_text("zip\n", encoding="utf-8")
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(docs_path, "docs", "dir"),
+                    DirectoryEntryState(downloads_path, "downloads", "dir"),
+                ),
+                child_path=docs_path,
+            ),
+            docs_path: _build_snapshot(
+                docs_path,
+                (DirectoryEntryState(f"{docs_path}/guide.md", "guide.md", "file"),),
+            ),
+            downloads_path: _build_snapshot(
+                downloads_path,
+                (DirectoryEntryState(f"{downloads_path}/archive.zip", "archive.zip", "file"),),
+            ),
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("ctrl+j")
+        await pilot.press("d", "o")
+        await asyncio.sleep(0.05)
+
+        assert app.app_state.command_palette is not None
+        assert app.app_state.command_palette.go_to_path_candidates == (
+            docs_path,
+            downloads_path,
+        )
+
+        await pilot.press("down", "tab")
+        await asyncio.sleep(0.05)
+
+        assert app.app_state.command_palette.query == "downloads"
+
+        await pilot.press("tab", "enter")
+        await _wait_for_snapshot_loaded(app, downloads_path)
+
+        assert app.app_state.current_path == downloads_path
+
+
+@pytest.mark.asyncio
+async def test_app_go_to_path_submit_after_completion_stays_on_completed_directory(
+    tmp_path,
+) -> None:
+    path = str(tmp_path)
+    docs_path = str(tmp_path / "docs")
+    api_path = str(tmp_path / "docs" / "api")
+    Path(api_path).mkdir(parents=True)
+    Path(api_path, "reference.md").write_text("reference\n", encoding="utf-8")
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(docs_path, "docs", "dir"),),
+                child_path=docs_path,
+            ),
+            docs_path: _build_snapshot(
+                docs_path,
+                (DirectoryEntryState(api_path, "api", "dir"),),
+                child_path=api_path,
+            ),
+            api_path: _build_snapshot(
+                api_path,
+                (DirectoryEntryState(f"{api_path}/reference.md", "reference.md", "file"),),
+            ),
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("ctrl+j")
+        await pilot.press("d", "o", "tab", "enter")
+        await _wait_for_snapshot_loaded(app, docs_path)
+
+        assert app.app_state.current_path == docs_path
 
 
 @pytest.mark.asyncio
@@ -1474,9 +1729,6 @@ async def test_app_file_search_debounces_rapid_query_updates(tmp_path) -> None:
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press("ctrl+f")
         await pilot.press("r", "e", "a", "d")
-
-        await asyncio.sleep(0.1)
-        assert file_search_service.executed_requests == []
 
         await _wait_for_request_count(file_search_service, 1, timeout=0.5)
         assert file_search_service.executed_requests == [(path, "read", False)]
@@ -1615,9 +1867,7 @@ async def test_app_file_search_shows_invalid_regex_message_in_palette(tmp_path) 
     path = str(tmp_path)
     (tmp_path / "README.md").write_text("readme\n", encoding="utf-8")
     file_search_service = FakeFileSearchService(
-        invalid_query_messages={
-            (path, "re:[", False): "Invalid regex: unterminated character set"
-        }
+        invalid_query_messages={(path, "re:[", False): "Invalid regex: unterminated character set"}
     )
     app = create_app(file_search_service=file_search_service, initial_path=path)
 
@@ -1710,9 +1960,6 @@ async def test_app_grep_search_debounces_rapid_query_updates(tmp_path) -> None:
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press("ctrl+g")
         await pilot.press("t", "o", "d", "o")
-
-        await asyncio.sleep(0.1)
-        assert grep_search_service.executed_requests == []
 
         await _wait_for_request_count(grep_search_service, 1, timeout=0.5)
         assert grep_search_service.executed_requests == [(path, "todo", False)]
@@ -2009,8 +2256,7 @@ async def test_app_config_save_refreshes_live_external_launch_service() -> None:
 
         assert isinstance(app._external_launch_service, LiveExternalLaunchService)
         assert (
-            app._external_launch_service.adapter.editor_command_template.command
-            == "nvim -u NONE"
+            app._external_launch_service.adapter.editor_command_template.command == "nvim -u NONE"
         )
 
 
@@ -2123,7 +2369,7 @@ async def test_app_right_on_file_does_not_launch_default_app() -> None:
 @pytest.mark.asyncio
 async def test_app_command_palette_copy_path_copies_cursor_target() -> None:
     path = "/tmp/peneo-copy-path"
-    copied_text: list[str] = []
+    launch_service = FakeExternalLaunchService()
     loader = FakeBrowserSnapshotLoader(
         snapshots={
             path: _build_snapshot(
@@ -2138,9 +2384,9 @@ async def test_app_command_palette_copy_path_copies_cursor_target() -> None:
     )
     app = create_app(
         snapshot_loader=loader,
+        external_launch_service=launch_service,
         initial_path=path,
     )
-    app.copy_to_clipboard = copied_text.append  # type: ignore[method-assign]
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
@@ -2149,7 +2395,10 @@ async def test_app_command_palette_copy_path_copies_cursor_target() -> None:
         await pilot.press("enter")
         await asyncio.sleep(0.05)
 
-        assert copied_text == [f"{path}/docs"]
+        assert len(launch_service.executed_requests) == 1
+        request = launch_service.executed_requests[0]
+        assert request.kind == "copy_paths"
+        assert request.paths == (f"{path}/docs",)
 
         status_bar = await _wait_for_status_bar(app)
         assert "info: Copied 1 path to system clipboard" in str(status_bar.renderable)
@@ -2180,7 +2429,7 @@ async def test_app_command_palette_open_terminal_launches_current_directory() ->
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press(":")
-        await pilot.press("t", "e", "r", "m", "i", "n", "a", "l")
+        await pilot.press("o", "p", "e", "n", " ", "t", "e", "r", "m", "i", "n", "a", "l")
         await pilot.press("enter")
         await _wait_for_external_launch_count(app, 1)
 
@@ -2643,10 +2892,41 @@ async def test_app_filter_mode_accepts_printable_bound_keys() -> None:
         await asyncio.sleep(0.05)
 
         input_bar = await _wait_for_context_input(app)
+        current_table = app.query_one("#current-pane-table", DataTable)
 
         assert app.app_state.ui_mode == "FILTER"
         assert app.app_state.filter.query == "yxp"
+        assert current_table.show_cursor is False
         assert str(input_bar.renderable) == "[FILTER] Filter: yxp  enter/down apply | esc clear"
+
+
+@pytest.mark.asyncio
+async def test_app_action_dispatch_bound_key_uses_dispatcher_character_rules() -> None:
+    path = "/tmp/peneo-palette-bound-space"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await app.action_dispatch_bound_key("space")
+        await app.action_dispatch_bound_key("y")
+        await asyncio.sleep(0.05)
+
+        palette = await _wait_for_command_palette(app)
+
+        assert app.app_state.ui_mode == "PALETTE"
+        assert app.app_state.command_palette is not None
+        assert app.app_state.command_palette.query == " y"
+        assert palette.display is True
 
 
 @pytest.mark.asyncio

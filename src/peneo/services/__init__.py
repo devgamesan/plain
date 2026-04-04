@@ -1,5 +1,24 @@
 """Application services and effect orchestration."""
 
+from peneo.archive_utils import (
+    default_extract_destination,
+    default_zip_destination,
+    detect_archive_format,
+    is_supported_archive_path,
+    resolve_extract_destination_input,
+    resolve_zip_destination_input,
+)
+
+from .archive_extract import (
+    ArchiveExtractService,
+    FakeArchiveExtractService,
+    LiveArchiveExtractService,
+)
+from .archive_list import (
+    ArchiveListService,
+    FakeArchiveListService,
+    LiveArchiveListService,
+)
 from .browser_snapshot import (
     BrowserSnapshotLoader,
     FakeBrowserSnapshotLoader,
@@ -46,22 +65,38 @@ from .grep_search import (
     InvalidGrepSearchQueryError,
     LiveGrepSearchService,
 )
+from .logging import (
+    LoggingSetupResult,
+    configure_file_logging,
+    resolve_default_log_path,
+)
 from .split_terminal import (
     FakeSplitTerminalService,
     LiveSplitTerminalService,
     SplitTerminalService,
     SplitTerminalSession,
 )
+from .zip_compress import (
+    FakeZipCompressService,
+    LiveZipCompressService,
+    ZipCompressService,
+)
 
 __all__ = [
     "AppConfigLoader",
+    "ArchiveExtractService",
+    "ArchiveListService",
     "BrowserSnapshotLoader",
     "ClipboardOperationService",
     "ConfigSaveService",
+    "default_zip_destination",
     "DirectorySizeService",
     "ExternalLaunchService",
+    "FakeZipCompressService",
     "FileSearchService",
     "GrepSearchService",
+    "FakeArchiveExtractService",
+    "FakeArchiveListService",
     "FakeFileMutationService",
     "FakeFileSearchService",
     "FakeGrepSearchService",
@@ -72,6 +107,9 @@ __all__ = [
     "FakeClipboardOperationService",
     "FakeExternalLaunchService",
     "FileMutationService",
+    "LoggingSetupResult",
+    "LiveArchiveExtractService",
+    "LiveArchiveListService",
     "LiveExternalLaunchService",
     "LiveFileSearchService",
     "LiveGrepSearchService",
@@ -81,11 +119,20 @@ __all__ = [
     "LiveBrowserSnapshotLoader",
     "LiveConfigSaveService",
     "LiveSplitTerminalService",
+    "LiveZipCompressService",
     "FakeSplitTerminalService",
     "SplitTerminalService",
     "SplitTerminalSession",
+    "configure_file_logging",
+    "default_extract_destination",
+    "detect_archive_format",
+    "is_supported_archive_path",
     "load_app_config",
     "render_app_config",
+    "resolve_extract_destination_input",
     "resolve_config_path",
+    "resolve_default_log_path",
+    "resolve_zip_destination_input",
     "snapshot_from_app_state",
+    "ZipCompressService",
 ]

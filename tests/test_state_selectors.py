@@ -2,8 +2,17 @@ from dataclasses import replace
 from stat import S_IFREG
 
 import peneo.state.selectors as selectors_module
-from peneo.models import AppConfig, EditorConfig, PasteConflict, PasteRequest
+from peneo.models import (
+    AppConfig,
+    BookmarkConfig,
+    CreateZipArchiveRequest,
+    EditorConfig,
+    ExtractArchiveRequest,
+    PasteConflict,
+    PasteRequest,
+)
 from peneo.state import (
+    ArchiveExtractConfirmationState,
     AttributeInspectionState,
     BeginCommandPalette,
     BeginCreateInput,
@@ -17,6 +26,7 @@ from peneo.state import (
     DirectorySizeCacheEntry,
     FileSearchResultState,
     GrepSearchResultState,
+    HistoryState,
     NameConflictState,
     NotificationState,
     PaneState,
@@ -27,6 +37,7 @@ from peneo.state import (
     SetNotification,
     SetSort,
     ToggleSelection,
+    ZipCompressConfirmationState,
     build_initial_app_state,
     select_attribute_dialog_state,
     select_child_entries,
@@ -44,11 +55,18 @@ from peneo.state import (
     select_target_paths,
     select_visible_current_entry_states,
 )
+from peneo.state import command_palette as command_palette_module
+from peneo.state.command_palette import CommandPaletteItem
+from peneo.state.selectors import _has_execute_permission, _select_command_palette_window
 from tests.state_test_helpers import entry, pane, reduce_state
 
 
 def _reduce_state(state, action):
     return reduce_state(state, action)
+
+
+def _display_path_for_test(path: str) -> str:
+    return command_palette_module._display_path(path)
 
 
 def test_select_current_entries_applies_filter_and_sort() -> None:
@@ -139,6 +157,66 @@ def test_select_visible_current_entries_sorts_by_size_without_directories_first(
     entries = select_visible_current_entry_states(state)
 
     assert [entry.name for entry in entries] == ["beta.txt", "alpha.txt", "docs"]
+
+
+def test_has_execute_permission_returns_true_for_executable_files() -> None:
+    """0o755 (rwxr-xr-x) の場合に True を返すこと"""
+    entry_state = DirectoryEntryState(
+        "/home/tadashi/develop/peneo/test.sh",
+        "test.sh",
+        "file",
+        permissions_mode=0o755,
+    )
+
+    assert _has_execute_permission(entry_state) is True
+
+
+def test_has_execute_permission_returns_false_for_non_executable_files() -> None:
+    """0o644 (rw-r--r--) の場合に False を返すこと"""
+    entry_state = DirectoryEntryState(
+        "/home/tadashi/develop/peneo/README.md",
+        "README.md",
+        "file",
+        permissions_mode=0o644,
+    )
+
+    assert _has_execute_permission(entry_state) is False
+
+
+def test_has_execute_permission_returns_true_for_execute_only_files() -> None:
+    """0o111 (--x--x--x) の場合に True を返すこと"""
+    entry_state = DirectoryEntryState(
+        "/home/tadashi/develop/peneo/script",
+        "script",
+        "file",
+        permissions_mode=0o111,
+    )
+
+    assert _has_execute_permission(entry_state) is True
+
+
+def test_has_execute_permission_returns_false_for_no_permissions() -> None:
+    """0o000 (---------) の場合に False を返すこと"""
+    entry_state = DirectoryEntryState(
+        "/home/tadashi/develop/peneo/locked",
+        "locked",
+        "file",
+        permissions_mode=0o000,
+    )
+
+    assert _has_execute_permission(entry_state) is False
+
+
+def test_has_execute_permission_returns_false_for_none_permissions() -> None:
+    """permissions_mode が None の場合に False を返すこと"""
+    entry_state = DirectoryEntryState(
+        "/home/tadashi/develop/peneo/unknown",
+        "unknown",
+        "file",
+        permissions_mode=None,
+    )
+
+    assert _has_execute_permission(entry_state) is False
 
 
 def test_select_parent_and_child_entries_hide_hidden_unless_enabled() -> None:
@@ -389,6 +467,23 @@ def test_select_shell_data_exposes_visible_cursor_index() -> None:
 
     assert shell.current_path == "/home/tadashi/develop/peneo"
     assert shell.current_cursor_index == 2
+    assert shell.current_cursor_visible is True
+
+
+def test_select_shell_data_hides_cursor_while_filtering() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFilterInput())
+
+    shell = select_shell_data(state)
+
+    assert shell.current_cursor_visible is False
+
+
+def test_select_shell_data_keeps_cursor_visible_in_palette_mode() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+
+    shell = select_shell_data(state)
+
+    assert shell.current_cursor_visible is True
 
 
 def test_select_shell_data_reuses_current_visible_entries(monkeypatch) -> None:
@@ -510,14 +605,12 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     help_state = select_help_bar_state(state)
 
     assert help_state.lines == (
-        "Enter open | e edit | / filter | ctrl+f find | ctrl+g grep | q quit",
-        "Space select | y copy | x cut | p paste | s sort | d dirs | F2 rename | ctrl+t term",
-        "alt+\u2190 back | alt+\u2192 fwd | ctrl+o history",
+        "Enter open | e edit | i info | / filter | : palette | ctrl+f find | ctrl+g grep | q quit",
+        "Space select | y copy | x cut | p paste | c path | . hidden | b bookmark | ctrl+t term",
     )
     assert help_state.text == (
-        "Enter open | e edit | / filter | ctrl+f find | ctrl+g grep | q quit\n"
-        "Space select | y copy | x cut | p paste | s sort | d dirs | F2 rename | ctrl+t term\n"
-        "alt+\u2190 back | alt+\u2192 fwd | ctrl+o history"
+        "Enter open | e edit | i info | / filter | : palette | ctrl+f find | ctrl+g grep | q quit\n"
+        "Space select | y copy | x cut | p paste | c path | . hidden | b bookmark | ctrl+t term"
     )
 
 
@@ -542,7 +635,7 @@ def test_select_help_bar_for_split_terminal_focus() -> None:
 
     help_state = select_help_bar_state(state)
 
-    assert help_state.text == "type in terminal | ctrl+t close"
+    assert help_state.text == "type in terminal | ctrl+t close | ctrl+v paste"
 
 
 def test_select_status_bar_shows_split_terminal_focus_when_idle() -> None:
@@ -587,25 +680,138 @@ def test_select_command_palette_state_marks_selected_and_enabled_items() -> None
     palette_state = select_command_palette_state(state)
 
     assert palette_state is not None
-    assert palette_state.title == "Command Palette"
+    assert palette_state.title.startswith("Command Palette")
     assert [item.label for item in palette_state.items[:2]] == [
-        "Show attributes",
-        "Copy path",
+        "Find files",
+        "Grep search",
     ]
     assert palette_state.items[0].selected is True
-    assert palette_state.items[1].enabled is True
-    assert any(
-        item.label == "Open in file manager" and item.enabled for item in palette_state.items
+    assert palette_state.items[0].enabled is True
+    assert any(item.label == "Go back" and not item.enabled for item in palette_state.items)
+    assert any(item.label == "Go forward" and not item.enabled for item in palette_state.items)
+
+
+def test_select_command_palette_state_shows_single_target_commands_when_filtered() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = replace(
+        state,
+        command_palette=replace(state.command_palette, query="rename"),
     )
-    assert any(item.label == "Edit config" and item.enabled for item in palette_state.items)
-    assert any(item.label == "Open terminal here" and item.enabled for item in palette_state.items)
+
+    palette_state = select_command_palette_state(state)
+
+    assert palette_state is not None
+    assert [item.label for item in palette_state.items] == ["Rename"]
+    assert palette_state.items[0].enabled is True
+
+
+def test_select_command_palette_state_enables_history_navigation_items() -> None:
+    state = replace(
+        _reduce_state(build_initial_app_state(), BeginCommandPalette()),
+        history=HistoryState(
+            back=("/tmp/a",),
+            forward=("/tmp/b",),
+        ),
+    )
+
+    palette_state = select_command_palette_state(state)
+
+    assert palette_state is not None
+    assert any(item.label == "Go back" and item.enabled for item in palette_state.items)
+    assert any(item.label == "Go forward" and item.enabled for item in palette_state.items)
+
+
+def test_select_command_palette_state_shows_bookmark_items() -> None:
+    state = build_initial_app_state(
+        config=AppConfig(
+            bookmarks=BookmarkConfig(
+                paths=(
+                    "/home/tadashi/src",
+                    "/home/tadashi/docs",
+                )
+            )
+        )
+    )
+    state = replace(
+        _reduce_state(state, BeginCommandPalette()),
+        command_palette=CommandPaletteState(source="bookmarks", query="docs"),
+    )
+
+    palette_state = select_command_palette_state(state)
+
+    assert palette_state is not None
+    assert palette_state.title == "Bookmarks"
+    assert [item.label for item in palette_state.items] == [
+        _display_path_for_test("/home/tadashi/docs")
+    ]
+    assert palette_state.empty_message == "No bookmarks"
+
+
+def test_select_command_palette_state_shows_go_to_path_candidates() -> None:
+    state = replace(
+        _reduce_state(build_initial_app_state(), BeginCommandPalette()),
+        command_palette=CommandPaletteState(
+            source="go_to_path",
+            query="do",
+            cursor_index=1,
+            go_to_path_candidates=(
+                "/home/tadashi/docs",
+                "/home/tadashi/downloads",
+            ),
+        ),
+    )
+
+    palette_state = select_command_palette_state(state)
+
+    assert palette_state is not None
+    assert palette_state.title == "Go to path"
+    assert [item.label for item in palette_state.items] == [
+        _display_path_for_test("/home/tadashi/docs"),
+        _display_path_for_test("/home/tadashi/downloads"),
+    ]
+    assert palette_state.items[1].selected is True
+    assert palette_state.empty_message == "No matching directories"
+
+
+def test_select_help_bar_state_for_go_to_path_palette_mentions_tab_completion() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(source="go_to_path"),
+    )
+
+    help_bar = select_help_bar_state(state)
+
+    assert help_bar.lines == (
+        "type path | up/down select | tab complete | enter jump | esc cancel",
+    )
+
+
+def test_select_command_palette_state_go_to_path_can_show_candidates_without_selection() -> None:
+    state = replace(
+        _reduce_state(build_initial_app_state(), BeginCommandPalette()),
+        command_palette=CommandPaletteState(
+            source="go_to_path",
+            query="docs/",
+            go_to_path_candidates=(
+                "/home/tadashi/docs/api",
+                "/home/tadashi/docs/guides",
+            ),
+            go_to_path_selection_active=False,
+        ),
+    )
+
+    palette_state = select_command_palette_state(state)
+
+    assert palette_state is not None
+    assert [item.selected for item in palette_state.items] == [False, False]
 
 
 def test_select_command_palette_state_filters_query() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
     state = replace(
         state,
-        command_palette=replace(state.command_palette, query="dir"),
+        command_palette=replace(state.command_palette, query="create dir"),
     )
 
     palette_state = select_command_palette_state(state)
@@ -625,12 +831,205 @@ def test_select_command_palette_state_uses_hidden_toggle_label_from_state() -> N
 
     assert palette_state is not None
     assert [item.label for item in palette_state.items] == ["Show hidden files"]
+    assert palette_state.items[0].shortcut == "."
 
     visible_state = replace(state, show_hidden=True)
     visible_palette_state = select_command_palette_state(visible_state)
 
     assert visible_palette_state is not None
     assert [item.label for item in visible_palette_state.items] == ["Hide hidden files"]
+    assert visible_palette_state.items[0].shortcut == "."
+
+
+def test_select_command_palette_state_switches_bookmark_command_label() -> None:
+    state = build_initial_app_state()
+    palette_state = select_command_palette_state(
+        replace(
+            _reduce_state(state, BeginCommandPalette()),
+            command_palette=replace(CommandPaletteState(), query="bookmark"),
+        )
+    )
+
+    assert palette_state is not None
+    assert any(item.label == "Bookmark this directory" for item in palette_state.items)
+    assert any(
+        item.label == "Bookmark this directory" and item.shortcut == "B"
+        for item in palette_state.items
+    )
+
+    bookmarked_state = build_initial_app_state(
+        config=AppConfig(
+            bookmarks=BookmarkConfig(
+                paths=("/home/tadashi/develop/peneo",)
+            )
+        )
+    )
+    bookmarked_palette_state = select_command_palette_state(
+        replace(
+            _reduce_state(bookmarked_state, BeginCommandPalette()),
+            command_palette=replace(CommandPaletteState(), query="bookmark"),
+        )
+    )
+
+    assert bookmarked_palette_state is not None
+    assert any(item.label == "Remove bookmark" for item in bookmarked_palette_state.items)
+    assert any(
+        item.label == "Remove bookmark" and item.shortcut == "B"
+        for item in bookmarked_palette_state.items
+    )
+
+
+def test_select_command_palette_state_disables_select_all_without_visible_entries() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/peneo",
+            entries=(
+                DirectoryEntryState(
+                    "/home/tadashi/develop/peneo/.env",
+                    ".env",
+                    "file",
+                    hidden=True,
+                ),
+            ),
+            cursor_path=None,
+        ),
+    )
+    palette_state = select_command_palette_state(
+        replace(
+            _reduce_state(state, BeginCommandPalette()),
+            command_palette=replace(CommandPaletteState(), query="select all"),
+        )
+    )
+
+    assert palette_state is not None
+    assert [item.label for item in palette_state.items] == ["Select all"]
+    assert palette_state.items[0].enabled is False
+
+
+def test_select_command_palette_state_enables_select_all_with_visible_entries() -> None:
+    state = select_command_palette_state(
+        replace(
+            _reduce_state(build_initial_app_state(), BeginCommandPalette()),
+            command_palette=replace(CommandPaletteState(), query="select all"),
+        )
+    )
+
+    assert state is not None
+    assert [item.label for item in state.items] == ["Select all"]
+    assert state.items[0].enabled is True
+    assert state.items[0].shortcut == "Ctrl+A"
+
+
+def test_select_command_palette_state_shows_extract_archive_for_supported_file() -> None:
+    archive_path = "/home/tadashi/develop/peneo/archive.tar.gz"
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/peneo",
+            entries=(
+                DirectoryEntryState(archive_path, "archive.tar.gz", "file"),
+            ),
+            cursor_path=archive_path,
+        ),
+    )
+    palette_state = select_command_palette_state(
+        replace(
+            _reduce_state(state, BeginCommandPalette()),
+            command_palette=replace(CommandPaletteState(), query="extract"),
+        )
+    )
+
+    assert palette_state is not None
+    assert [item.label for item in palette_state.items] == ["Extract archive"]
+
+
+def test_select_command_palette_state_shows_single_target_shortcuts() -> None:
+    state = select_command_palette_state(
+        replace(
+            _reduce_state(build_initial_app_state(), BeginCommandPalette()),
+            command_palette=replace(CommandPaletteState(), query="attributes"),
+        )
+    )
+
+    assert state is not None
+    assert [item.label for item in state.items] == ["Show attributes"]
+    assert [item.shortcut for item in state.items] == ["I"]
+
+
+def test_select_command_palette_state_shows_copy_path_shortcut() -> None:
+    state = select_command_palette_state(
+        replace(
+            _reduce_state(build_initial_app_state(), BeginCommandPalette()),
+            command_palette=replace(CommandPaletteState(), query="copy path"),
+        )
+    )
+
+    assert state is not None
+    assert [item.label for item in state.items] == ["Copy path"]
+    assert state.items[0].shortcut == "C"
+
+
+def test_select_command_palette_state_shows_compress_as_zip_for_multiple_targets() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=replace(
+            build_initial_app_state().current_pane,
+            selected_paths=frozenset(
+                {
+                    "/home/tadashi/develop/peneo/docs",
+                    "/home/tadashi/develop/peneo/src",
+                }
+            ),
+        ),
+    )
+    palette_state = select_command_palette_state(
+        replace(
+            _reduce_state(state, BeginCommandPalette()),
+            command_palette=replace(CommandPaletteState(), query="compress"),
+        )
+    )
+
+    assert palette_state is not None
+    assert [item.label for item in palette_state.items] == ["Compress as zip"]
+
+
+def test_select_input_bar_state_formats_extract_mode() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="EXTRACT",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="/tmp/output/archive",
+            extract_source_path="/home/tadashi/develop/peneo/archive.zip",
+        ),
+    )
+
+    input_state = select_input_bar_state(state)
+
+    assert input_state is not None
+    assert input_state.mode_label == "EXTRACT"
+    assert input_state.prompt == "Extract to: "
+    assert input_state.hint == "enter extract | esc cancel"
+
+
+def test_select_input_bar_state_formats_zip_mode() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="ZIP",
+        pending_input=PendingInputState(
+            prompt="Compress to: ",
+            value="/tmp/output.zip",
+            zip_source_paths=("/home/tadashi/develop/peneo/docs",),
+        ),
+    )
+
+    input_state = select_input_bar_state(state)
+
+    assert input_state is not None
+    assert input_state.mode_label == "ZIP"
+    assert input_state.prompt == "Compress to: "
+    assert input_state.hint == "enter compress | esc cancel"
 
 
 def test_select_attribute_dialog_state_formats_selected_entry() -> None:
@@ -941,6 +1340,49 @@ def test_select_conflict_dialog_state_formats_delete_confirmation() -> None:
     assert dialog.options == ("enter confirm", "esc cancel")
 
 
+def test_select_conflict_dialog_state_formats_extract_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        archive_extract_confirmation=ArchiveExtractConfirmationState(
+            request=ExtractArchiveRequest(
+                source_path="/home/tadashi/develop/peneo/archive.zip",
+                destination_path="/tmp/output/archive",
+            ),
+            conflict_count=2,
+            first_conflict_path="/tmp/output/archive/notes.txt",
+            total_entries=5,
+        ),
+    )
+
+    dialog = select_conflict_dialog_state(state)
+
+    assert dialog is not None
+    assert dialog.title == "Extract Archive Confirmation"
+    assert "2 archive path(s) already exist" in dialog.message
+    assert dialog.options == ("enter continue", "esc return to input")
+
+
+def test_select_conflict_dialog_state_formats_zip_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        zip_compress_confirmation=ZipCompressConfirmationState(
+            request=CreateZipArchiveRequest(
+                source_paths=("/home/tadashi/develop/peneo/docs",),
+                destination_path="/home/tadashi/develop/peneo/docs.zip",
+                root_dir="/home/tadashi/develop/peneo",
+            ),
+            total_entries=4,
+        ),
+    )
+
+    dialog = select_conflict_dialog_state(state)
+
+    assert dialog is not None
+    assert dialog.title == "Zip Compression Confirmation"
+    assert "docs.zip already exists" in dialog.message
+    assert dialog.options == ("enter overwrite", "esc return to input")
+
+
 def test_select_conflict_dialog_state_formats_rename_conflict() -> None:
     state = replace(
         build_initial_app_state(),
@@ -1074,3 +1516,110 @@ class TestSelectSearchWindowWithDynamicSize:
         assert palette_state is not None
         assert len(palette_state.items) == 19
         assert palette_state.items[15 - (15 - 9)].selected is True
+
+
+class TestSelectCommandPaletteWindow:
+    """Tests for _select_command_palette_window scrolling algorithm."""
+
+    def test_empty_list(self) -> None:
+        """空リストの場合は空のタプルが返されること"""
+        items: tuple[CommandPaletteItem, ...] = ()
+        result, title = _select_command_palette_window(items, 0)
+
+        assert result == ()
+        assert title == "Command Palette"
+
+    def test_short_list(self) -> None:
+        """ウィンドウサイズ以下の場合は全アイテムが表示されること"""
+        items = tuple(
+            CommandPaletteItem(id=f"item_{i}", label=f"Item {i}", shortcut=None, enabled=True)
+            for i in range(5)
+        )
+        result, title = _select_command_palette_window(items, 2)
+
+        assert len(result) == 5
+        assert title == "Command Palette"
+        assert result[2][0] == 2  # カーソル位置が2であること
+
+    def test_exact_window_size(self) -> None:
+        """ウィンドウサイズと同じ長さの場合は全アイテムが表示されること"""
+        items = tuple(
+            CommandPaletteItem(id=f"item_{i}", label=f"Item {i}", shortcut=None, enabled=True)
+            for i in range(8)
+        )
+        result, title = _select_command_palette_window(items, 4)
+
+        assert len(result) == 8
+        assert title == "Command Palette"
+
+    def test_center_alignment(self) -> None:
+        """中央付近のアイテム選択時に中央揃えが維持されること"""
+        items = tuple(
+            CommandPaletteItem(id=f"item_{i}", label=f"Item {i}", shortcut=None, enabled=True)
+            for i in range(20)
+        )
+        # 中央のアイテム（インデックス10）を選択
+        result, title = _select_command_palette_window(items, 10)
+
+        assert len(result) == 8  # ウィンドウサイズ
+        assert title == "Command Palette (7-14 / 20)"
+        # カーソルが中央に配置されること
+        cursor_position_in_window = next(i for i, (idx, _) in enumerate(result) if idx == 10)
+        assert cursor_position_in_window == 4  # ウィンドウの中央（0始まりで4）
+
+    def test_top_boundary(self) -> None:
+        """先頭付近のアイテム選択時に先頭から表示されること"""
+        items = tuple(
+            CommandPaletteItem(id=f"item_{i}", label=f"Item {i}", shortcut=None, enabled=True)
+            for i in range(20)
+        )
+        # 先頭のアイテム（インデックス0）を選択
+        result, title = _select_command_palette_window(items, 0)
+
+        assert len(result) == 8
+        assert title == "Command Palette (1-8 / 20)"
+        assert result[0][0] == 0  # 先頭から表示
+
+    def test_bottom_boundary(self) -> None:
+        """末尾付近のアイテム選択時に末尾が見えること（主要なバグ修正）"""
+        items = tuple(
+            CommandPaletteItem(id=f"item_{i}", label=f"Item {i}", shortcut=None, enabled=True)
+            for i in range(14)
+        )
+        # 最後のアイテム（インデックス13）を選択
+        result, title = _select_command_palette_window(items, 13)
+
+        assert len(result) == 8
+        assert title == "Command Palette (7-14 / 14)"
+        # 最後のアイテムが表示されていること
+        assert result[-1][0] == 13
+        assert result[-1][1].label == "Item 13"
+
+    def test_last_item_visible(self) -> None:
+        """最後のアイテムが必ず表示されること"""
+        items = tuple(
+            CommandPaletteItem(id=f"item_{i}", label=f"Item {i}", shortcut=None, enabled=True)
+            for i in range(15)
+        )
+        # 最後のアイテム（インデックス14）を選択
+        result, title = _select_command_palette_window(items, 14)
+
+        assert len(result) == 8
+        assert result[-1][0] == 14  # 最後のアイテムが表示されている
+        assert result[0][0] == 7  # 先頭はインデックス7
+
+    def test_second_last_item_visible(self) -> None:
+        """最後から2番目のアイテムと最後のアイテムが両方表示されること"""
+        items = tuple(
+            CommandPaletteItem(id=f"item_{i}", label=f"Item {i}", shortcut=None, enabled=True)
+            for i in range(14)
+        )
+        # 最後から2番目のアイテム（インデックス12）を選択
+        result, title = _select_command_palette_window(items, 12)
+
+        assert len(result) == 8
+        # 最後から2番目と最後のアイテムが両方表示されていること
+        visible_indices = [idx for idx, _ in result]
+        assert 12 in visible_indices
+        assert 13 in visible_indices
+        assert result[-1][0] == 13  # 最後のアイテムが表示されている

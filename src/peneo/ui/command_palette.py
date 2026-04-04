@@ -48,6 +48,7 @@ class CommandPalette(Container):
             state.title.startswith("Find File")
             or state.title.startswith("Grep")
             or state.title.startswith("Directory History")
+            or state.title.startswith("Go to path")
         ):
             self.add_class("search-mode")
         else:
@@ -62,7 +63,7 @@ class CommandPalette(Container):
             else "type text or re:pattern"
             if state.title.startswith("Grep")
             else "type a path"
-            if state.title.startswith("Directory History")
+            if state.title.startswith("Directory History") or state.title.startswith("Go to path")
             else "type a command"
         )
         query_text.append(state.query or placeholder, style="bold" if state.query else "dim")

@@ -5,7 +5,9 @@ from dataclasses import dataclass
 from peneo.models import (
     AppConfig,
     CreatePathRequest,
+    CreateZipArchiveRequest,
     ExternalLaunchRequest,
+    ExtractArchiveRequest,
     PasteRequest,
     RenameRequest,
     TrashDeleteRequest,
@@ -58,6 +60,38 @@ class RunFileMutationEffect:
 
 
 @dataclass(frozen=True)
+class RunArchivePreparationEffect:
+    """Inspect an archive before extraction begins."""
+
+    request_id: int
+    request: ExtractArchiveRequest
+
+
+@dataclass(frozen=True)
+class RunArchiveExtractEffect:
+    """Execute archive extraction outside the reducer."""
+
+    request_id: int
+    request: ExtractArchiveRequest
+
+
+@dataclass(frozen=True)
+class RunZipCompressPreparationEffect:
+    """Inspect zip-compression inputs before execution begins."""
+
+    request_id: int
+    request: CreateZipArchiveRequest
+
+
+@dataclass(frozen=True)
+class RunZipCompressEffect:
+    """Execute zip compression outside the reducer."""
+
+    request_id: int
+    request: CreateZipArchiveRequest
+
+
+@dataclass(frozen=True)
 class RunExternalLaunchEffect:
     """Execute an external file or terminal launch outside the reducer."""
 
@@ -102,6 +136,13 @@ class WriteSplitTerminalInputEffect:
 
 
 @dataclass(frozen=True)
+class PasteFromClipboardEffect:
+    """Paste clipboard contents into the active split-terminal session."""
+
+    session_id: int
+
+
+@dataclass(frozen=True)
 class CloseSplitTerminalEffect:
     """Close the active embedded split-terminal session."""
 
@@ -123,11 +164,16 @@ Effect = (
     | RunDirectorySizeEffect
     | RunClipboardPasteEffect
     | RunFileMutationEffect
+    | RunArchivePreparationEffect
+    | RunArchiveExtractEffect
+    | RunZipCompressPreparationEffect
+    | RunZipCompressEffect
     | RunExternalLaunchEffect
     | RunFileSearchEffect
     | RunGrepSearchEffect
     | StartSplitTerminalEffect
     | WriteSplitTerminalInputEffect
+    | PasteFromClipboardEffect
     | CloseSplitTerminalEffect
     | RunConfigSaveEffect
 )

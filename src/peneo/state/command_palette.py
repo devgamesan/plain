@@ -3,6 +3,8 @@
 import os
 from dataclasses import dataclass
 
+from peneo.archive_utils import is_supported_archive_path
+
 from .models import AppState, DirectoryEntryState
 
 
@@ -64,6 +66,35 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
             if _matches_query(item, query)
         )
 
+    if state.command_palette.source == "bookmarks":
+        query = state.command_palette.query
+        return tuple(
+            item
+            for item in (
+                CommandPaletteItem(
+                    id=f"bookmark_result:{index}",
+                    label=_display_path(path),
+                    shortcut=None,
+                    enabled=True,
+                    path=path,
+                )
+                for index, path in enumerate(state.config.bookmarks.paths)
+            )
+            if _matches_query(item, query)
+        )
+
+    if state.command_palette.source == "go_to_path":
+        return tuple(
+            CommandPaletteItem(
+                id=f"go_to_path_candidate:{index}",
+                label=_display_path(path),
+                shortcut=None,
+                enabled=True,
+                path=path,
+            )
+            for index, path in enumerate(state.command_palette.go_to_path_candidates)
+        )
+
     query = state.command_palette.query
 
     return tuple(
@@ -94,8 +125,76 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
     single_target_entry = _single_target_entry(state, target_paths)
     has_target = bool(target_paths)
     has_single_target = single_target_entry is not None
+    current_path_is_bookmarked = state.current_path in state.config.bookmarks.paths
+    has_visible_entries = _has_visible_current_entries(state)
 
     items = [
+        CommandPaletteItem(
+            id="file_search",
+            label="Find files",
+            shortcut="Ctrl+F",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="grep_search",
+            label="Grep search",
+            shortcut="Ctrl+G",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="history_search",
+            label="History search",
+            shortcut="Ctrl+O",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="bookmark_search",
+            label="Show bookmarks",
+            shortcut="Ctrl+B",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="go_back",
+            label="Go back",
+            shortcut="Alt+Left",
+            enabled=bool(state.history.back),
+        ),
+        CommandPaletteItem(
+            id="go_forward",
+            label="Go forward",
+            shortcut="Alt+Right",
+            enabled=bool(state.history.forward),
+        ),
+        CommandPaletteItem(
+            id="go_to_path",
+            label="Go to path",
+            shortcut="Ctrl+J",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="go_to_home_directory",
+            label="Go to home directory",
+            shortcut="Alt+Home",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="reload_directory",
+            label="Reload directory",
+            shortcut="F5",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="toggle_split_terminal",
+            label="Toggle split terminal",
+            shortcut="Ctrl+T",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="select_all",
+            label="Select all",
+            shortcut="Ctrl+A",
+            enabled=has_visible_entries,
+        ),
     ]
 
     if has_single_target:
@@ -103,6 +202,48 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="show_attributes",
                 label="Show attributes",
+                shortcut="I",
+                enabled=True,
+            )
+        )
+        items.append(
+            CommandPaletteItem(
+                id="rename",
+                label="Rename",
+                shortcut="F2",
+                enabled=True,
+            )
+        )
+        items.append(
+            CommandPaletteItem(
+                id="compress_as_zip",
+                label="Compress as zip",
+                shortcut=None,
+                enabled=True,
+            )
+        )
+        items.append(
+            CommandPaletteItem(
+                id="extract_archive",
+                label="Extract archive",
+                shortcut=None,
+                enabled=single_target_entry.kind == "file"
+                and is_supported_archive_path(single_target_entry.path),
+            )
+        )
+        items.append(
+            CommandPaletteItem(
+                id="open_in_editor",
+                label="Open in editor",
+                shortcut="E",
+                enabled=single_target_entry.kind == "file",
+            )
+        )
+    elif has_target:
+        items.append(
+            CommandPaletteItem(
+                id="compress_as_zip",
+                label="Compress as zip",
                 shortcut=None,
                 enabled=True,
             )
@@ -113,7 +254,15 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="copy_path",
                 label="Copy path",
-                shortcut=None,
+                shortcut="C",
+                enabled=True,
+            )
+        )
+        items.append(
+            CommandPaletteItem(
+                id="delete_targets",
+                label="Move to trash",
+                shortcut="Del",
                 enabled=True,
             )
         )
@@ -133,9 +282,19 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 enabled=True,
             ),
             CommandPaletteItem(
+                id="remove_bookmark" if current_path_is_bookmarked else "add_bookmark",
+                label=(
+                    "Remove bookmark"
+                    if current_path_is_bookmarked
+                    else "Bookmark this directory"
+                ),
+                shortcut="B",
+                enabled=True,
+            ),
+            CommandPaletteItem(
                 id="toggle_hidden",
                 label=_hidden_files_label(state),
-                shortcut=None,
+                shortcut=".",
                 enabled=True,
             ),
             CommandPaletteItem(
@@ -147,13 +306,13 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="create_file",
                 label="Create file",
-                shortcut=None,
+                shortcut="Ctrl+N",
                 enabled=True,
             ),
             CommandPaletteItem(
                 id="create_dir",
                 label="Create directory",
-                shortcut=None,
+                shortcut="Ctrl+D",
                 enabled=True,
             )
         ]
@@ -222,3 +381,15 @@ def _entry_for_path(state: AppState, path: str | None) -> DirectoryEntryState | 
 
 def _active_current_entries(state: AppState) -> tuple[DirectoryEntryState, ...]:
     return state.current_pane.entries
+
+
+def _has_visible_current_entries(state: AppState) -> bool:
+    query = state.filter.query.casefold()
+    filter_is_active = state.filter.active and bool(state.filter.query)
+    for entry in _active_current_entries(state):
+        if entry.hidden and not state.show_hidden:
+            continue
+        if filter_is_active and query not in entry.name.casefold():
+            continue
+        return True
+    return False

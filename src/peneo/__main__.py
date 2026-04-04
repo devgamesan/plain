@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from collections.abc import Sequence
 
 from .app import create_app
-from .services import load_app_config
+from .services import configure_file_logging, load_app_config
 from .state import NotificationState
 
 
@@ -55,13 +56,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     config_result = load_app_config()
-    startup_notification = _config_warning_notification(config_result.warnings)
-    app = create_app(
-        app_config=config_result.config,
+    logging_result = configure_file_logging(
+        config=config_result.config.logging,
         config_path=config_result.path,
-        startup_notification=startup_notification,
     )
-    app.run()
+    startup_notification = _startup_notification(
+        config_result.warnings,
+        logging_result.warning,
+    )
+
+    logger = _app_logger()
+    try:
+        app = create_app(
+            app_config=config_result.config,
+            config_path=config_result.path,
+            startup_notification=startup_notification,
+        )
+        app.run()
+    except Exception:
+        logger.exception("Peneo crashed during startup or runtime")
+        raise
 
     if args.print_last_dir:
         target_path = app.return_value or app.app_state.current_path
@@ -70,10 +84,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     return app.return_code
 
 
-def _config_warning_notification(warnings: tuple[str, ...]) -> NotificationState | None:
-    if not warnings:
+def _startup_notification(
+    config_warnings: tuple[str, ...],
+    logging_warning: str = "",
+) -> NotificationState | None:
+    messages = list(config_warnings)
+    if logging_warning:
+        messages.append(logging_warning)
+    if not messages:
         return None
-    return NotificationState(level="warning", message="Config warnings: " + "; ".join(warnings))
+    return NotificationState(level="warning", message="Startup warnings: " + "; ".join(messages))
+
+
+def _app_logger() -> logging.Logger:
+    return logging.getLogger("peneo")
 
 
 if __name__ == "__main__":

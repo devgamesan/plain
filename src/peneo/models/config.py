@@ -45,6 +45,21 @@ class BehaviorConfig:
 
 
 @dataclass(frozen=True)
+class LoggingConfig:
+    """Log file output settings for startup/runtime failures."""
+
+    enabled: bool = True
+    path: str | None = None
+
+
+@dataclass(frozen=True)
+class BookmarkConfig:
+    """Persisted bookmarked directory paths."""
+
+    paths: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """Normalized application configuration."""
 
@@ -52,6 +67,8 @@ class AppConfig:
     editor: EditorConfig = field(default_factory=EditorConfig)
     display: DisplayConfig = field(default_factory=DisplayConfig)
     behavior: BehaviorConfig = field(default_factory=BehaviorConfig)
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
+    bookmarks: BookmarkConfig = field(default_factory=BookmarkConfig)
 
 
 @dataclass(frozen=True)

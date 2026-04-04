@@ -13,6 +13,8 @@ class ExternalLaunchService(Protocol):
 
     def execute(self, request: ExternalLaunchRequest) -> None: ...
 
+    def get_from_clipboard(self) -> str: ...
+
 
 @dataclass(frozen=True)
 class LiveExternalLaunchService:
@@ -50,6 +52,9 @@ class LiveExternalLaunchService:
         except OSError as error:
             raise OSError(_format_terminal_error(path, str(error))) from error
 
+    def get_from_clipboard(self) -> str:
+        return self.adapter.get_from_clipboard()
+
 
 @dataclass(frozen=True)
 class FakeExternalLaunchService:
@@ -58,6 +63,7 @@ class FakeExternalLaunchService:
     failure_messages: Mapping[ExternalLaunchRequest, str] = field(default_factory=dict)
     default_delay_seconds: float = 0.0
     executed_requests: list[ExternalLaunchRequest] = field(default_factory=list)
+    clipboard_contents: str = ""
 
     def execute(self, request: ExternalLaunchRequest) -> None:
         if self.default_delay_seconds > 0:
@@ -66,6 +72,9 @@ class FakeExternalLaunchService:
         self.executed_requests.append(request)
         if request in self.failure_messages:
             raise OSError(self.failure_messages[request])
+
+    def get_from_clipboard(self) -> str:
+        return self.clipboard_contents
 
 
 def _format_open_error(path: str, detail: str) -> str:

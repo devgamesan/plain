@@ -6,6 +6,8 @@ from time import sleep
 from typing import Mapping, Protocol
 
 from peneo.adapters import DirectoryReader, LocalFilesystemAdapter
+from peneo.archive_utils import is_supported_archive_path
+from peneo.services import ArchiveListService, LiveArchiveListService
 from peneo.state.models import (
     AppState,
     BrowserSnapshot,
@@ -35,6 +37,7 @@ class LiveBrowserSnapshotLoader:
     """Load three-pane snapshots from the local filesystem."""
 
     filesystem: DirectoryReader = field(default_factory=LocalFilesystemAdapter)
+    archive_list: ArchiveListService = field(default_factory=LiveArchiveListService)
 
     def load_browser_snapshot(
         self,
@@ -75,11 +78,18 @@ class LiveBrowserSnapshotLoader:
             return PaneState(directory_path=current_path, entries=())
 
         child_path = Path(cursor_path).expanduser().resolve()
-        if not child_path.is_dir():
-            return PaneState(directory_path=current_path, entries=())
+        if child_path.is_dir():
+            child_entries = self._list_directory(str(child_path))
+            return PaneState(directory_path=str(child_path), entries=child_entries)
 
-        child_entries = self._list_directory(str(child_path))
-        return PaneState(directory_path=str(child_path), entries=child_entries)
+        if is_supported_archive_path(child_path):
+            try:
+                child_entries = self.archive_list.list_archive_entries(str(child_path))
+                return PaneState(directory_path=str(child_path), entries=child_entries)
+            except OSError:
+                return PaneState(directory_path=current_path, entries=())
+
+        return PaneState(directory_path=current_path, entries=())
 
     def _list_directory(self, path: str):
         try:
@@ -105,6 +115,7 @@ class FakeBrowserSnapshotLoader:
     default_delay_seconds: float = 0.0
     per_path_delay_seconds: Mapping[str, float] = field(default_factory=dict)
     child_delay_seconds: Mapping[tuple[str, str | None], float] = field(default_factory=dict)
+    archive_list: ArchiveListService = field(default_factory=LiveArchiveListService)
 
     def load_browser_snapshot(
         self,

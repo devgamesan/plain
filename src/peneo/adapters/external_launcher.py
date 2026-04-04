@@ -17,6 +17,7 @@ ForegroundCommandRunner = Callable[[Sequence[str], str | None], None]
 CommandAvailability = Callable[[str], str | None]
 SystemNameResolver = Callable[[], str]
 ClipboardFallback = Callable[[str], None]
+ClipboardReader = Callable[[], str]
 EnvironmentVariableReader = Callable[[str], str | None]
 TextFileReader = Callable[[str], str]
 PlatformKind = Literal["linux", "wsl", "darwin"]
@@ -36,6 +37,8 @@ class ExternalLaunchAdapter(Protocol):
 
     def copy_to_clipboard(self, text: str) -> None: ...
 
+    def get_from_clipboard(self) -> str: ...
+
 
 @dataclass(frozen=True)
 class LocalExternalLaunchAdapter:
@@ -53,6 +56,9 @@ class LocalExternalLaunchAdapter:
     text_file_reader: TextFileReader = field(default_factory=lambda: _read_text_file)
     clipboard_fallbacks: tuple[ClipboardFallback, ...] = field(
         default_factory=lambda: (_copy_to_clipboard_with_tkinter,)
+    )
+    clipboard_readers: tuple[ClipboardReader, ...] = field(
+        default_factory=lambda: (_read_from_clipboard_with_tkinter,)
     )
     terminal_command_templates: TerminalConfig = field(default_factory=TerminalConfig)
     editor_command_template: EditorConfig = field(default_factory=EditorConfig)
@@ -110,6 +116,45 @@ class LocalExternalLaunchAdapter:
         if fallback_errors:
             raise OSError(fallback_errors[-1])
         raise OSError("No supported command found to copy to clipboard")
+
+    def get_from_clipboard(self) -> str:
+        platform_kind = self._platform_kind()
+        candidates = self._clipboard_read_candidates(platform_kind)
+        available_candidates = [
+            command for command in candidates if self._command_exists(command[0])
+        ]
+        if available_candidates:
+            return self._read_first_available(available_candidates)
+
+        fallback_errors: list[str] = []
+        for reader in self.clipboard_readers:
+            try:
+                return reader()
+            except OSError as error:
+                fallback_errors.append(str(error) or "clipboard reader failed")
+
+        if fallback_errors:
+            raise OSError(fallback_errors[-1])
+        raise OSError("No supported command found to read from clipboard")
+
+    def _read_first_available(
+        self,
+        candidates: tuple[tuple[str, ...], ...],
+    ) -> str:
+        errors: list[str] = []
+        for command in candidates:
+            try:
+                result = subprocess.run(
+                    list(command),
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                return result.stdout
+            except subprocess.CalledProcessError as error:
+                errors.append(str(error) or f"{command[0]} failed")
+
+        raise OSError(errors[-1] if errors else "Failed to read from clipboard")
 
     def _run_first_available(
         self,
@@ -299,6 +344,27 @@ class LocalExternalLaunchAdapter:
             return (("pbcopy",),)
         raise OSError(f"Unsupported platform kind: {platform_kind}")
 
+    def _clipboard_read_candidates(
+        self,
+        platform_kind: PlatformKind,
+    ) -> tuple[tuple[str, ...], ...]:
+        if platform_kind == "linux":
+            return (
+                ("wl-paste", "--no-newline"),
+                ("xclip", "-out", "-selection", "clipboard"),
+                ("xsel", "--clipboard", "--output"),
+            )
+        if platform_kind == "wsl":
+            return (
+                ("powershell.exe", "-noprofile", "-command", "Get-Clipboard"),
+                ("wl-paste", "--no-newline"),
+                ("xclip", "-out", "-selection", "clipboard"),
+                ("xsel", "--clipboard", "--output"),
+            )
+        if platform_kind == "darwin":
+            return (("pbpaste",),)
+        raise OSError(f"Unsupported platform kind: {platform_kind}")
+
 
 def _run_detached_command(command: Sequence[str], cwd: str | None, input_text: str | None) -> None:
     if input_text is not None:
@@ -308,13 +374,12 @@ def _run_detached_command(command: Sequence[str], cwd: str | None, input_text: s
                 input=input_text,
                 text=True,
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
                 cwd=cwd,
                 check=True,
             )
         except subprocess.CalledProcessError as error:
-            detail = (error.stderr or "").strip() or str(error)
-            raise OSError(detail) from error
+            raise OSError(str(error) or f"{command[0]} failed") from error
         return
 
     subprocess.Popen(
@@ -353,6 +418,25 @@ def _copy_to_clipboard_with_tkinter(text: str) -> None:
         root.update()
     except tkinter.TclError as error:
         raise OSError(f"tkinter clipboard fallback failed: {error}") from error
+    finally:
+        if root is not None:
+            root.destroy()
+
+
+def _read_from_clipboard_with_tkinter() -> str:
+    try:
+        import tkinter
+    except ImportError as error:
+        raise OSError("tkinter clipboard reader is unavailable") from error
+
+    root = None
+    try:
+        root = tkinter.Tk()
+        root.withdraw()
+        try:
+            return root.clipboard_get()
+        except tkinter.TclError as error:
+            raise OSError(f"tkinter clipboard reader failed: {error}") from error
     finally:
         if root is not None:
             root.destroy()

@@ -1,8 +1,14 @@
 from dataclasses import replace
 
 from peneo.models import (
+    AppConfig,
+    BookmarkConfig,
     CreatePathRequest,
+    CreateZipArchiveRequest,
+    CreateZipArchiveResult,
     ExternalLaunchRequest,
+    ExtractArchiveRequest,
+    ExtractArchiveResult,
     FileMutationResult,
     PasteConflict,
     PasteRequest,
@@ -11,23 +17,37 @@ from peneo.models import (
     TrashDeleteRequest,
 )
 from peneo.state import (
+    AddBookmark,
+    ArchiveExtractCompleted,
+    ArchiveExtractConfirmationState,
+    ArchiveExtractFailed,
+    ArchiveExtractProgress,
+    ArchiveExtractProgressState,
+    ArchivePreparationCompleted,
+    ArchivePreparationFailed,
     AttributeInspectionState,
+    BeginBookmarkSearch,
     BeginCommandPalette,
     BeginCreateInput,
     BeginDeleteTargets,
+    BeginExtractArchiveInput,
     BeginFileSearch,
     BeginFilterInput,
+    BeginGoToPath,
     BeginGrepSearch,
     BeginHistorySearch,
     BeginRenameInput,
+    BeginZipCompressInput,
     BrowserSnapshot,
     BrowserSnapshotFailed,
     BrowserSnapshotLoaded,
+    CancelArchiveExtractConfirmation,
     CancelCommandPalette,
     CancelDeleteConfirmation,
     CancelFilterInput,
     CancelPasteConflict,
     CancelPendingInput,
+    CancelZipCompressConfirmation,
     ChildPaneSnapshotFailed,
     ChildPaneSnapshotLoaded,
     ClearSelection,
@@ -39,8 +59,11 @@ from peneo.state import (
     ConfigEditorState,
     ConfigSaveCompleted,
     ConfigSaveFailed,
+    ConfirmArchiveExtract,
     ConfirmDeleteTargets,
     ConfirmFilterInput,
+    ConfirmZipCompress,
+    CopyPathsToClipboard,
     CopyTargets,
     CutTargets,
     CycleConfigEditorValue,
@@ -63,6 +86,7 @@ from peneo.state import (
     FocusSplitTerminal,
     GoBack,
     GoForward,
+    GoToHomeDirectory,
     GoToParentDirectory,
     GrepSearchCompleted,
     GrepSearchFailed,
@@ -74,6 +98,7 @@ from peneo.state import (
     MoveCommandPaletteCursor,
     MoveConfigEditorCursor,
     MoveCursor,
+    MoveCursorAndSelectRange,
     NameConflictState,
     NotificationState,
     OpenPathInEditor,
@@ -84,9 +109,12 @@ from peneo.state import (
     PasteConflictState,
     PendingInputState,
     ReloadDirectory,
+    RemoveBookmark,
     RequestBrowserSnapshot,
     RequestDirectorySizes,
     ResolvePasteConflict,
+    RunArchiveExtractEffect,
+    RunArchivePreparationEffect,
     RunClipboardPasteEffect,
     RunConfigSaveEffect,
     RunDirectorySizeEffect,
@@ -94,7 +122,10 @@ from peneo.state import (
     RunFileMutationEffect,
     RunFileSearchEffect,
     RunGrepSearchEffect,
+    RunZipCompressEffect,
+    RunZipCompressPreparationEffect,
     SaveConfigEditor,
+    SelectAllVisibleEntries,
     SendSplitTerminalInput,
     SetCommandPaletteQuery,
     SetCursorPath,
@@ -103,6 +134,7 @@ from peneo.state import (
     SetSort,
     SetTerminalHeight,
     SetUiMode,
+    ShowAttributes,
     SplitTerminalExited,
     SplitTerminalOutputReceived,
     SplitTerminalStarted,
@@ -114,6 +146,12 @@ from peneo.state import (
     ToggleSelectionAndAdvance,
     ToggleSplitTerminal,
     WriteSplitTerminalInputEffect,
+    ZipCompressCompleted,
+    ZipCompressConfirmationState,
+    ZipCompressFailed,
+    ZipCompressPreparationCompleted,
+    ZipCompressProgress,
+    ZipCompressProgressState,
     build_initial_app_state,
     reduce_app_state,
 )
@@ -401,6 +439,19 @@ def test_go_to_parent_directory_uses_current_path_parent() -> None:
     assert result.effects[0].cursor_path == "/tmp/work/project"
 
 
+def test_go_to_home_directory_navigates_to_home() -> None:
+    state = build_initial_app_state()
+
+    result = reduce_app_state(state, GoToHomeDirectory())
+
+    assert result.state.pending_browser_snapshot_request_id == 1
+    assert result.state.ui_mode == "BUSY"
+    assert len(result.effects) == 1
+    # Home directory path will be expanded and resolved
+    assert result.effects[0].blocking is True
+    assert "home" in result.effects[0].path.lower()
+
+
 def test_reload_directory_requests_snapshot_with_current_cursor() -> None:
     state = build_initial_app_state()
     state = _reduce_state(state, SetCursorPath("/home/tadashi/develop/peneo/src"))
@@ -543,13 +594,24 @@ def test_begin_command_palette_sets_mode_and_empty_query() -> None:
     assert next_state.command_palette.cursor_index == 0
 
 
+def test_begin_command_palette_keeps_current_cursor_path() -> None:
+    state = _reduce_state(
+        build_initial_app_state(),
+        SetCursorPath("/home/tadashi/develop/peneo/tests"),
+    )
+
+    next_state = _reduce_state(state, BeginCommandPalette())
+
+    assert next_state.current_pane.cursor_path == "/home/tadashi/develop/peneo/tests"
+
+
 def test_move_command_palette_cursor_clamps_to_visible_commands() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
 
-    next_state = _reduce_state(state, MoveCommandPaletteCursor(delta=10))
+    next_state = _reduce_state(state, MoveCommandPaletteCursor(delta=20))
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.cursor_index == 7
+    assert next_state.command_palette.cursor_index == 20
 
 
 def test_set_command_palette_query_resets_cursor() -> None:
@@ -575,6 +637,85 @@ def test_submit_command_palette_runs_create_file_flow() -> None:
         prompt="New file: ",
         value="",
         create_kind="file",
+    )
+
+
+def test_begin_extract_archive_input_sets_default_destination() -> None:
+    next_state = _reduce_state(
+        build_initial_app_state(),
+        BeginExtractArchiveInput("/home/tadashi/develop/peneo/archive.tar.gz"),
+    )
+
+    assert next_state.ui_mode == "EXTRACT"
+    assert next_state.pending_input == PendingInputState(
+        prompt="Extract to: ",
+        value="/home/tadashi/develop/peneo/archive",
+        extract_source_path="/home/tadashi/develop/peneo/archive.tar.gz",
+    )
+
+
+def test_begin_zip_compress_input_sets_default_destination() -> None:
+    next_state = _reduce_state(
+        build_initial_app_state(),
+        BeginZipCompressInput(("/home/tadashi/develop/peneo/README.md",)),
+    )
+
+    assert next_state.ui_mode == "ZIP"
+    assert next_state.pending_input == PendingInputState(
+        prompt="Compress to: ",
+        value="/home/tadashi/develop/peneo/README.zip",
+        zip_source_paths=("/home/tadashi/develop/peneo/README.md",),
+    )
+
+
+def test_submit_command_palette_begins_extract_archive_flow() -> None:
+    archive_path = "/home/tadashi/develop/peneo/archive.zip"
+    state = replace(
+        build_initial_app_state(),
+        current_pane=replace(
+            build_initial_app_state().current_pane,
+            entries=(
+                DirectoryEntryState(archive_path, "archive.zip", "file"),
+                *build_initial_app_state().current_pane.entries[1:],
+            ),
+            cursor_path=archive_path,
+        ),
+    )
+    state = _reduce_state(state, BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("extract"))
+
+    next_state = _reduce_state(state, SubmitCommandPalette())
+
+    assert next_state.ui_mode == "EXTRACT"
+    assert next_state.pending_input is not None
+    assert next_state.pending_input.value == "/home/tadashi/develop/peneo/archive"
+    assert next_state.pending_input.extract_source_path == archive_path
+
+
+def test_submit_command_palette_begins_zip_compress_flow() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=replace(
+            build_initial_app_state().current_pane,
+            selected_paths=frozenset(
+                {
+                    "/home/tadashi/develop/peneo/docs",
+                    "/home/tadashi/develop/peneo/src",
+                }
+            ),
+        ),
+    )
+    state = _reduce_state(state, BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("compress"))
+
+    next_state = _reduce_state(state, SubmitCommandPalette())
+
+    assert next_state.ui_mode == "ZIP"
+    assert next_state.pending_input is not None
+    assert next_state.pending_input.value == "/home/tadashi/develop/peneo/peneo.zip"
+    assert next_state.pending_input.zip_source_paths == (
+        "/home/tadashi/develop/peneo/docs",
+        "/home/tadashi/develop/peneo/src",
     )
 
 
@@ -619,6 +760,20 @@ def test_begin_history_search_with_empty_history() -> None:
     assert next_state.command_palette.history_results == ()
 
 
+def test_begin_bookmark_search_enters_bookmarks_mode() -> None:
+    next_state = _reduce_state(build_initial_app_state(), BeginBookmarkSearch())
+
+    assert next_state.ui_mode == "PALETTE"
+    assert next_state.command_palette == CommandPaletteState(source="bookmarks")
+
+
+def test_begin_go_to_path_enters_palette_mode() -> None:
+    next_state = _reduce_state(build_initial_app_state(), BeginGoToPath())
+
+    assert next_state.ui_mode == "PALETTE"
+    assert next_state.command_palette == CommandPaletteState(source="go_to_path")
+
+
 def test_submit_history_palette_navigates_to_selected_directory() -> None:
     state = build_initial_app_state()
     state = replace(
@@ -655,6 +810,194 @@ def test_submit_history_palette_with_empty_history_shows_warning() -> None:
 
     assert result.state.notification is not None
     assert result.state.notification.message == "No directory history"
+
+
+def test_submit_bookmarks_palette_navigates_to_selected_directory(tmp_path) -> None:
+    bookmarked_path = tmp_path / "project"
+    bookmarked_path.mkdir()
+    state = build_initial_app_state(
+        config=AppConfig(bookmarks=BookmarkConfig(paths=(str(bookmarked_path),)))
+    )
+    state = replace(
+        state,
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(source="bookmarks"),
+    )
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.command_palette is None
+    assert result.effects == (
+        LoadBrowserSnapshotEffect(
+            request_id=1,
+            path=str(bookmarked_path),
+            cursor_path=None,
+            blocking=True,
+        ),
+    )
+
+
+def test_submit_bookmarks_palette_with_invalid_path_shows_error() -> None:
+    state = build_initial_app_state(
+        config=AppConfig(bookmarks=BookmarkConfig(paths=("/tmp/does-not-exist",)))
+    )
+    state = replace(
+        state,
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(source="bookmarks"),
+    )
+
+    next_state = _reduce_state(state, SubmitCommandPalette())
+
+    assert next_state.notification == NotificationState(
+        level="error",
+        message="Bookmarked path does not exist or is not a directory",
+    )
+
+
+def test_set_command_palette_query_updates_go_to_path_candidates(tmp_path) -> None:
+    state = _reduce_state(
+        replace(build_initial_app_state(), current_path=str(tmp_path)),
+        BeginGoToPath(),
+    )
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "downloads").mkdir()
+
+    next_state = _reduce_state(
+        state,
+        SetCommandPaletteQuery("do"),
+    )
+
+    assert next_state.command_palette is not None
+    assert next_state.command_palette.go_to_path_candidates == (
+        str(tmp_path / "docs"),
+        str(tmp_path / "downloads"),
+    )
+
+
+def test_set_command_palette_query_resolves_relative_go_to_path_candidates(tmp_path) -> None:
+    state = _reduce_state(
+        replace(build_initial_app_state(), current_path=str(tmp_path)),
+        BeginGoToPath(),
+    )
+    (tmp_path / "projects").mkdir()
+    (tmp_path / "projects" / "peneo").mkdir()
+
+    next_state = _reduce_state(state, SetCommandPaletteQuery("projects/p"))
+
+    assert next_state.command_palette is not None
+    assert next_state.command_palette.go_to_path_candidates == (
+        str(tmp_path / "projects" / "peneo"),
+    )
+
+
+def test_set_command_palette_query_with_trailing_separator_clears_go_to_path_selection(
+    tmp_path,
+) -> None:
+    state = _reduce_state(
+        replace(build_initial_app_state(), current_path=str(tmp_path)),
+        BeginGoToPath(),
+    )
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "api").mkdir()
+
+    next_state = _reduce_state(state, SetCommandPaletteQuery("docs/"))
+
+    assert next_state.command_palette is not None
+    assert next_state.command_palette.go_to_path_candidates == (str(tmp_path / "docs" / "api"),)
+    assert next_state.command_palette.go_to_path_selection_active is False
+
+
+def test_submit_go_to_path_palette_requests_snapshot(tmp_path) -> None:
+    state = _reduce_state(
+        replace(build_initial_app_state(), current_path=str(tmp_path)),
+        BeginGoToPath(),
+    )
+    target_path = tmp_path / "docs"
+    target_path.mkdir()
+    state = _reduce_state(
+        state,
+        SetCommandPaletteQuery("do"),
+    )
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "BUSY"
+    assert result.state.command_palette is None
+    assert result.effects == (
+        LoadBrowserSnapshotEffect(
+            request_id=1,
+            path=str(target_path),
+            cursor_path=None,
+            blocking=True,
+        ),
+    )
+
+
+def test_submit_go_to_path_palette_uses_selected_candidate(tmp_path) -> None:
+    state = _reduce_state(
+        replace(build_initial_app_state(), current_path=str(tmp_path)),
+        BeginGoToPath(),
+    )
+    (tmp_path / "alpha").mkdir()
+    (tmp_path / "beta").mkdir()
+    state = _reduce_state(state, SetCommandPaletteQuery(""))
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            query=str(tmp_path),
+            go_to_path_candidates=(str(tmp_path / "alpha"), str(tmp_path / "beta")),
+            cursor_index=1,
+        ),
+    )
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.effects == (
+        LoadBrowserSnapshotEffect(
+            request_id=1,
+            path=str(tmp_path / "beta"),
+            cursor_path=None,
+            blocking=True,
+        ),
+    )
+
+
+def test_submit_go_to_path_palette_with_trailing_separator_uses_query_directory(tmp_path) -> None:
+    state = _reduce_state(
+        replace(build_initial_app_state(), current_path=str(tmp_path)),
+        BeginGoToPath(),
+    )
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "api").mkdir()
+    state = _reduce_state(state, SetCommandPaletteQuery("docs/"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.effects == (
+        LoadBrowserSnapshotEffect(
+            request_id=1,
+            path=str(tmp_path / "docs"),
+            cursor_path=None,
+            blocking=True,
+        ),
+    )
+
+def test_submit_go_to_path_palette_with_invalid_directory_shows_error() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginGoToPath())
+    state = _reduce_state(
+        state,
+        SetCommandPaletteQuery("/path/that/does/not/exist"),
+    )
+
+    next_state = _reduce_state(state, SubmitCommandPalette())
+
+    assert next_state.ui_mode == "PALETTE"
+    assert next_state.notification == NotificationState(
+        level="error",
+        message="Path does not exist or is not a directory",
+    )
     state = _reduce_state(
         build_initial_app_state(config_path="/tmp/peneo/config.toml"),
         BeginCommandPalette(),
@@ -782,6 +1125,60 @@ def test_save_config_editor_emits_config_save_effect() -> None:
             request_id=1,
             path="/tmp/peneo/config.toml",
             config=result.state.config_editor.draft,
+        ),
+    )
+
+
+def test_add_bookmark_emits_config_save_effect() -> None:
+    state = build_initial_app_state(config_path="/tmp/peneo/config.toml")
+
+    result = reduce_app_state(state, AddBookmark(path="/home/tadashi/develop/peneo"))
+
+    assert result.state.pending_config_save_request_id == 1
+    assert result.effects == (
+        RunConfigSaveEffect(
+            request_id=1,
+            path="/tmp/peneo/config.toml",
+            config=AppConfig(
+                bookmarks=BookmarkConfig(paths=("/home/tadashi/develop/peneo",))
+            ),
+        ),
+    )
+
+
+def test_add_bookmark_ignores_duplicate_path() -> None:
+    state = build_initial_app_state(
+        config=AppConfig(bookmarks=BookmarkConfig(paths=("/home/tadashi/develop/peneo",)))
+    )
+
+    next_state = _reduce_state(state, AddBookmark(path="/home/tadashi/develop/peneo"))
+
+    assert next_state.notification == NotificationState(
+        level="info",
+        message="Directory is already bookmarked",
+    )
+
+
+def test_remove_bookmark_emits_config_save_effect() -> None:
+    state = build_initial_app_state(
+        config_path="/tmp/peneo/config.toml",
+        config=AppConfig(
+            bookmarks=BookmarkConfig(
+                paths=("/home/tadashi/develop/peneo", "/home/tadashi/src")
+            )
+        ),
+    )
+
+    result = reduce_app_state(state, RemoveBookmark(path="/home/tadashi/develop/peneo"))
+
+    assert result.state.pending_config_save_request_id == 1
+    assert result.effects == (
+        RunConfigSaveEffect(
+            request_id=1,
+            path="/tmp/peneo/config.toml",
+            config=AppConfig(
+                bookmarks=BookmarkConfig(paths=("/home/tadashi/src",))
+            ),
         ),
     )
 
@@ -952,7 +1349,7 @@ def test_submit_command_palette_toggles_hidden_files() -> None:
 
 def test_submit_command_palette_runs_open_terminal_flow() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("terminal"))
+    state = _reduce_state(state, SetCommandPaletteQuery("open terminal"))
 
     result = reduce_app_state(state, SubmitCommandPalette())
 
@@ -968,6 +1365,220 @@ def test_submit_command_palette_runs_open_terminal_flow() -> None:
             ),
         ),
     )
+
+
+def test_submit_command_palette_begins_file_search() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("find files"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "PALETTE"
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.source == "file_search"
+
+
+def test_submit_command_palette_begins_grep_search() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("grep search"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "PALETTE"
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.source == "grep_search"
+
+
+def test_submit_command_palette_begins_history_search() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("history search"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "PALETTE"
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.source == "history"
+
+
+def test_submit_command_palette_begins_bookmark_search() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("show bookmarks"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "PALETTE"
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.source == "bookmarks"
+
+
+def test_submit_command_palette_adds_current_directory_bookmark() -> None:
+    state = _reduce_state(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        BeginCommandPalette(),
+    )
+    state = _reduce_state(state, SetCommandPaletteQuery("bookmark this directory"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.command_palette is None
+    assert result.effects == (
+        RunConfigSaveEffect(
+            request_id=1,
+            path="/tmp/peneo/config.toml",
+            config=AppConfig(
+                bookmarks=BookmarkConfig(paths=("/home/tadashi/develop/peneo",))
+            ),
+        ),
+    )
+
+
+def test_show_attributes_enters_detail_mode_for_single_target() -> None:
+    state = build_initial_app_state()
+
+    result = reduce_app_state(state, ShowAttributes())
+
+    assert result.state.ui_mode == "DETAIL"
+    assert result.state.attribute_inspection == AttributeInspectionState(
+        name="docs",
+        kind="dir",
+        path="/home/tadashi/develop/peneo/docs",
+        size_bytes=None,
+        modified_at=state.current_pane.entries[0].modified_at,
+        hidden=False,
+        permissions_mode=state.current_pane.entries[0].permissions_mode,
+    )
+
+
+def test_show_attributes_warns_without_single_target() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=replace(
+            build_initial_app_state().current_pane,
+            selected_paths=frozenset(
+                {
+                    "/home/tadashi/develop/peneo/docs",
+                    "/home/tadashi/develop/peneo/src",
+                }
+            ),
+        ),
+    )
+
+    next_state = _reduce_state(state, ShowAttributes())
+
+    assert next_state.notification == NotificationState(
+        level="warning",
+        message="Show attributes requires a single target",
+    )
+
+
+def test_copy_paths_to_clipboard_emits_external_launch_effect() -> None:
+    result = reduce_app_state(build_initial_app_state(), CopyPathsToClipboard())
+
+    assert result.state.next_request_id == 2
+    assert result.effects == (
+        RunExternalLaunchEffect(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="copy_paths",
+                paths=("/home/tadashi/develop/peneo/docs",),
+            ),
+        ),
+    )
+
+
+def test_submit_command_palette_removes_current_directory_bookmark() -> None:
+    state = _reduce_state(
+        build_initial_app_state(
+            config_path="/tmp/peneo/config.toml",
+            config=AppConfig(
+                bookmarks=BookmarkConfig(paths=("/home/tadashi/develop/peneo", "/home/tadashi/src"))
+            ),
+        ),
+        BeginCommandPalette(),
+    )
+    state = _reduce_state(state, SetCommandPaletteQuery("remove bookmark"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.command_palette is None
+    assert result.effects == (
+        RunConfigSaveEffect(
+            request_id=1,
+            path="/tmp/peneo/config.toml",
+            config=AppConfig(
+                bookmarks=BookmarkConfig(paths=("/home/tadashi/src",))
+            ),
+        ),
+    )
+
+
+def test_submit_command_palette_goes_back() -> None:
+    state = replace(
+        _reduce_state(build_initial_app_state(), BeginCommandPalette()),
+        history=HistoryState(
+            back=("/home/tadashi/downloads",),
+            forward=(),
+        ),
+    )
+    state = _reduce_state(state, SetCommandPaletteQuery("go back"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "BUSY"
+    assert result.state.command_palette is None
+    assert len(result.effects) == 1
+    assert isinstance(result.effects[0], LoadBrowserSnapshotEffect)
+    assert result.effects[0].path == "/home/tadashi/downloads"
+
+
+def test_submit_command_palette_go_forward_is_unavailable_without_history() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("go forward"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "PALETTE"
+    assert result.state.command_palette is not None
+    assert result.state.notification == NotificationState(
+        level="warning",
+        message="Go forward is not available yet",
+    )
+
+
+def test_submit_command_palette_reloads_directory() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("reload directory"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.command_palette is None
+    assert len(result.effects) == 1
+    assert isinstance(result.effects[0], LoadBrowserSnapshotEffect)
+
+
+def test_submit_command_palette_goes_to_home_directory() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("go to home directory"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "BUSY"
+    assert result.state.command_palette is None
+    assert len(result.effects) == 1
+    assert isinstance(result.effects[0], LoadBrowserSnapshotEffect)
+
+
+def test_submit_command_palette_toggles_split_terminal() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("split terminal"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "BROWSING"
+    assert result.state.command_palette is None
+    assert result.state.split_terminal.visible is True
+    assert len(result.effects) == 1
+    assert isinstance(result.effects[0], StartSplitTerminalEffect)
 
 
 def test_open_path_in_editor_allows_non_browser_file_path() -> None:
@@ -1001,6 +1612,29 @@ def test_toggle_split_terminal_starts_embedded_session() -> None:
             cwd="/home/tadashi/develop/peneo",
         ),
     )
+
+
+def test_submit_command_palette_begins_rename_with_single_target() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("rename"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "RENAME"
+    assert result.state.command_palette is None
+    assert result.state.pending_input is not None
+    assert result.state.pending_input.prompt == "Rename: "
+
+
+def test_submit_command_palette_deletes_targets() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("trash"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "CONFIRM"
+    assert result.state.command_palette is None
+    assert result.state.delete_confirmation is not None
 
 
 def test_toggle_split_terminal_closes_active_session() -> None:
@@ -1154,6 +1788,83 @@ def test_submit_command_palette_uses_selected_paths_for_copy_path() -> None:
                 ),
             ),
         ),
+    )
+
+
+def test_submit_command_palette_select_all_uses_visible_entries() -> None:
+    initial_state = build_initial_app_state()
+    state = replace(
+        initial_state,
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/peneo",
+            entries=(
+                DirectoryEntryState(
+                    "/home/tadashi/develop/peneo/.env",
+                    ".env",
+                    "file",
+                    hidden=True,
+                ),
+                DirectoryEntryState("/home/tadashi/develop/peneo/docs", "docs", "dir"),
+                DirectoryEntryState("/home/tadashi/develop/peneo/src", "src", "dir"),
+            ),
+            cursor_path="/home/tadashi/develop/peneo/docs",
+        ),
+        filter=replace(initial_state.filter, query="s", active=True),
+    )
+    state = _reduce_state(state, BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("select all"))
+
+    next_state = _reduce_state(state, SubmitCommandPalette())
+
+    assert next_state.current_pane.selected_paths == frozenset(
+        {
+            "/home/tadashi/develop/peneo/docs",
+            "/home/tadashi/develop/peneo/src",
+        }
+    )
+
+
+def test_select_all_visible_entries_replaces_selection_with_visible_paths() -> None:
+    initial_state = build_initial_app_state()
+    state = replace(
+        initial_state,
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/peneo",
+            entries=(
+                DirectoryEntryState(
+                    "/home/tadashi/develop/peneo/.env",
+                    ".env",
+                    "file",
+                    hidden=True,
+                ),
+                DirectoryEntryState("/home/tadashi/develop/peneo/docs", "docs", "dir"),
+                DirectoryEntryState("/home/tadashi/develop/peneo/src", "src", "dir"),
+            ),
+            cursor_path="/home/tadashi/develop/peneo/docs",
+            selected_paths=frozenset(
+                {
+                    "/home/tadashi/develop/peneo/.env",
+                    "/home/tadashi/develop/peneo/docs",
+                }
+            ),
+        ),
+    )
+
+    next_state = _reduce_state(
+        state,
+        SelectAllVisibleEntries(
+            (
+                "/home/tadashi/develop/peneo/docs",
+                "/home/tadashi/develop/peneo/src",
+            )
+        ),
+    )
+
+    assert next_state.current_pane.selected_paths == frozenset(
+        {
+            "/home/tadashi/develop/peneo/docs",
+            "/home/tadashi/develop/peneo/src",
+        }
     )
 
 
@@ -1589,6 +2300,7 @@ def test_toggle_hidden_files_normalizes_cursor_and_selection() -> None:
             ),
             cursor_path=hidden_path,
             selected_paths=frozenset({hidden_path, visible_path}),
+            selection_anchor_path=hidden_path,
         ),
     )
 
@@ -1597,6 +2309,7 @@ def test_toggle_hidden_files_normalizes_cursor_and_selection() -> None:
     assert next_state.show_hidden is False
     assert next_state.current_pane.cursor_path == visible_path
     assert next_state.current_pane.selected_paths == frozenset({visible_path})
+    assert next_state.current_pane.selection_anchor_path is None
     assert next_state.notification == NotificationState(
         level="info",
         message="Hidden files hidden",
@@ -1728,6 +2441,494 @@ def test_cancel_delete_confirmation_returns_to_browsing_with_warning() -> None:
 
     assert next_state.ui_mode == "BROWSING"
     assert next_state.notification == NotificationState(level="warning", message="Delete cancelled")
+
+
+def test_submit_pending_extract_starts_archive_preparation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="EXTRACT",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="/tmp/output/archive",
+            extract_source_path="/home/tadashi/develop/peneo/archive.zip",
+        ),
+    )
+
+    result = reduce_app_state(state, SubmitPendingInput())
+
+    assert result.state.pending_archive_prepare_request_id == 1
+    assert result.state.ui_mode == "BUSY"
+    assert result.effects == (
+        RunArchivePreparationEffect(
+            request_id=1,
+            request=ExtractArchiveRequest(
+                source_path="/home/tadashi/develop/peneo/archive.zip",
+                destination_path="/tmp/output/archive",
+            ),
+        ),
+    )
+
+
+def test_submit_pending_zip_compress_starts_preparation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="ZIP",
+        pending_input=PendingInputState(
+            prompt="Compress to: ",
+            value="/tmp/output.zip",
+            zip_source_paths=(
+                "/home/tadashi/develop/peneo/docs",
+                "/home/tadashi/develop/peneo/src",
+            ),
+        ),
+    )
+
+    result = reduce_app_state(state, SubmitPendingInput())
+
+    assert result.state.pending_zip_compress_prepare_request_id == 1
+    assert result.state.ui_mode == "BUSY"
+    assert result.effects == (
+        RunZipCompressPreparationEffect(
+            request_id=1,
+            request=CreateZipArchiveRequest(
+                source_paths=(
+                    "/home/tadashi/develop/peneo/docs",
+                    "/home/tadashi/develop/peneo/src",
+                ),
+                destination_path="/tmp/output.zip",
+                root_dir="/home/tadashi/develop/peneo",
+            ),
+        ),
+    )
+
+
+def test_submit_pending_extract_resolves_relative_destination_from_archive_parent() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="EXTRACT",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="../exports/archive",
+            extract_source_path="/home/tadashi/develop/peneo/docs/archive.tar.bz2",
+        ),
+    )
+
+    result = reduce_app_state(state, SubmitPendingInput())
+
+    assert result.effects == (
+        RunArchivePreparationEffect(
+            request_id=1,
+            request=ExtractArchiveRequest(
+                source_path="/home/tadashi/develop/peneo/docs/archive.tar.bz2",
+                destination_path="/home/tadashi/develop/peneo/exports/archive",
+            ),
+        ),
+    )
+
+
+def test_archive_preparation_with_conflicts_enters_confirm_mode() -> None:
+    request = ExtractArchiveRequest(
+        source_path="/home/tadashi/develop/peneo/archive.zip",
+        destination_path="/tmp/output/archive",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="/tmp/output/archive",
+            extract_source_path=request.source_path,
+        ),
+        pending_archive_prepare_request_id=4,
+    )
+
+    next_state = _reduce_state(
+        state,
+        ArchivePreparationCompleted(
+            request_id=4,
+            request=request,
+            total_entries=7,
+            conflict_count=2,
+            first_conflict_path="/tmp/output/archive/notes.txt",
+        ),
+    )
+
+    assert next_state.ui_mode == "CONFIRM"
+    assert next_state.pending_archive_prepare_request_id is None
+    assert next_state.archive_extract_confirmation == ArchiveExtractConfirmationState(
+        request=request,
+        conflict_count=2,
+        first_conflict_path="/tmp/output/archive/notes.txt",
+        total_entries=7,
+    )
+
+
+def test_zip_compress_preparation_with_existing_destination_enters_confirm_mode() -> None:
+    request = CreateZipArchiveRequest(
+        source_paths=("/home/tadashi/develop/peneo/docs",),
+        destination_path="/home/tadashi/develop/peneo/docs.zip",
+        root_dir="/home/tadashi/develop/peneo",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_input=PendingInputState(
+            prompt="Compress to: ",
+            value="/home/tadashi/develop/peneo/docs.zip",
+            zip_source_paths=request.source_paths,
+        ),
+        pending_zip_compress_prepare_request_id=4,
+    )
+
+    next_state = _reduce_state(
+        state,
+        ZipCompressPreparationCompleted(
+            request_id=4,
+            request=request,
+            total_entries=7,
+            destination_exists=True,
+        ),
+    )
+
+    assert next_state.ui_mode == "CONFIRM"
+    assert next_state.pending_zip_compress_prepare_request_id is None
+    assert next_state.zip_compress_confirmation == ZipCompressConfirmationState(
+        request=request,
+        total_entries=7,
+    )
+
+
+def test_confirm_archive_extract_runs_extract_effect() -> None:
+    request = ExtractArchiveRequest(
+        source_path="/home/tadashi/develop/peneo/archive.zip",
+        destination_path="/tmp/output/archive",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="/tmp/output/archive",
+            extract_source_path=request.source_path,
+        ),
+        archive_extract_confirmation=ArchiveExtractConfirmationState(
+            request=request,
+            conflict_count=1,
+            first_conflict_path="/tmp/output/archive/notes.txt",
+            total_entries=3,
+        ),
+    )
+
+    result = reduce_app_state(state, ConfirmArchiveExtract())
+
+    assert result.state.pending_archive_extract_request_id == 1
+    assert result.effects == (
+        RunArchiveExtractEffect(
+            request_id=1,
+            request=request,
+        ),
+    )
+
+
+def test_confirm_zip_compress_runs_effect() -> None:
+    request = CreateZipArchiveRequest(
+        source_paths=("/home/tadashi/develop/peneo/docs",),
+        destination_path="/home/tadashi/develop/peneo/docs.zip",
+        root_dir="/home/tadashi/develop/peneo",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        pending_input=PendingInputState(
+            prompt="Compress to: ",
+            value="/home/tadashi/develop/peneo/docs.zip",
+            zip_source_paths=request.source_paths,
+        ),
+        zip_compress_confirmation=ZipCompressConfirmationState(
+            request=request,
+            total_entries=3,
+        ),
+    )
+
+    result = reduce_app_state(state, ConfirmZipCompress())
+
+    assert result.state.pending_zip_compress_request_id == 1
+    assert result.effects == (
+        RunZipCompressEffect(
+            request_id=1,
+            request=request,
+        ),
+    )
+
+
+def test_cancel_archive_extract_confirmation_returns_to_extract_mode() -> None:
+    request = ExtractArchiveRequest(
+        source_path="/home/tadashi/develop/peneo/archive.zip",
+        destination_path="/tmp/output/archive",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="/tmp/output/archive",
+            extract_source_path=request.source_path,
+        ),
+        archive_extract_confirmation=ArchiveExtractConfirmationState(
+            request=request,
+            conflict_count=1,
+            first_conflict_path="/tmp/output/archive/notes.txt",
+            total_entries=3,
+        ),
+    )
+
+    next_state = _reduce_state(state, CancelArchiveExtractConfirmation())
+
+    assert next_state.ui_mode == "EXTRACT"
+    assert next_state.archive_extract_confirmation is None
+    assert next_state.notification == NotificationState(
+        level="warning",
+        message="Extraction cancelled",
+    )
+
+
+def test_cancel_zip_compress_confirmation_returns_to_zip_mode() -> None:
+    request = CreateZipArchiveRequest(
+        source_paths=("/home/tadashi/develop/peneo/docs",),
+        destination_path="/home/tadashi/develop/peneo/docs.zip",
+        root_dir="/home/tadashi/develop/peneo",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        pending_input=PendingInputState(
+            prompt="Compress to: ",
+            value="/home/tadashi/develop/peneo/docs.zip",
+            zip_source_paths=request.source_paths,
+        ),
+        zip_compress_confirmation=ZipCompressConfirmationState(
+            request=request,
+            total_entries=3,
+        ),
+    )
+
+    next_state = _reduce_state(state, CancelZipCompressConfirmation())
+
+    assert next_state.ui_mode == "ZIP"
+    assert next_state.zip_compress_confirmation is None
+    assert next_state.notification == NotificationState(
+        level="warning",
+        message="Zip compression cancelled",
+    )
+
+
+def test_archive_extract_progress_updates_notification() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_archive_extract_request_id=6,
+    )
+
+    next_state = _reduce_state(
+        state,
+        ArchiveExtractProgress(
+            request_id=6,
+            completed_entries=2,
+            total_entries=5,
+            current_path="/tmp/output/archive/notes.txt",
+        ),
+    )
+
+    assert next_state.archive_extract_progress == ArchiveExtractProgressState(
+        completed_entries=2,
+        total_entries=5,
+        current_path="/tmp/output/archive/notes.txt",
+    )
+    assert next_state.notification == NotificationState(
+        level="info",
+        message="Extracting archive 2/5: notes.txt",
+    )
+
+
+def test_zip_compress_progress_updates_notification() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_zip_compress_request_id=6,
+    )
+
+    next_state = _reduce_state(
+        state,
+        ZipCompressProgress(
+            request_id=6,
+            completed_entries=2,
+            total_entries=5,
+            current_path="/home/tadashi/develop/peneo/docs/readme.txt",
+        ),
+    )
+
+    assert next_state.zip_compress_progress == ZipCompressProgressState(
+        completed_entries=2,
+        total_entries=5,
+        current_path="/home/tadashi/develop/peneo/docs/readme.txt",
+    )
+    assert next_state.notification == NotificationState(
+        level="info",
+        message="Compressing as zip 2/5: readme.txt",
+    )
+
+
+def test_archive_extract_completed_requests_snapshot_for_destination_parent() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="/tmp/output/archive",
+            extract_source_path="/home/tadashi/develop/peneo/archive.zip",
+        ),
+        pending_archive_extract_request_id=9,
+    )
+
+    result = reduce_app_state(
+        state,
+        ArchiveExtractCompleted(
+            request_id=9,
+            result=ExtractArchiveResult(
+                destination_path="/tmp/output/archive",
+                extracted_entries=2,
+                total_entries=2,
+                message="Extracted 2 entries to archive",
+            ),
+        ),
+    )
+
+    assert result.state.post_reload_notification == NotificationState(
+        level="info",
+        message="Extracted 2 entries to archive",
+    )
+    assert result.effects == (
+        LoadBrowserSnapshotEffect(
+            request_id=1,
+            path="/tmp/output",
+            cursor_path="/tmp/output/archive",
+            blocking=True,
+        ),
+    )
+
+
+def test_zip_compress_completed_requests_snapshot_for_destination_parent() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_input=PendingInputState(
+            prompt="Compress to: ",
+            value="/tmp/output.zip",
+            zip_source_paths=("/home/tadashi/develop/peneo/docs",),
+        ),
+        pending_zip_compress_request_id=9,
+    )
+
+    result = reduce_app_state(
+        state,
+        ZipCompressCompleted(
+            request_id=9,
+            result=CreateZipArchiveResult(
+                destination_path="/tmp/output.zip",
+                archived_entries=2,
+                total_entries=2,
+                message="Created output.zip with 2 entries",
+            ),
+        ),
+    )
+
+    assert result.state.post_reload_notification == NotificationState(
+        level="info",
+        message="Created output.zip with 2 entries",
+    )
+    assert result.effects == (
+        LoadBrowserSnapshotEffect(
+            request_id=1,
+            path="/tmp",
+            cursor_path="/tmp/output.zip",
+            blocking=True,
+        ),
+    )
+
+
+def test_archive_extract_failed_returns_to_extract_mode() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="/tmp/output/archive",
+            extract_source_path="/home/tadashi/develop/peneo/archive.zip",
+        ),
+        pending_archive_extract_request_id=12,
+    )
+
+    next_state = _reduce_state(
+        state,
+        ArchiveExtractFailed(request_id=12, message="Unsupported archive member type: link"),
+    )
+
+    assert next_state.ui_mode == "EXTRACT"
+    assert next_state.pending_archive_extract_request_id is None
+    assert next_state.notification == NotificationState(
+        level="error",
+        message="Unsupported archive member type: link",
+    )
+
+
+def test_zip_compress_failed_returns_to_zip_mode() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_input=PendingInputState(
+            prompt="Compress to: ",
+            value="/tmp/output.zip",
+            zip_source_paths=("/home/tadashi/develop/peneo/docs",),
+        ),
+        pending_zip_compress_request_id=12,
+    )
+
+    next_state = _reduce_state(
+        state,
+        ZipCompressFailed(request_id=12, message="Destination path already exists as a directory"),
+    )
+
+    assert next_state.ui_mode == "ZIP"
+    assert next_state.pending_zip_compress_request_id is None
+    assert next_state.notification == NotificationState(
+        level="error",
+        message="Destination path already exists as a directory",
+    )
+
+
+def test_archive_preparation_failed_returns_to_extract_mode() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_input=PendingInputState(
+            prompt="Extract to: ",
+            value="/tmp/output/archive",
+            extract_source_path="/home/tadashi/develop/peneo/archive.zip",
+        ),
+        pending_archive_prepare_request_id=7,
+    )
+
+    next_state = _reduce_state(
+        state,
+        ArchivePreparationFailed(request_id=7, message="Unsupported archive format: archive.rar"),
+    )
+
+    assert next_state.ui_mode == "EXTRACT"
+    assert next_state.pending_archive_prepare_request_id is None
+    assert next_state.notification == NotificationState(
+        level="error",
+        message="Unsupported archive format: archive.rar",
+    )
 
 
 def test_set_pending_input_value_updates_current_value() -> None:
@@ -2376,6 +3577,103 @@ def test_toggle_selection_and_advance_moves_cursor_to_next_visible_entry() -> No
     )
 
 
+def test_move_cursor_and_select_range_sets_anchor_and_selects_contiguous_entries() -> None:
+    state = build_initial_app_state()
+    visible_paths = (
+        "/home/tadashi/develop/peneo/docs",
+        "/home/tadashi/develop/peneo/src",
+        "/home/tadashi/develop/peneo/tests",
+        "/home/tadashi/develop/peneo/README.md",
+        "/home/tadashi/develop/peneo/pyproject.toml",
+    )
+
+    result = reduce_app_state(
+        state,
+        MoveCursorAndSelectRange(delta=1, visible_paths=visible_paths),
+    )
+
+    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/peneo/src"
+    assert result.state.current_pane.selected_paths == frozenset(
+        {
+            "/home/tadashi/develop/peneo/docs",
+            "/home/tadashi/develop/peneo/src",
+        }
+    )
+    assert result.state.current_pane.selection_anchor_path == "/home/tadashi/develop/peneo/docs"
+    assert result.effects == (
+        LoadChildPaneSnapshotEffect(
+            request_id=1,
+            current_path="/home/tadashi/develop/peneo",
+            cursor_path="/home/tadashi/develop/peneo/src",
+        ),
+    )
+
+
+def test_move_cursor_and_select_range_reuses_anchor_when_shrinking_selection() -> None:
+    visible_paths = (
+        "/home/tadashi/develop/peneo/docs",
+        "/home/tadashi/develop/peneo/src",
+        "/home/tadashi/develop/peneo/tests",
+        "/home/tadashi/develop/peneo/README.md",
+        "/home/tadashi/develop/peneo/pyproject.toml",
+    )
+    state = reduce_app_state(
+        build_initial_app_state(),
+        MoveCursorAndSelectRange(delta=1, visible_paths=visible_paths),
+    ).state
+    state = reduce_app_state(
+        state,
+        MoveCursorAndSelectRange(delta=1, visible_paths=visible_paths),
+    ).state
+
+    result = reduce_app_state(
+        state,
+        MoveCursorAndSelectRange(delta=-1, visible_paths=visible_paths),
+    )
+
+    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/peneo/src"
+    assert result.state.current_pane.selected_paths == frozenset(
+        {
+            "/home/tadashi/develop/peneo/docs",
+            "/home/tadashi/develop/peneo/src",
+        }
+    )
+    assert result.state.current_pane.selection_anchor_path == "/home/tadashi/develop/peneo/docs"
+
+
+def test_move_cursor_clears_range_selection_anchor() -> None:
+    visible_paths = (
+        "/home/tadashi/develop/peneo/docs",
+        "/home/tadashi/develop/peneo/src",
+        "/home/tadashi/develop/peneo/tests",
+    )
+    initial_state = build_initial_app_state()
+    state = replace(
+        initial_state,
+        current_pane=replace(
+            initial_state.current_pane,
+            selected_paths=frozenset(
+                {
+                    "/home/tadashi/develop/peneo/docs",
+                    "/home/tadashi/develop/peneo/src",
+                }
+            ),
+            selection_anchor_path="/home/tadashi/develop/peneo/docs",
+        ),
+    )
+
+    result = reduce_app_state(state, MoveCursor(delta=1, visible_paths=visible_paths))
+
+    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/peneo/src"
+    assert result.state.current_pane.selected_paths == frozenset(
+        {
+            "/home/tadashi/develop/peneo/docs",
+            "/home/tadashi/develop/peneo/src",
+        }
+    )
+    assert result.state.current_pane.selection_anchor_path is None
+
+
 def test_request_browser_snapshot_returns_effect_and_updates_pending_request() -> None:
     state = build_initial_app_state()
 
@@ -2903,3 +4201,75 @@ def test_go_forward_then_snapshot_loaded_updates_history_correctly() -> None:
     assert loaded_result.current_path == forward_path
     assert loaded_result.history.back == (initial_path,)
     assert loaded_result.history.forward == ()
+
+
+def test_browser_snapshot_loaded_clears_filter_when_directory_changes() -> None:
+    state = build_initial_app_state()
+    state = _reduce_state(state, SetFilterQuery("readme"))
+
+    requested = reduce_app_state(
+        state,
+        RequestBrowserSnapshot("/tmp/example", blocking=True),
+    ).state
+    snapshot = BrowserSnapshot(
+        current_path="/tmp/example",
+        parent_pane=requested.parent_pane,
+        current_pane=requested.current_pane,
+        child_pane=requested.child_pane,
+    )
+    next_state = _reduce_state(
+        requested,
+        BrowserSnapshotLoaded(request_id=1, snapshot=snapshot, blocking=True),
+    )
+
+    assert next_state.filter.query == ""
+    assert next_state.filter.active is False
+
+
+def test_browser_snapshot_loaded_preserves_filter_on_reload() -> None:
+    state = build_initial_app_state()
+    state = _reduce_state(state, SetFilterQuery("readme"))
+    initial_path = state.current_path
+
+    requested = reduce_app_state(
+        state,
+        RequestBrowserSnapshot(initial_path, blocking=True),
+    ).state
+    snapshot = BrowserSnapshot(
+        current_path=initial_path,
+        parent_pane=requested.parent_pane,
+        current_pane=requested.current_pane,
+        child_pane=requested.child_pane,
+    )
+    next_state = _reduce_state(
+        requested,
+        BrowserSnapshotLoaded(request_id=1, snapshot=snapshot, blocking=True),
+    )
+
+    assert next_state.filter.query == "readme"
+    assert next_state.filter.active is True
+
+
+def test_browser_snapshot_loaded_exits_filter_mode_on_directory_change() -> None:
+    state = build_initial_app_state()
+    state = _reduce_state(state, BeginFilterInput())
+    state = _reduce_state(state, SetFilterQuery("test"))
+
+    requested = reduce_app_state(
+        state,
+        RequestBrowserSnapshot("/tmp/example", blocking=True),
+    ).state
+    snapshot = BrowserSnapshot(
+        current_path="/tmp/example",
+        parent_pane=requested.parent_pane,
+        current_pane=requested.current_pane,
+        child_pane=requested.child_pane,
+    )
+    next_state = _reduce_state(
+        requested,
+        BrowserSnapshotLoaded(request_id=1, snapshot=snapshot, blocking=True),
+    )
+
+    assert next_state.ui_mode == "BROWSING"
+    assert next_state.filter.query == ""
+    assert next_state.filter.active is False

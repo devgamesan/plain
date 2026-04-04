@@ -7,7 +7,11 @@ from peneo.models import (
     AppConfig,
     ConflictResolution,
     CreateKind,
+    CreateZipArchiveRequest,
+    CreateZipArchiveResult,
     ExternalLaunchRequest,
+    ExtractArchiveRequest,
+    ExtractArchiveResult,
     FileMutationResult,
     PasteConflict,
     PasteRequest,
@@ -78,6 +82,20 @@ class BeginCreateInput:
 
 
 @dataclass(frozen=True)
+class BeginExtractArchiveInput:
+    """Enter extract input mode for a supported archive."""
+
+    source_path: str
+
+
+@dataclass(frozen=True)
+class BeginZipCompressInput:
+    """Enter zip-compression input mode for one or more paths."""
+
+    source_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class BeginFileSearch:
     """Open the command palette in file search mode."""
 
@@ -90,6 +108,16 @@ class BeginGrepSearch:
 @dataclass(frozen=True)
 class BeginHistorySearch:
     """Open the command palette in directory history mode."""
+
+
+@dataclass(frozen=True)
+class BeginBookmarkSearch:
+    """Open the command palette in bookmark-list mode."""
+
+
+@dataclass(frozen=True)
+class BeginGoToPath:
+    """Open the command palette in go-to-path mode."""
 
 
 @dataclass(frozen=True)
@@ -217,6 +245,14 @@ class JumpCursor:
 
 
 @dataclass(frozen=True)
+class MoveCursorAndSelectRange:
+    """Move the cursor and replace the current selection with an anchored range."""
+
+    delta: int
+    visible_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class SetCursorPath:
     """Set the current pane cursor to a specific absolute path."""
 
@@ -231,6 +267,11 @@ class EnterCursorDirectory:
 @dataclass(frozen=True)
 class GoToParentDirectory:
     """Navigate to the parent directory of the current path."""
+
+
+@dataclass(frozen=True)
+class GoToHomeDirectory:
+    """Navigate to the user's home directory."""
 
 
 @dataclass(frozen=True)
@@ -277,6 +318,30 @@ class OpenTerminalAtPath:
 
 
 @dataclass(frozen=True)
+class ShowAttributes:
+    """Open the attribute dialog for the current single target."""
+
+
+@dataclass(frozen=True)
+class CopyPathsToClipboard:
+    """Copy the current target path list to the system clipboard."""
+
+
+@dataclass(frozen=True)
+class AddBookmark:
+    """Persist the supplied directory path as a bookmark."""
+
+    path: str
+
+
+@dataclass(frozen=True)
+class RemoveBookmark:
+    """Remove the supplied directory path from bookmarks."""
+
+    path: str
+
+
+@dataclass(frozen=True)
 class ToggleSplitTerminal:
     """Open or close the embedded split terminal."""
 
@@ -293,6 +358,11 @@ class SendSplitTerminalInput:
     """Write input bytes into the active split terminal session."""
 
     data: str
+
+
+@dataclass(frozen=True)
+class PasteFromClipboardToTerminal:
+    """Paste clipboard contents into the active split terminal session."""
 
 
 @dataclass(frozen=True)
@@ -313,6 +383,13 @@ class ToggleSelectionAndAdvance:
 @dataclass(frozen=True)
 class ClearSelection:
     """Clear all selections in the current pane."""
+
+
+@dataclass(frozen=True)
+class SelectAllVisibleEntries:
+    """Select every currently visible entry in the current pane."""
+
+    paths: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -354,6 +431,26 @@ class ConfirmDeleteTargets:
 @dataclass(frozen=True)
 class CancelDeleteConfirmation:
     """Dismiss the pending delete confirmation dialog."""
+
+
+@dataclass(frozen=True)
+class ConfirmArchiveExtract:
+    """Confirm the pending archive extraction request."""
+
+
+@dataclass(frozen=True)
+class CancelArchiveExtractConfirmation:
+    """Return from archive extraction confirmation to input editing."""
+
+
+@dataclass(frozen=True)
+class ConfirmZipCompress:
+    """Confirm the pending zip compression request."""
+
+
+@dataclass(frozen=True)
+class CancelZipCompressConfirmation:
+    """Return from zip-compression confirmation to input editing."""
 
 
 @dataclass(frozen=True)
@@ -489,6 +586,95 @@ class ClipboardPasteFailed:
 
 
 @dataclass(frozen=True)
+class ArchivePreparationCompleted:
+    """Apply preflight archive scan details before extraction begins."""
+
+    request_id: int
+    request: ExtractArchiveRequest
+    total_entries: int
+    conflict_count: int = 0
+    first_conflict_path: str | None = None
+
+
+@dataclass(frozen=True)
+class ArchivePreparationFailed:
+    """Apply a terminal archive preparation failure."""
+
+    request_id: int
+    message: str
+
+
+@dataclass(frozen=True)
+class ArchiveExtractProgress:
+    """Apply archive extraction progress updates."""
+
+    request_id: int
+    completed_entries: int
+    total_entries: int
+    current_path: str | None = None
+
+
+@dataclass(frozen=True)
+class ArchiveExtractCompleted:
+    """Apply the completed archive extraction result."""
+
+    request_id: int
+    result: ExtractArchiveResult
+
+
+@dataclass(frozen=True)
+class ArchiveExtractFailed:
+    """Apply a terminal archive extraction failure."""
+
+    request_id: int
+    message: str
+
+
+@dataclass(frozen=True)
+class ZipCompressPreparationCompleted:
+    """Apply preflight zip-compression details before execution begins."""
+
+    request_id: int
+    request: CreateZipArchiveRequest
+    total_entries: int
+    destination_exists: bool = False
+
+
+@dataclass(frozen=True)
+class ZipCompressPreparationFailed:
+    """Apply a terminal zip-compression preparation failure."""
+
+    request_id: int
+    message: str
+
+
+@dataclass(frozen=True)
+class ZipCompressProgress:
+    """Apply zip-compression progress updates."""
+
+    request_id: int
+    completed_entries: int
+    total_entries: int
+    current_path: str | None = None
+
+
+@dataclass(frozen=True)
+class ZipCompressCompleted:
+    """Apply the completed zip-compression result."""
+
+    request_id: int
+    result: CreateZipArchiveResult
+
+
+@dataclass(frozen=True)
+class ZipCompressFailed:
+    """Apply a terminal zip-compression failure."""
+
+    request_id: int
+    message: str
+
+
+@dataclass(frozen=True)
 class FileMutationCompleted:
     """Apply a completed rename/create operation."""
 
@@ -585,9 +771,12 @@ Action = (
     | CancelFilterInput
     | BeginRenameInput
     | BeginCreateInput
+    | BeginExtractArchiveInput
+    | BeginZipCompressInput
     | BeginFileSearch
     | BeginGrepSearch
     | BeginHistorySearch
+    | BeginBookmarkSearch
     | BeginCommandPalette
     | CancelCommandPalette
     | MoveCommandPaletteCursor
@@ -605,10 +794,12 @@ Action = (
     | SubmitPendingInput
     | CancelPendingInput
     | MoveCursor
+    | MoveCursorAndSelectRange
     | JumpCursor
     | SetCursorPath
     | EnterCursorDirectory
     | GoToParentDirectory
+    | GoToHomeDirectory
     | GoBack
     | GoForward
     | ReloadDirectory
@@ -616,17 +807,29 @@ Action = (
     | OpenPathWithDefaultApp
     | OpenPathInEditor
     | OpenTerminalAtPath
+    | ShowAttributes
+    | CopyPathsToClipboard
+    | AddBookmark
+    | RemoveBookmark
     | ToggleSplitTerminal
     | FocusSplitTerminal
     | SendSplitTerminalInput
+    | PasteFromClipboardToTerminal
     | ToggleSelection
     | ToggleSelectionAndAdvance
     | ClearSelection
+    | SelectAllVisibleEntries
     | CopyTargets
     | CutTargets
     | PasteClipboard
     | ResolvePasteConflict
     | CancelPasteConflict
+    | ConfirmDeleteTargets
+    | CancelDeleteConfirmation
+    | ConfirmArchiveExtract
+    | CancelArchiveExtractConfirmation
+    | ConfirmZipCompress
+    | CancelZipCompressConfirmation
     | DismissNameConflict
     | DismissAttributeDialog
     | SetFilterQuery
@@ -644,6 +847,16 @@ Action = (
     | ClipboardPasteNeedsResolution
     | ClipboardPasteCompleted
     | ClipboardPasteFailed
+    | ArchivePreparationCompleted
+    | ArchivePreparationFailed
+    | ArchiveExtractProgress
+    | ArchiveExtractCompleted
+    | ArchiveExtractFailed
+    | ZipCompressPreparationCompleted
+    | ZipCompressPreparationFailed
+    | ZipCompressProgress
+    | ZipCompressCompleted
+    | ZipCompressFailed
     | FileMutationCompleted
     | FileMutationFailed
     | ExternalLaunchCompleted

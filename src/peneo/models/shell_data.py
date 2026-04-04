@@ -18,6 +18,7 @@ class PaneEntry:
     modified_label: str = "-"
     selected: bool = False
     cut: bool = False
+    executable: bool = False
 
     @property
     def kind_label(self) -> str:
@@ -139,6 +140,7 @@ class ThreePaneShellData:
     current_entries: tuple[PaneEntry, ...]
     child_entries: tuple[PaneEntry, ...]
     current_cursor_index: int | None
+    current_cursor_visible: bool
     current_summary: CurrentSummaryState
     current_context_input: InputBarState | None
     split_terminal: SplitTerminalViewState
@@ -175,6 +177,7 @@ def build_dummy_shell_data() -> ThreePaneShellData:
             PaneEntry("wireframes", "dir"),
         ),
         current_cursor_index=0,
+        current_cursor_visible=True,
         current_summary=CurrentSummaryState(
             item_count=len(current_entries),
             selected_count=0,
@@ -190,8 +193,8 @@ def build_dummy_shell_data() -> ThreePaneShellData:
         ),
         help=HelpBarState(
             (
-                "Enter open | e edit | / filter | : palette | q quit",
-                "Space select | y copy | x cut | p paste | s sort | d dirs | F2 rename",
+                "Enter open | e edit | / filter | : palette | ctrl+f find | ctrl+g grep | q quit",
+                "Space select | y copy | x cut | p paste | s sort | d dirs | ctrl+t term",
             )
         ),
         command_palette=None,

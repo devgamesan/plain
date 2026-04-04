@@ -6,6 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from stat import S_IMODE, filemode
 
+from peneo.archive_utils import is_supported_archive_path
 from peneo.models import (
     AttributeDialogState,
     CommandPaletteItemViewState,
@@ -41,6 +42,13 @@ MIN_SEARCH_VISIBLE_WINDOW = 3
 _SEARCH_OVERHEAD_ROWS = 5
 
 
+def _has_execute_permission(entry: DirectoryEntryState) -> bool:
+    """エントリが実行権限を持っているか判定."""
+    if entry.permissions_mode is None:
+        return False
+    return bool(entry.permissions_mode & 0o111)
+
+
 @dataclass(frozen=True)
 class _CurrentPaneProjection:
     visible_entries: tuple[DirectoryEntryState, ...]
@@ -65,6 +73,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         ),
         child_entries=_select_child_entries_for_cursor(state, current_pane.cursor_entry),
         current_cursor_index=current_pane.cursor_index,
+        current_cursor_visible=state.ui_mode != "FILTER",
         current_summary=current_pane.summary,
         current_context_input=select_input_bar_state(state),
         split_terminal=select_split_terminal_state(state),
@@ -112,7 +121,11 @@ def _select_child_entries_for_cursor(
     state: AppState,
     cursor_entry: DirectoryEntryState | None,
 ) -> tuple[PaneEntry, ...]:
-    if cursor_entry is None or cursor_entry.kind != "dir":
+    if cursor_entry is None:
+        return ()
+    # Check if it's a directory or an archive file
+    is_archive = cursor_entry.kind == "file" and is_supported_archive_path(cursor_entry.path)
+    if cursor_entry.kind != "dir" and not is_archive:
         return ()
     if cursor_entry.path != state.child_pane.directory_path:
         return ()
@@ -149,10 +162,14 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     """Return the help content for the active mode."""
 
     if state.split_terminal.visible:
-        return HelpBarState(("type in terminal | ctrl+t close",))
+        return HelpBarState(("type in terminal | ctrl+t close | ctrl+v paste",))
     if state.ui_mode == "CONFIRM":
         if state.delete_confirmation is not None:
             return HelpBarState(("enter confirm delete | esc cancel",))
+        if state.archive_extract_confirmation is not None:
+            return HelpBarState(("enter continue extraction | esc return to input",))
+        if state.zip_compress_confirmation is not None:
+            return HelpBarState(("enter overwrite zip | esc return to input",))
         if state.name_conflict is not None:
             return HelpBarState(("enter return to input | esc return to input",))
         return HelpBarState(("resolve conflict in dialog",))
@@ -168,6 +185,10 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         return HelpBarState(("type name | enter apply | esc cancel",))
     if state.ui_mode == "CREATE":
         return HelpBarState(("type name | enter apply | esc cancel",))
+    if state.ui_mode == "EXTRACT":
+        return HelpBarState(("type destination path | enter extract | esc cancel",))
+    if state.ui_mode == "ZIP":
+        return HelpBarState(("type zip path | enter compress | esc cancel",))
     if state.ui_mode == "PALETTE":
         if state.command_palette is not None and state.command_palette.source == "file_search":
             return HelpBarState(("type filename | enter jump | esc cancel",))
@@ -175,14 +196,21 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             return HelpBarState(("type text / re:pattern | enter jump | esc cancel",))
         if state.command_palette is not None and state.command_palette.source == "history":
             return HelpBarState(("type path | enter jump | esc cancel",))
+        if state.command_palette is not None and state.command_palette.source == "bookmarks":
+            return HelpBarState(("type path | enter jump | esc cancel",))
+        if state.command_palette is not None and state.command_palette.source == "go_to_path":
+            return HelpBarState(
+                ("type path | up/down select | tab complete | enter jump | esc cancel",)
+            )
         return HelpBarState(("type command | enter run | esc cancel",))
     if state.ui_mode == "BUSY":
         return HelpBarState(("processing...",))
     return HelpBarState(
         (
-            "Enter open | e edit | / filter | ctrl+f find | ctrl+g grep | q quit",
-            "Space select | y copy | x cut | p paste | s sort | d dirs | F2 rename | ctrl+t term",
-            "alt+\u2190 back | alt+\u2192 fwd | ctrl+o history",
+            "Enter open | e edit | i info | / filter | : palette | ctrl+f find | "
+            "ctrl+g grep | q quit",
+            "Space select | y copy | x cut | p paste | c path | . hidden | "
+            "b bookmark | ctrl+t term",
         )
     )
 
@@ -201,18 +229,28 @@ def select_input_bar_state(state: AppState) -> InputBarState | None:
             hint=hint,
         )
 
-    if state.ui_mode not in {"RENAME", "CREATE"}:
+    if state.ui_mode not in {"RENAME", "CREATE", "EXTRACT", "ZIP"}:
         return None
     if state.pending_input is None:
         return None
     mode_label = "RENAME"
     if state.ui_mode == "CREATE":
         mode_label = "NEW FILE" if state.pending_input.create_kind == "file" else "NEW DIR"
+    if state.ui_mode == "EXTRACT":
+        mode_label = "EXTRACT"
+    if state.ui_mode == "ZIP":
+        mode_label = "ZIP"
     return InputBarState(
         mode_label=mode_label,
         prompt=state.pending_input.prompt,
         value=state.pending_input.value,
-        hint="enter apply | esc cancel",
+        hint=(
+            "enter extract | esc cancel"
+            if state.ui_mode == "EXTRACT"
+            else "enter compress | esc cancel"
+            if state.ui_mode == "ZIP"
+            else "enter apply | esc cancel"
+        ),
     )
 
 
@@ -281,6 +319,47 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             empty_message="No directory history",
         )
 
+    if state.command_palette.source == "bookmarks":
+        items = get_command_palette_items(state)
+        visible_items, _palette_title = _select_command_palette_window(items, cursor_index)
+        return CommandPaletteViewState(
+            title="Bookmarks",
+            query=state.command_palette.query,
+            items=tuple(
+                CommandPaletteItemViewState(
+                    label=item.label,
+                    shortcut=item.shortcut,
+                    enabled=item.enabled,
+                    selected=index == cursor_index,
+                )
+                for index, item in visible_items
+            ),
+            empty_message="No bookmarks",
+        )
+
+    if state.command_palette.source == "go_to_path":
+        items = get_command_palette_items(state)
+        visible_items, _palette_title = _select_command_palette_window(items, cursor_index)
+        selection_active = state.command_palette.go_to_path_selection_active
+        return CommandPaletteViewState(
+            title="Go to path",
+            query=state.command_palette.query,
+            items=tuple(
+                CommandPaletteItemViewState(
+                    label=item.label,
+                    shortcut=item.shortcut,
+                    enabled=item.enabled,
+                    selected=selection_active and index == cursor_index,
+                )
+                for index, item in visible_items
+            ),
+            empty_message=(
+                "Type a path to jump to"
+                if not state.command_palette.query.strip()
+                else "No matching directories"
+            ),
+        )
+
     items = get_command_palette_items(state)
     visible_items, title = _select_command_palette_window(items, cursor_index)
     return CommandPaletteViewState(
@@ -339,6 +418,31 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
             title="Delete Confirmation",
             message=message,
             options=("enter confirm", "esc cancel"),
+        )
+
+    if state.archive_extract_confirmation is not None:
+        confirmation = state.archive_extract_confirmation
+        destination_name = Path(confirmation.first_conflict_path).name
+        message = (
+            f"{confirmation.conflict_count} archive path(s) already exist in the destination. "
+            f"The first conflict is {destination_name}. Continue extraction?"
+        )
+        return ConflictDialogState(
+            title="Extract Archive Confirmation",
+            message=message,
+            options=("enter continue", "esc return to input"),
+        )
+
+    if state.zip_compress_confirmation is not None:
+        confirmation = state.zip_compress_confirmation
+        destination_name = Path(confirmation.request.destination_path).name
+        return ConflictDialogState(
+            title="Zip Compression Confirmation",
+            message=(
+                f"{destination_name} already exists. "
+                f"Overwrite it and continue compressing {confirmation.total_entries} item(s)?"
+            ),
+            options=("enter overwrite", "esc return to input"),
         )
 
     if state.name_conflict is not None:
@@ -752,14 +856,17 @@ def _select_search_window(
     total = len(results)
     if total == 0:
         return (), title
+    if total <= visible_window:
+        return tuple(enumerate(results)), f"{title} (1-{total} / {total})"
 
-    start = max(
-        0,
-        min(
-            cursor_index - (visible_window // 2),
-            max(0, total - visible_window),
-        ),
-    )
+    # 3段階アルゴリズムでスクロール位置を決定
+    # 1. 中央揃えの理想的な位置を計算
+    ideal_start = cursor_index - (visible_window // 2)
+    # 2. 先頭境界を適用
+    start = max(0, ideal_start)
+    # 3. 末尾境界を適用（末尾が必ず見えるように）
+    max_start = max(0, total - visible_window)
+    start = min(start, max_start)
     end = min(total, start + visible_window)
     visible_results = tuple((index, results[index]) for index in range(start, end))
     return visible_results, f"{title} ({start + 1}-{end} / {total})"
@@ -773,13 +880,14 @@ def _select_command_palette_window(
     if total <= COMMAND_PALETTE_VISIBLE_WINDOW:
         return tuple(enumerate(items)), "Command Palette"
 
-    start = max(
-        0,
-        min(
-            cursor_index - (COMMAND_PALETTE_VISIBLE_WINDOW // 2),
-            max(0, total - COMMAND_PALETTE_VISIBLE_WINDOW),
-        ),
-    )
+    # 3段階アルゴリズムでスクロール位置を決定
+    # 1. 中央揃えの理想的な位置を計算
+    ideal_start = cursor_index - (COMMAND_PALETTE_VISIBLE_WINDOW // 2)
+    # 2. 先頭境界を適用
+    start = max(0, ideal_start)
+    # 3. 末尾境界を適用（末尾が必ず見えるように）
+    max_start = max(0, total - COMMAND_PALETTE_VISIBLE_WINDOW)
+    start = min(start, max_start)
     end = min(total, start + COMMAND_PALETTE_VISIBLE_WINDOW)
     visible_items = tuple((index, items[index]) for index in range(start, end))
     return visible_items, f"Command Palette ({start + 1}-{end} / {total})"
@@ -836,6 +944,7 @@ def _to_pane_entry(
         modified_label=_format_modified_label(entry),
         selected=selected,
         cut=cut,
+        executable=_has_execute_permission(entry),
     )
 
 

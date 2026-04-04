@@ -213,7 +213,11 @@ class LocalExternalLaunchAdapter:
             return (("open", path),)
         raise OSError(f"Unsupported platform kind: {platform_kind}")
 
-    def _editor_candidates(self, path: str, line_number: int | None = None) -> tuple[tuple[str, ...], ...]:
+    def _editor_candidates(
+        self,
+        path: str,
+        line_number: int | None = None,
+    ) -> tuple[tuple[str, ...], ...]:
         editor_commands = [
             command
             for command in self._terminal_editor_commands(path, line_number)
@@ -224,7 +228,11 @@ class LocalExternalLaunchAdapter:
 
         return tuple(editor_commands)
 
-    def _terminal_editor_commands(self, path: str, line_number: int | None = None) -> tuple[tuple[str, ...], ...]:
+    def _terminal_editor_commands(
+        self,
+        path: str,
+        line_number: int | None = None,
+    ) -> tuple[tuple[str, ...], ...]:
         commands: list[tuple[str, ...]] = []
         configured_editor_command = self.editor_command_template.command
         if configured_editor_command:
@@ -250,7 +258,11 @@ class LocalExternalLaunchAdapter:
         commands.extend(self._default_terminal_editor_commands(path, line_number))
         return _dedupe_commands(commands)
 
-    def _default_terminal_editor_commands(self, path: str, line_number: int | None = None) -> tuple[tuple[str, ...], ...]:
+    def _default_terminal_editor_commands(
+        self,
+        path: str,
+        line_number: int | None = None,
+    ) -> tuple[tuple[str, ...], ...]:
         platform_kind = self._platform_kind()
         if platform_kind in {"linux", "wsl", "darwin"}:
             if line_number is not None:

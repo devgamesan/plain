@@ -387,11 +387,15 @@ def _handle_open_grep_result_in_editor(
     selected_result = results[
         normalize_command_palette_cursor(state, state.command_palette.cursor_index)
     ]
-    return _supported(
+    return done(
+        replace(
+            state,
+            notification=None,
+        ),
         OpenPathInEditor(
             path=selected_result.path,
             line_number=selected_result.line_number,
-        )
+        ),
     )
 
 

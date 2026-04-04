@@ -7,6 +7,8 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    env:
+      TMPDIR: ${{ runner.temp }}/peneo-tmp
 
     steps:
       - uses: actions/checkout@v4
@@ -20,6 +22,9 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --dev
+
+      - name: Prepare temp directory
+        run: mkdir -p "$TMPDIR"
 
       - name: Lint
         run: uv run ruff check .

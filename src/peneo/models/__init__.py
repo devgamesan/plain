@@ -38,6 +38,7 @@ from .file_operations import (
     RenameRequest,
     TrashDeleteRequest,
 )
+from .shell_command import ShellCommandResult
 from .shell_data import (
     AttributeDialogState,
     CommandPaletteItemViewState,
@@ -48,6 +49,7 @@ from .shell_data import (
     HelpBarState,
     InputBarState,
     PaneEntry,
+    ShellCommandDialogState,
     SplitTerminalViewState,
     StatusBarState,
     ThreePaneShellData,
@@ -98,6 +100,8 @@ __all__ = [
     "PasteRequest",
     "PasteSummary",
     "RenameRequest",
+    "ShellCommandDialogState",
+    "ShellCommandResult",
     "StatusBarState",
     "TerminalConfig",
     "ThreePaneShellData",

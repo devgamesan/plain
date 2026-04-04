@@ -12,7 +12,7 @@ Peneo is a simple TUI file manager. Its three-pane layout shows the parent, curr
 
 ## Features
 
-- Simple three-pane layout for parent / current / child directories. You can navigate directories, multi-select items, copy, cut, paste, move items to trash, copy paths, rename, create files or directories, extract archives, create zip archives, search for files, and run grep searches entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
+- Simple three-pane layout for parent / current / child directories. You can navigate directories, multi-select items, copy, cut, paste, move items to trash, copy paths, rename, create files or directories, extract archives, create zip archives, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
 
   ![](docs/resources/screen-entire-screen.png)
 
@@ -239,6 +239,7 @@ The main keys are listed below.
 | Normal | `c` | Copy the selected path list, or the focused path when nothing is selected, to the system clipboard |
 | Normal | `Delete` | Move the selected items, or the focused item, to trash (confirmation is enabled by default and can be configured) |
 | Normal | `F2` | Start rename input for a single target |
+| Normal | `!` | Open the one-line shell command dialog for the current directory |
 | Normal | `b` | Add or remove the current directory from bookmarks |
 | Normal | `.` | Toggle hidden-file visibility |
 | Normal | `/` | Start filter input |
@@ -294,6 +295,7 @@ Less frequent actions are grouped in the command palette opened with `:`.
 | `Move to trash` | At least one target is selected or focused | Moves the selected items, or the focused item, to trash (confirmation is enabled by default and can be configured). |
 | `Open in file manager` | Always | Opens the current directory in the OS file manager. |
 | `Open terminal` | Always | Launches an external terminal rooted at the current directory, using `config.toml` templates before built-in fallbacks. |
+| `Run shell command` | Always | Opens a one-line shell command dialog, runs the command in the current directory in the background, and returns the first output line or failure summary in the status bar. Also available with `!`. |
 | `Bookmark this directory` / `Remove bookmark` | Always | Saves or removes the current directory in `[bookmarks].paths`. The label reflects whether the current directory is already bookmarked. Also available with `b`. |
 | `Show hidden files` / `Hide hidden files` | Always | Toggles hidden-file visibility for the browser panes. The label reflects the current visibility state. Also available with `.`. |
 | `Edit config` | Always | Opens the settings overlay for startup defaults. You can edit the preferred terminal editor, hidden-file visibility, directory-size visibility, theme, sorting, default paste-conflict behavior, and delete confirmation. Use `↑` / `↓` to move, `←` / `→` / `Enter` to change values, `s` to save `config.toml`, and `e` to open the raw config file in a terminal editor. |

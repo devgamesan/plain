@@ -17,6 +17,7 @@ from peneo.models import (
     HelpBarState,
     InputBarState,
     PaneEntry,
+    ShellCommandDialogState,
     SplitTerminalViewState,
     StatusBarState,
     ThreePaneShellData,
@@ -83,6 +84,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         conflict_dialog=select_conflict_dialog_state(state),
         attribute_dialog=select_attribute_dialog_state(state),
         config_dialog=select_config_dialog_state(state),
+        shell_command_dialog=select_shell_command_dialog_state(state),
     )
 
 
@@ -179,6 +181,8 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         return HelpBarState(
             ("up/down choose | left/right/enter change | s save | e edit file | esc close",)
         )
+    if state.ui_mode == "SHELL":
+        return HelpBarState(("type command | enter run | esc cancel",))
     if state.ui_mode == "FILTER":
         return HelpBarState(("type filter | enter/down apply | esc clear",))
     if state.ui_mode == "RENAME":
@@ -208,7 +212,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     return HelpBarState(
         (
             "Enter open | e edit | i info | / filter | : palette | ctrl+f find | "
-            "ctrl+g grep | q quit",
+            "ctrl+g grep | ! shell | q quit",
             "Space select | y copy | x cut | p paste | c path | . hidden | "
             "b bookmark | ctrl+t term",
         )
@@ -580,6 +584,21 @@ def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
         title=title,
         lines=lines,
         options=("left/right/enter change", "s save", "e edit file", "esc close"),
+    )
+
+
+def select_shell_command_dialog_state(state: AppState) -> ShellCommandDialogState | None:
+    """Return dialog content when the app is collecting a shell command."""
+
+    if state.ui_mode != "SHELL" or state.shell_command is None:
+        return None
+
+    return ShellCommandDialogState(
+        title="Run Shell Command",
+        cwd=state.shell_command.cwd,
+        prompt="Command: ",
+        command=state.shell_command.command,
+        options=("enter run", "esc cancel"),
     )
 
 

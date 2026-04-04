@@ -70,6 +70,11 @@ from .logging import (
     configure_file_logging,
     resolve_default_log_path,
 )
+from .shell_command import (
+    FakeShellCommandService,
+    LiveShellCommandService,
+    ShellCommandService,
+)
 from .split_terminal import (
     FakeSplitTerminalService,
     LiveSplitTerminalService,
@@ -100,6 +105,7 @@ __all__ = [
     "FakeFileMutationService",
     "FakeFileSearchService",
     "FakeGrepSearchService",
+    "FakeShellCommandService",
     "FakeDirectorySizeService",
     "InvalidFileSearchQueryError",
     "InvalidGrepSearchQueryError",
@@ -118,6 +124,7 @@ __all__ = [
     "LiveClipboardOperationService",
     "LiveBrowserSnapshotLoader",
     "LiveConfigSaveService",
+    "LiveShellCommandService",
     "LiveSplitTerminalService",
     "LiveZipCompressService",
     "FakeSplitTerminalService",
@@ -133,6 +140,7 @@ __all__ = [
     "resolve_config_path",
     "resolve_default_log_path",
     "resolve_zip_destination_input",
+    "ShellCommandService",
     "snapshot_from_app_state",
     "ZipCompressService",
 ]

@@ -18,6 +18,7 @@ from .actions import (
     BeginGrepSearch,
     BeginHistorySearch,
     BeginRenameInput,
+    BeginShellCommandInput,
     BeginZipCompressInput,
     CancelCommandPalette,
     CopyPathsToClipboard,
@@ -511,6 +512,8 @@ def _run_palette_command_item(
         return _run_open_file_manager_command(next_state, reduce_state)
     if item_id == "open_terminal":
         return _run_open_terminal_command(next_state, reduce_state)
+    if item_id == "run_shell_command":
+        return _run_shell_command_command(next_state, reduce_state)
     if item_id == "add_bookmark":
         return _run_add_bookmark_command(next_state, reduce_state)
     if item_id == "remove_bookmark":
@@ -736,6 +739,13 @@ def _run_open_terminal_command(
     reduce_state: ReducerFn,
 ) -> ReduceResult:
     return reduce_state(state, OpenTerminalAtPath(state.current_path))
+
+
+def _run_shell_command_command(
+    state: AppState,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return reduce_state(state, BeginShellCommandInput())
 
 
 def _run_add_bookmark_command(

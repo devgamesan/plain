@@ -282,6 +282,12 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 enabled=True,
             ),
             CommandPaletteItem(
+                id="run_shell_command",
+                label="Run shell command",
+                shortcut="!",
+                enabled=True,
+            ),
+            CommandPaletteItem(
                 id="remove_bookmark" if current_path_is_bookmarked else "add_bookmark",
                 label=(
                     "Remove bookmark"

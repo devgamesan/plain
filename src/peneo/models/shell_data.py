@@ -132,6 +132,17 @@ class ConfigDialogState:
 
 
 @dataclass(frozen=True)
+class ShellCommandDialogState:
+    """Display data for the shell command input dialog."""
+
+    title: str
+    cwd: str
+    prompt: str
+    command: str
+    options: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ThreePaneShellData:
     """Complete display state for the shell UI."""
 
@@ -150,6 +161,7 @@ class ThreePaneShellData:
     conflict_dialog: ConflictDialogState | None = None
     attribute_dialog: AttributeDialogState | None = None
     config_dialog: ConfigDialogState | None = None
+    shell_command_dialog: ShellCommandDialogState | None = None
 
 
 def build_dummy_shell_data() -> ThreePaneShellData:
@@ -201,4 +213,5 @@ def build_dummy_shell_data() -> ThreePaneShellData:
         status=StatusBarState(message=None, message_level=None),
         attribute_dialog=None,
         config_dialog=None,
+        shell_command_dialog=None,
     )

@@ -23,6 +23,7 @@ from peneo.models import (
     PasteExecutionResult,
     PasteRequest,
     PasteSummary,
+    ShellCommandResult,
     TerminalConfig,
     TrashDeleteRequest,
 )
@@ -34,6 +35,7 @@ from peneo.services import (
     FakeFileMutationService,
     FakeFileSearchService,
     FakeGrepSearchService,
+    FakeShellCommandService,
     FakeSplitTerminalService,
     LiveExternalLaunchService,
 )
@@ -53,6 +55,7 @@ from peneo.ui import (
     CurrentPathBar,
     HelpBar,
     InputBar,
+    ShellCommandDialog,
     SplitTerminalPane,
     StatusBar,
     SummaryBar,
@@ -179,6 +182,17 @@ async def _wait_for_split_terminal(app, timeout: float = 0.5) -> SplitTerminalPa
             await asyncio.sleep(0.01)
 
 
+async def _wait_for_shell_command_dialog(app, timeout: float = 0.5) -> ShellCommandDialog:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        try:
+            return app.query_one("#shell-command-dialog", ShellCommandDialog)
+        except NoMatches:
+            if asyncio.get_running_loop().time() >= deadline:
+                raise
+            await asyncio.sleep(0.01)
+
+
 async def _wait_for_snapshot_loaded(app, expected_path: str, timeout: float = 0.5) -> None:
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
@@ -212,7 +226,11 @@ async def _wait_for_notification_message(app, expected: str, timeout: float = 0.
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
         notification = app.app_state.notification
-        if notification is not None and notification.message == expected:
+        if (
+            notification is not None
+            and notification.message == expected
+            and not app._pending_workers
+        ):
             return
         if asyncio.get_running_loop().time() >= deadline:
             raise AssertionError(f"notification did not become {expected!r}")
@@ -1444,7 +1462,8 @@ async def test_app_displays_browsing_help_bar() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
-        "Enter open | e edit | i info | / filter | : palette | ctrl+f find | ctrl+g grep | q quit\n"
+        "Enter open | e edit | i info | / filter | : palette | ctrl+f find | "
+        "ctrl+g grep | ! shell | q quit\n"
         "Space select | y copy | x cut | p paste | c path | . hidden | b bookmark | ctrl+t term"
     )
 
@@ -2693,6 +2712,86 @@ async def test_app_command_palette_open_in_file_manager_launches_current_directo
         assert launch_service.executed_requests == [
             ExternalLaunchRequest(kind="open_file", path=path)
         ]
+        assert app.app_state.ui_mode == "BROWSING"
+
+
+@pytest.mark.asyncio
+async def test_app_command_palette_runs_shell_command_and_notifies() -> None:
+    path = "/tmp/peneo-shell-command"
+    shell_command_service = FakeShellCommandService(
+        results={
+            (path, "pwd"): ShellCommandResult(exit_code=0, stdout=f"{path}\n"),
+        }
+    )
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(
+        snapshot_loader=loader,
+        shell_command_service=shell_command_service,
+        initial_path=path,
+    )
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await pilot.press("s", "h", "e", "l", "l", "enter")
+        await asyncio.sleep(0.05)
+
+        dialog = await _wait_for_shell_command_dialog(app)
+        title = dialog.query_one("#shell-command-dialog-title", Static)
+
+        assert app.app_state.ui_mode == "SHELL"
+        assert title.renderable == "Run Shell Command"
+
+        await pilot.press("p", "w", "d", "enter")
+        await _wait_for_notification_message(app, path)
+        await asyncio.sleep(0.05)
+
+        assert shell_command_service.executed_commands == [(path, "pwd")]
+        assert app.app_state.ui_mode == "BROWSING"
+        assert app.app_state.notification is not None
+        assert app.app_state.notification.level == "info"
+        assert app.app_state.notification.message == path
+        assert dialog.display is False
+
+
+@pytest.mark.asyncio
+async def test_app_pressing_bang_opens_shell_command_dialog() -> None:
+    path = "/tmp/peneo-shell-command-keybinding"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("!")
+        await asyncio.sleep(0.05)
+
+        dialog = await _wait_for_shell_command_dialog(app)
+
+        assert app.app_state.ui_mode == "SHELL"
+        assert dialog.display is True
+
+        await pilot.press("escape")
+        await asyncio.sleep(0.05)
+
         assert app.app_state.ui_mode == "BROWSING"
 
 

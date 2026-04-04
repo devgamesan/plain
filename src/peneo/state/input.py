@@ -16,12 +16,14 @@ from .actions import (
     BeginGrepSearch,
     BeginHistorySearch,
     BeginRenameInput,
+    BeginShellCommandInput,
     CancelArchiveExtractConfirmation,
     CancelCommandPalette,
     CancelDeleteConfirmation,
     CancelFilterInput,
     CancelPasteConflict,
     CancelPendingInput,
+    CancelShellCommandInput,
     CancelZipCompressConfirmation,
     ClearSelection,
     ConfirmArchiveExtract,
@@ -60,10 +62,12 @@ from .actions import (
     SetFilterQuery,
     SetNotification,
     SetPendingInputValue,
+    SetShellCommandValue,
     SetSort,
     ShowAttributes,
     SubmitCommandPalette,
     SubmitPendingInput,
+    SubmitShellCommand,
     ToggleHiddenFiles,
     ToggleSelectionAndAdvance,
     ToggleSplitTerminal,
@@ -97,6 +101,7 @@ BROWSING_KEYMAP = {
     "f5": "reload_directory",
     "q": "exit_current_path",
     "f2": "begin_rename",
+    "!": "begin_shell_command",
     ":": "begin_command_palette",
     "s": "cycle_sort",
     "d": "toggle_directories_first",
@@ -204,6 +209,9 @@ def dispatch_key_input(
     if state.ui_mode in {"RENAME", "CREATE", "EXTRACT", "ZIP"}:
         return _dispatch_pending_input(state, key=key, character=character)
 
+    if state.ui_mode == "SHELL":
+        return _dispatch_shell_command_input(state, key=key, character=character)
+
     return _dispatch_browsing_input(state, key)
 
 
@@ -220,7 +228,7 @@ def _normalize_input_character(
     if _terminal_has_focus(state):
         return resolved_character
 
-    if state.ui_mode in {"PALETTE", "RENAME", "CREATE", "EXTRACT", "ZIP"}:
+    if state.ui_mode in {"PALETTE", "RENAME", "CREATE", "EXTRACT", "ZIP", "SHELL"}:
         return resolved_character
 
     if state.ui_mode == "FILTER" and not resolved_character.isspace():
@@ -338,6 +346,9 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
         if len(target_paths) != 1:
             return _warn("Rename requires a single target")
         return _supported(BeginRenameInput(target_paths[0]))
+
+    if command == "begin_shell_command":
+        return _supported(BeginShellCommandInput())
 
     if command == "begin_command_palette":
         return _supported(BeginCommandPalette())
@@ -641,6 +652,29 @@ def _dispatch_pending_input(
         return _supported(SetPendingInputValue(f"{current_value}{character}"))
 
     return _warn("Use Enter to apply or Esc to cancel")
+
+
+def _dispatch_shell_command_input(
+    state: AppState,
+    *,
+    key: str,
+    character: str | None,
+) -> DispatchedActions:
+    if key == "escape":
+        return _supported(CancelShellCommandInput())
+
+    if key == "enter":
+        return _supported(SubmitShellCommand())
+
+    if key == "backspace":
+        current_command = state.shell_command.command if state.shell_command is not None else ""
+        return _supported(SetShellCommandValue(current_command[:-1]))
+
+    if character and character.isprintable():
+        current_command = state.shell_command.command if state.shell_command is not None else ""
+        return _supported(SetShellCommandValue(f"{current_command}{character}"))
+
+    return _warn("Use Enter to run or Esc to cancel")
 
 
 def _dispatch_detail_input(key: str) -> DispatchedActions:

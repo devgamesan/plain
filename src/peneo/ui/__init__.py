@@ -8,6 +8,7 @@ from .current_path_bar import CurrentPathBar
 from .help_bar import HelpBar
 from .input_bar import InputBar
 from .panes import MainPane, SidePane
+from .shell_command_dialog import ShellCommandDialog
 from .split_terminal import SplitTerminalPane
 from .status_bar import StatusBar
 from .summary_bar import SummaryBar
@@ -22,6 +23,7 @@ __all__ = [
     "InputBar",
     "MainPane",
     "SidePane",
+    "ShellCommandDialog",
     "SplitTerminalPane",
     "StatusBar",
     "SummaryBar",

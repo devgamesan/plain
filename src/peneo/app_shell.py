@@ -16,6 +16,7 @@ from peneo.ui import (
     CurrentPathBar,
     HelpBar,
     MainPane,
+    ShellCommandDialog,
     SidePane,
     SplitTerminalPane,
     StatusBar,
@@ -72,6 +73,7 @@ async def refresh_shell(
         conflict_dialog = app.query_one("#conflict-dialog", ConflictDialog)
         attribute_dialog = app.query_one("#attribute-dialog", AttributeDialog)
         config_dialog = app.query_one("#config-dialog", ConfigDialog)
+        shell_command_dialog = app.query_one("#shell-command-dialog", ShellCommandDialog)
     except NoMatches:
         selectors = (
             "#current-path-bar",
@@ -83,6 +85,7 @@ async def refresh_shell(
             "#conflict-dialog",
             "#attribute-dialog",
             "#config-dialog",
+            "#shell-command-dialog",
         )
         for selector in selectors:
             try:
@@ -97,6 +100,7 @@ async def refresh_shell(
         await app.mount(ConflictDialog(shell.conflict_dialog, id="conflict-dialog"))
         await app.mount(AttributeDialog(shell.attribute_dialog, id="attribute-dialog"))
         await app.mount(ConfigDialog(shell.config_dialog, id="config-dialog"))
+        await app.mount(ShellCommandDialog(shell.shell_command_dialog, id="shell-command-dialog"))
         return
 
     current_path_bar.set_path(shell.current_path)
@@ -118,6 +122,7 @@ async def refresh_shell(
     conflict_dialog.set_state(shell.conflict_dialog)
     attribute_dialog.set_state(shell.attribute_dialog)
     config_dialog.set_state(shell.config_dialog)
+    shell_command_dialog.set_state(shell.shell_command_dialog)
 
     if app_state.ui_mode == "BROWSING":
         if app_state.split_terminal.visible and app_state.split_terminal.focus_target == "terminal":

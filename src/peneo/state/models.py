@@ -27,6 +27,7 @@ UiMode = Literal[
     "PALETTE",
     "CONFIRM",
     "CONFIG",
+    "SHELL",
     "BUSY",
 ]
 SortField = Literal["name", "modified", "size"]
@@ -190,6 +191,14 @@ class ConfigEditorState:
 
 
 @dataclass(frozen=True)
+class ShellCommandState:
+    """Transient shell command dialog state."""
+
+    cwd: str
+    command: str = ""
+
+
+@dataclass(frozen=True)
 class HistoryState:
     """Back/forward navigation history."""
 
@@ -324,6 +333,7 @@ class AppState:
     zip_compress_progress: ZipCompressProgressState | None = None
     attribute_inspection: AttributeInspectionState | None = None
     config_editor: ConfigEditorState | None = None
+    shell_command: ShellCommandState | None = None
     post_reload_notification: NotificationState | None = None
     directory_size_cache: tuple[DirectorySizeCacheEntry, ...] = ()
     pending_browser_snapshot_request_id: int | None = None
@@ -338,6 +348,7 @@ class AppState:
     pending_grep_search_request_id: int | None = None
     pending_directory_size_request_id: int | None = None
     pending_config_save_request_id: int | None = None
+    pending_shell_command_request_id: int | None = None
     terminal_height: int = 24
     next_request_id: int = 1
 

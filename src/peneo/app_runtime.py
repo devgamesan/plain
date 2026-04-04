@@ -20,6 +20,7 @@ from peneo.models import (
     FileMutationResult,
     PasteConflictPrompt,
     PasteExecutionResult,
+    ShellCommandResult,
 )
 from peneo.services import InvalidFileSearchQueryError, InvalidGrepSearchQueryError
 from peneo.state import (
@@ -62,9 +63,12 @@ from peneo.state import (
     RunFileMutationEffect,
     RunFileSearchEffect,
     RunGrepSearchEffect,
+    RunShellCommandEffect,
     RunZipCompressEffect,
     RunZipCompressPreparationEffect,
     SetNotification,
+    ShellCommandCompleted,
+    ShellCommandFailed,
     SplitTerminalStarted,
     SplitTerminalStartFailed,
     StartSplitTerminalEffect,
@@ -295,6 +299,24 @@ def schedule_config_save(app: Any, effect: RunConfigSaveEffect) -> None:
             name=f"config-save:{effect.request_id}",
             group="config-save",
             description=effect.path,
+            exclusive=True,
+        ),
+    )
+
+
+def schedule_shell_command(app: Any, effect: RunShellCommandEffect) -> None:
+    _run_worker(
+        app,
+        effect,
+        partial(
+            app._shell_command_service.execute,
+            cwd=effect.cwd,
+            command=effect.command,
+        ),
+        _WorkerSpec(
+            name=f"shell-command:{effect.request_id}",
+            group="shell-command",
+            description=effect.cwd,
             exclusive=True,
         ),
     )
@@ -745,6 +767,7 @@ _EFFECT_SCHEDULERS = (
     (RunDirectorySizeEffect, schedule_directory_sizes),
     (RunFileMutationEffect, schedule_file_mutation),
     (RunExternalLaunchEffect, _schedule_external_launch_effect),
+    (RunShellCommandEffect, schedule_shell_command),
     (RunFileSearchEffect, schedule_file_search),
     (RunGrepSearchEffect, schedule_grep_search),
     (StartSplitTerminalEffect, start_split_terminal),
@@ -901,6 +924,18 @@ def _complete_external_launch(
         ExternalLaunchCompleted(
             request_id=effect.request_id,
             request=effect.request,
+        ),
+    )
+
+
+def _complete_shell_command(
+    effect: RunShellCommandEffect,
+    result: ShellCommandResult,
+) -> tuple[Any, ...]:
+    return (
+        ShellCommandCompleted(
+            request_id=effect.request_id,
+            result=result,
         ),
     )
 
@@ -1071,6 +1106,19 @@ def _failed_external_launch(
     )
 
 
+def _failed_shell_command(
+    effect: RunShellCommandEffect,
+    error: BaseException | None,
+    message: str,
+) -> tuple[Any, ...]:
+    return (
+        ShellCommandFailed(
+            request_id=effect.request_id,
+            message=message,
+        ),
+    )
+
+
 def _failed_file_search(
     effect: RunFileSearchEffect,
     error: BaseException | None,
@@ -1117,6 +1165,7 @@ _COMPLETE_ACTION_HANDLERS: tuple[tuple[type[Any], CompleteActionHandler], ...] =
     (RunConfigSaveEffect, _complete_config_save),
     (RunDirectorySizeEffect, _complete_directory_sizes),
     (RunExternalLaunchEffect, _complete_external_launch),
+    (RunShellCommandEffect, _complete_shell_command),
     (RunFileSearchEffect, _complete_file_search),
     (RunGrepSearchEffect, _complete_grep_search),
 )
@@ -1133,6 +1182,7 @@ _FAILED_ACTION_HANDLERS: tuple[tuple[type[Any], FailureActionHandler], ...] = (
     (RunConfigSaveEffect, _failed_config_save),
     (RunDirectorySizeEffect, _failed_directory_sizes),
     (RunExternalLaunchEffect, _failed_external_launch),
+    (RunShellCommandEffect, _failed_shell_command),
     (RunFileSearchEffect, _failed_file_search),
     (RunGrepSearchEffect, _failed_grep_search),
 )

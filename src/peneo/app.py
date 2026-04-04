@@ -44,8 +44,10 @@ from peneo.services import (
     LiveFileMutationService,
     LiveFileSearchService,
     LiveGrepSearchService,
+    LiveShellCommandService,
     LiveSplitTerminalService,
     LiveZipCompressService,
+    ShellCommandService,
     SplitTerminalService,
     SplitTerminalSession,
     ZipCompressService,
@@ -75,6 +77,7 @@ from peneo.ui import (
     ConflictDialog,
     CurrentPathBar,
     HelpBar,
+    ShellCommandDialog,
     SplitTerminalPane,
     StatusBar,
 )
@@ -299,6 +302,36 @@ class PeneoApp(App[None]):
         text-style: bold;
     }
 
+    #shell-command-dialog {
+        display: none;
+        height: auto;
+        min-height: 8;
+        margin: 0 2;
+        padding: 1 2;
+        border: round $accent;
+        background: $surface;
+    }
+
+    #shell-command-dialog-title {
+        text-style: bold;
+        color: $accent;
+    }
+
+    #shell-command-dialog-cwd {
+        color: $text-muted;
+    }
+
+    #shell-command-dialog-input {
+        margin: 1 0;
+    }
+
+    #shell-command-dialog-options {
+        padding: 0 1;
+        background: $boost;
+        color: $accent;
+        text-style: bold;
+    }
+
     #split-terminal {
         display: none;
         height: 1fr;
@@ -328,6 +361,7 @@ class PeneoApp(App[None]):
         external_launch_service: ExternalLaunchService | None = None,
         file_search_service: FileSearchService | None = None,
         grep_search_service: GrepSearchService | None = None,
+        shell_command_service: ShellCommandService | None = None,
         split_terminal_service: SplitTerminalService | None = None,
         *,
         app_config: AppConfig | None = None,
@@ -362,6 +396,7 @@ class PeneoApp(App[None]):
         )
         self._file_search_service = file_search_service or LiveFileSearchService()
         self._grep_search_service = grep_search_service or LiveGrepSearchService()
+        self._shell_command_service = shell_command_service or LiveShellCommandService()
         self._split_terminal_service = split_terminal_service or LiveSplitTerminalService()
         self._pending_workers: dict[str, Effect] = {}
         self._split_terminal_session: SplitTerminalSession | None = None
@@ -388,6 +423,7 @@ class PeneoApp(App[None]):
         yield ConflictDialog(shell.conflict_dialog, id="conflict-dialog")
         yield AttributeDialog(shell.attribute_dialog, id="attribute-dialog")
         yield ConfigDialog(shell.config_dialog, id="config-dialog")
+        yield ShellCommandDialog(shell.shell_command_dialog, id="shell-command-dialog")
         yield HelpBar(shell.help, id="help-bar")
         yield StatusBar(shell.status, id="status-bar")
 
@@ -555,6 +591,7 @@ def create_app(
     external_launch_service: ExternalLaunchService | None = None,
     file_search_service: FileSearchService | None = None,
     grep_search_service: GrepSearchService | None = None,
+    shell_command_service: ShellCommandService | None = None,
     split_terminal_service: SplitTerminalService | None = None,
     *,
     app_config: AppConfig | None = None,
@@ -575,6 +612,7 @@ def create_app(
         external_launch_service=external_launch_service,
         file_search_service=file_search_service,
         grep_search_service=grep_search_service,
+        shell_command_service=shell_command_service,
         split_terminal_service=split_terminal_service,
         app_config=app_config,
         config_path=config_path,

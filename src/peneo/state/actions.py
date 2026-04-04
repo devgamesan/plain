@@ -16,6 +16,7 @@ from peneo.models import (
     PasteConflict,
     PasteRequest,
     PasteSummary,
+    ShellCommandResult,
 )
 
 from .models import (
@@ -126,6 +127,11 @@ class BeginCommandPalette:
 
 
 @dataclass(frozen=True)
+class BeginShellCommandInput:
+    """Open the shell command input dialog."""
+
+
+@dataclass(frozen=True)
 class CancelCommandPalette:
     """Close the command palette without running a command."""
 
@@ -219,6 +225,13 @@ class SetPendingInputValue:
 
 
 @dataclass(frozen=True)
+class SetShellCommandValue:
+    """Update the pending shell command input."""
+
+    command: str
+
+
+@dataclass(frozen=True)
 class SubmitPendingInput:
     """Submit the active rename/create text input."""
 
@@ -226,6 +239,16 @@ class SubmitPendingInput:
 @dataclass(frozen=True)
 class CancelPendingInput:
     """Cancel the active rename/create text input."""
+
+
+@dataclass(frozen=True)
+class SubmitShellCommand:
+    """Submit the active shell command input."""
+
+
+@dataclass(frozen=True)
+class CancelShellCommandInput:
+    """Cancel the active shell command input."""
 
 
 @dataclass(frozen=True)
@@ -708,6 +731,22 @@ class ExternalLaunchFailed:
 
 
 @dataclass(frozen=True)
+class ShellCommandCompleted:
+    """Apply a completed shell command execution."""
+
+    request_id: int
+    result: ShellCommandResult
+
+
+@dataclass(frozen=True)
+class ShellCommandFailed:
+    """Apply a shell command worker failure."""
+
+    request_id: int
+    message: str
+
+
+@dataclass(frozen=True)
 class SplitTerminalStarted:
     """Mark the split terminal session as ready."""
 
@@ -778,6 +817,7 @@ Action = (
     | BeginHistorySearch
     | BeginBookmarkSearch
     | BeginCommandPalette
+    | BeginShellCommandInput
     | CancelCommandPalette
     | MoveCommandPaletteCursor
     | SetCommandPaletteQuery
@@ -791,8 +831,11 @@ Action = (
     | GrepSearchCompleted
     | GrepSearchFailed
     | SetPendingInputValue
+    | SetShellCommandValue
     | SubmitPendingInput
+    | SubmitShellCommand
     | CancelPendingInput
+    | CancelShellCommandInput
     | MoveCursor
     | MoveCursorAndSelectRange
     | JumpCursor
@@ -861,6 +904,8 @@ Action = (
     | FileMutationFailed
     | ExternalLaunchCompleted
     | ExternalLaunchFailed
+    | ShellCommandCompleted
+    | ShellCommandFailed
     | SplitTerminalStarted
     | SplitTerminalStartFailed
     | SplitTerminalOutputReceived

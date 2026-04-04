@@ -158,6 +158,15 @@ class RunConfigSaveEffect:
     config: AppConfig
 
 
+@dataclass(frozen=True)
+class RunShellCommandEffect:
+    """Execute a shell command in the supplied directory."""
+
+    request_id: int
+    cwd: str
+    command: str
+
+
 Effect = (
     LoadBrowserSnapshotEffect
     | LoadChildPaneSnapshotEffect
@@ -176,6 +185,7 @@ Effect = (
     | PasteFromClipboardEffect
     | CloseSplitTerminalEffect
     | RunConfigSaveEffect
+    | RunShellCommandEffect
 )
 
 

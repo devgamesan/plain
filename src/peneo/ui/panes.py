@@ -390,7 +390,13 @@ class MainPane(Vertical):
         )
         for entry in self._entries:
             table.add_row(
-                self._render_cell(entry.selection_marker, entry.selected, entry.cut, entry.executable, entry.kind),
+                self._render_cell(
+                    entry.selection_marker,
+                    entry.selected,
+                    entry.cut,
+                    entry.executable,
+                    entry.kind,
+                ),
                 self._render_cell(
                     truncate_middle(build_entry_label(entry), column_widths["name"]),
                     entry.selected,
@@ -398,8 +404,20 @@ class MainPane(Vertical):
                     entry.executable,
                     entry.kind,
                 ),
-                self._render_cell(entry.size_label, entry.selected, entry.cut, entry.executable, entry.kind),
-                self._render_cell(entry.modified_label, entry.selected, entry.cut, entry.executable, entry.kind),
+                self._render_cell(
+                    entry.size_label,
+                    entry.selected,
+                    entry.cut,
+                    entry.executable,
+                    entry.kind,
+                ),
+                self._render_cell(
+                    entry.modified_label,
+                    entry.selected,
+                    entry.cut,
+                    entry.executable,
+                    entry.kind,
+                ),
             )
         self._last_table_width = table.size.width
 
@@ -434,7 +452,14 @@ class MainPane(Vertical):
         }
 
     @classmethod
-    def _render_cell(cls, value: str, selected: bool, cut: bool, executable: bool = False, kind: str | None = None) -> Text:
+    def _render_cell(
+        cls,
+        value: str,
+        selected: bool,
+        cut: bool,
+        executable: bool = False,
+        kind: str | None = None,
+    ) -> Text:
         # カット状態が最優先
         if cut:
             if kind == "dir":

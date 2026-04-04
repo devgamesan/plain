@@ -6,6 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from stat import S_IMODE, filemode
 
+from peneo.archive_utils import is_supported_archive_path
 from peneo.models import (
     AttributeDialogState,
     CommandPaletteItemViewState,
@@ -113,7 +114,11 @@ def _select_child_entries_for_cursor(
     state: AppState,
     cursor_entry: DirectoryEntryState | None,
 ) -> tuple[PaneEntry, ...]:
-    if cursor_entry is None or cursor_entry.kind != "dir":
+    if cursor_entry is None:
+        return ()
+    # Check if it's a directory or an archive file
+    is_archive = cursor_entry.kind == "file" and is_supported_archive_path(cursor_entry.path)
+    if cursor_entry.kind != "dir" and not is_archive:
         return ()
     if cursor_entry.path != state.child_pane.directory_path:
         return ()

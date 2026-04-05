@@ -1851,9 +1851,9 @@ async def test_app_displays_browsing_help_bar() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
-        "Enter open | e edit | i info | / filter | : palette | ctrl+f find | "
-        "ctrl+g grep | ! shell | q quit\n"
-        "Space select | y copy | x cut | p paste | c path | . hidden | b bookmark | ctrl+t term"
+        "enter open | e edit | i info | space select | y copy | x cut | p paste | c path\n"
+        "/ filter | s sort | . hidden | b bookmark | ctrl+f find | ctrl+g grep\n"
+        ": palette | ! shell | ctrl+t term | q quit"
     )
 
     async with app.run_test():

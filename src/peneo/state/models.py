@@ -237,6 +237,14 @@ class DirectorySizeCacheEntry:
 
 
 @dataclass(frozen=True)
+class DirectorySizeDeltaState:
+    """Transient changed-path metadata for the latest directory-size update."""
+
+    changed_paths: tuple[str, ...] = ()
+    revision: int = 0
+
+
+@dataclass(frozen=True)
 class FileSearchResultState:
     """A single file-search result shown in the command palette."""
 
@@ -336,6 +344,7 @@ class AppState:
     shell_command: ShellCommandState | None = None
     post_reload_notification: NotificationState | None = None
     directory_size_cache: tuple[DirectorySizeCacheEntry, ...] = ()
+    directory_size_delta: DirectorySizeDeltaState = DirectorySizeDeltaState()
     pending_browser_snapshot_request_id: int | None = None
     pending_child_pane_request_id: int | None = None
     pending_paste_request_id: int | None = None

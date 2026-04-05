@@ -70,6 +70,7 @@ from peneo.state import (
     DeleteConfirmationState,
     DirectoryEntryState,
     DirectorySizeCacheEntry,
+    DirectorySizeDeltaState,
     DirectorySizesFailed,
     DirectorySizesLoaded,
     DismissAttributeDialog,
@@ -131,6 +132,7 @@ from peneo.state import (
     SetCommandPaletteQuery,
     SetCursorPath,
     SetFilterQuery,
+    SetNotification,
     SetPendingInputValue,
     SetSort,
     SetTerminalHeight,
@@ -231,6 +233,10 @@ def test_directory_sizes_loaded_updates_cache_when_request_matches() -> None:
     assert next_state.directory_size_cache == (
         DirectorySizeCacheEntry("/home/tadashi/develop/peneo/docs", "ready", size_bytes=4321),
     )
+    assert next_state.directory_size_delta == DirectorySizeDeltaState(
+        changed_paths=("/home/tadashi/develop/peneo/docs",),
+        revision=1,
+    )
     assert next_state.pending_directory_size_request_id is None
 
 
@@ -261,6 +267,13 @@ def test_directory_sizes_loaded_marks_partial_failures() -> None:
             error_message="Permission denied",
         ),
     )
+    assert next_state.directory_size_delta == DirectorySizeDeltaState(
+        changed_paths=(
+            "/home/tadashi/develop/peneo/docs",
+            "/home/tadashi/develop/peneo/private",
+        ),
+        revision=1,
+    )
     assert next_state.pending_directory_size_request_id is None
 
 
@@ -289,7 +302,29 @@ def test_directory_sizes_failed_marks_requested_paths_failed() -> None:
             error_message="Permission denied",
         ),
     )
+    assert next_state.directory_size_delta == DirectorySizeDeltaState(
+        changed_paths=("/home/tadashi/develop/peneo/docs",),
+        revision=1,
+    )
     assert next_state.pending_directory_size_request_id is None
+
+
+def test_non_directory_size_action_clears_transient_directory_size_delta() -> None:
+    state = replace(
+        build_initial_app_state(),
+        directory_size_delta=DirectorySizeDeltaState(
+            changed_paths=("/home/tadashi/develop/peneo/docs",),
+            revision=4,
+        ),
+    )
+
+    result = reduce_app_state(
+        state,
+        SetNotification(NotificationState(level="info", message="Ready")),
+    )
+
+    assert result.state.notification == NotificationState(level="info", message="Ready")
+    assert result.state.directory_size_delta == DirectorySizeDeltaState(revision=4)
 
 
 def test_toggle_selection_uses_absolute_paths() -> None:

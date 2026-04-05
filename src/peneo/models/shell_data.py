@@ -35,6 +35,23 @@ class PaneEntry:
 
 
 @dataclass(frozen=True)
+class CurrentPaneSizeUpdate:
+    """A targeted size-cell update for a single current-pane row."""
+
+    path: str
+    size_label: str
+
+
+@dataclass(frozen=True)
+class CurrentPaneUpdateHint:
+    """Describe how the current pane should be refreshed."""
+
+    mode: Literal["full", "size_delta"]
+    revision: int = 0
+    updates: tuple[CurrentPaneSizeUpdate, ...] = ()
+
+
+@dataclass(frozen=True)
 class CurrentSummaryState:
     """Summary values displayed near the current directory pane."""
 
@@ -149,10 +166,11 @@ class ThreePaneShellData:
 
     current_path: str
     parent_entries: tuple[PaneEntry, ...]
-    current_entries: tuple[PaneEntry, ...]
+    current_entries: tuple[PaneEntry, ...] | None
     child_entries: tuple[PaneEntry, ...]
     current_cursor_index: int | None
     current_cursor_visible: bool
+    current_pane_update: CurrentPaneUpdateHint
     current_summary: CurrentSummaryState
     current_context_input: InputBarState | None
     split_terminal: SplitTerminalViewState
@@ -221,6 +239,7 @@ def build_dummy_shell_data() -> ThreePaneShellData:
         ),
         current_cursor_index=0,
         current_cursor_visible=True,
+        current_pane_update=CurrentPaneUpdateHint(mode="full"),
         current_summary=CurrentSummaryState(
             item_count=len(current_entries),
             selected_count=0,

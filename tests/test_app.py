@@ -60,6 +60,7 @@ from peneo.ui import (
     StatusBar,
     SummaryBar,
 )
+from peneo.ui.panes import MainPane
 
 
 def _build_snapshot(
@@ -622,6 +623,75 @@ async def test_app_loads_directory_sizes_when_enabled() -> None:
         table = app.query_one("#current-pane-table", DataTable)
 
         assert str(table.get_cell_at((0, 2))) == "4.2 KB"
+
+
+@pytest.mark.asyncio
+async def test_app_applies_directory_size_updates_without_full_current_pane_refresh(
+    monkeypatch,
+) -> None:
+    path = "/tmp/peneo-dir-size-delta"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file", size_bytes=120),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    class SlowDirectorySizeService(FakeDirectorySizeService):
+        def calculate_sizes(self, paths, *, is_cancelled=None):
+            time.sleep(0.05)
+            return super().calculate_sizes(paths, is_cancelled=is_cancelled)
+
+    directory_size_service = SlowDirectorySizeService(
+        results_by_paths={
+            (path, "/tmp/sibling", f"{path}/docs"): (
+                (path, 10_000),
+                ("/tmp/sibling", 2_000),
+                (f"{path}/docs", 4_200),
+            )
+        }
+    )
+    set_entries_calls = 0
+    apply_size_updates_calls = 0
+    original_set_entries = MainPane.set_entries
+    original_apply_size_updates = MainPane.apply_size_updates
+
+    def wrapped_set_entries(self, entries, cursor_index=None):
+        nonlocal set_entries_calls
+        set_entries_calls += 1
+        return original_set_entries(self, entries, cursor_index)
+
+    def wrapped_apply_size_updates(self, updates):
+        nonlocal apply_size_updates_calls
+        apply_size_updates_calls += 1
+        return original_apply_size_updates(self, updates)
+
+    monkeypatch.setattr(MainPane, "set_entries", wrapped_set_entries)
+    monkeypatch.setattr(MainPane, "apply_size_updates", wrapped_apply_size_updates)
+
+    app = create_app(
+        snapshot_loader=loader,
+        directory_size_service=directory_size_service,
+        app_config=AppConfig(
+            display=DisplayConfig(show_directory_sizes=True),
+        ),
+        initial_path=path,
+    )
+
+    async with app.run_test():
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 2)
+        await _wait_for_table_cell(app, "calculating...", 0, 2)
+        full_refresh_calls_before_ready = set_entries_calls
+        await _wait_for_table_cell(app, "4.2 KB", 0, 2)
+
+        assert set_entries_calls == full_refresh_calls_before_ready
+        assert apply_size_updates_calls == 1
 
 
 @pytest.mark.asyncio

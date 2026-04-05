@@ -1,6 +1,7 @@
 """Reusable widgets for the initial three-pane shell."""
 
 from collections.abc import Sequence
+from dataclasses import replace
 
 from rich.cells import cell_len
 from rich.text import Text
@@ -10,7 +11,12 @@ from textual.containers import Vertical
 from textual.css.query import NoMatches
 from textual.widgets import DataTable, Label, ListItem, ListView
 
-from peneo.models.shell_data import CurrentSummaryState, InputBarState, PaneEntry
+from peneo.models.shell_data import (
+    CurrentPaneSizeUpdate,
+    CurrentSummaryState,
+    InputBarState,
+    PaneEntry,
+)
 
 from .input_bar import InputBar
 from .summary_bar import SummaryBar
@@ -400,6 +406,45 @@ class MainPane(Vertical):
 
         self._summary = state
         self.query_one(SummaryBar).set_state(state)
+
+    def apply_size_updates(self, updates: Sequence[CurrentPaneSizeUpdate]) -> None:
+        """Update only the size cells for the supplied paths."""
+
+        if not updates:
+            return
+
+        update_by_path = {update.path: update.size_label for update in updates}
+        changed_rows: list[tuple[str, PaneEntry]] = []
+        next_entries: list[PaneEntry] = []
+        for entry in self._entries:
+            next_size_label = update_by_path.get(entry.path)
+            if next_size_label is None or next_size_label == entry.size_label:
+                next_entries.append(entry)
+                continue
+            next_entry = replace(entry, size_label=next_size_label)
+            next_entries.append(next_entry)
+            changed_rows.append((entry.path, next_entry))
+
+        if not changed_rows:
+            return
+
+        self._entries = tuple(next_entries)
+        table = self.query_one(DataTable)
+        for row_key, entry in changed_rows:
+            try:
+                table.update_cell(
+                    row_key,
+                    "size",
+                    self._render_cell(
+                        entry.size_label,
+                        entry.selected,
+                        entry.cut,
+                        entry.executable,
+                        entry.kind,
+                    ),
+                )
+            except KeyError:
+                continue
 
     def _sync_cursor(self, table: DataTable) -> None:
         if not self._entries or self._cursor_index is None:

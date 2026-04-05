@@ -34,7 +34,7 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
             ),
             MainPane(
                 "Current Directory",
-                shell.current_entries,
+                shell.current_entries or (),
                 summary=shell.current_summary,
                 cursor_index=shell.current_cursor_index,
                 cursor_visible=shell.current_cursor_visible,
@@ -104,7 +104,10 @@ async def refresh_shell(
         return
 
     current_path_bar.set_path(shell.current_path)
-    current_pane.set_entries(shell.current_entries, shell.current_cursor_index)
+    if shell.current_pane_update.mode == "size_delta":
+        current_pane.apply_size_updates(shell.current_pane_update.updates)
+    else:
+        current_pane.set_entries(shell.current_entries or (), shell.current_cursor_index)
     current_pane.set_cursor_state(
         shell.current_cursor_index,
         shell.current_cursor_visible,

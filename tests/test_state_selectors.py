@@ -24,6 +24,7 @@ from peneo.state import (
     DeleteConfirmationState,
     DirectoryEntryState,
     DirectorySizeCacheEntry,
+    DirectorySizeDeltaState,
     FileSearchResultState,
     GrepSearchResultState,
     HistoryState,
@@ -349,6 +350,80 @@ def test_select_pane_entries_show_directory_sizes_from_cache() -> None:
     assert parent_entries[0].name_detail is None
     assert current_entries[0].size_label == "calculating..."
     assert child_entries[0].name_detail is None
+
+
+def test_select_visible_current_entries_skip_size_overlay_when_not_sorting_by_size() -> None:
+    state = replace(
+        build_initial_app_state(),
+        directory_size_cache=(
+            DirectorySizeCacheEntry(
+                "/home/tadashi/develop/peneo/docs",
+                "ready",
+                size_bytes=4_200,
+            ),
+        ),
+    )
+
+    visible_entries = select_visible_current_entry_states(state)
+
+    assert visible_entries[0].path == "/home/tadashi/develop/peneo/docs"
+    assert visible_entries[0].size_bytes is None
+
+
+def test_select_shell_data_emits_size_delta_updates_for_directory_size_changes() -> None:
+    state = replace(
+        build_initial_app_state(
+            config=AppConfig(
+                display=replace(
+                    AppConfig().display,
+                    show_directory_sizes=True,
+                )
+            )
+        ),
+        directory_size_cache=(
+            DirectorySizeCacheEntry(
+                "/home/tadashi/develop/peneo/docs",
+                "ready",
+                size_bytes=4_200,
+            ),
+        ),
+        directory_size_delta=DirectorySizeDeltaState(
+            changed_paths=("/home/tadashi/develop/peneo/docs",),
+            revision=3,
+        ),
+    )
+
+    shell = select_shell_data(state)
+
+    assert shell.current_entries is None
+    assert shell.current_pane_update.mode == "size_delta"
+    assert shell.current_pane_update.revision == 3
+    assert [(update.path, update.size_label) for update in shell.current_pane_update.updates] == [
+        ("/home/tadashi/develop/peneo/docs", "4.2 KB")
+    ]
+
+
+def test_select_shell_data_keeps_full_refresh_when_sorting_by_size() -> None:
+    state = replace(
+        build_initial_app_state(),
+        sort=replace(build_initial_app_state().sort, field="size"),
+        directory_size_cache=(
+            DirectorySizeCacheEntry(
+                "/home/tadashi/develop/peneo/docs",
+                "ready",
+                size_bytes=4_200,
+            ),
+        ),
+        directory_size_delta=DirectorySizeDeltaState(
+            changed_paths=("/home/tadashi/develop/peneo/docs",),
+            revision=2,
+        ),
+    )
+
+    shell = select_shell_data(state)
+
+    assert shell.current_pane_update.mode == "full"
+    assert shell.current_entries is not None
 
 
 def test_select_current_summary_counts_selected_absolute_paths() -> None:

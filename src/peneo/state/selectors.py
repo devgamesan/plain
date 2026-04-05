@@ -13,6 +13,8 @@ from peneo.models import (
     CommandPaletteViewState,
     ConfigDialogState,
     ConflictDialogState,
+    CurrentPaneSizeUpdate,
+    CurrentPaneUpdateHint,
     CurrentSummaryState,
     HelpBarState,
     InputBarState,
@@ -62,19 +64,35 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
     """Build the display shell data consumed by the UI layer."""
 
     current_pane = _select_current_pane_projection(state)
+    display_directory_sizes = (
+        state.config.display.show_directory_sizes or state.sort.field == "size"
+    )
+    current_pane_update = _select_current_pane_update_hint(
+        current_pane.visible_entries,
+        state.directory_size_cache,
+        display_directory_sizes,
+        state.sort,
+        state.directory_size_delta.changed_paths,
+        state.directory_size_delta.revision,
+    )
     return ThreePaneShellData(
         current_path=state.current_path,
         parent_entries=select_parent_entries(state),
-        current_entries=_select_current_pane_entries(
-            current_pane.visible_entries,
-            state.directory_size_cache,
-            state.config.display.show_directory_sizes or state.sort.field == "size",
-            state.current_pane.selected_paths,
-            _select_cut_paths(state),
+        current_entries=(
+            _select_current_pane_entries(
+                current_pane.visible_entries,
+                state.directory_size_cache,
+                display_directory_sizes,
+                state.current_pane.selected_paths,
+                _select_cut_paths(state),
+            )
+            if current_pane_update.mode == "full"
+            else None
         ),
         child_entries=_select_child_entries_for_cursor(state, current_pane.cursor_entry),
         current_cursor_index=current_pane.cursor_index,
         current_cursor_visible=state.ui_mode != "FILTER",
+        current_pane_update=current_pane_update,
         current_summary=current_pane.summary,
         current_context_input=select_input_bar_state(state),
         split_terminal=select_split_terminal_state(state),
@@ -662,8 +680,54 @@ def _select_visible_current_entry_states(
 ) -> tuple[DirectoryEntryState, ...]:
     visible_entries = _filter_hidden_entries(entries, show_hidden)
     visible_entries = _filter_entries(visible_entries, query, active)
-    visible_entries = _overlay_directory_sizes(visible_entries, directory_size_cache)
+    if sort.field == "size":
+        visible_entries = _overlay_directory_sizes(visible_entries, directory_size_cache)
     return _sort_entries(visible_entries, sort)
+
+
+@lru_cache(maxsize=256)
+def _select_current_pane_update_hint(
+    visible_entries: tuple[DirectoryEntryState, ...],
+    directory_size_cache: tuple[DirectorySizeCacheEntry, ...],
+    display_directory_sizes: bool,
+    sort: SortState,
+    changed_paths: tuple[str, ...],
+    revision: int,
+) -> CurrentPaneUpdateHint:
+    if sort.field == "size" or not changed_paths:
+        return CurrentPaneUpdateHint(mode="full", revision=revision)
+    return CurrentPaneUpdateHint(
+        mode="size_delta",
+        revision=revision,
+        updates=_select_current_pane_size_updates(
+            visible_entries,
+            directory_size_cache,
+            display_directory_sizes,
+            changed_paths,
+        ),
+    )
+
+
+@lru_cache(maxsize=256)
+def _select_current_pane_size_updates(
+    visible_entries: tuple[DirectoryEntryState, ...],
+    directory_size_cache: tuple[DirectorySizeCacheEntry, ...],
+    display_directory_sizes: bool,
+    changed_paths: tuple[str, ...],
+) -> tuple[CurrentPaneSizeUpdate, ...]:
+    changed_path_set = frozenset(changed_paths)
+    return tuple(
+        CurrentPaneSizeUpdate(
+            path=entry.path,
+            size_label=_format_entry_size_label(
+                entry,
+                directory_size_cache,
+                display_directory_sizes=display_directory_sizes,
+            ),
+        )
+        for entry in visible_entries
+        if entry.path in changed_path_set
+    )
 
 
 @lru_cache(maxsize=256)

@@ -2,7 +2,14 @@
 
 from dataclasses import replace
 
-from .actions import Action, InitializeState, SetNotification, SetUiMode
+from .actions import (
+    Action,
+    DirectorySizesFailed,
+    DirectorySizesLoaded,
+    InitializeState,
+    SetNotification,
+    SetUiMode,
+)
 from .effects import ReduceResult
 from .models import AppState
 from .reducer_common import done
@@ -19,10 +26,14 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
         return done(action.state)
 
     if isinstance(action, SetUiMode):
-        return done(replace(state, ui_mode=action.mode))
+        return _finalize_reduce_result(state, action, done(replace(state, ui_mode=action.mode)))
 
     if isinstance(action, SetNotification):
-        return done(replace(state, notification=action.notification))
+        return _finalize_reduce_result(
+            state,
+            action,
+            done(replace(state, notification=action.notification)),
+        )
 
     for handler in (
         handle_navigation_action,
@@ -32,6 +43,29 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
     ):
         result = handler(state, action, reduce_app_state)
         if result is not None:
-            return result
+            return _finalize_reduce_result(state, action, result)
 
-    return done(state)
+    return _finalize_reduce_result(state, action, done(state))
+
+
+def _finalize_reduce_result(
+    previous_state: AppState,
+    action: Action,
+    result: ReduceResult,
+) -> ReduceResult:
+    if isinstance(action, (DirectorySizesLoaded, DirectorySizesFailed)):
+        return result
+    if result.state == previous_state:
+        return result
+    if not result.state.directory_size_delta.changed_paths:
+        return result
+    return ReduceResult(
+        state=replace(
+            result.state,
+            directory_size_delta=replace(
+                result.state.directory_size_delta,
+                changed_paths=(),
+            ),
+        ),
+        effects=result.effects,
+    )

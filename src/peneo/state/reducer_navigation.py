@@ -31,7 +31,14 @@ from .actions import (
     ToggleHiddenFiles,
 )
 from .effects import LoadBrowserSnapshotEffect, ReduceResult, RunDirectorySizeEffect
-from .models import AppState, DirectorySizeCacheEntry, FilterState, NotificationState, PaneState
+from .models import (
+    AppState,
+    DirectorySizeCacheEntry,
+    DirectorySizeDeltaState,
+    FilterState,
+    NotificationState,
+    PaneState,
+)
 from .reducer_common import (
     ReducerFn,
     browser_snapshot_invalidation_paths,
@@ -385,6 +392,7 @@ def handle_navigation_action(
             notification=None,
             command_palette=None,
             directory_size_cache=(),
+            directory_size_delta=replace(state.directory_size_delta, changed_paths=()),
             pending_browser_snapshot_request_id=request_id,
             pending_child_pane_request_id=None,
             pending_directory_size_request_id=None,
@@ -525,6 +533,12 @@ def handle_navigation_action(
                 state.directory_size_cache,
                 (*loaded_entries, *failed_entries),
             ),
+            directory_size_delta=DirectorySizeDeltaState(
+                changed_paths=tuple(
+                    dict.fromkeys(path for path, _ in (*action.sizes, *action.failures))
+                ),
+                revision=state.directory_size_delta.revision + 1,
+            ),
             pending_directory_size_request_id=None,
         )
         return done(next_state)
@@ -544,6 +558,10 @@ def handle_navigation_action(
                     )
                     for path in action.paths
                 ),
+            ),
+            directory_size_delta=DirectorySizeDeltaState(
+                changed_paths=tuple(dict.fromkeys(action.paths)),
+                revision=state.directory_size_delta.revision + 1,
             ),
             pending_directory_size_request_id=None,
         )

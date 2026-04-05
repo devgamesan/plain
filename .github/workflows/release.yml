@@ -111,6 +111,7 @@ jobs:
               --refresh \
               --index-url https://test.pypi.org/simple/ \
               --extra-index-url https://pypi.org/simple/ \
+              --index-strategy unsafe-best-match \
               "peneo==${VERSION}"; then
               exit 0
             fi

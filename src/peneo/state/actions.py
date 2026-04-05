@@ -180,6 +180,11 @@ class SaveConfigEditor:
 
 
 @dataclass(frozen=True)
+class ResetHelpBarConfig:
+    """Reset help bar configuration to defaults."""
+
+
+@dataclass(frozen=True)
 class FileSearchCompleted:
     """Apply completed file-search results to the command palette."""
 
@@ -838,6 +843,7 @@ Action = (
     | MoveConfigEditorCursor
     | CycleConfigEditorValue
     | SaveConfigEditor
+    | ResetHelpBarConfig
     | FileSearchCompleted
     | FileSearchFailed
     | GrepSearchCompleted

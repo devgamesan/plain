@@ -56,6 +56,7 @@ from .actions import (
     PasteFromClipboardToTerminal,
     ReloadDirectory,
     RemoveBookmark,
+    ResetHelpBarConfig,
     ResolvePasteConflict,
     SaveConfigEditor,
     SelectAllVisibleEntries,
@@ -728,7 +729,13 @@ def _dispatch_config_input(state: AppState, key: str) -> DispatchedActions:
     if key == "e":
         return _supported(OpenPathInEditor(state.config_path))
 
-    return _warn("Use arrows to change values, s to save, e to edit the file, or Esc to close")
+    if key == "r":
+        return _supported(ResetHelpBarConfig())
+
+    return _warn(
+        "Use arrows to change values, s to save, e to edit the file, "
+        "r to reset help, or Esc to close"
+    )
 
 
 def _visible_paths(state: AppState) -> tuple[str, ...]:

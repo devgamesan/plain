@@ -3,7 +3,7 @@
 from dataclasses import replace
 from textwrap import shorten
 
-from peneo.models import BookmarkConfig, ExternalLaunchRequest
+from peneo.models import BookmarkConfig, ExternalLaunchRequest, HelpBarConfig
 
 from .actions import (
     Action,
@@ -24,6 +24,7 @@ from .actions import (
     OpenTerminalAtPath,
     PasteFromClipboardToTerminal,
     RemoveBookmark,
+    ResetHelpBarConfig,
     SaveConfigEditor,
     SendSplitTerminalInput,
     SetShellCommandValue,
@@ -245,6 +246,26 @@ def handle_terminal_config_action(
             bookmarks=BookmarkConfig(
                 paths=tuple(path for path in state.config.bookmarks.paths if path != action.path),
             ),
+        )
+        request_id = state.next_request_id
+        return done(
+            replace(
+                state,
+                notification=None,
+                pending_config_save_request_id=request_id,
+                next_request_id=request_id + 1,
+            ),
+            RunConfigSaveEffect(
+                request_id=request_id,
+                path=state.config_path,
+                config=next_config,
+            ),
+        )
+
+    if isinstance(action, ResetHelpBarConfig):
+        next_config = replace(
+            state.config,
+            help_bar=HelpBarConfig(),
         )
         request_id = state.next_request_id
         return done(

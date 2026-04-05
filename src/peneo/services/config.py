@@ -17,6 +17,7 @@ from peneo.models import (
     ConfigLoadResult,
     DisplayConfig,
     EditorConfig,
+    HelpBarConfig,
     LoggingConfig,
     TerminalConfig,
 )
@@ -90,6 +91,7 @@ class AppConfigLoader:
         behavior = _load_behavior_config(document.get("behavior"), warnings)
         logging = _load_logging_config(document.get("logging"), warnings)
         bookmarks = _load_bookmark_config(document.get("bookmarks"), warnings)
+        help_bar = _load_help_bar_config(document.get("help_bar"), warnings)
         return ConfigLoadResult(
             config=AppConfig(
                 terminal=terminal,
@@ -98,6 +100,7 @@ class AppConfigLoader:
                 behavior=behavior,
                 logging=logging,
                 bookmarks=bookmarks,
+                help_bar=help_bar,
             ),
             path=str(path),
             warnings=tuple(warnings),
@@ -309,6 +312,55 @@ def _load_bookmark_config(section: object, warnings: list[str]) -> BookmarkConfi
     return BookmarkConfig(paths=tuple(dict.fromkeys(paths)))
 
 
+def _load_help_bar_config(section: object, warnings: list[str]) -> HelpBarConfig:
+    if section is None:
+        return HelpBarConfig()
+    if not isinstance(section, dict):
+        warnings.append("help_bar must be a table; using defaults.")
+        return HelpBarConfig()
+
+    return HelpBarConfig(
+        browsing=_load_help_lines(section, "browsing", warnings),
+        filter=_load_help_lines(section, "filter", warnings),
+        rename=_load_help_lines(section, "rename", warnings),
+        create=_load_help_lines(section, "create", warnings),
+        extract=_load_help_lines(section, "extract", warnings),
+        zip=_load_help_lines(section, "zip", warnings),
+        palette=_load_help_lines(section, "palette", warnings),
+        palette_file_search=_load_help_lines(section, "palette_file_search", warnings),
+        palette_grep_search=_load_help_lines(section, "palette_grep_search", warnings),
+        palette_history=_load_help_lines(section, "palette_history", warnings),
+        palette_bookmarks=_load_help_lines(section, "palette_bookmarks", warnings),
+        palette_go_to_path=_load_help_lines(section, "palette_go_to_path", warnings),
+        shell=_load_help_lines(section, "shell", warnings),
+        config=_load_help_lines(section, "config", warnings),
+        confirm_delete=_load_help_lines(section, "confirm_delete", warnings),
+        detail=_load_help_lines(section, "detail", warnings),
+        busy=_load_help_lines(section, "busy", warnings),
+        split_terminal=_load_help_lines(section, "split_terminal", warnings),
+    )
+
+
+def _load_help_lines(section: dict[str, object], key: str, warnings: list[str]) -> tuple[str, ...]:
+    raw_value = section.get(key)
+    if raw_value is None:
+        return ()
+    if not isinstance(raw_value, list):
+        warnings.append(f"help_bar.{key} must be an array of strings; ignoring it.")
+        return ()
+
+    lines: list[str] = []
+    for index, item in enumerate(raw_value):
+        field_name = f"help_bar.{key}[{index}]"
+        if not isinstance(item, str):
+            warnings.append(f"{field_name} must be a string; ignoring it.")
+            continue
+        if item.strip():
+            lines.append(item.strip())
+
+    return tuple(lines)
+
+
 def _load_logging_config(section: object, warnings: list[str]) -> LoggingConfig:
     config = LoggingConfig()
     if section is None:
@@ -444,6 +496,30 @@ def render_app_config(config: AppConfig) -> str:
         # Example:
         # paths = ["/home/user/src", "/home/user/docs"]
         paths = [{bookmark_paths}]
+
+        [help_bar]
+        # Optional custom help bar text for each UI mode.
+        # Leave empty to use built-in defaults.
+        # Example:
+        # browsing = ["Custom help line 1", "Custom help line 2"]
+        browsing = {help_bar_browsing}
+        filter = {help_bar_filter}
+        rename = {help_bar_rename}
+        create = {help_bar_create}
+        extract = {help_bar_extract}
+        zip = {help_bar_zip}
+        palette = {help_bar_palette}
+        palette_file_search = {help_bar_palette_file_search}
+        palette_grep_search = {help_bar_palette_grep_search}
+        palette_history = {help_bar_palette_history}
+        palette_bookmarks = {help_bar_palette_bookmarks}
+        palette_go_to_path = {help_bar_palette_go_to_path}
+        shell = {help_bar_shell}
+        config = {help_bar_config}
+        confirm_delete = {help_bar_confirm_delete}
+        detail = {help_bar_detail}
+        busy = {help_bar_busy}
+        split_terminal = {help_bar_split_terminal}
         """
     ).format(
         linux=_render_command_array(config.terminal.linux),
@@ -461,6 +537,24 @@ def render_app_config(config: AppConfig) -> str:
         logging_enabled=_render_bool(config.logging.enabled),
         logging_path=_render_optional_toml_string(config.logging.path),
         bookmark_paths=_render_command_array(config.bookmarks.paths),
+        help_bar_browsing=_render_help_lines(config.help_bar.browsing),
+        help_bar_filter=_render_help_lines(config.help_bar.filter),
+        help_bar_rename=_render_help_lines(config.help_bar.rename),
+        help_bar_create=_render_help_lines(config.help_bar.create),
+        help_bar_extract=_render_help_lines(config.help_bar.extract),
+        help_bar_zip=_render_help_lines(config.help_bar.zip),
+        help_bar_palette=_render_help_lines(config.help_bar.palette),
+        help_bar_palette_file_search=_render_help_lines(config.help_bar.palette_file_search),
+        help_bar_palette_grep_search=_render_help_lines(config.help_bar.palette_grep_search),
+        help_bar_palette_history=_render_help_lines(config.help_bar.palette_history),
+        help_bar_palette_bookmarks=_render_help_lines(config.help_bar.palette_bookmarks),
+        help_bar_palette_go_to_path=_render_help_lines(config.help_bar.palette_go_to_path),
+        help_bar_shell=_render_help_lines(config.help_bar.shell),
+        help_bar_config=_render_help_lines(config.help_bar.config),
+        help_bar_confirm_delete=_render_help_lines(config.help_bar.confirm_delete),
+        help_bar_detail=_render_help_lines(config.help_bar.detail),
+        help_bar_busy=_render_help_lines(config.help_bar.busy),
+        help_bar_split_terminal=_render_help_lines(config.help_bar.split_terminal),
     ).lstrip()
 
 
@@ -481,3 +575,10 @@ def _render_optional_toml_string(value: str | None) -> str:
     if value is None:
         return '""'
     return _render_toml_string(value)
+
+
+def _render_help_lines(lines: tuple[str, ...]) -> str:
+    if not lines:
+        return "[]"
+    rendered = ", ".join(_render_toml_string(line) for line in lines)
+    return f"[{rendered}]"

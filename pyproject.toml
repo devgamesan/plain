@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "peneo"
-version = "0.5.0"
+version = "0.5.1"
 description = "A simple TUI file manager with a three-pane layout. Peneo shows parent, current, and child directories side by side, aiming to feel closer to a GUI file explorer than to a keyboard-heavy power-user tool."
 readme = "README.md"
 license = { text = "MIT" }

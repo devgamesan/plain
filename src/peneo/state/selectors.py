@@ -213,7 +213,10 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         if state.config.help_bar.config:
             return HelpBarState(state.config.help_bar.config)
         return HelpBarState(
-            ("up/down choose | left/right/enter change | s save | e edit file | r reset help | esc close",)
+            (
+                "up/down choose | left/right/enter change | s save | e edit file | r reset help",
+                "esc close",
+            )
         )
     if state.ui_mode == "SHELL":
         if state.config.help_bar.shell:

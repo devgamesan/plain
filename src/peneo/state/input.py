@@ -732,7 +732,10 @@ def _dispatch_config_input(state: AppState, key: str) -> DispatchedActions:
     if key == "r":
         return _supported(ResetHelpBarConfig())
 
-    return _warn("Use arrows to change values, s to save, e to edit the file, r to reset help, or Esc to close")
+    return _warn(
+        "Use arrows to change values, s to save, e to edit the file, "
+        "r to reset help, or Esc to close"
+    )
 
 
 def _visible_paths(state: AppState) -> tuple[str, ...]:

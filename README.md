@@ -61,7 +61,17 @@ Peneo is a simple TUI file manager. Its three-pane layout shows the parent, curr
 
 ## Installation
 
-With `uv` installed, clone the repository and install Peneo as a tool.
+### Install from PyPI
+
+With `uv` installed, install Peneo directly from PyPI.
+
+```bash
+uv tool install peneo
+```
+
+### Install from repository
+
+Alternatively, clone the repository and install Peneo as a tool.
 
 ```bash
 git clone https://github.com/devgamesan/peneo.git
@@ -338,4 +348,15 @@ Lint and test:
 ```bash
 uv run ruff check .
 uv run pytest
+```
+
+### Install from TestPyPI
+
+For testing pre-release versions, install from TestPyPI:
+
+```bash
+uv tool install \
+  --index-url https://test.pypi.org/simple/ \
+  --extra-index-url https://pypi.org/simple/ \
+  peneo
 ```

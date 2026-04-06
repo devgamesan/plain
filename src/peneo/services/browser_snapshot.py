@@ -16,6 +16,7 @@ from peneo.state.models import (
     DirectoryEntryState,
     PaneState,
     build_initial_app_state,
+    resolve_parent_directory_path,
 )
 
 DEFAULT_DIRECTORY_CACHE_CAPACITY = 64
@@ -67,20 +68,25 @@ class LiveBrowserSnapshotLoader:
         path: str,
         cursor_path: str | None = None,
     ) -> BrowserSnapshot:
-        resolved_path = str(Path(path).expanduser().resolve())
+        resolved_path, parent_path = resolve_parent_directory_path(path)
         current_entries = self._list_directory(resolved_path)
         resolved_cursor_path = _resolve_cursor_path(current_entries, cursor_path)
 
-        parent_path = str(Path(resolved_path).parent)
-        parent_entries = self._list_directory(parent_path)
-        parent_cursor_path = (
-            resolved_path if _contains_path(parent_entries, resolved_path) else None
-        )
+        if parent_path is None:
+            parent_directory_path = resolved_path
+            parent_entries = ()
+            parent_cursor_path = None
+        else:
+            parent_directory_path = parent_path
+            parent_entries = self._list_directory(parent_path)
+            parent_cursor_path = (
+                resolved_path if _contains_path(parent_entries, resolved_path) else None
+            )
 
         return BrowserSnapshot(
             current_path=resolved_path,
             parent_pane=PaneState(
-                directory_path=parent_path,
+                directory_path=parent_directory_path,
                 entries=parent_entries,
                 cursor_path=parent_cursor_path,
             ),
@@ -282,11 +288,10 @@ def _build_fallback_snapshot(path: str, cursor_path: str | None) -> BrowserSnaps
             )
         return snapshot_from_app_state(state)
 
-    resolved_path = str(Path(path).expanduser().resolve())
-    parent_path = str(Path(resolved_path).parent)
+    resolved_path, parent_path = resolve_parent_directory_path(path)
     return BrowserSnapshot(
         current_path=resolved_path,
-        parent_pane=PaneState(directory_path=parent_path, entries=()),
+        parent_pane=PaneState(directory_path=parent_path or resolved_path, entries=()),
         current_pane=PaneState(directory_path=resolved_path, entries=(), cursor_path=cursor_path),
         child_pane=PaneState(directory_path=resolved_path, entries=()),
     )

@@ -374,6 +374,16 @@ class AppState:
     next_request_id: int = 1
 
 
+def resolve_parent_directory_path(path: str) -> tuple[str, str | None]:
+    """Return the resolved path and its distinct parent, if one exists."""
+
+    resolved_path = Path(path).expanduser().resolve()
+    parent_path = resolved_path.parent
+    if parent_path == resolved_path:
+        return str(resolved_path), None
+    return str(resolved_path), str(parent_path)
+
+
 def build_initial_app_state(
     *,
     config: AppConfig | None = None,
@@ -469,13 +479,12 @@ def build_placeholder_app_state(
 ) -> AppState:
     """Return an empty browser state used before the first snapshot loads."""
 
-    resolved_path = str(Path(current_path).resolve())
-    parent_path = str(Path(resolved_path).parent)
+    resolved_path, parent_path = resolve_parent_directory_path(current_path)
     return AppState(
         current_path=resolved_path,
         config=config or AppConfig(),
         config_path=config_path,
-        parent_pane=PaneState(directory_path=parent_path, entries=()),
+        parent_pane=PaneState(directory_path=parent_path or resolved_path, entries=()),
         current_pane=PaneState(directory_path=resolved_path, entries=()),
         child_pane=PaneState(directory_path=resolved_path, entries=()),
         show_hidden=show_hidden,

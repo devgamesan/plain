@@ -41,6 +41,7 @@ from peneo.state import (
     ToggleSelection,
     ZipCompressConfirmationState,
     build_initial_app_state,
+    build_placeholder_app_state,
     select_attribute_dialog_state,
     select_child_entries,
     select_command_palette_state,
@@ -109,6 +110,15 @@ def test_select_current_entries_hides_hidden_by_default() -> None:
     entries = select_current_entries(state)
 
     assert [entry.name for entry in entries] == ["docs"]
+
+
+def test_build_placeholder_app_state_keeps_parent_pane_empty_at_root() -> None:
+    state = build_placeholder_app_state("/")
+
+    assert state.current_path == "/"
+    assert state.parent_pane.directory_path == "/"
+    assert state.parent_pane.entries == ()
+    assert state.parent_pane.cursor_path is None
 
 
 def test_select_visible_current_entries_sorts_by_modified_with_missing_values_last() -> None:

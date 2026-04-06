@@ -1,7 +1,6 @@
 """Pure reducer for AppState transitions."""
 
 import logging
-
 from dataclasses import replace
 
 from .actions import (

@@ -607,6 +607,9 @@ def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
         _format_config_line(
             8, selected_index, "Paste conflict action", config.behavior.paste_conflict_action
         ),
+        _format_config_line(
+            9, selected_index, "Log level", config.logging.level
+        ),
         "",
         _format_custom_editor_hint(config.editor.command),
         "Terminal launch templates: edit config.toml with e",

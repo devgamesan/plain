@@ -1383,7 +1383,7 @@ def test_move_config_editor_cursor_clamps_to_visible_settings() -> None:
     next_state = _reduce_state(state, MoveConfigEditorCursor(delta=99))
 
     assert next_state.config_editor is not None
-    assert next_state.config_editor.cursor_index == 8
+    assert next_state.config_editor.cursor_index == 9
 
 
 def test_cycle_config_editor_editor_command_updates_draft_and_dirty_state() -> None:

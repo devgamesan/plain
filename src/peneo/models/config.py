@@ -5,6 +5,7 @@ from typing import Literal
 
 ConfigSortField = Literal["name", "modified", "size"]
 ConfigTheme = Literal["textual-dark", "textual-light"]
+ConfigLogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 PasteConflictAction = Literal["overwrite", "skip", "rename", "prompt"]
 
 
@@ -50,6 +51,7 @@ class LoggingConfig:
 
     enabled: bool = True
     path: str | None = None
+    level: ConfigLogLevel = "ERROR"
 
 
 @dataclass(frozen=True)

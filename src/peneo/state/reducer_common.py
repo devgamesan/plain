@@ -50,6 +50,7 @@ ReducerFn = Callable[[AppState, Action], ReduceResult]
 
 CONFIG_SORT_FIELDS = ("name", "modified", "size")
 CONFIG_THEMES = ("textual-dark", "textual-light")
+CONFIG_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 CONFIG_PASTE_ACTIONS = ("prompt", "overwrite", "skip", "rename")
 CONFIG_EDITOR_COMMANDS = (None, "nvim", "vim", "nano", "hx", "micro", "emacs -nw")
 REGEX_FILE_SEARCH_PREFIX = "re:"
@@ -658,6 +659,18 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
                 confirm_delete=not config.behavior.confirm_delete,
             ),
         )
+    if field_id == "logging.level":
+        return replace(
+            config,
+            logging=replace(
+                config.logging,
+                level=cycle_choice(
+                    CONFIG_LOG_LEVELS,
+                    config.logging.level,
+                    delta,
+                ),
+            ),
+        )
     return replace(
         config,
         behavior=replace(
@@ -695,6 +708,7 @@ def config_editor_field_ids() -> tuple[str, ...]:
         "display.directories_first",
         "behavior.confirm_delete",
         "behavior.paste_conflict_action",
+        "logging.level",
     )
 
 
@@ -709,6 +723,7 @@ def config_editor_labels() -> tuple[str, ...]:
         "Directories first",
         "Confirm delete",
         "Paste conflict action",
+        "Log level",
     )
 
 

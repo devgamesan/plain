@@ -117,6 +117,19 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 | `Tab` | Complete (where supported) |
 | `Ctrl+V` | Paste from clipboard |
 
+### Search Results Mode (File Search / Grep Search)
+
+| Key | Action |
+| --- | ------ |
+| `↑` / `↓` | Move cursor through results |
+| `PageUp` / `PageDown` | Move cursor by page |
+| `Home` / `End` | Jump to first/last result |
+| `Enter` | Open selected result |
+| `Ctrl+E` | Open selected result in editor |
+| `Esc` | Close search |
+
+**Note**: In search results mode, use arrow keys to navigate. `j`/`k` keys are used for typing the search query.
+
 ## Supported OS
 
 | OS | Support Status | Notes |

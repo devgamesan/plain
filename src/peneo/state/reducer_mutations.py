@@ -4,7 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from peneo.archive_utils import default_extract_destination, default_zip_destination
-from peneo.models import PasteRequest, RenameRequest, TrashDeleteRequest
+from peneo.models import DeleteRequest, PasteRequest, RenameRequest
 
 from .actions import (
     Action,
@@ -179,7 +179,7 @@ def handle_mutation_action(
     if isinstance(action, BeginDeleteTargets):
         if not action.paths:
             return done(state)
-        if state.confirm_delete:
+        if action.mode == "permanent" or state.confirm_delete:
             return done(
                 replace(
                     state,
@@ -190,7 +190,10 @@ def handle_mutation_action(
                     pending_file_search_request_id=None,
                     pending_grep_search_request_id=None,
                     paste_conflict=None,
-                    delete_confirmation=DeleteConfirmationState(paths=action.paths),
+                    delete_confirmation=DeleteConfirmationState(
+                        paths=action.paths,
+                        mode=action.mode,
+                    ),
                     archive_extract_confirmation=None,
                     archive_extract_progress=None,
                     zip_compress_confirmation=None,
@@ -212,7 +215,7 @@ def handle_mutation_action(
                 name_conflict=None,
                 attribute_inspection=None,
             ),
-            TrashDeleteRequest(paths=action.paths),
+            DeleteRequest(paths=action.paths, mode=action.mode),
         )
 
     if isinstance(action, BeginCreateInput):
@@ -497,7 +500,10 @@ def handle_mutation_action(
                 paste_conflict=None,
                 notification=None,
             ),
-            TrashDeleteRequest(paths=state.delete_confirmation.paths),
+            DeleteRequest(
+                paths=state.delete_confirmation.paths,
+                mode=state.delete_confirmation.mode,
+            ),
         )
 
     if isinstance(action, ConfirmArchiveExtract):
@@ -529,12 +535,18 @@ def handle_mutation_action(
         )
 
     if isinstance(action, CancelDeleteConfirmation):
+        message = (
+            "Permanent delete cancelled"
+            if state.delete_confirmation is not None
+            and state.delete_confirmation.mode == "permanent"
+            else "Delete cancelled"
+        )
         return done(
             replace(
                 state,
                 delete_confirmation=None,
                 ui_mode="BROWSING",
-                notification=NotificationState(level="warning", message="Delete cancelled"),
+                notification=NotificationState(level="warning", message=message),
             )
         )
 

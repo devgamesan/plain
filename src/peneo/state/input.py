@@ -108,6 +108,7 @@ BROWSING_KEYMAP = {
     "s": "cycle_sort",
     "d": "toggle_directories_first",
     "delete": "delete_targets",
+    "shift+delete": "permanent_delete_targets",
     "e": "open_in_editor",
     "right": "enter_directory",
     "l": "enter_directory",
@@ -369,7 +370,12 @@ def _dispatch_browsing_input(
     if command == "delete_targets":
         if not target_paths:
             return _warn("Nothing to delete")
-        return _supported(BeginDeleteTargets(target_paths))
+        return _supported(BeginDeleteTargets(target_paths, mode="trash"))
+
+    if command == "permanent_delete_targets":
+        if not target_paths:
+            return _warn("Nothing to permanently delete")
+        return _supported(BeginDeleteTargets(target_paths, mode="permanent"))
 
     if command == "show_attributes":
         return _supported(ShowAttributes())

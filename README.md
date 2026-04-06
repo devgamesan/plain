@@ -18,7 +18,7 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 
 ## Features
 
-- Simple three-pane layout for parent / current / child directories. You can navigate directories, multi-select items, copy, cut, paste, move items to trash, copy paths, rename, create files or directories, extract archives, create zip archives, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
+- Simple three-pane layout for parent / current / child directories. You can navigate directories, multi-select items, copy, cut, paste, move items to trash, permanently delete items with `Shift+Delete`, copy paths, rename, create files or directories, extract archives, create zip archives, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
 
   ![](docs/resources/screen-entire-screen.png)
 
@@ -79,6 +79,7 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 | `n` | Create new file |
 | `N` | Create new directory |
 | `Delete` | Move selected items to trash |
+| `Shift+Delete` | Permanently delete selected items |
 | `i` | Show file attributes |
 | `e` | Open file in terminal editor |
 | `!` | Execute shell command |
@@ -260,7 +261,7 @@ The supported settings are:
 | `display` | `default_sort_field` | `name` / `modified` / `size` | Default sort field for the main pane. |
 | `display` | `default_sort_descending` | `true` / `false` | Starts the main-pane sort in descending order when enabled. |
 | `display` | `directories_first` | `true` / `false` | Keeps directories grouped before files in the main pane. |
-| `behavior` | `confirm_delete` | `true` / `false` | Shows a confirmation dialog before moving items to trash. |
+| `behavior` | `confirm_delete` | `true` / `false` | Shows a confirmation dialog before moving items to trash. Permanent delete via `Shift+Delete` always asks for confirmation. |
 | `behavior` | `paste_conflict_action` | `prompt` / `overwrite` / `skip` / `rename` | Chooses the default paste-conflict behavior. `prompt` keeps the conflict dialog enabled. |
 | `logging` | `enabled` | `true` / `false` | Enables file output for startup failures and unhandled exceptions. |
 | `logging` | `level` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` | Log level for file output. Defaults to `ERROR`. Requires app restart to take effect. |
@@ -330,6 +331,7 @@ The main keys are listed below.
 | Normal | `p` | Paste into the current directory |
 | Normal | `c` | Copy the selected path list, or the focused path when nothing is selected, to the system clipboard |
 | Normal | `Delete` | Move the selected items, or the focused item, to trash (confirmation is enabled by default and can be configured) |
+| Normal | `Shift+Delete` | Permanently delete the selected items, or the focused item, after a required confirmation dialog |
 | Normal | `F2` | Start rename input for a single target |
 | Normal | `!` | Open the one-line shell command dialog for the current directory |
 | Normal | `b` | Add or remove the current directory from bookmarks |
@@ -356,7 +358,7 @@ The main keys are listed below.
 | Split terminal focus | `Ctrl+T` | Close the embedded split terminal |
 | Split terminal focus | `Ctrl+V` | Paste clipboard contents into the terminal |
 | Name input | Text input / `Backspace` / `Enter` / `Esc` | Edit, confirm, or cancel rename/create input |
-| Confirmation dialog | `Enter` / `Esc` | Confirm or cancel delete |
+| Confirmation dialog | `Enter` / `Esc` | Confirm or cancel trash / permanent delete |
 | Confirmation dialog | `o` / `s` / `r` / `Esc` | Resolve a paste conflict with overwrite / skip / rename / cancel |
 
 `e` switches into a terminal editor in the current terminal session rather than opening a separate GUI app window. If both `editor.command` and `$EDITOR` are set, `editor.command` takes precedence.

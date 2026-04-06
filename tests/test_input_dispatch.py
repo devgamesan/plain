@@ -145,6 +145,7 @@ def test_iter_bound_keys_includes_printable_text_input_keys() -> None:
     assert "enter" in keys
     assert "shift+up" in keys
     assert "shift+down" in keys
+    assert "shift+delete" in keys
 
 
 def test_browsing_j_dispatches_move_cursor() -> None:
@@ -955,6 +956,33 @@ def test_browsing_delete_warns_when_no_target_exists() -> None:
 
     assert actions == (
         SetNotification(NotificationState(level="warning", message="Nothing to delete")),
+    )
+
+
+def test_browsing_shift_delete_dispatches_permanent_delete_targets() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="shift+delete")
+
+    assert actions == (
+        SetNotification(None),
+        BeginDeleteTargets(("/home/tadashi/develop/peneo/docs",), mode="permanent"),
+    )
+
+
+def test_browsing_shift_delete_warns_when_no_target_exists() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        current_pane=replace(state.current_pane, entries=(), cursor_path=None),
+    )
+
+    actions = dispatch_key_input(state, key="shift+delete")
+
+    assert actions == (
+        SetNotification(
+            NotificationState(level="warning", message="Nothing to permanently delete")
+        ),
     )
 
 

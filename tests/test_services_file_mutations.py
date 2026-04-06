@@ -2,12 +2,13 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from peneo.models import CreatePathRequest, RenameRequest, TrashDeleteRequest
+from peneo.models import CreatePathRequest, DeleteRequest, RenameRequest
 from peneo.services import LiveFileMutationService
 
 
 @dataclass
 class StubFileOperationAdapter:
+    deleted_paths: list[str] = field(default_factory=list)
     trashed_paths: list[str] = field(default_factory=list)
     failing_paths: set[str] = field(default_factory=set)
     moved_paths: list[tuple[str, str]] = field(default_factory=list)
@@ -21,7 +22,9 @@ class StubFileOperationAdapter:
         return source == destination
 
     def remove_path(self, path: str) -> None:
-        raise NotImplementedError
+        if path in self.failing_paths:
+            raise OSError("permission denied")
+        self.deleted_paths.append(path)
 
     def copy_path(self, source: str, destination: str) -> None:
         raise NotImplementedError
@@ -55,7 +58,7 @@ def test_file_mutation_service_trashes_single_path() -> None:
     service = LiveFileMutationService(adapter=adapter)
 
     result = service.execute(
-        TrashDeleteRequest(paths=("/tmp/peneo/docs",))
+        DeleteRequest(paths=("/tmp/peneo/docs",), mode="trash")
     )
 
     assert adapter.trashed_paths == ["/tmp/peneo/docs"]
@@ -148,7 +151,7 @@ def test_file_mutation_service_reports_partial_delete_failures() -> None:
     service = LiveFileMutationService(adapter=adapter)
 
     result = service.execute(
-        TrashDeleteRequest(paths=("/tmp/peneo/docs", "/tmp/peneo/src"))
+        DeleteRequest(paths=("/tmp/peneo/docs", "/tmp/peneo/src"), mode="trash")
     )
 
     assert adapter.trashed_paths == ["/tmp/peneo/docs"]
@@ -161,7 +164,7 @@ def test_file_mutation_service_raises_when_all_deletes_fail() -> None:
     service = LiveFileMutationService(adapter=adapter)
 
     with pytest.raises(OSError, match="Failed to trash docs"):
-        service.execute(TrashDeleteRequest(paths=("/tmp/peneo/docs",)))
+        service.execute(DeleteRequest(paths=("/tmp/peneo/docs",), mode="trash"))
 
 
 def test_file_mutation_service_trashes_symlink_without_following_target(tmp_path) -> None:
@@ -171,8 +174,59 @@ def test_file_mutation_service_trashes_symlink_without_following_target(tmp_path
     link.symlink_to(target)
     service = LiveFileMutationService()
 
-    result = service.execute(TrashDeleteRequest(paths=(str(link),)))
+    result = service.execute(DeleteRequest(paths=(str(link),), mode="trash"))
 
     assert link.exists() is False
     assert target.exists()
+    assert result.removed_paths == (str(link),)
+
+
+def test_file_mutation_service_permanently_deletes_single_path() -> None:
+    adapter = StubFileOperationAdapter()
+    service = LiveFileMutationService(adapter=adapter)
+
+    result = service.execute(DeleteRequest(paths=("/tmp/peneo/docs",), mode="permanent"))
+
+    assert adapter.deleted_paths == ["/tmp/peneo/docs"]
+    assert adapter.trashed_paths == []
+    assert result.message == "Deleted 1 item permanently"
+    assert result.removed_paths == ("/tmp/peneo/docs",)
+
+
+def test_file_mutation_service_reports_partial_permanent_delete_failures() -> None:
+    adapter = StubFileOperationAdapter(failing_paths={"/tmp/peneo/src"})
+    service = LiveFileMutationService(adapter=adapter)
+
+    result = service.execute(
+        DeleteRequest(paths=("/tmp/peneo/docs", "/tmp/peneo/src"), mode="permanent")
+    )
+
+    assert adapter.deleted_paths == ["/tmp/peneo/docs"]
+    assert result.level == "warning"
+    assert result.message == "Deleted 1/2 items permanently with 1 failure(s)"
+    assert result.removed_paths == ("/tmp/peneo/docs",)
+
+
+def test_file_mutation_service_raises_when_all_permanent_deletes_fail() -> None:
+    adapter = StubFileOperationAdapter(failing_paths={"/tmp/peneo/docs"})
+    service = LiveFileMutationService(adapter=adapter)
+
+    with pytest.raises(OSError, match="Failed to permanently delete docs"):
+        service.execute(DeleteRequest(paths=("/tmp/peneo/docs",), mode="permanent"))
+
+
+def test_file_mutation_service_permanently_deletes_symlink_without_following_target(
+    tmp_path,
+) -> None:
+    target = tmp_path / "target.txt"
+    target.write_text("secret\n", encoding="utf-8")
+    link = tmp_path / "link.txt"
+    link.symlink_to(target)
+    service = LiveFileMutationService()
+
+    result = service.execute(DeleteRequest(paths=(str(link),), mode="permanent"))
+
+    assert link.exists() is False
+    assert target.exists()
+    assert result.message == "Deleted 1 item permanently"
     assert result.removed_paths == (str(link),)

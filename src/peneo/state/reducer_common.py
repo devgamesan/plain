@@ -10,13 +10,13 @@ from peneo.models import (
     AppConfig,
     CreatePathRequest,
     CreateZipArchiveRequest,
+    DeleteRequest,
     ExternalLaunchRequest,
     ExtractArchiveRequest,
     FileMutationResult,
     PasteRequest,
     PasteSummary,
     RenameRequest,
-    TrashDeleteRequest,
 )
 
 from .actions import Action, RequestDirectorySizes
@@ -249,7 +249,7 @@ def run_external_launch_request(
 
 def run_file_mutation_request(
     state: AppState,
-    request: RenameRequest | CreatePathRequest | TrashDeleteRequest,
+    request: RenameRequest | CreatePathRequest | DeleteRequest,
 ) -> ReduceResult:
     request_id = state.next_request_id
     next_state = replace(

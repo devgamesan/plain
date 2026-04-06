@@ -9,6 +9,7 @@ from peneo.models import (
     CreateKind,
     CreateZipArchiveRequest,
     CreateZipArchiveResult,
+    DeleteMode,
     ExternalLaunchRequest,
     ExtractArchiveRequest,
     ExtractArchiveResult,
@@ -73,6 +74,7 @@ class BeginDeleteTargets:
     """Begin deleting the supplied target paths."""
 
     paths: tuple[str, ...]
+    mode: DeleteMode = "trash"
 
 
 @dataclass(frozen=True)

@@ -1699,6 +1699,23 @@ def test_select_conflict_dialog_state_formats_delete_confirmation() -> None:
     assert dialog.options == ("enter confirm", "esc cancel")
 
 
+def test_select_conflict_dialog_state_formats_permanent_delete_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        delete_confirmation=DeleteConfirmationState(
+            paths=("/home/tadashi/develop/peneo/docs",),
+            mode="permanent",
+        ),
+    )
+
+    dialog = select_conflict_dialog_state(state)
+
+    assert dialog is not None
+    assert dialog.title == "Permanent Delete Confirmation"
+    assert "This cannot be undone" in dialog.message
+    assert dialog.options == ("enter confirm", "esc cancel")
+
+
 def test_select_conflict_dialog_state_formats_extract_confirmation() -> None:
     state = replace(
         build_initial_app_state(),
@@ -1816,6 +1833,21 @@ def test_select_help_bar_for_delete_confirmation() -> None:
     help_state = select_help_bar_state(state)
 
     assert help_state.text == "enter confirm delete | esc cancel"
+
+
+def test_select_help_bar_for_permanent_delete_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        delete_confirmation=DeleteConfirmationState(
+            paths=("/home/tadashi/develop/peneo/docs",),
+            mode="permanent",
+        ),
+    )
+
+    help_state = select_help_bar_state(state)
+
+    assert help_state.text == "enter confirm permanent delete | esc cancel"
 
 
 def test_select_help_bar_for_attribute_dialog() -> None:

@@ -200,8 +200,13 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         return HelpBarState(("type in terminal | esc close | ctrl+v paste",))
     if state.ui_mode == "CONFIRM":
         if state.delete_confirmation is not None:
-            if state.config.help_bar.confirm_delete:
+            if (
+                state.delete_confirmation.mode == "trash"
+                and state.config.help_bar.confirm_delete
+            ):
                 return HelpBarState(state.config.help_bar.confirm_delete)
+            if state.delete_confirmation.mode == "permanent":
+                return HelpBarState(("enter confirm permanent delete | esc cancel",))
             return HelpBarState(("enter confirm delete | esc cancel",))
         if state.archive_extract_confirmation is not None:
             return HelpBarState(("enter continue extraction | esc return to input",))
@@ -459,14 +464,25 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
     """Return dialog content when the app is waiting on conflict input."""
 
     if state.delete_confirmation is not None:
-        target_count = len(state.delete_confirmation.paths)
-        first_name = Path(state.delete_confirmation.paths[0]).name
+        confirmation = state.delete_confirmation
+        target_count = len(confirmation.paths)
+        first_name = Path(confirmation.paths[0]).name
         noun = "item" if target_count == 1 else "items"
-        message = f"Move {target_count} {noun} to trash?"
-        if target_count > 1:
-            message = f"Move {target_count} items to trash? The first target is {first_name}."
+        if confirmation.mode == "permanent":
+            message = f"Permanently delete {target_count} {noun}? This cannot be undone."
+            if target_count > 1:
+                message = (
+                    f"Permanently delete {target_count} items? "
+                    f"The first target is {first_name}. This cannot be undone."
+                )
+            title = "Permanent Delete Confirmation"
+        else:
+            message = f"Move {target_count} {noun} to trash?"
+            if target_count > 1:
+                message = f"Move {target_count} items to trash? The first target is {first_name}."
+            title = "Delete Confirmation"
         return ConflictDialogState(
-            title="Delete Confirmation",
+            title=title,
             message=message,
             options=("enter confirm", "esc cancel"),
         )

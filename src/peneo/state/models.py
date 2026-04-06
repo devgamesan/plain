@@ -10,6 +10,7 @@ from peneo.models import (
     ConflictResolution,
     CreateKind,
     CreateZipArchiveRequest,
+    DeleteMode,
     ExtractArchiveRequest,
     PasteConflict,
     PasteConflictAction,
@@ -119,9 +120,10 @@ class PasteConflictState:
 
 @dataclass(frozen=True)
 class DeleteConfirmationState:
-    """Pending confirmation dialog state for trash deletion."""
+    """Pending confirmation dialog state for trash or permanent deletion."""
 
     paths: tuple[str, ...]
+    mode: DeleteMode = "trash"
 
 
 @dataclass(frozen=True)

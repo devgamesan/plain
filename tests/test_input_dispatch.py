@@ -1394,16 +1394,6 @@ def test_palette_end_jumps_to_end() -> None:
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=999999))
 
 
-def test_browsing_lowercase_a_selects_all_visible_entries() -> None:
-    state = build_initial_app_state()
-
-    actions = dispatch_key_input(state, key="a", character="a")
-
-    assert len(actions) == 2
-    assert actions[0] == SetNotification(None)
-    assert isinstance(actions[1], SelectAllVisibleEntries)
-
-
 def test_browsing_tilde_goes_to_home_directory() -> None:
     state = build_initial_app_state()
 

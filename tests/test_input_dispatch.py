@@ -9,7 +9,9 @@ from peneo.state import (
     BeginDeleteTargets,
     BeginFileSearch,
     BeginFilterInput,
+    BeginGoToPath,
     BeginGrepSearch,
+    BeginHistorySearch,
     BeginRenameInput,
     CancelCommandPalette,
     CancelDeleteConfirmation,
@@ -137,9 +139,9 @@ def test_iter_bound_keys_includes_printable_text_input_keys() -> None:
     assert "/" in keys
     assert ":" in keys
     assert "space" in keys
-    assert "ctrl+a" in keys
-    assert "ctrl+g" in keys
-    assert "ctrl+b" in keys
+    assert "a" in keys
+    assert "g" in keys
+    assert "b" in keys
     assert "." in keys
     assert "enter" in keys
     assert "shift+up" in keys
@@ -296,57 +298,57 @@ def test_browsing_uppercase_printable_key_is_ignored() -> None:
     assert actions == ()
 
 
-def test_browsing_ctrl_f_begins_file_search() -> None:
+def test_browsing_lowercase_f_begins_file_search() -> None:
     state = build_initial_app_state()
 
-    actions = dispatch_key_input(state, key="ctrl+f")
+    actions = dispatch_key_input(state, key="f")
 
     assert len(actions) == 2
     assert isinstance(actions[1], BeginFileSearch)
 
 
-def test_browsing_ctrl_g_begins_grep_search() -> None:
+def test_browsing_lowercase_g_begins_grep_search() -> None:
     state = build_initial_app_state()
 
-    actions = dispatch_key_input(state, key="ctrl+g")
+    actions = dispatch_key_input(state, key="g")
 
     assert len(actions) == 2
     assert isinstance(actions[1], BeginGrepSearch)
 
 
-def test_browsing_ctrl_b_begins_bookmark_search() -> None:
+def test_browsing_lowercase_b_begins_bookmark_search() -> None:
     state = build_initial_app_state()
 
-    actions = dispatch_key_input(state, key="ctrl+b")
+    actions = dispatch_key_input(state, key="b")
 
     assert len(actions) == 2
     assert isinstance(actions[1], BeginBookmarkSearch)
 
 
-def test_browsing_ctrl_n_begins_create_file() -> None:
+def test_browsing_lowercase_n_begins_create_file() -> None:
     state = build_initial_app_state()
 
-    actions = dispatch_key_input(state, key="ctrl+n")
+    actions = dispatch_key_input(state, key="n")
 
     assert len(actions) == 2
     assert isinstance(actions[1], BeginCreateInput)
     assert actions[1].kind == "file"
 
 
-def test_browsing_ctrl_d_begins_create_directory() -> None:
+def test_browsing_capital_N_begins_create_directory() -> None:
     state = build_initial_app_state()
 
-    actions = dispatch_key_input(state, key="ctrl+d")
+    actions = dispatch_key_input(state, key="N")
 
     assert len(actions) == 2
     assert isinstance(actions[1], BeginCreateInput)
     assert actions[1].kind == "dir"
 
 
-def test_browsing_b_adds_bookmark_for_current_directory() -> None:
+def test_browsing_capital_B_adds_bookmark_for_current_directory() -> None:
     state = build_initial_app_state()
 
-    actions = dispatch_key_input(state, key="b", character="b")
+    actions = dispatch_key_input(state, key="B")
 
     assert actions == (
         SetNotification(None),
@@ -354,12 +356,12 @@ def test_browsing_b_adds_bookmark_for_current_directory() -> None:
     )
 
 
-def test_browsing_b_removes_bookmark_for_current_directory() -> None:
+def test_browsing_capital_B_removes_bookmark_for_current_directory() -> None:
     state = build_initial_app_state(
         config=AppConfig(bookmarks=BookmarkConfig(paths=("/home/tadashi/develop/peneo",)))
     )
 
-    actions = dispatch_key_input(state, key="b", character="b")
+    actions = dispatch_key_input(state, key="B")
 
     assert actions == (
         SetNotification(None),
@@ -394,10 +396,10 @@ def test_filter_bound_space_without_character_is_rejected() -> None:
     )
 
 
-def test_browsing_y_dispatches_copy_targets() -> None:
+def test_browsing_lowercase_c_dispatches_copy_targets() -> None:
     state = build_initial_app_state()
 
-    actions = dispatch_key_input(state, key="y", character="y")
+    actions = dispatch_key_input(state, key="c", character="c")
 
     assert actions == (
         SetNotification(None),
@@ -424,10 +426,10 @@ def test_browsing_p_dispatches_paste_clipboard() -> None:
     assert actions == (SetNotification(None), PasteClipboard())
 
 
-def test_browsing_c_dispatches_copy_paths_to_clipboard() -> None:
+def test_browsing_capital_C_dispatches_copy_paths_to_clipboard() -> None:
     state = build_initial_app_state()
 
-    actions = dispatch_key_input(state, key="c", character="c")
+    actions = dispatch_key_input(state, key="C")
 
     assert actions == (SetNotification(None), CopyPathsToClipboard())
 
@@ -543,18 +545,18 @@ def test_browsing_backspace_goes_to_parent_directory() -> None:
     assert actions == (SetNotification(None), GoToParentDirectory())
 
 
-def test_browsing_f5_reloads_current_directory() -> None:
+def test_browsing_capital_R_reloads_current_directory() -> None:
     state = build_initial_app_state()
 
-    actions = dispatch_key_input(state, key="f5")
+    actions = dispatch_key_input(state, key="R")
 
     assert actions == (SetNotification(None), ReloadDirectory())
 
 
-def test_browsing_f2_begins_rename_for_single_target() -> None:
+def test_browsing_lowercase_r_begins_rename_for_single_target() -> None:
     state = build_initial_app_state()
 
-    actions = dispatch_key_input(state, key="f2")
+    actions = dispatch_key_input(state, key="r")
 
     assert actions == (
         SetNotification(None),
@@ -562,7 +564,7 @@ def test_browsing_f2_begins_rename_for_single_target() -> None:
     )
 
 
-def test_browsing_f2_warns_for_multiple_targets() -> None:
+def test_browsing_lowercase_r_warns_for_multiple_targets() -> None:
     state = build_initial_app_state()
     state = replace(
         state,
@@ -577,7 +579,7 @@ def test_browsing_f2_warns_for_multiple_targets() -> None:
         ),
     )
 
-    actions = dispatch_key_input(state, key="f2")
+    actions = dispatch_key_input(state, key="r")
 
     assert actions == (
         SetNotification(
@@ -594,10 +596,10 @@ def test_browsing_colon_opens_command_palette() -> None:
     assert actions == (SetNotification(None), BeginCommandPalette())
 
 
-def test_browsing_ctrl_t_toggles_split_terminal() -> None:
+def test_browsing_lowercase_t_toggles_split_terminal() -> None:
     state = build_initial_app_state()
 
-    actions = dispatch_key_input(state, key="ctrl+t")
+    actions = dispatch_key_input(state, key="t")
 
     assert actions == (SetNotification(None), ToggleSplitTerminal())
 
@@ -846,14 +848,6 @@ def test_split_terminal_focus_sends_bound_space_without_character() -> None:
     assert actions == (SetNotification(None), SendSplitTerminalInput(" "))
 
 
-def test_split_terminal_focus_sends_tab_for_completion() -> None:
-    state = _focused_split_terminal_state()
-
-    actions = dispatch_key_input(state, key="tab")
-
-    assert actions == (SetNotification(None), SendSplitTerminalInput("\t"))
-
-
 def test_split_terminal_focus_sends_delete_sequence() -> None:
     state = _focused_split_terminal_state()
 
@@ -965,10 +959,10 @@ def test_browsing_delete_warns_when_no_target_exists() -> None:
     )
 
 
-def test_browsing_ctrl_a_selects_all_visible_entries() -> None:
+def test_browsing_lowercase_a_selects_all_visible_entries() -> None:
     state = build_initial_app_state()
 
-    actions = dispatch_key_input(state, key="ctrl+a")
+    actions = dispatch_key_input(state, key="a", character="a")
 
     assert actions == (
         SetNotification(None),
@@ -1384,42 +1378,6 @@ def test_busy_key_shows_warning_message() -> None:
     )
 
 
-def test_browsing_home_dispatches_jump_cursor_start() -> None:
-    state = build_initial_app_state()
-
-    actions = dispatch_key_input(state, key="home")
-
-    assert actions[0] == SetNotification(None)
-    assert actions[1] == JumpCursor(
-        position="start",
-        visible_paths=(
-            "/home/tadashi/develop/peneo/docs",
-            "/home/tadashi/develop/peneo/src",
-            "/home/tadashi/develop/peneo/tests",
-            "/home/tadashi/develop/peneo/pyproject.toml",
-            "/home/tadashi/develop/peneo/README.md",
-        ),
-    )
-
-
-def test_browsing_end_dispatches_jump_cursor_end() -> None:
-    state = build_initial_app_state()
-
-    actions = dispatch_key_input(state, key="end")
-
-    assert actions[0] == SetNotification(None)
-    assert actions[1] == JumpCursor(
-        position="end",
-        visible_paths=(
-            "/home/tadashi/develop/peneo/docs",
-            "/home/tadashi/develop/peneo/src",
-            "/home/tadashi/develop/peneo/tests",
-            "/home/tadashi/develop/peneo/pyproject.toml",
-            "/home/tadashi/develop/peneo/README.md",
-        ),
-    )
-
-
 def test_palette_home_jumps_to_start() -> None:
     state = replace(build_initial_app_state(), ui_mode="PALETTE")
 
@@ -1436,25 +1394,53 @@ def test_palette_end_jumps_to_end() -> None:
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=999999))
 
 
-def test_browsing_alt_left_dispatches_go_back() -> None:
+def test_browsing_lowercase_a_selects_all_visible_entries() -> None:
     state = build_initial_app_state()
 
-    actions = dispatch_key_input(state, key="alt+left")
+    actions = dispatch_key_input(state, key="a", character="a")
+
+    assert len(actions) == 2
+    assert actions[0] == SetNotification(None)
+    assert isinstance(actions[1], SelectAllVisibleEntries)
+
+
+def test_browsing_tilde_goes_to_home_directory() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="~")
+
+    assert actions == (SetNotification(None), GoToHomeDirectory())
+
+
+def test_browsing_capital_H_begins_history_search() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="H")
+
+    assert len(actions) == 2
+    assert isinstance(actions[1], BeginHistorySearch)
+
+
+def test_browsing_capital_G_begins_go_to_path() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="G")
+
+    assert len(actions) == 2
+    assert isinstance(actions[1], BeginGoToPath)
+
+
+def test_browsing_open_bracket_dispatches_go_back() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="[")
 
     assert actions == (SetNotification(None), GoBack())
 
 
-def test_browsing_alt_right_dispatches_go_forward() -> None:
+def test_browsing_close_bracket_dispatches_go_forward() -> None:
     state = build_initial_app_state()
 
-    actions = dispatch_key_input(state, key="alt+right")
+    actions = dispatch_key_input(state, key="]")
 
     assert actions == (SetNotification(None), GoForward())
-
-
-def test_browsing_alt_home_dispatches_go_to_home_directory() -> None:
-    state = build_initial_app_state()
-
-    actions = dispatch_key_input(state, key="alt+home")
-
-    assert actions == (SetNotification(None), GoToHomeDirectory())

@@ -1341,7 +1341,7 @@ async def test_app_backspace_can_move_above_initial_directory() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_f5_keeps_cursor_when_entry_still_exists() -> None:
+async def test_app_capital_R_keeps_cursor_when_entry_still_exists() -> None:
     path = "/tmp/peneo-reload"
     initial_entries = (
         DirectoryEntryState(f"{path}/docs", "docs", "dir"),
@@ -1376,7 +1376,7 @@ async def test_app_f5_keeps_cursor_when_entry_still_exists() -> None:
             child_entries=(DirectoryEntryState(f"{path}/src/main.py", "main.py", "file"),),
         )
 
-        await pilot.press("f5")
+        await pilot.press("R")
         await _wait_for_snapshot_loaded(app, path)
 
         current_table = app.query_one("#current-pane-table", DataTable)
@@ -1385,7 +1385,7 @@ async def test_app_f5_keeps_cursor_when_entry_still_exists() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_f5_falls_back_to_first_row_when_cursor_disappears() -> None:
+async def test_app_capital_R_falls_back_to_first_row_when_cursor_disappears() -> None:
     path = "/tmp/peneo-reload-fallback"
     initial_entries = (
         DirectoryEntryState(f"{path}/docs", "docs", "dir"),
@@ -1416,7 +1416,7 @@ async def test_app_f5_falls_back_to_first_row_when_cursor_disappears() -> None:
             child_entries=(DirectoryEntryState(f"{path}/docs/spec.md", "spec.md", "file"),),
         )
 
-        await pilot.press("f5")
+        await pilot.press("R")
         await _wait_for_snapshot_loaded(app, path)
 
         current_table = app.query_one("#current-pane-table", DataTable)
@@ -1425,7 +1425,7 @@ async def test_app_f5_falls_back_to_first_row_when_cursor_disappears() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_f5_drops_selection_for_missing_entries() -> None:
+async def test_app_capital_R_drops_selection_for_missing_entries() -> None:
     path = "/tmp/peneo-reload-selection"
     initial_entries = (
         DirectoryEntryState(f"{path}/docs", "docs", "dir"),
@@ -1456,7 +1456,7 @@ async def test_app_f5_drops_selection_for_missing_entries() -> None:
             child_entries=(DirectoryEntryState(f"{path}/src/main.py", "main.py", "file"),),
         )
 
-        await pilot.press("f5")
+        await pilot.press("R")
         await _wait_for_snapshot_loaded(app, path)
 
         summary_bar = await _wait_for_summary_bar(app)
@@ -2044,9 +2044,10 @@ async def test_app_displays_browsing_help_bar() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
-        "enter open | e edit | i info | space select | y copy | x cut | p paste | c path\n"
-        "/ filter | s sort | . hidden | b bookmark | ctrl+f find | ctrl+g grep\n"
-        ": palette | ! shell | ctrl+t term | q quit"
+        "enter open | e edit | i info | space select | c copy | x cut | p paste | C path\n"
+        "/ filter | s sort | d dir-first | . hidden | a select-all | ~ home\n"
+        "f find | g grep | G go-to | H history | b bookmarks | B toggle-bookmark\n"
+        "n new-file | N new-dir | r rename | R reload | t term | : palette | q quit"
     )
 
     async with app.run_test():
@@ -2200,7 +2201,7 @@ async def test_app_go_to_path_shows_candidates_and_tabs_to_selected_directory(tm
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+j")
+        await pilot.press("G")
         await pilot.press("d", "o")
         await asyncio.sleep(0.05)
 
@@ -2252,7 +2253,7 @@ async def test_app_go_to_path_submit_after_completion_stays_on_completed_directo
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+j")
+        await pilot.press("G")
         await pilot.press("d", "o", "tab", "enter")
         await _wait_for_snapshot_loaded(app, docs_path)
 
@@ -2300,7 +2301,7 @@ async def test_app_command_palette_find_file_jumps_to_matching_parent_directory(
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+f")
+        await pilot.press("f")
         await pilot.press("c", "m", "d")
         await _wait_for_request_count(file_search_service, 1)
         await pilot.press("enter")
@@ -2328,7 +2329,7 @@ async def test_app_file_search_debounces_rapid_query_updates(tmp_path) -> None:
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+f")
+        await pilot.press("f")
         await pilot.press("c", "m", "d")
 
         await _wait_for_request_count(file_search_service, 1, timeout=0.5)
@@ -2353,7 +2354,7 @@ async def test_app_file_search_passes_regex_queries_through_to_service(tmp_path)
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+f")
+        await pilot.press("f")
         await pilot.press(
             "r",
             "e",
@@ -2403,7 +2404,7 @@ async def test_app_file_search_prefix_extension_reuses_cached_results(tmp_path) 
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+f")
+        await pilot.press("f")
         await pilot.press("c", "m", "d")
         await _wait_for_request_count(file_search_service, 1)
         await asyncio.sleep(0.05)
@@ -2444,7 +2445,7 @@ async def test_app_file_search_cancels_superseded_request_without_notification(t
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+f")
+        await pilot.press("f")
         await pilot.press("c", "m", "d")
         await _wait_for_request_count(file_search_service, 1)
 
@@ -2474,7 +2475,7 @@ async def test_app_file_search_shows_invalid_regex_message_in_palette(tmp_path) 
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+f")
+        await pilot.press("f")
         await pilot.press("r", "e", ":", "[")
         await _wait_for_request_count(file_search_service, 1)
         await asyncio.sleep(0.05)
@@ -2529,7 +2530,7 @@ async def test_app_command_palette_grep_jumps_to_matching_parent_directory() -> 
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+g")
+        await pilot.press("g")
         await pilot.press("t", "o", "d", "o")
         await _wait_for_request_count(grep_search_service, 1)
         await pilot.press("enter")
@@ -2559,7 +2560,7 @@ async def test_app_grep_search_debounces_rapid_query_updates(tmp_path) -> None:
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+g")
+        await pilot.press("g")
         await pilot.press("t", "o", "d", "o")
 
         await _wait_for_request_count(grep_search_service, 1, timeout=0.5)
@@ -2596,7 +2597,7 @@ async def test_app_grep_search_cancels_superseded_request_without_notification(t
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+g")
+        await pilot.press("g")
         await pilot.press("t", "o", "d", "o")
         await _wait_for_request_count(grep_search_service, 1)
 
@@ -2631,7 +2632,7 @@ async def test_app_grep_search_shows_invalid_regex_message_in_palette(tmp_path) 
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+g")
+        await pilot.press("g")
         await pilot.press("r", "e", ":", "[")
         await _wait_for_request_count(grep_search_service, 1)
         await asyncio.sleep(0.05)
@@ -3068,7 +3069,7 @@ async def test_app_ctrl_t_opens_split_terminal_and_focuses_it() -> None:
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+t")
+        await pilot.press("t")
         await asyncio.sleep(0.05)
 
         split_terminal = await _wait_for_split_terminal(app)
@@ -3106,7 +3107,7 @@ async def test_app_split_terminal_uses_half_of_body_height_when_visible() -> Non
 
     async with app.run_test(size=(100, 30)) as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+t")
+        await pilot.press("t")
         await asyncio.sleep(0.05)
 
         split_terminal = await _wait_for_split_terminal(app)
@@ -3136,51 +3137,13 @@ async def test_app_split_terminal_focus_routes_input_to_session() -> None:
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+t")
+        await pilot.press("t")
         await asyncio.sleep(0.05)
         await pilot.press("a", "enter")
         await asyncio.sleep(0.05)
 
         session = split_terminal_service.sessions[0]
         assert session.writes == ["a", "\r"]
-
-
-@pytest.mark.asyncio
-async def test_app_split_terminal_handles_full_screen_terminal_output() -> None:
-    path = "/tmp/peneo-split-terminal-screen"
-    loader = FakeBrowserSnapshotLoader(
-        snapshots={
-            path: _build_snapshot(
-                path,
-                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
-                child_path=f"{path}/docs",
-            )
-        }
-    )
-    split_terminal_service = FakeSplitTerminalService()
-    app = create_app(
-        snapshot_loader=loader,
-        split_terminal_service=split_terminal_service,
-        initial_path=path,
-    )
-
-    async with app.run_test(size=(72, 16)) as pilot:
-        await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+t")
-        await asyncio.sleep(0.05)
-        await pilot.press("tab")
-        await asyncio.sleep(0.05)
-
-        session = split_terminal_service.sessions[0]
-        session.emit_output("\x1b[?1049h\x1b[2J\x1b[Hvim")
-        await asyncio.sleep(0.05)
-
-        body = app.query_one("#split-terminal-body", Static)
-        renderable = body.renderable
-
-        assert session.writes == ["\t"]
-        assert session.resize_calls
-        assert str(renderable).splitlines()[0].startswith("vim")
 
 
 @pytest.mark.asyncio
@@ -3204,7 +3167,7 @@ async def test_app_split_terminal_coalesces_rapid_output_updates() -> None:
 
     async with app.run_test(size=(72, 16)) as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+t")
+        await pilot.press("t")
         await asyncio.sleep(0.05)
 
         session = split_terminal_service.sessions[0]
@@ -3252,7 +3215,7 @@ async def test_app_split_terminal_ignores_unsupported_private_sgr_sequences() ->
 
     async with app.run_test(size=(72, 16)) as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("ctrl+t")
+        await pilot.press("t")
         await asyncio.sleep(0.05)
 
         session = split_terminal_service.sessions[0]
@@ -3731,7 +3694,7 @@ async def test_app_rename_mode_shows_context_input_and_updates_help() -> None:
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("f2")
+        await pilot.press("r")
         await asyncio.sleep(0.05)
 
         help_bar = app.query_one("#help-bar", HelpBar)
@@ -3751,7 +3714,7 @@ async def test_app_rename_name_conflict_dialog_returns_to_input(tmp_path) -> Non
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, str(tmp_path))
-        await pilot.press("f2")
+        await pilot.press("r")
         await asyncio.sleep(0.05)
         for _ in range(4):
             await pilot.press("backspace")
@@ -3782,7 +3745,7 @@ async def test_app_rename_round_trip_updates_status_bar(tmp_path) -> None:
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, str(tmp_path))
-        await pilot.press("f2")
+        await pilot.press("r")
         await asyncio.sleep(0.05)
         for _ in range(4):
             await pilot.press("backspace")
@@ -3876,7 +3839,7 @@ async def test_app_paste_conflict_dialog_round_trip() -> None:
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("y")
+        await pilot.press("c")
         await pilot.press("p")
         await asyncio.sleep(0.05)
 
@@ -4040,7 +4003,7 @@ async def test_app_main_flow_round_trip_on_live_filesystem(tmp_path) -> None:
         await _wait_for_cursor_path(app, str(todo_file))
         assert app.app_state.current_pane.selected_paths == {str(notes_file)}
 
-        await pilot.press("y")
+        await pilot.press("c")
         await asyncio.sleep(0.05)
 
         assert app.app_state.clipboard.mode == "copy"

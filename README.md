@@ -13,7 +13,7 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 - **No memorization needed**: Common actions are always visible in the help bar
 - **Never get lost**: All actions can be called from the command palette
 - **Clear 3-pane layout**: Parent, current, and child directories displayed side by side
-- **Embedded terminal**: Seamlessly switch between browsing and shell with `Ctrl+T`
+- **Embedded terminal**: Seamlessly switch between browsing and shell with `t`
 - **Powerful search**: Jump directly to files with recursive file search and grep search
 
 ## Features
@@ -26,7 +26,7 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 
   ![](docs/resources/screen-command-palette.png)
 
-- An embedded terminal can be opened below the browser panes. `Ctrl+T` switches quickly between the browser and terminal, and the terminal starts in the current directory so you can move between browsing and shell work without changing directories manually.
+- An embedded terminal can be opened below the browser panes. `t` switches quickly between the browser and terminal, and the terminal starts in the current directory so you can move between browsing and shell work without changing directories manually.
 
   ![](docs/resources/screen-split-terminal.png)
 
@@ -55,6 +55,65 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
   ![](docs/resources/screen-terminal-editor.png)
 
 - Files and directories can be opened with the OS default application. For example, you can open the current directory in the OS file manager, open a file in VS Code if it is associated on the OS side, or launch an external terminal window rooted at the current directory.
+
+## Keybindings
+
+### Normal Mode
+
+| Key | Action |
+| --- | ------ |
+| `j` / `↓` | Move down |
+| `k` / `↑` | Move up |
+| `h` / `←` / `Backspace` | Go to parent directory |
+| `l` / `→` | Enter directory |
+| `Shift+↑` / `Shift+↓` | Extend selection |
+| `Enter` | Open file/enter directory |
+| `Space` | Toggle selection and move down |
+| `a` | Select all visible entries |
+| `Esc` | Clear selection / Cancel filter |
+| `c` | Copy selected items |
+| `x` | Cut selected items |
+| `p` | Paste from clipboard |
+| `C` | Copy paths to clipboard |
+| `r` | Rename selected item |
+| `n` | Create new file |
+| `N` | Create new directory |
+| `Delete` | Move selected items to trash |
+| `i` | Show file attributes |
+| `e` | Open file in terminal editor |
+| `!` | Execute shell command |
+| `f` | Find files (recursive search) |
+| `g` | Grep search |
+| `/` | Filter files |
+| `H` | Show history |
+| `b` | Show bookmarks |
+| `B` | Toggle current directory bookmark |
+| `G` | Go to path |
+| `~` | Go to home directory |
+| `.` | Toggle hidden files |
+| `s` | Cycle sort |
+| `d` | Toggle directories-first |
+| `R` | Reload directory |
+| `t` | Toggle split terminal |
+| `:` | Open command palette |
+| `q` | Quit |
+
+### Split Terminal Mode
+
+| Key | Action |
+| --- | ------ |
+| Any printable character | Send to terminal |
+| `Ctrl+V` | Paste from clipboard |
+| `Esc` | Close split terminal |
+
+### Input Dialogs
+
+| Key | Action |
+| --- | ------ |
+| `Enter` | Confirm |
+| `Esc` | Cancel |
+| `Tab` | Complete (where supported) |
+| `Ctrl+V` | Paste from clipboard |
 
 ## Supported OS
 
@@ -91,7 +150,7 @@ Peneo itself can be installed and started with `uv`, but some features depend on
 
 #### Ubuntu / Debian
 
-- For grep search (`Ctrl+G`): `ripgrep` (`rg`)
+- For grep search (`g`): `ripgrep` (`rg`)
 - For copy path:
   - X11: `xclip`
   - Wayland: `wl-copy`
@@ -110,7 +169,7 @@ sudo apt install ripgrep wl-clipboard
 
 #### Ubuntu (WSL)
 
-- For grep search (`Ctrl+G`): `ripgrep` (`rg`)
+- For grep search (`g`): `ripgrep` (`rg`)
 - For copy path:
   - `clip.exe` is usually available
   - Linux-side `xclip` / `wl-copy` can also be used when needed
@@ -124,7 +183,7 @@ sudo apt install ripgrep wslu
 
 #### macOS
 
-- For grep search (`Ctrl+G`): `ripgrep` (`rg`)
+- For grep search (`g`): `ripgrep` (`rg`)
 - For copy path: the built-in `pbcopy`
 
 Install example:

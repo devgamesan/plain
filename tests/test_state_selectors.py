@@ -933,14 +933,16 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     help_state = select_help_bar_state(state)
 
     assert help_state.lines == (
-        "enter open | e edit | i info | space select | y copy | x cut | p paste | c path",
-        "/ filter | s sort | . hidden | b bookmark | ctrl+f find | ctrl+g grep",
-        ": palette | ! shell | ctrl+t term | q quit",
+        "enter open | e edit | i info | space select | c copy | x cut | p paste | C path",
+        "/ filter | s sort | d dir-first | . hidden | a select-all | ~ home",
+        "f find | g grep | G go-to | H history | b bookmarks | B toggle-bookmark",
+        "n new-file | N new-dir | r rename | R reload | t term | : palette | q quit",
     )
     assert help_state.text == (
-        "enter open | e edit | i info | space select | y copy | x cut | p paste | c path\n"
-        "/ filter | s sort | . hidden | b bookmark | ctrl+f find | ctrl+g grep\n"
-        ": palette | ! shell | ctrl+t term | q quit"
+        "enter open | e edit | i info | space select | c copy | x cut | p paste | C path\n"
+        "/ filter | s sort | d dir-first | . hidden | a select-all | ~ home\n"
+        "f find | g grep | G go-to | H history | b bookmarks | B toggle-bookmark\n"
+        "n new-file | N new-dir | r rename | R reload | t term | : palette | q quit"
     )
 
 
@@ -965,7 +967,7 @@ def test_select_help_bar_for_split_terminal_focus() -> None:
 
     help_state = select_help_bar_state(state)
 
-    assert help_state.text == "type in terminal | ctrl+t close | ctrl+v paste"
+    assert help_state.text == "type in terminal | esc close | ctrl+v paste"
 
 
 def test_select_status_bar_shows_split_terminal_focus_when_idle() -> None:

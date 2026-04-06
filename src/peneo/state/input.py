@@ -101,9 +101,9 @@ BROWSING_KEYMAP = {
     "left": "go_to_parent",
     "backspace": "go_to_parent",
     "h": "go_to_parent",
-    "f5": "reload_directory",
+    "R": "reload_directory",
     "q": "exit_current_path",
-    "f2": "begin_rename",
+    "r": "begin_rename",
     "!": "begin_shell_command",
     ":": "begin_command_palette",
     "s": "cycle_sort",
@@ -113,27 +113,23 @@ BROWSING_KEYMAP = {
     "right": "enter_directory",
     "l": "enter_directory",
     "enter": "enter_or_open",
-    "ctrl+t": "toggle_split_terminal",
-    "ctrl+f": "begin_file_search",
-    "ctrl+g": "begin_grep_search",
-    "ctrl+a": "select_all",
-    "y": "copy_targets",
+    "t": "toggle_split_terminal",
+    "f": "begin_file_search",
+    "g": "begin_grep_search",
+    "a": "select_all",
+    "c": "copy_targets",
     "x": "cut_targets",
     "p": "paste_clipboard",
-    "home": "cursor_home",
-    "end": "cursor_end",
-    "alt+left": "go_back",
-    "alt+right": "go_forward",
-    "alt+home": "go_to_home_directory",
-    "ctrl+o": "begin_history_search",
-    "ctrl+b": "begin_bookmark_search",
-    "b": "toggle_bookmark",
-    "c": "copy_paths_to_clipboard",
-    "ctrl+j": "begin_go_to_path",
-    "ctrl+n": "create_file",
-    "ctrl+d": "create_dir",
-    "pageup": "cursor_pageup",
-    "pagedown": "cursor_pagedown",
+    "~": "go_to_home_directory",
+    "H": "begin_history_search",
+    "b": "begin_bookmark_search",
+    "B": "toggle_bookmark",
+    "C": "copy_paths_to_clipboard",
+    "G": "begin_go_to_path",
+    "n": "create_file",
+    "N": "create_dir",
+    "[": "go_back",
+    "]": "go_forward",
 }
 
 CONFLICT_KEYMAP = {
@@ -144,13 +140,11 @@ CONFLICT_KEYMAP = {
 }
 
 TERMINAL_KEYMAP = {
-    "tab": "terminal_tab",
-    "ctrl+t": "toggle_terminal",
     "ctrl+v": "paste_from_clipboard",
     "enter": "terminal_enter",
     "backspace": "terminal_backspace",
     "delete": "terminal_delete",
-    "escape": "terminal_escape",
+    "escape": "toggle_terminal",
     "home": "terminal_home",
     "end": "terminal_end",
     "pageup": "terminal_pageup",
@@ -266,20 +260,6 @@ def _dispatch_browsing_input(
         return _supported(
             MoveCursorAndSelectRange(delta=1, visible_paths=visible_paths)
         )
-
-    if command == "cursor_home":
-        return _supported(JumpCursor(position="start", visible_paths=visible_paths))
-
-    if command == "cursor_end":
-        return _supported(JumpCursor(position="end", visible_paths=visible_paths))
-
-    if command == "cursor_pageup":
-        visible = compute_search_visible_window(state.terminal_height)
-        return _supported(MoveCursor(delta=-visible, visible_paths=visible_paths))
-
-    if command == "cursor_pagedown":
-        visible = compute_search_visible_window(state.terminal_height)
-        return _supported(MoveCursor(delta=visible, visible_paths=visible_paths))
 
     if command == "toggle_selection" and state.current_pane.cursor_path is not None:
         return _supported(
@@ -432,9 +412,6 @@ def _dispatch_split_terminal_input(
     if command == "paste_from_clipboard":
         return _supported(PasteFromClipboardToTerminal())
 
-    if command == "terminal_escape":
-        return _supported(ToggleSplitTerminal())
-
     if key == "enter":
         return _supported(SendSplitTerminalInput("\r"))
 
@@ -443,9 +420,6 @@ def _dispatch_split_terminal_input(
 
     if key == "delete":
         return _supported(SendSplitTerminalInput("\x1b[3~"))
-
-    if key == "escape":
-        return _supported(SendSplitTerminalInput("\x1b"))
 
     if key == "home":
         return _supported(SendSplitTerminalInput("\x1b[H"))

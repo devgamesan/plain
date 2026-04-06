@@ -197,7 +197,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     if state.split_terminal.visible:
         if state.config.help_bar.split_terminal:
             return HelpBarState(state.config.help_bar.split_terminal)
-        return HelpBarState(("type in terminal | ctrl+t close | ctrl+v paste",))
+        return HelpBarState(("type in terminal | esc close | ctrl+v paste",))
     if state.ui_mode == "CONFIRM":
         if state.delete_confirmation is not None:
             if state.config.help_bar.confirm_delete:
@@ -288,9 +288,10 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         return HelpBarState(state.config.help_bar.browsing)
     return HelpBarState(
         (
-            "enter open | e edit | i info | space select | y copy | x cut | p paste | c path",
-            "/ filter | s sort | . hidden | b bookmark | ctrl+f find | ctrl+g grep",
-            ": palette | ! shell | ctrl+t term | q quit",
+            "enter open | e edit | i info | space select | c copy | x cut | p paste | C path",
+            "/ filter | s sort | d dir-first | . hidden | a select-all | ~ home",
+            "f find | g grep | G go-to | H history | b bookmarks | B toggle-bookmark",
+            "n new-file | N new-dir | r rename | R reload | t term | : palette | q quit",
         )
     )
 

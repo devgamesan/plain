@@ -8,7 +8,13 @@
 
 [日本語版 README](README.ja.md)
 
-Peneo is a simple TUI file manager. Its three-pane layout shows the parent, current, and child directories side by side, aiming to feel closer to a GUI file explorer than to a keyboard-heavy power-user tool. Peneo is designed so that you can operate it without memorizing a large keymap: common actions stay visible in the help bar at the bottom, and less-frequent actions are available from the command palette.
+Peneo is a TUI file manager you can use without memorizing keybindings. Common actions stay visible in the help bar at the bottom, and less-frequent actions are available from the command palette.
+
+- **No memorization needed**: Common actions are always visible in the help bar
+- **Never get lost**: All actions can be called from the command palette
+- **Clear 3-pane layout**: Parent, current, and child directories displayed side by side
+- **Embedded terminal**: Seamlessly switch between browsing and shell with `Ctrl+T`
+- **Powerful search**: Jump directly to files with recursive file search and grep search
 
 ## Features
 

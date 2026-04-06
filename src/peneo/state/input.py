@@ -43,7 +43,6 @@ from .actions import (
     GoForward,
     GoToHomeDirectory,
     GoToParentDirectory,
-    JumpCursor,
     MoveCommandPaletteCursor,
     MoveConfigEditorCursor,
     MoveCursor,

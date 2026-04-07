@@ -53,6 +53,10 @@ from .file_mutations import (
     FileMutationService,
     LiveFileMutationService,
 )
+from .file_preview import (
+    FilePreviewService,
+    LiveFilePreviewService,
+)
 from .file_search import (
     FakeFileSearchService,
     FileSearchService,
@@ -104,6 +108,7 @@ __all__ = [
     "default_zip_destination",
     "DirectorySizeService",
     "ExternalLaunchService",
+    "FilePreviewService",
     "FakeZipCompressService",
     "FileSearchService",
     "GrepSearchService",
@@ -124,6 +129,7 @@ __all__ = [
     "LiveArchiveExtractService",
     "LiveArchiveListService",
     "LiveExternalLaunchService",
+    "LiveFilePreviewService",
     "LiveFileSearchService",
     "LiveGrepSearchService",
     "LiveFileMutationService",

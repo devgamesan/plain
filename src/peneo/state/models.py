@@ -307,6 +307,15 @@ class CommandPaletteState:
 
 
 @dataclass(frozen=True)
+class FilePreviewState:
+    """File preview content and metadata."""
+
+    path: str | None = None
+    content: str | None = None
+    error: str | None = None
+
+
+@dataclass(frozen=True)
 class SplitTerminalState:
     """Embedded split-terminal session state."""
 
@@ -365,6 +374,7 @@ class AppState:
     directory_size_cache: tuple[DirectorySizeCacheEntry, ...] = ()
     directory_size_delta: DirectorySizeDeltaState = DirectorySizeDeltaState()
     current_pane_delta: CurrentPaneDeltaState = CurrentPaneDeltaState()
+    file_preview: FilePreviewState = FilePreviewState()
     pending_browser_snapshot_request_id: int | None = None
     pending_child_pane_request_id: int | None = None
     pending_paste_request_id: int | None = None
@@ -378,6 +388,7 @@ class AppState:
     pending_directory_size_request_id: int | None = None
     pending_config_save_request_id: int | None = None
     pending_shell_command_request_id: int | None = None
+    pending_file_preview_request_id: int | None = None
     terminal_height: int = 24
     current_pane_projection_mode: CurrentPaneProjectionMode = "full"
     current_pane_window_start: int = 0

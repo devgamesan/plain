@@ -19,6 +19,7 @@ from peneo.models import (
     EditorConfig,
     HelpBarConfig,
     LoggingConfig,
+    PreviewConfig,
     TerminalConfig,
 )
 from peneo.models.config import BehaviorConfig
@@ -93,6 +94,7 @@ class AppConfigLoader:
         logging = _load_logging_config(document.get("logging"), warnings)
         bookmarks = _load_bookmark_config(document.get("bookmarks"), warnings)
         help_bar = _load_help_bar_config(document.get("help_bar"), warnings)
+        preview = _load_preview_config(document.get("preview"), warnings)
         return ConfigLoadResult(
             config=AppConfig(
                 terminal=terminal,
@@ -102,6 +104,7 @@ class AppConfigLoader:
                 logging=logging,
                 bookmarks=bookmarks,
                 help_bar=help_bar,
+                preview=preview,
             ),
             path=str(path),
             warnings=tuple(warnings),
@@ -362,6 +365,40 @@ def _load_help_lines(section: dict[str, object], key: str, warnings: list[str]) 
     return tuple(lines)
 
 
+def _load_preview_config(section: object, warnings: list[str]) -> PreviewConfig:
+    config = PreviewConfig()
+    if section is None:
+        return config
+    if not isinstance(section, dict):
+        warnings.append("preview must be a table; using defaults.")
+        return config
+
+    config = replace(
+        config,
+        enabled=_read_bool(
+            section,
+            key="enabled",
+            default=config.enabled,
+            warnings=warnings,
+            section_name="preview",
+        ),
+    )
+
+    max_size_bytes = section.get("max_size_bytes", config.max_size_bytes)
+    if isinstance(max_size_bytes, int) and max_size_bytes > 0:
+        config = replace(config, max_size_bytes=max_size_bytes)
+    elif "max_size_bytes" in section:
+        warnings.append("preview.max_size_bytes must be a positive integer; using default.")
+
+    max_lines = section.get("max_lines", config.max_lines)
+    if isinstance(max_lines, int) and max_lines > 0:
+        config = replace(config, max_lines=max_lines)
+    elif "max_lines" in section:
+        warnings.append("preview.max_lines must be a positive integer; using default.")
+
+    return config
+
+
 def _load_logging_config(section: object, warnings: list[str]) -> LoggingConfig:
     config = LoggingConfig()
     if section is None:
@@ -530,6 +567,12 @@ def render_app_config(config: AppConfig) -> str:
         detail = {help_bar_detail}
         busy = {help_bar_busy}
         split_terminal = {help_bar_split_terminal}
+
+        [preview]
+        # File preview settings.
+        enabled = {preview_enabled}
+        max_size_bytes = {preview_max_size_bytes}
+        max_lines = {preview_max_lines}
         """
     ).format(
         linux=_render_command_array(config.terminal.linux),
@@ -566,6 +609,9 @@ def render_app_config(config: AppConfig) -> str:
         help_bar_detail=_render_help_lines(config.help_bar.detail),
         help_bar_busy=_render_help_lines(config.help_bar.busy),
         help_bar_split_terminal=_render_help_lines(config.help_bar.split_terminal),
+        preview_enabled=_render_bool(config.preview.enabled),
+        preview_max_size_bytes=str(config.preview.max_size_bytes),
+        preview_max_lines=str(config.preview.max_lines),
     ).lstrip()
 
 

@@ -781,6 +781,31 @@ class ShellCommandFailed:
 
 
 @dataclass(frozen=True)
+class RequestFilePreview:
+    """Request file preview content loading."""
+
+    path: str
+
+
+@dataclass(frozen=True)
+class FilePreviewLoaded:
+    """Apply loaded file preview content."""
+
+    request_id: int
+    path: str
+    content: str
+
+
+@dataclass(frozen=True)
+class FilePreviewFailed:
+    """Apply a failed file preview load."""
+
+    request_id: int
+    path: str
+    message: str
+
+
+@dataclass(frozen=True)
 class SplitTerminalStarted:
     """Mark the split terminal session as ready."""
 
@@ -953,4 +978,7 @@ Action = (
     | ConfigSaveCompleted
     | ConfigSaveFailed
     | SetTerminalHeight
+    | RequestFilePreview
+    | FilePreviewLoaded
+    | FilePreviewFailed
 )

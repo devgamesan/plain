@@ -168,6 +168,16 @@ class RunShellCommandEffect:
     command: str
 
 
+@dataclass(frozen=True)
+class LoadFilePreviewEffect:
+    """Request file preview content loading."""
+
+    request_id: int
+    path: str
+    max_size: int
+    max_lines: int
+
+
 Effect = (
     LoadBrowserSnapshotEffect
     | LoadChildPaneSnapshotEffect
@@ -187,6 +197,7 @@ Effect = (
     | CloseSplitTerminalEffect
     | RunConfigSaveEffect
     | RunShellCommandEffect
+    | LoadFilePreviewEffect
 )
 
 

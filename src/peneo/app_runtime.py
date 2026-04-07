@@ -22,7 +22,10 @@ from peneo.models import (
     PasteExecutionResult,
     ShellCommandResult,
 )
-from peneo.services import InvalidFileSearchQueryError, InvalidGrepSearchQueryError
+from peneo.services import (
+    InvalidFileSearchQueryError,
+    InvalidGrepSearchQueryError,
+)
 from peneo.state import (
     ArchiveExtractCompleted,
     ArchiveExtractFailed,
@@ -46,12 +49,15 @@ from peneo.state import (
     ExternalLaunchFailed,
     FileMutationCompleted,
     FileMutationFailed,
+    FilePreviewFailed,
+    FilePreviewLoaded,
     FileSearchCompleted,
     FileSearchFailed,
     GrepSearchCompleted,
     GrepSearchFailed,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
+    LoadFilePreviewEffect,
     NotificationState,
     PasteFromClipboardEffect,
     RunArchiveExtractEffect,
@@ -348,6 +354,25 @@ def schedule_shell_command(app: Any, effect: RunShellCommandEffect) -> None:
             name=f"shell-command:{effect.request_id}",
             group="shell-command",
             description=effect.cwd,
+            exclusive=True,
+        ),
+    )
+
+
+def schedule_file_preview(app: Any, effect: LoadFilePreviewEffect) -> None:
+    _run_worker(
+        app,
+        effect,
+        partial(
+            app._file_preview_service.load_file_preview,
+            path=effect.path,
+            max_size=effect.max_size,
+            max_lines=effect.max_lines,
+        ),
+        _WorkerSpec(
+            name=f"file-preview:{effect.request_id}",
+            group="file-preview",
+            description=effect.path,
             exclusive=True,
         ),
     )
@@ -794,6 +819,7 @@ def _close_split_terminal_effect(app: Any, effect: CloseSplitTerminalEffect) -> 
 _EFFECT_SCHEDULERS = (
     (LoadBrowserSnapshotEffect, schedule_browser_snapshot),
     (LoadChildPaneSnapshotEffect, schedule_child_pane_snapshot),
+    (LoadFilePreviewEffect, schedule_file_preview),
     (RunArchivePreparationEffect, schedule_archive_preparation),
     (RunArchiveExtractEffect, schedule_archive_extract),
     (RunZipCompressPreparationEffect, schedule_zip_compress_preparation),
@@ -972,6 +998,38 @@ def _complete_shell_command(
         ShellCommandCompleted(
             request_id=effect.request_id,
             result=result,
+        ),
+    )
+
+
+def _complete_file_preview(
+    effect: LoadFilePreviewEffect,
+    result: tuple[str, str | None, str | None],
+) -> tuple[Any, ...]:
+    highlighted_content, plain_content, error_message = result
+    if error_message is not None:
+        return (
+            FilePreviewFailed(
+                request_id=effect.request_id,
+                path=effect.path,
+                message=error_message,
+            ),
+        )
+    # Use highlighted content if available, otherwise use plain content
+    content = highlighted_content if highlighted_content is not None else plain_content
+    if content is None:
+        return (
+            FilePreviewFailed(
+                request_id=effect.request_id,
+                path=effect.path,
+                message="Failed to load file content",
+            ),
+        )
+    return (
+        FilePreviewLoaded(
+            request_id=effect.request_id,
+            path=effect.path,
+            content=content,
         ),
     )
 
@@ -1155,6 +1213,20 @@ def _failed_shell_command(
     )
 
 
+def _failed_file_preview(
+    effect: LoadFilePreviewEffect,
+    error: BaseException | None,
+    message: str,
+) -> tuple[Any, ...]:
+    return (
+        FilePreviewFailed(
+            request_id=effect.request_id,
+            path=effect.path,
+            message=message,
+        ),
+    )
+
+
 def _failed_file_search(
     effect: RunFileSearchEffect,
     error: BaseException | None,
@@ -1198,6 +1270,7 @@ _RESULT_COMPLETE_HANDLERS: tuple[tuple[type[Any], CompleteActionHandler], ...] =
 _COMPLETE_ACTION_HANDLERS: tuple[tuple[type[Any], CompleteActionHandler], ...] = (
     (LoadBrowserSnapshotEffect, _complete_browser_snapshot),
     (LoadChildPaneSnapshotEffect, _complete_child_pane_snapshot),
+    (LoadFilePreviewEffect, _complete_file_preview),
     (RunConfigSaveEffect, _complete_config_save),
     (RunDirectorySizeEffect, _complete_directory_sizes),
     (RunExternalLaunchEffect, _complete_external_launch),
@@ -1218,6 +1291,7 @@ _FAILED_ACTION_HANDLERS: tuple[tuple[type[Any], FailureActionHandler], ...] = (
     (RunConfigSaveEffect, _failed_config_save),
     (RunDirectorySizeEffect, _failed_directory_sizes),
     (RunExternalLaunchEffect, _failed_external_launch),
+    (LoadFilePreviewEffect, _failed_file_preview),
     (RunShellCommandEffect, _failed_shell_command),
     (RunFileSearchEffect, _failed_file_search),
     (RunGrepSearchEffect, _failed_grep_search),

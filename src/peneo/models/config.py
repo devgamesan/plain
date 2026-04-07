@@ -86,6 +86,15 @@ class HelpBarConfig:
 
 
 @dataclass(frozen=True)
+class PreviewConfig:
+    """File preview settings."""
+
+    enabled: bool = True
+    max_size_bytes: int = 1024 * 1024  # 1MB
+    max_lines: int = 100
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """Normalized application configuration."""
 
@@ -96,6 +105,7 @@ class AppConfig:
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     bookmarks: BookmarkConfig = field(default_factory=BookmarkConfig)
     help_bar: HelpBarConfig = field(default_factory=HelpBarConfig)
+    preview: PreviewConfig = field(default_factory=PreviewConfig)
 
 
 @dataclass(frozen=True)

@@ -17,6 +17,7 @@ from .reducer_common import done
 from .reducer_mutations import handle_mutation_action
 from .reducer_navigation import handle_navigation_action
 from .reducer_palette import handle_palette_action
+from .reducer_preview import handle_preview_action
 from .reducer_terminal_config import handle_terminal_config_action
 from .selectors import compute_current_pane_visible_window, select_visible_current_entry_states
 
@@ -43,6 +44,7 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
         handle_navigation_action,
         handle_mutation_action,
         handle_palette_action,
+        handle_preview_action,
         handle_terminal_config_action,
     ):
         logger.debug("Trying handler: %s for action: %s", handler.__name__, type(action).__name__)

@@ -34,6 +34,7 @@ from peneo.services import (
     DirectorySizeService,
     ExternalLaunchService,
     FileMutationService,
+    FilePreviewService,
     FileSearchService,
     GrepSearchService,
     LiveArchiveExtractService,
@@ -43,6 +44,7 @@ from peneo.services import (
     LiveDirectorySizeService,
     LiveExternalLaunchService,
     LiveFileMutationService,
+    LiveFilePreviewService,
     LiveFileSearchService,
     LiveGrepSearchService,
     LiveShellCommandService,
@@ -361,6 +363,7 @@ class PeneoApp(App[None]):
         zip_compress_service: ZipCompressService | None = None,
         external_launch_service: ExternalLaunchService | None = None,
         file_search_service: FileSearchService | None = None,
+        file_preview_service: FilePreviewService | None = None,
         grep_search_service: GrepSearchService | None = None,
         shell_command_service: ShellCommandService | None = None,
         split_terminal_service: SplitTerminalService | None = None,
@@ -398,6 +401,7 @@ class PeneoApp(App[None]):
             external_launch_service or self._build_external_launch_service(self._app_config)
         )
         self._file_search_service = file_search_service or LiveFileSearchService()
+        self._file_preview_service = file_preview_service or LiveFilePreviewService()
         self._grep_search_service = grep_search_service or LiveGrepSearchService()
         self._shell_command_service = shell_command_service or LiveShellCommandService()
         self._split_terminal_service = split_terminal_service or LiveSplitTerminalService()
@@ -596,6 +600,7 @@ def create_app(
     zip_compress_service: ZipCompressService | None = None,
     external_launch_service: ExternalLaunchService | None = None,
     file_search_service: FileSearchService | None = None,
+    file_preview_service: FilePreviewService | None = None,
     grep_search_service: GrepSearchService | None = None,
     shell_command_service: ShellCommandService | None = None,
     split_terminal_service: SplitTerminalService | None = None,
@@ -622,6 +627,7 @@ def create_app(
         zip_compress_service=zip_compress_service,
         external_launch_service=external_launch_service,
         file_search_service=file_search_service,
+        file_preview_service=file_preview_service,
         grep_search_service=grep_search_service,
         shell_command_service=shell_command_service,
         split_terminal_service=split_terminal_service,

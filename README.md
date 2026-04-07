@@ -169,7 +169,7 @@ Peneo itself can be installed and started with `uv`, but some features depend on
 #### Ubuntu / Debian
 
 - For grep search (`g`): `ripgrep` (`rg`)
-- For copy path:
+- For copy path (`C`):
   - X11: `xclip`
   - Wayland: `wl-copy`
 
@@ -188,7 +188,7 @@ sudo apt install ripgrep wl-clipboard
 #### Ubuntu (WSL)
 
 - For grep search (`g`): `ripgrep` (`rg`)
-- For copy path:
+- For copy path (`C`):
   - `clip.exe` is usually available
   - Linux-side `xclip` / `wl-copy` can also be used when needed
 - `wslu` is recommended for GUI bridge commands such as `wslview`
@@ -202,7 +202,7 @@ sudo apt install ripgrep wslu
 #### macOS
 
 - For grep search (`g`): `ripgrep` (`rg`)
-- For copy path: the built-in `pbcopy`
+- For copy path (`C`): the built-in `pbcopy`
 
 Install example:
 
@@ -268,7 +268,7 @@ The supported settings are:
 | `logging` | `enabled` | `true` / `false` | Enables file output for startup failures and unhandled exceptions. |
 | `logging` | `level` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` | Log level for file output. Defaults to `ERROR`. Requires app restart to take effect. |
 | `logging` | `path` | Path string | Optional log file path. Leave empty to use `peneo.log` next to `config.toml`. Default log file locations: Linux: `~/.config/peneo/peneo.log`, macOS: `~/Library/Application Support/peneo/peneo.log`. |
-| `bookmarks` | `paths` | Array of absolute path strings | Bookmarked directories shown by `Ctrl+B` and `Show bookmarks` in the command palette. Duplicate paths are removed when the config is loaded. |
+| `bookmarks` | `paths` | Array of absolute path strings | Bookmarked directories shown by `b` and `Show bookmarks` in the command palette. Duplicate paths are removed when the config is loaded. |
 
 Example:
 
@@ -316,27 +316,27 @@ The main keys are listed below.
 | Normal | `Shift+↑` / `Shift+↓` | Expand or shrink a contiguous selection from the current anchor |
 | Normal | `←` / `h` / `Backspace` | Move to the parent directory |
 | Normal | `→` / `l` | Enter the item if it is a directory |
-| Normal | `Alt+←` | Go back to the previous directory in history |
-| Normal | `Alt+→` | Go forward to the next directory in history |
-| Normal | `Ctrl+J` | Open go-to-path input to navigate to a specific path with directory completion |
-| Normal | `Alt+Home` | Go to home directory |
-| Normal | `Ctrl+O` | Open the directory history list and jump to a selected directory |
-| Normal | `Ctrl+B` | Open the bookmark list and jump to a selected directory |
+| Normal | `[` | Go back to the previous directory in history |
+| Normal | `]` | Go forward to the next directory in history |
+| Normal | `G` | Open go-to-path input to navigate to a specific path with directory completion |
+| Normal | `~` | Go to home directory |
+| Normal | `H` | Open the directory history list and jump to a selected directory |
+| Normal | `b` | Open the bookmark list and jump to a selected directory |
 | Normal | `Enter` | Enter a directory, or open a file with the default app |
 | Normal | `e` | Open the focused file in a terminal editor, using `editor.command` -> `$EDITOR` -> built-in defaults |
 | Normal | `i` | Show attributes for the selected item, or the focused item if nothing is selected |
 | Normal | `R` | Reload the current directory |
 | Normal | `Space` | Toggle selection, then move to the next row |
-| Normal | `Ctrl+A` | Select all currently visible entries in the current directory |
-| Normal | `y` | Copy the selected items, or the focused item if nothing is selected |
+| Normal | `a` | Select all currently visible entries in the current directory |
+| Normal | `c` | Copy the selected items, or the focused item if nothing is selected |
 | Normal | `x` | Cut the selected items, or the focused item if nothing is selected |
 | Normal | `p` | Paste into the current directory |
-| Normal | `c` | Copy the selected path list, or the focused path when nothing is selected, to the system clipboard |
+| Normal | `C` | Copy the selected path list, or the focused path when nothing is selected, to the system clipboard |
 | Normal | `Delete` | Move the selected items, or the focused item, to trash (confirmation is enabled by default and can be configured) |
 | Normal | `Shift+Delete` | Permanently delete the selected items, or the focused item, after a required confirmation dialog |
-| Normal | `F2` | Start rename input for a single target |
+| Normal | `r` | Start rename input for a single target |
 | Normal | `!` | Open the one-line shell command dialog for the current directory |
-| Normal | `b` | Add or remove the current directory from bookmarks |
+| Normal | `B` | Add or remove the current directory from bookmarks |
 | Normal | `.` | Toggle hidden-file visibility |
 | Normal | `/` | Start filter input |
 | Normal | `s` | Cycle the sort order |
@@ -344,11 +344,11 @@ The main keys are listed below.
 | Normal | `q` | Quit the app |
 | Normal | `Esc` | Clear the active filter, otherwise clear the selection |
 | Normal | `:` | Open the command palette |
-| Normal | `Ctrl+F` | Open recursive file search |
-| Normal | `Ctrl+G` | Open recursive grep search (`ripgrep` / `rg` required on `PATH`) |
-| Normal | `Ctrl+T` | Open or close the embedded split terminal |
-| Normal | `Ctrl+N` | Start creating a new file in the current directory |
-| Normal | `Ctrl+D` | Start creating a new directory in the current directory |
+| Normal | `f` | Open recursive file search |
+| Normal | `g` | Open recursive grep search (`ripgrep` / `rg` required on `PATH`) |
+| Normal | `t` | Open or close the embedded split terminal |
+| Normal | `n` | Start creating a new file in the current directory |
+| Normal | `N` | Start creating a new directory in the current directory |
 | Normal (with split terminal open) | Text input and browser shortcuts | Disabled while the split terminal owns input |
 | Filter input | Text input | Update the filter string |
 | Filter input | `Backspace` | Delete one character |
@@ -357,7 +357,7 @@ The main keys are listed below.
 | Command palette | Text input / `↑` / `↓` / `k` / `j` / `Enter` / `Esc` | Filter, select, run, or cancel commands. In `Find files` and `Grep search`, `j` / `k` are treated as text input and result navigation uses `↑` / `↓`. |
 | Split terminal focus | Text input / arrows / `Enter` / `Backspace` / `Tab` | Send input directly to the embedded shell |
 | Split terminal focus | `Esc` | Close the embedded split terminal |
-| Split terminal focus | `Ctrl+T` | Close the embedded split terminal |
+| Split terminal focus | `t` | Close the embedded split terminal |
 | Split terminal focus | `Ctrl+V` | Paste clipboard contents into the terminal |
 | Name input | Text input / `Backspace` / `Enter` / `Esc` | Edit, confirm, or cancel rename/create input |
 | Confirmation dialog | `Enter` / `Esc` | Confirm or cancel trash / permanent delete |

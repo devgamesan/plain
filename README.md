@@ -223,21 +223,6 @@ To update, pull the latest changes and run the same install command again.
 peneo
 ```
 
-`peneo` itself cannot change the current directory of the parent shell. If you want your shell to `cd` into the last directory you visited after quitting Peneo, add the following line to your shell startup file first, such as `.bashrc` or `.zshrc`:
-
-```bash
-eval "$(peneo init bash)"  # for bash
-eval "$(peneo init zsh)"   # for zsh
-```
-
-Open a new shell, or run the same line once in your current shell to enable it immediately. This defines a shell function named `peneo-cd`. After that, launch `peneo-cd` instead of `peneo` when you want the shell directory to follow Peneo on exit:
-
-```bash
-peneo-cd
-```
-
-Use plain `peneo` when you do not need that behavior.
-
 When a file is focused, press `e` to switch into a terminal editor in the current terminal session. Peneo prefers `config.toml` `editor.command` when set, then falls back to `$EDITOR`, then built-in defaults such as `nvim`, `vim`, or `nano`.
 
 ## Configuration File

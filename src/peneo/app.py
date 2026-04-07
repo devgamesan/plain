@@ -190,8 +190,8 @@ class PeneoApp(App[None]):
     #command-palette {
         display: none;
         height: auto;
-        min-height: 4;
-        max-height: 13;
+        min-height: 8;
+        max-height: 70%;
         margin: 0 2;
         padding: 0 1;
         border: round $accent;
@@ -200,7 +200,7 @@ class PeneoApp(App[None]):
 
     #command-palette.search-mode {
         height: 50%;
-        max-height: 50%;
+        max-height: 70%;
     }
 
     #command-palette-title {

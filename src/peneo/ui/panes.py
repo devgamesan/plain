@@ -103,7 +103,7 @@ class SidePane(Vertical):
     EXECUTABLE_SELECTED_STYLE = "bold cyan"
     EXECUTABLE_CUT_STYLE = "cyan dim"
     DIRECTORY_STYLE = "blue"
-    DIRECTORY_SELECTED_STYLE = "bold blue"
+    DIRECTORY_SELECTED_STYLE = "bold white on blue"
     DIRECTORY_CUT_STYLE = "blue dim"
     ENTRY_HORIZONTAL_PADDING = 2
 

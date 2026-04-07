@@ -6,6 +6,7 @@ from peneo.models import (
     CreatePathRequest,
     CreateZipArchiveRequest,
     CreateZipArchiveResult,
+    DeleteRequest,
     ExternalLaunchRequest,
     ExtractArchiveRequest,
     ExtractArchiveResult,
@@ -14,7 +15,6 @@ from peneo.models import (
     PasteRequest,
     PasteSummary,
     RenameRequest,
-    TrashDeleteRequest,
 )
 from peneo.state import (
     AddBookmark,
@@ -1383,7 +1383,7 @@ def test_move_config_editor_cursor_clamps_to_visible_settings() -> None:
     next_state = _reduce_state(state, MoveConfigEditorCursor(delta=99))
 
     assert next_state.config_editor is not None
-    assert next_state.config_editor.cursor_index == 8
+    assert next_state.config_editor.cursor_index == 9
 
 
 def test_cycle_config_editor_editor_command_updates_draft_and_dirty_state() -> None:
@@ -2693,7 +2693,7 @@ def test_begin_delete_targets_single_runs_file_mutation() -> None:
     assert result.effects == (
         RunFileMutationEffect(
             request_id=1,
-            request=TrashDeleteRequest(paths=("/home/tadashi/develop/peneo/docs",)),
+            request=DeleteRequest(paths=("/home/tadashi/develop/peneo/docs",), mode="trash"),
         ),
     )
 
@@ -2774,11 +2774,12 @@ def test_confirm_delete_targets_runs_file_mutation() -> None:
     assert result.effects == (
         RunFileMutationEffect(
             request_id=4,
-            request=TrashDeleteRequest(
+            request=DeleteRequest(
                 paths=(
                     "/home/tadashi/develop/peneo/docs",
                     "/home/tadashi/develop/peneo/src",
-                )
+                ),
+                mode="trash",
             ),
         ),
     )
@@ -2797,6 +2798,66 @@ def test_cancel_delete_confirmation_returns_to_browsing_with_warning() -> None:
 
     assert next_state.ui_mode == "BROWSING"
     assert next_state.notification == NotificationState(level="warning", message="Delete cancelled")
+
+
+def test_begin_permanent_delete_targets_enters_confirm_mode_when_delete_confirmation_disabled(
+) -> None:
+    state = build_initial_app_state(confirm_delete=False)
+
+    next_state = _reduce_state(
+        state,
+        BeginDeleteTargets(("/home/tadashi/develop/peneo/docs",), mode="permanent"),
+    )
+
+    assert next_state.ui_mode == "CONFIRM"
+    assert next_state.delete_confirmation == DeleteConfirmationState(
+        paths=("/home/tadashi/develop/peneo/docs",),
+        mode="permanent",
+    )
+
+
+def test_confirm_permanent_delete_targets_runs_file_mutation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        delete_confirmation=DeleteConfirmationState(
+            paths=("/home/tadashi/develop/peneo/docs",),
+            mode="permanent",
+        ),
+        next_request_id=4,
+    )
+
+    result = reduce_app_state(state, ConfirmDeleteTargets())
+
+    assert result.state.ui_mode == "BUSY"
+    assert result.effects == (
+        RunFileMutationEffect(
+            request_id=4,
+            request=DeleteRequest(
+                paths=("/home/tadashi/develop/peneo/docs",),
+                mode="permanent",
+            ),
+        ),
+    )
+
+
+def test_cancel_permanent_delete_confirmation_returns_to_browsing_with_warning() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        delete_confirmation=DeleteConfirmationState(
+            paths=("/home/tadashi/develop/peneo/docs",),
+            mode="permanent",
+        ),
+    )
+
+    next_state = _reduce_state(state, CancelDeleteConfirmation())
+
+    assert next_state.ui_mode == "BROWSING"
+    assert next_state.notification == NotificationState(
+        level="warning",
+        message="Permanent delete cancelled",
+    )
 
 
 def test_submit_pending_extract_starts_archive_preparation() -> None:

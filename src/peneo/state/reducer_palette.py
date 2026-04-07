@@ -13,6 +13,7 @@ from .actions import (
     BeginCommandPalette,
     BeginCreateInput,
     BeginDeleteTargets,
+    BeginEmptyTrash,
     BeginExtractArchiveInput,
     BeginFileSearch,
     BeginGoToPath,
@@ -556,6 +557,8 @@ def _run_palette_command_item(
         return _run_open_in_editor_command(state, next_state, reduce_state)
     if item_id == "delete_targets":
         return _run_delete_targets_command(state, next_state, reduce_state)
+    if item_id == "empty_trash":
+        return _run_empty_trash_command(next_state, reduce_state)
     if item_id == "open_file_manager":
         return _run_open_file_manager_command(next_state, reduce_state)
     if item_id == "open_terminal":
@@ -773,6 +776,13 @@ def _run_delete_targets_command(
     if not target_paths:
         return _notify(state, level="warning", message="Nothing to delete")
     return reduce_state(next_state, BeginDeleteTargets(paths=target_paths))
+
+
+def _run_empty_trash_command(
+    state: AppState,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return reduce_state(state, BeginEmptyTrash())
 
 
 def _run_open_file_manager_command(

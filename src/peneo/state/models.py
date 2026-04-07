@@ -10,6 +10,7 @@ from peneo.models import (
     ConflictResolution,
     CreateKind,
     CreateZipArchiveRequest,
+    DeleteMode,
     ExtractArchiveRequest,
     PasteConflict,
     PasteConflictAction,
@@ -119,9 +120,17 @@ class PasteConflictState:
 
 @dataclass(frozen=True)
 class DeleteConfirmationState:
-    """Pending confirmation dialog state for trash deletion."""
+    """Pending confirmation dialog state for trash or permanent deletion."""
 
     paths: tuple[str, ...]
+    mode: DeleteMode = "trash"
+
+
+@dataclass(frozen=True)
+class EmptyTrashConfirmationState:
+    """Pending confirmation dialog state for empty trash operation."""
+
+    platform: Literal["linux", "darwin"]
 
 
 @dataclass(frozen=True)
@@ -343,6 +352,7 @@ class AppState:
     split_terminal: SplitTerminalState = SplitTerminalState()
     paste_conflict: PasteConflictState | None = None
     delete_confirmation: DeleteConfirmationState | None = None
+    empty_trash_confirmation: EmptyTrashConfirmationState | None = None
     name_conflict: NameConflictState | None = None
     archive_extract_confirmation: ArchiveExtractConfirmationState | None = None
     archive_extract_progress: ArchiveExtractProgressState | None = None
@@ -372,6 +382,16 @@ class AppState:
     current_pane_projection_mode: CurrentPaneProjectionMode = "full"
     current_pane_window_start: int = 0
     next_request_id: int = 1
+
+
+def resolve_parent_directory_path(path: str) -> tuple[str, str | None]:
+    """Return the resolved path and its distinct parent, if one exists."""
+
+    resolved_path = Path(path).expanduser().resolve()
+    parent_path = resolved_path.parent
+    if parent_path == resolved_path:
+        return str(resolved_path), None
+    return str(resolved_path), str(parent_path)
 
 
 def build_initial_app_state(
@@ -430,7 +450,6 @@ def build_initial_app_state(
         ),
     )
     child_entries = (
-        DirectoryEntryState(f"{docs_path}/spec_mvp.md", "spec_mvp.md", "file"),
         DirectoryEntryState(f"{docs_path}/notes.md", "notes.md", "file"),
         DirectoryEntryState(f"{docs_path}/wireframes", "wireframes", "dir"),
     )
@@ -470,13 +489,12 @@ def build_placeholder_app_state(
 ) -> AppState:
     """Return an empty browser state used before the first snapshot loads."""
 
-    resolved_path = str(Path(current_path).resolve())
-    parent_path = str(Path(resolved_path).parent)
+    resolved_path, parent_path = resolve_parent_directory_path(current_path)
     return AppState(
         current_path=resolved_path,
         config=config or AppConfig(),
         config_path=config_path,
-        parent_pane=PaneState(directory_path=parent_path, entries=()),
+        parent_pane=PaneState(directory_path=parent_path or resolved_path, entries=()),
         current_pane=PaneState(directory_path=resolved_path, entries=()),
         child_pane=PaneState(directory_path=resolved_path, entries=()),
         show_hidden=show_hidden,

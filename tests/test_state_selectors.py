@@ -41,6 +41,7 @@ from peneo.state import (
     ToggleSelection,
     ZipCompressConfirmationState,
     build_initial_app_state,
+    build_placeholder_app_state,
     select_attribute_dialog_state,
     select_child_entries,
     select_command_palette_state,
@@ -109,6 +110,15 @@ def test_select_current_entries_hides_hidden_by_default() -> None:
     entries = select_current_entries(state)
 
     assert [entry.name for entry in entries] == ["docs"]
+
+
+def test_build_placeholder_app_state_keeps_parent_pane_empty_at_root() -> None:
+    state = build_placeholder_app_state("/")
+
+    assert state.current_path == "/"
+    assert state.parent_pane.directory_path == "/"
+    assert state.parent_pane.entries == ()
+    assert state.parent_pane.cursor_path is None
 
 
 def test_select_visible_current_entries_sorts_by_modified_with_missing_values_last() -> None:
@@ -269,6 +279,26 @@ def test_select_parent_and_child_entries_hide_hidden_unless_enabled() -> None:
         ".draft.md",
         "spec.md",
     ]
+
+
+def test_select_parent_entries_marks_current_directory_selected() -> None:
+    state = replace(
+        build_initial_app_state(),
+        parent_pane=PaneState(
+            directory_path="/tmp",
+            entries=(
+                DirectoryEntryState("/tmp/alpha", "alpha", "dir"),
+                DirectoryEntryState("/tmp/peneo", "peneo", "dir"),
+            ),
+            cursor_path="/tmp/peneo",
+        ),
+    )
+
+    entries = select_parent_entries(state)
+
+    assert [entry.name for entry in entries] == ["alpha", "peneo"]
+    assert entries[0].selected is False
+    assert entries[1].selected is True
 
 
 def test_select_child_entries_keeps_previous_snapshot_visible_while_request_is_pending() -> None:
@@ -903,14 +933,16 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     help_state = select_help_bar_state(state)
 
     assert help_state.lines == (
-        "enter open | e edit | i info | space select | y copy | x cut | p paste | c path",
-        "/ filter | s sort | . hidden | b bookmark | ctrl+f find | ctrl+g grep",
-        ": palette | ! shell | ctrl+t term | q quit",
+        "enter open | e edit | i info | space select | c copy | x cut | p paste | C path",
+        "/ filter | s sort | d dir-first | . hidden | a select-all | ~ home",
+        "f find | g grep | G go-to | H history | b bookmarks | B toggle-bookmark",
+        "n new-file | N new-dir | r rename | R reload | t term | : palette | q quit",
     )
     assert help_state.text == (
-        "enter open | e edit | i info | space select | y copy | x cut | p paste | c path\n"
-        "/ filter | s sort | . hidden | b bookmark | ctrl+f find | ctrl+g grep\n"
-        ": palette | ! shell | ctrl+t term | q quit"
+        "enter open | e edit | i info | space select | c copy | x cut | p paste | C path\n"
+        "/ filter | s sort | d dir-first | . hidden | a select-all | ~ home\n"
+        "f find | g grep | G go-to | H history | b bookmarks | B toggle-bookmark\n"
+        "n new-file | N new-dir | r rename | R reload | t term | : palette | q quit"
     )
 
 
@@ -935,7 +967,7 @@ def test_select_help_bar_for_split_terminal_focus() -> None:
 
     help_state = select_help_bar_state(state)
 
-    assert help_state.text == "type in terminal | ctrl+t close | ctrl+v paste"
+    assert help_state.text == "type in terminal | esc close | ctrl+v paste"
 
 
 def test_select_status_bar_shows_split_terminal_focus_when_idle() -> None:
@@ -1082,7 +1114,7 @@ def test_select_help_bar_state_for_go_to_path_palette_mentions_tab_completion() 
     help_bar = select_help_bar_state(state)
 
     assert help_bar.lines == (
-        "type path | up/down select | tab complete | enter jump | esc cancel",
+        "type path | ↑↓ select | tab complete | enter jump | esc cancel",
     )
 
 
@@ -1095,7 +1127,9 @@ def test_select_help_bar_state_for_file_search_palette() -> None:
 
     help_bar = select_help_bar_state(state)
 
-    assert help_bar.lines == ("type filename | enter jump | Ctrl+E edit | esc cancel",)
+    assert help_bar.lines == (
+        "type filename | ↑↓ select | enter jump | Ctrl+E edit | esc cancel",
+    )
 
 
 def test_select_help_bar_state_for_grep_search_palette() -> None:
@@ -1107,7 +1141,9 @@ def test_select_help_bar_state_for_grep_search_palette() -> None:
 
     help_bar = select_help_bar_state(state)
 
-    assert help_bar.lines == ("type text / re:pattern | enter jump | Ctrl+E edit | esc cancel",)
+    assert help_bar.lines == (
+        "type text / re:pattern | ↑↓ select | enter jump | Ctrl+E edit | esc cancel",
+    )
 
 
 def test_select_command_palette_state_go_to_path_can_show_candidates_without_selection() -> None:
@@ -1241,7 +1277,7 @@ def test_select_command_palette_state_enables_select_all_with_visible_entries() 
     assert state is not None
     assert [item.label for item in state.items] == ["Select all"]
     assert state.items[0].enabled is True
-    assert state.items[0].shortcut == "Ctrl+A"
+    assert state.items[0].shortcut == "a"
 
 
 def test_select_command_palette_state_shows_extract_archive_for_supported_file() -> None:
@@ -1277,7 +1313,7 @@ def test_select_command_palette_state_shows_single_target_shortcuts() -> None:
 
     assert state is not None
     assert [item.label for item in state.items] == ["Show attributes"]
-    assert [item.shortcut for item in state.items] == ["I"]
+    assert [item.shortcut for item in state.items] == ["i"]
 
 
 def test_select_command_palette_state_shows_copy_path_shortcut() -> None:
@@ -1663,6 +1699,23 @@ def test_select_conflict_dialog_state_formats_delete_confirmation() -> None:
     assert dialog.options == ("enter confirm", "esc cancel")
 
 
+def test_select_conflict_dialog_state_formats_permanent_delete_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        delete_confirmation=DeleteConfirmationState(
+            paths=("/home/tadashi/develop/peneo/docs",),
+            mode="permanent",
+        ),
+    )
+
+    dialog = select_conflict_dialog_state(state)
+
+    assert dialog is not None
+    assert dialog.title == "Permanent Delete Confirmation"
+    assert "This cannot be undone" in dialog.message
+    assert dialog.options == ("enter confirm", "esc cancel")
+
+
 def test_select_conflict_dialog_state_formats_extract_confirmation() -> None:
     state = replace(
         build_initial_app_state(),
@@ -1780,6 +1833,21 @@ def test_select_help_bar_for_delete_confirmation() -> None:
     help_state = select_help_bar_state(state)
 
     assert help_state.text == "enter confirm delete | esc cancel"
+
+
+def test_select_help_bar_for_permanent_delete_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        delete_confirmation=DeleteConfirmationState(
+            paths=("/home/tadashi/develop/peneo/docs",),
+            mode="permanent",
+        ),
+    )
+
+    help_state = select_help_bar_state(state)
+
+    assert help_state.text == "enter confirm permanent delete | esc cancel"
 
 
 def test_select_help_bar_for_attribute_dialog() -> None:
@@ -1946,3 +2014,87 @@ class TestSelectCommandPaletteWindow:
         assert 12 in visible_indices
         assert 13 in visible_indices
         assert result[-1][0] == 13  # 最後のアイテムが表示されている
+
+
+
+class TestCommandPaletteDynamicWindow:
+    """コマンドパレットの動的表示ウィンドウ計算のテスト."""
+
+    def test_go_to_path_uses_dynamic_window_size(self) -> None:
+        """Go to pathで48行端末の場合19件表示されること."""
+        # 48行端末の場合、visible_window = 48 // 2 - 5 = 19
+        state = replace(
+            _reduce_state(build_initial_app_state(), BeginCommandPalette()),
+            terminal_height=48,
+            command_palette=CommandPaletteState(
+                source="go_to_path",
+                query="",
+                cursor_index=0,
+                go_to_path_candidates=tuple(f"/path/{i}" for i in range(25)),
+            ),
+        )
+
+        palette_state = select_command_palette_state(state)
+
+        assert palette_state is not None
+        assert len(palette_state.items) == 19
+
+    def test_go_to_path_small_terminal_uses_minimum(self) -> None:
+        """Go to pathで小さな端末の場合最小3件表示されること."""
+        # 10行端末の場合、visible_window = max(3, 10 // 2 - 5) = 3
+        state = replace(
+            _reduce_state(build_initial_app_state(), BeginCommandPalette()),
+            terminal_height=10,
+            command_palette=CommandPaletteState(
+                source="go_to_path",
+                query="",
+                cursor_index=0,
+                go_to_path_candidates=tuple(f"/path/{i}" for i in range(10)),
+            ),
+        )
+
+        palette_state = select_command_palette_state(state)
+
+        assert palette_state is not None
+        assert len(palette_state.items) == 3
+
+    def test_directory_history_uses_dynamic_window_size(self) -> None:
+        """Directory Historyで48行端末の場合19件表示されること."""
+        # 48行端末の場合、visible_window = 48 // 2 - 5 = 19
+        state = replace(
+            build_initial_app_state(),
+            terminal_height=48,
+            history=HistoryState(
+                back=tuple(f"/history/{i}" for i in range(25)),
+                forward=(),
+            ),
+            ui_mode="PALETTE",
+            command_palette=CommandPaletteState(
+                source="history",
+                history_results=tuple(f"/history/{i}" for i in range(25)),
+            ),
+        )
+
+        palette_state = select_command_palette_state(state)
+
+        assert palette_state is not None
+        assert len(palette_state.items) == 19
+
+    def test_bookmarks_uses_dynamic_window_size(self) -> None:
+        """Bookmarksで48行端末の場合19件表示されること."""
+        # 48行端末の場合、visible_window = 48 // 2 - 5 = 19
+        state = replace(
+            build_initial_app_state(),
+            terminal_height=48,
+            config=replace(
+                build_initial_app_state().config,
+                bookmarks=BookmarkConfig(paths=tuple(f"/bookmark/{i}" for i in range(25))),
+            ),
+            ui_mode="PALETTE",
+            command_palette=CommandPaletteState(source="bookmarks"),
+        )
+
+        palette_state = select_command_palette_state(state)
+
+        assert palette_state is not None
+        assert len(palette_state.items) == 19

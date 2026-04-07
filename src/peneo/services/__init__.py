@@ -81,6 +81,13 @@ from .split_terminal import (
     SplitTerminalService,
     SplitTerminalSession,
 )
+from .trash_operations import (
+    LinuxTrashService,
+    MacOsTrashService,
+    TrashService,
+    UnsupportedPlatformTrashService,
+    resolve_trash_service,
+)
 from .zip_compress import (
     FakeZipCompressService,
     LiveZipCompressService,
@@ -143,4 +150,9 @@ __all__ = [
     "ShellCommandService",
     "snapshot_from_app_state",
     "ZipCompressService",
+    "LinuxTrashService",
+    "MacOsTrashService",
+    "TrashService",
+    "UnsupportedPlatformTrashService",
+    "resolve_trash_service",
 ]

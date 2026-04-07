@@ -8,11 +8,17 @@
 
 [日本語版 README](README.ja.md)
 
-Peneo is a simple TUI file manager. Its three-pane layout shows the parent, current, and child directories side by side, aiming to feel closer to a GUI file explorer than to a keyboard-heavy power-user tool. Peneo is designed so that you can operate it without memorizing a large keymap: common actions stay visible in the help bar at the bottom, and less-frequent actions are available from the command palette.
+Peneo is a TUI file manager you can use without memorizing keybindings. Common actions stay visible in the help bar at the bottom, and less-frequent actions are available from the command palette.
+
+- **No memorization needed**: Common actions are always visible in the help bar
+- **Never get lost**: All actions can be called from the command palette
+- **Clear 3-pane layout**: Parent, current, and child directories displayed side by side
+- **Embedded terminal**: Seamlessly switch between browsing and shell with `t`
+- **Powerful search**: Jump directly to files with recursive file search and grep search
 
 ## Features
 
-- Simple three-pane layout for parent / current / child directories. You can navigate directories, multi-select items, copy, cut, paste, move items to trash, copy paths, rename, create files or directories, extract archives, create zip archives, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
+- Simple three-pane layout for parent / current / child directories. You can navigate directories, multi-select items, copy, cut, paste, move items to trash, permanently delete items with `Shift+Delete`, copy paths, rename, create files or directories, extract archives, create zip archives, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
 
   ![](docs/resources/screen-entire-screen.png)
 
@@ -20,7 +26,7 @@ Peneo is a simple TUI file manager. Its three-pane layout shows the parent, curr
 
   ![](docs/resources/screen-command-palette.png)
 
-- An embedded terminal can be opened below the browser panes. `Ctrl+T` switches quickly between the browser and terminal, and the terminal starts in the current directory so you can move between browsing and shell work without changing directories manually.
+- An embedded terminal can be opened below the browser panes. `t` switches quickly between the browser and terminal, and the terminal starts in the current directory so you can move between browsing and shell work without changing directories manually.
 
   ![](docs/resources/screen-split-terminal.png)
 
@@ -49,6 +55,83 @@ Peneo is a simple TUI file manager. Its three-pane layout shows the parent, curr
   ![](docs/resources/screen-terminal-editor.png)
 
 - Files and directories can be opened with the OS default application. For example, you can open the current directory in the OS file manager, open a file in VS Code if it is associated on the OS side, or launch an external terminal window rooted at the current directory.
+
+## Keybindings
+
+### Normal Mode
+
+| Key | Action |
+| --- | ------ |
+| `j` / `↓` | Move down |
+| `k` / `↑` | Move up |
+| `h` / `←` / `Backspace` | Go to parent directory |
+| `l` / `→` | Enter directory |
+| `Shift+↑` / `Shift+↓` | Extend selection |
+| `Enter` | Open file/enter directory |
+| `Space` | Toggle selection and move down |
+| `a` | Select all visible entries |
+| `Esc` | Clear selection / Cancel filter |
+| `c` | Copy selected items |
+| `x` | Cut selected items |
+| `p` | Paste from clipboard |
+| `C` | Copy paths to clipboard |
+| `r` | Rename selected item |
+| `n` | Create new file |
+| `N` | Create new directory |
+| `Delete` | Move selected items to trash |
+| `Shift+Delete` | Permanently delete selected items |
+| `i` | Show file attributes |
+| `e` | Open file in terminal editor |
+| `!` | Execute shell command |
+| `f` | Find files (recursive search) |
+| `g` | Grep search |
+| `/` | Filter files |
+| `H` | Show history |
+| `b` | Show bookmarks |
+| `B` | Toggle current directory bookmark |
+| `G` | Go to path |
+| `~` | Go to home directory |
+| `.` | Toggle hidden files |
+| `s` | Cycle sort |
+| `d` | Toggle directories-first |
+| `R` | Reload directory |
+| `t` | Toggle split terminal |
+| `T` | Open terminal at current directory |
+| `m` | Open current directory in file manager |
+| `:` | Open command palette |
+| `q` | Quit |
+| `[` | Go back in history |
+| `]` | Go forward in history |
+
+### Split Terminal Mode
+
+| Key | Action |
+| --- | ------ |
+| Any printable character | Send to terminal |
+| `Ctrl+V` | Paste from clipboard |
+| `Esc` | Close split terminal |
+
+### Input Dialogs
+
+| Key | Action |
+| --- | ------ |
+| `Enter` | Confirm |
+| `Esc` | Cancel |
+| `Tab` | Complete (where supported) |
+| `Ctrl+V` | Paste from clipboard |
+
+### Search Results Mode (File Search / Grep Search)
+
+| Key | Action |
+| --- | ------ |
+| `↑` / `↓` | Move cursor through results |
+| `PageUp` / `PageDown` | Move cursor by page |
+| `Home` / `End` | Jump to first/last result |
+| `Enter` | Open selected result |
+| `Ctrl+E` | Open selected result in editor |
+| `Esc` | Close search |
+
+**Note**: In search results mode, use arrow keys to navigate. `j`/`k` keys are used for typing the search query.
 
 ## Supported OS
 
@@ -85,8 +168,8 @@ Peneo itself can be installed and started with `uv`, but some features depend on
 
 #### Ubuntu / Debian
 
-- For grep search (`Ctrl+G`): `ripgrep` (`rg`)
-- For copy path:
+- For grep search (`g`): `ripgrep` (`rg`)
+- For copy path (`C`):
   - X11: `xclip`
   - Wayland: `wl-copy`
 
@@ -104,8 +187,8 @@ sudo apt install ripgrep wl-clipboard
 
 #### Ubuntu (WSL)
 
-- For grep search (`Ctrl+G`): `ripgrep` (`rg`)
-- For copy path:
+- For grep search (`g`): `ripgrep` (`rg`)
+- For copy path (`C`):
   - `clip.exe` is usually available
   - Linux-side `xclip` / `wl-copy` can also be used when needed
 - `wslu` is recommended for GUI bridge commands such as `wslview`
@@ -118,8 +201,8 @@ sudo apt install ripgrep wslu
 
 #### macOS
 
-- For grep search (`Ctrl+G`): `ripgrep` (`rg`)
-- For copy path: the built-in `pbcopy`
+- For grep search (`g`): `ripgrep` (`rg`)
+- For copy path (`C`): the built-in `pbcopy`
 
 Install example:
 
@@ -180,11 +263,12 @@ The supported settings are:
 | `display` | `default_sort_field` | `name` / `modified` / `size` | Default sort field for the main pane. |
 | `display` | `default_sort_descending` | `true` / `false` | Starts the main-pane sort in descending order when enabled. |
 | `display` | `directories_first` | `true` / `false` | Keeps directories grouped before files in the main pane. |
-| `behavior` | `confirm_delete` | `true` / `false` | Shows a confirmation dialog before moving items to trash. |
+| `behavior` | `confirm_delete` | `true` / `false` | Shows a confirmation dialog before moving items to trash. Permanent delete via `Shift+Delete` always asks for confirmation. |
 | `behavior` | `paste_conflict_action` | `prompt` / `overwrite` / `skip` / `rename` | Chooses the default paste-conflict behavior. `prompt` keeps the conflict dialog enabled. |
 | `logging` | `enabled` | `true` / `false` | Enables file output for startup failures and unhandled exceptions. |
-| `logging` | `path` | Path string | Optional log file path. Leave empty to use `peneo.log` next to `config.toml`. |
-| `bookmarks` | `paths` | Array of absolute path strings | Bookmarked directories shown by `Ctrl+B` and `Show bookmarks` in the command palette. Duplicate paths are removed when the config is loaded. |
+| `logging` | `level` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` | Log level for file output. Defaults to `ERROR`. Requires app restart to take effect. |
+| `logging` | `path` | Path string | Optional log file path. Leave empty to use `peneo.log` next to `config.toml`. Default log file locations: Linux: `~/.config/peneo/peneo.log`, macOS: `~/Library/Application Support/peneo/peneo.log`. |
+| `bookmarks` | `paths` | Array of absolute path strings | Bookmarked directories shown by `b` and `Show bookmarks` in the command palette. Duplicate paths are removed when the config is loaded. |
 
 Example:
 
@@ -211,6 +295,7 @@ paste_conflict_action = "prompt"
 
 [logging]
 enabled = true
+level = "ERROR"
 path = ""
 
 [bookmarks]
@@ -231,26 +316,27 @@ The main keys are listed below.
 | Normal | `Shift+↑` / `Shift+↓` | Expand or shrink a contiguous selection from the current anchor |
 | Normal | `←` / `h` / `Backspace` | Move to the parent directory |
 | Normal | `→` / `l` | Enter the item if it is a directory |
-| Normal | `Alt+←` | Go back to the previous directory in history |
-| Normal | `Alt+→` | Go forward to the next directory in history |
-| Normal | `Ctrl+J` | Open go-to-path input to navigate to a specific path with directory completion |
-| Normal | `Alt+Home` | Go to home directory |
-| Normal | `Ctrl+O` | Open the directory history list and jump to a selected directory |
-| Normal | `Ctrl+B` | Open the bookmark list and jump to a selected directory |
+| Normal | `[` | Go back to the previous directory in history |
+| Normal | `]` | Go forward to the next directory in history |
+| Normal | `G` | Open go-to-path input to navigate to a specific path with directory completion |
+| Normal | `~` | Go to home directory |
+| Normal | `H` | Open the directory history list and jump to a selected directory |
+| Normal | `b` | Open the bookmark list and jump to a selected directory |
 | Normal | `Enter` | Enter a directory, or open a file with the default app |
 | Normal | `e` | Open the focused file in a terminal editor, using `editor.command` -> `$EDITOR` -> built-in defaults |
 | Normal | `i` | Show attributes for the selected item, or the focused item if nothing is selected |
-| Normal | `F5` | Reload the current directory |
+| Normal | `R` | Reload the current directory |
 | Normal | `Space` | Toggle selection, then move to the next row |
-| Normal | `Ctrl+A` | Select all currently visible entries in the current directory |
-| Normal | `y` | Copy the selected items, or the focused item if nothing is selected |
+| Normal | `a` | Select all currently visible entries in the current directory |
+| Normal | `c` | Copy the selected items, or the focused item if nothing is selected |
 | Normal | `x` | Cut the selected items, or the focused item if nothing is selected |
 | Normal | `p` | Paste into the current directory |
-| Normal | `c` | Copy the selected path list, or the focused path when nothing is selected, to the system clipboard |
+| Normal | `C` | Copy the selected path list, or the focused path when nothing is selected, to the system clipboard |
 | Normal | `Delete` | Move the selected items, or the focused item, to trash (confirmation is enabled by default and can be configured) |
-| Normal | `F2` | Start rename input for a single target |
+| Normal | `Shift+Delete` | Permanently delete the selected items, or the focused item, after a required confirmation dialog |
+| Normal | `r` | Start rename input for a single target |
 | Normal | `!` | Open the one-line shell command dialog for the current directory |
-| Normal | `b` | Add or remove the current directory from bookmarks |
+| Normal | `B` | Add or remove the current directory from bookmarks |
 | Normal | `.` | Toggle hidden-file visibility |
 | Normal | `/` | Start filter input |
 | Normal | `s` | Cycle the sort order |
@@ -258,23 +344,23 @@ The main keys are listed below.
 | Normal | `q` | Quit the app |
 | Normal | `Esc` | Clear the active filter, otherwise clear the selection |
 | Normal | `:` | Open the command palette |
-| Normal | `Ctrl+F` | Open recursive file search |
-| Normal | `Ctrl+G` | Open recursive grep search (`ripgrep` / `rg` required on `PATH`) |
-| Normal | `Ctrl+T` | Open or close the embedded split terminal |
-| Normal | `Ctrl+N` | Start creating a new file in the current directory |
-| Normal | `Ctrl+D` | Start creating a new directory in the current directory |
+| Normal | `f` | Open recursive file search |
+| Normal | `g` | Open recursive grep search (`ripgrep` / `rg` required on `PATH`) |
+| Normal | `t` | Open or close the embedded split terminal |
+| Normal | `n` | Start creating a new file in the current directory |
+| Normal | `N` | Start creating a new directory in the current directory |
 | Normal (with split terminal open) | Text input and browser shortcuts | Disabled while the split terminal owns input |
 | Filter input | Text input | Update the filter string |
 | Filter input | `Backspace` | Delete one character |
 | Filter input | `Enter` / `↓` | Apply the filter and return to list navigation |
 | Filter input | `Esc` | Clear the filter |
-| Command palette | Text input / `↑` / `↓` / `k` / `j` / `Enter` / `Esc` | Filter, select, run, or cancel commands |
+| Command palette | Text input / `↑` / `↓` / `k` / `j` / `Enter` / `Esc` | Filter, select, run, or cancel commands. In `Find files` and `Grep search`, `j` / `k` are treated as text input and result navigation uses `↑` / `↓`. |
 | Split terminal focus | Text input / arrows / `Enter` / `Backspace` / `Tab` | Send input directly to the embedded shell |
 | Split terminal focus | `Esc` | Close the embedded split terminal |
-| Split terminal focus | `Ctrl+T` | Close the embedded split terminal |
+| Split terminal focus | `t` | Close the embedded split terminal |
 | Split terminal focus | `Ctrl+V` | Paste clipboard contents into the terminal |
 | Name input | Text input / `Backspace` / `Enter` / `Esc` | Edit, confirm, or cancel rename/create input |
-| Confirmation dialog | `Enter` / `Esc` | Confirm or cancel delete |
+| Confirmation dialog | `Enter` / `Esc` | Confirm or cancel trash / permanent delete |
 | Confirmation dialog | `o` / `s` / `r` / `Esc` | Resolve a paste conflict with overwrite / skip / rename / cancel |
 
 `e` switches into a terminal editor in the current terminal session rather than opening a separate GUI app window. If both `editor.command` and `$EDITOR` are set, `editor.command` takes precedence.
@@ -303,8 +389,9 @@ Less frequent actions are grouped in the command palette opened with `:`.
 | `Open in editor` | Exactly one file is selected or focused | Opens the focused file in a terminal editor, using `editor.command` -> `$EDITOR` -> built-in defaults. |
 | `Copy path` | At least one target is selected or focused | Copies the selected path list, or the focused path when nothing is selected, to the system clipboard. Also available with `c`. |
 | `Move to trash` | At least one target is selected or focused | Moves the selected items, or the focused item, to trash (confirmation is enabled by default and can be configured). |
-| `Open in file manager` | Always | Opens the current directory in the OS file manager. |
-| `Open terminal` | Always | Launches an external terminal rooted at the current directory, using `config.toml` templates before built-in fallbacks. |
+| `Empty trash` | Always (Linux/macOS only) | Permanently deletes all items from the trash. Shows a confirmation dialog before emptying. Not available on Windows. |
+| `Open in file manager` | Always | Opens the current directory in the OS file manager. Also available with `m`. |
+| `Open terminal` | Always | Launches an external terminal rooted at the current directory, using `config.toml` templates before built-in fallbacks. Also available with `T`. |
 | `Run shell command` | Always | Opens a one-line shell command dialog, runs the command in the current directory in the background, and returns the first output line or failure summary in the status bar. Also available with `!`. |
 | `Bookmark this directory` / `Remove bookmark` | Always | Saves or removes the current directory in `[bookmarks].paths`. The label reflects whether the current directory is already bookmarked. Also available with `b`. |
 | `Show hidden files` / `Hide hidden files` | Always | Toggles hidden-file visibility for the browser panes. The label reflects the current visibility state. Also available with `.`. |
@@ -326,7 +413,6 @@ Less frequent actions are grouped in the command palette opened with `:`.
 ## Related Documents
 
 - Implementation structure: [docs/architecture.en.md](docs/architecture.en.md)
-- MVP notes: [docs/spec_mvp.en.md](docs/spec_mvp.en.md)
 - Performance notes: [docs/performance.en.md](docs/performance.en.md)
 
 ## Development
@@ -358,5 +444,6 @@ For testing pre-release versions, install from TestPyPI:
 uv tool install \
   --index-url https://test.pypi.org/simple/ \
   --extra-index-url https://pypi.org/simple/ \
+  --index-strategy unsafe-best-match \
   peneo
 ```

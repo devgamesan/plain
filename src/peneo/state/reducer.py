@@ -1,5 +1,6 @@
 """Pure reducer for AppState transitions."""
 
+import logging
 from dataclasses import replace
 
 from .actions import (
@@ -18,6 +19,8 @@ from .reducer_navigation import handle_navigation_action
 from .reducer_palette import handle_palette_action
 from .reducer_terminal_config import handle_terminal_config_action
 from .selectors import compute_current_pane_visible_window, select_visible_current_entry_states
+
+logger = logging.getLogger(__name__)
 
 
 def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
@@ -42,10 +45,13 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
         handle_palette_action,
         handle_terminal_config_action,
     ):
+        logger.debug("Trying handler: %s for action: %s", handler.__name__, type(action).__name__)
         result = handler(state, action, reduce_app_state)
         if result is not None:
+            logger.debug("Handler %s processed action: %s", handler.__name__, type(action).__name__)
             return _finalize_reduce_result(state, action, result)
 
+    logger.debug("No handler processed action: %s", type(action).__name__)
     return _finalize_reduce_result(state, action, done(state))
 
 

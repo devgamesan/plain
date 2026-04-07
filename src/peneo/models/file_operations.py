@@ -6,6 +6,7 @@ from typing import Literal
 ClipboardOperationMode = Literal["copy", "cut"]
 ConflictResolution = Literal["overwrite", "skip", "rename"]
 CreateKind = Literal["file", "dir"]
+DeleteMode = Literal["trash", "permanent"]
 MutationResultLevel = Literal["info", "warning", "error"]
 ArchiveFormat = Literal["zip", "tar", "tar.gz", "tar.bz2"]
 
@@ -89,13 +90,14 @@ class CreatePathRequest:
 
 
 @dataclass(frozen=True)
-class TrashDeleteRequest:
-    """A request to move one or more paths into the OS trash."""
+class DeleteRequest:
+    """A request to trash or permanently delete one or more paths."""
 
     paths: tuple[str, ...]
+    mode: DeleteMode = "trash"
 
 
-FileMutationRequest = RenameRequest | CreatePathRequest | TrashDeleteRequest
+FileMutationRequest = RenameRequest | CreatePathRequest | DeleteRequest
 
 
 @dataclass(frozen=True)

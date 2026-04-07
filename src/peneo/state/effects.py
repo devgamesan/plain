@@ -6,11 +6,11 @@ from peneo.models import (
     AppConfig,
     CreatePathRequest,
     CreateZipArchiveRequest,
+    DeleteRequest,
     ExternalLaunchRequest,
     ExtractArchiveRequest,
     PasteRequest,
     RenameRequest,
-    TrashDeleteRequest,
 )
 
 from .models import AppState
@@ -57,7 +57,7 @@ class RunFileMutationEffect:
     """Execute a rename/create mutation outside the reducer."""
 
     request_id: int
-    request: RenameRequest | CreatePathRequest | TrashDeleteRequest
+    request: RenameRequest | CreatePathRequest | DeleteRequest
 
 
 @dataclass(frozen=True)

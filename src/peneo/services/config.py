@@ -36,6 +36,7 @@ class ConfigSaveService(Protocol):
 
 _VALID_SORT_FIELDS = frozenset({"name", "modified", "size"})
 _VALID_THEMES = frozenset({"textual-dark", "textual-light"})
+_VALID_LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 _VALID_PASTE_ACTIONS = frozenset({"overwrite", "skip", "rename", "prompt"})
 _VALID_TERMINAL_EDITOR_NAMES = frozenset(
     {"emacs", "helix", "hx", "kak", "micro", "nano", "nvim", "vi", "vim"}
@@ -380,6 +381,14 @@ def _load_logging_config(section: object, warnings: list[str]) -> LoggingConfig:
         ),
     )
 
+    level = section.get("level", config.level)
+    if isinstance(level, str) and level in _VALID_LOG_LEVELS:
+        config = replace(config, level=level)
+    elif "level" in section:
+        warnings.append(
+            "logging.level must be one of DEBUG, INFO, WARNING, ERROR, CRITICAL; using default."
+        )
+
     path = section.get("path", config.path)
     if path is None:
         return config
@@ -488,6 +497,7 @@ def render_app_config(config: AppConfig) -> str:
         # Optional file output for startup and unhandled exceptions.
         # Leave empty to write peneo.log next to config.toml.
         enabled = {logging_enabled}
+        level = "{logging_level}"
         path = {logging_path}
 
         [bookmarks]
@@ -535,6 +545,7 @@ def render_app_config(config: AppConfig) -> str:
         confirm_delete=_render_bool(config.behavior.confirm_delete),
         paste_conflict_action=config.behavior.paste_conflict_action,
         logging_enabled=_render_bool(config.logging.enabled),
+        logging_level=config.logging.level,
         logging_path=_render_optional_toml_string(config.logging.path),
         bookmark_paths=_render_command_array(config.bookmarks.paths),
         help_bar_browsing=_render_help_lines(config.help_bar.browsing),

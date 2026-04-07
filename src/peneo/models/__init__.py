@@ -5,6 +5,7 @@ from .config import (
     BehaviorConfig,
     BookmarkConfig,
     ConfigLoadResult,
+    ConfigLogLevel,
     ConfigSortField,
     ConfigTheme,
     DisplayConfig,
@@ -23,6 +24,8 @@ from .file_operations import (
     CreateZipArchivePreparationResult,
     CreateZipArchiveRequest,
     CreateZipArchiveResult,
+    DeleteMode,
+    DeleteRequest,
     ExtractArchiveConflict,
     ExtractArchivePreparationResult,
     ExtractArchiveRequest,
@@ -37,7 +40,6 @@ from .file_operations import (
     PasteRequest,
     PasteSummary,
     RenameRequest,
-    TrashDeleteRequest,
 )
 from .shell_command import ShellCommandResult
 from .shell_data import (
@@ -70,6 +72,7 @@ __all__ = [
     "CommandPaletteViewState",
     "ConfigDialogState",
     "ConfigLoadResult",
+    "ConfigLogLevel",
     "ConfigSortField",
     "ConfigTheme",
     "ConflictDialogState",
@@ -80,6 +83,8 @@ __all__ = [
     "ConflictResolution",
     "CreateKind",
     "CreatePathRequest",
+    "DeleteMode",
+    "DeleteRequest",
     "CreateZipArchivePreparationResult",
     "CreateZipArchiveRequest",
     "CreateZipArchiveResult",
@@ -113,6 +118,5 @@ __all__ = [
     "StatusBarState",
     "TerminalConfig",
     "ThreePaneShellData",
-    "TrashDeleteRequest",
     "build_dummy_shell_data",
 ]

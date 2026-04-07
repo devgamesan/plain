@@ -20,6 +20,7 @@ from .actions import (
     CancelArchiveExtractConfirmation,
     CancelCommandPalette,
     CancelDeleteConfirmation,
+    CancelEmptyTrashConfirmation,
     CancelFilterInput,
     CancelPasteConflict,
     CancelPendingInput,
@@ -28,6 +29,7 @@ from .actions import (
     ClearSelection,
     ConfirmArchiveExtract,
     ConfirmDeleteTargets,
+    ConfirmEmptyTrash,
     ConfirmFilterInput,
     ConfirmZipCompress,
     CopyPathsToClipboard,
@@ -43,7 +45,6 @@ from .actions import (
     GoForward,
     GoToHomeDirectory,
     GoToParentDirectory,
-    JumpCursor,
     MoveCommandPaletteCursor,
     MoveConfigEditorCursor,
     MoveCursor,
@@ -52,6 +53,7 @@ from .actions import (
     OpenGrepResultInEditor,
     OpenPathInEditor,
     OpenPathWithDefaultApp,
+    OpenTerminalAtPath,
     PasteClipboard,
     PasteFromClipboardToTerminal,
     ReloadDirectory,
@@ -101,39 +103,38 @@ BROWSING_KEYMAP = {
     "left": "go_to_parent",
     "backspace": "go_to_parent",
     "h": "go_to_parent",
-    "f5": "reload_directory",
+    "R": "reload_directory",
     "q": "exit_current_path",
-    "f2": "begin_rename",
+    "r": "begin_rename",
     "!": "begin_shell_command",
     ":": "begin_command_palette",
     "s": "cycle_sort",
     "d": "toggle_directories_first",
     "delete": "delete_targets",
+    "shift+delete": "permanent_delete_targets",
     "e": "open_in_editor",
     "right": "enter_directory",
     "l": "enter_directory",
     "enter": "enter_or_open",
-    "ctrl+t": "toggle_split_terminal",
-    "ctrl+f": "begin_file_search",
-    "ctrl+g": "begin_grep_search",
-    "ctrl+a": "select_all",
-    "y": "copy_targets",
+    "t": "toggle_split_terminal",
+    "f": "begin_file_search",
+    "g": "begin_grep_search",
+    "a": "select_all",
+    "c": "copy_targets",
     "x": "cut_targets",
     "p": "paste_clipboard",
-    "home": "cursor_home",
-    "end": "cursor_end",
-    "alt+left": "go_back",
-    "alt+right": "go_forward",
-    "alt+home": "go_to_home_directory",
-    "ctrl+o": "begin_history_search",
-    "ctrl+b": "begin_bookmark_search",
-    "b": "toggle_bookmark",
-    "c": "copy_paths_to_clipboard",
-    "ctrl+j": "begin_go_to_path",
-    "ctrl+n": "create_file",
-    "ctrl+d": "create_dir",
-    "pageup": "cursor_pageup",
-    "pagedown": "cursor_pagedown",
+    "~": "go_to_home_directory",
+    "H": "begin_history_search",
+    "b": "begin_bookmark_search",
+    "B": "toggle_bookmark",
+    "C": "copy_paths_to_clipboard",
+    "G": "begin_go_to_path",
+    "n": "create_file",
+    "N": "create_dir",
+    "[": "go_back",
+    "]": "go_forward",
+    "m": "open_file_manager",
+    "T": "open_terminal",
 }
 
 CONFLICT_KEYMAP = {
@@ -145,12 +146,11 @@ CONFLICT_KEYMAP = {
 
 TERMINAL_KEYMAP = {
     "tab": "terminal_tab",
-    "ctrl+t": "toggle_terminal",
     "ctrl+v": "paste_from_clipboard",
     "enter": "terminal_enter",
     "backspace": "terminal_backspace",
     "delete": "terminal_delete",
-    "escape": "terminal_escape",
+    "escape": "toggle_terminal",
     "home": "terminal_home",
     "end": "terminal_end",
     "pageup": "terminal_pageup",
@@ -186,38 +186,15 @@ def dispatch_key_input(
     key: str,
     character: str | None = None,
 ) -> DispatchedActions:
-    """Return reducer actions for the current mode and key press."""
-
+    """データドリブンなキーディスパッチ."""
     character = _normalize_input_character(state, key=key, character=character)
 
-    if _terminal_has_focus(state):
-        return _dispatch_split_terminal_input(key=key, character=character)
+    for condition, dispatcher in _MODE_DISPATCHERS:
+        if condition(state):
+            return dispatcher(state, key=key, character=character)
 
-    if state.ui_mode == "FILTER":
-        return _dispatch_filter_input(state, key=key, character=character)
-
-    if state.ui_mode == "CONFIRM":
-        return _dispatch_confirm_input(state, key)
-
-    if state.ui_mode == "DETAIL":
-        return _dispatch_detail_input(key)
-
-    if state.ui_mode == "CONFIG":
-        return _dispatch_config_input(state, key)
-
-    if state.ui_mode == "BUSY":
-        return _warn("Input ignored while processing")
-
-    if state.ui_mode == "PALETTE":
-        return _dispatch_command_palette_input(state, key=key, character=character)
-
-    if state.ui_mode in {"RENAME", "CREATE", "EXTRACT", "ZIP"}:
-        return _dispatch_pending_input(state, key=key, character=character)
-
-    if state.ui_mode == "SHELL":
-        return _dispatch_shell_command_input(state, key=key, character=character)
-
-    return _dispatch_browsing_input(state, key)
+    # ここには到達しない（デフォルト条件が必ずマッチする）
+    return ()
 
 
 def _normalize_input_character(
@@ -255,7 +232,9 @@ def _resolve_printable_character(*, key: str, character: str | None) -> str | No
     return None
 
 
-def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
+def _dispatch_browsing_input(
+    state: AppState, *, key: str, character: str | None
+) -> DispatchedActions:
     visible_paths = _visible_paths(state)
     cursor_entry = _current_entry(state)
     target_paths = select_target_paths(state)
@@ -279,28 +258,10 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
         return _supported(MoveCursor(delta=1, visible_paths=visible_paths))
 
     if command == "cursor_up_selecting":
-        return _supported(
-            MoveCursorAndSelectRange(delta=-1, visible_paths=visible_paths)
-        )
+        return _supported(MoveCursorAndSelectRange(delta=-1, visible_paths=visible_paths))
 
     if command == "cursor_down_selecting":
-        return _supported(
-            MoveCursorAndSelectRange(delta=1, visible_paths=visible_paths)
-        )
-
-    if command == "cursor_home":
-        return _supported(JumpCursor(position="start", visible_paths=visible_paths))
-
-    if command == "cursor_end":
-        return _supported(JumpCursor(position="end", visible_paths=visible_paths))
-
-    if command == "cursor_pageup":
-        visible = compute_search_visible_window(state.terminal_height)
-        return _supported(MoveCursor(delta=-visible, visible_paths=visible_paths))
-
-    if command == "cursor_pagedown":
-        visible = compute_search_visible_window(state.terminal_height)
-        return _supported(MoveCursor(delta=visible, visible_paths=visible_paths))
+        return _supported(MoveCursorAndSelectRange(delta=1, visible_paths=visible_paths))
 
     if command == "toggle_selection" and state.current_pane.cursor_path is not None:
         return _supported(
@@ -411,7 +372,12 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
     if command == "delete_targets":
         if not target_paths:
             return _warn("Nothing to delete")
-        return _supported(BeginDeleteTargets(target_paths))
+        return _supported(BeginDeleteTargets(target_paths, mode="trash"))
+
+    if command == "permanent_delete_targets":
+        if not target_paths:
+            return _warn("Nothing to permanently delete")
+        return _supported(BeginDeleteTargets(target_paths, mode="permanent"))
 
     if command == "show_attributes":
         return _supported(ShowAttributes())
@@ -433,10 +399,17 @@ def _dispatch_browsing_input(state: AppState, key: str) -> DispatchedActions:
             return _supported(OpenPathWithDefaultApp(cursor_entry.path))
         return ()
 
+    if command == "open_terminal":
+        return _supported(OpenTerminalAtPath(state.current_path))
+
+    if command == "open_file_manager":
+        return _supported(OpenPathWithDefaultApp(state.current_path))
+
     return ()
 
 
 def _dispatch_split_terminal_input(
+    state: AppState,
     *,
     key: str,
     character: str | None,
@@ -452,9 +425,6 @@ def _dispatch_split_terminal_input(
     if command == "paste_from_clipboard":
         return _supported(PasteFromClipboardToTerminal())
 
-    if command == "terminal_escape":
-        return _supported(ToggleSplitTerminal())
-
     if key == "enter":
         return _supported(SendSplitTerminalInput("\r"))
 
@@ -463,9 +433,6 @@ def _dispatch_split_terminal_input(
 
     if key == "delete":
         return _supported(SendSplitTerminalInput("\x1b[3~"))
-
-    if key == "escape":
-        return _supported(SendSplitTerminalInput("\x1b"))
 
     if key == "home":
         return _supported(SendSplitTerminalInput("\x1b[H"))
@@ -515,12 +482,16 @@ def _terminal_control_character(key: str) -> str | None:
     letter = suffix.lower()
     return chr(ord(letter) - ord("a") + 1)
 
+
 def _dispatch_command_palette_input(
     state: AppState,
     *,
     key: str,
     character: str | None,
 ) -> DispatchedActions:
+    palette_source = state.command_palette.source if state.command_palette is not None else None
+    search_palette = palette_source in {"file_search", "grep_search"}
+
     if (
         key == "tab"
         and state.command_palette is not None
@@ -546,10 +517,10 @@ def _dispatch_command_palette_input(
     if key == "escape":
         return _supported(CancelCommandPalette())
 
-    if key in {"up", "k"}:
+    if key == "up" or (key == "k" and not search_palette):
         return _supported(MoveCommandPaletteCursor(delta=-1))
 
-    if key in {"down", "j"}:
+    if key == "down" or (key == "j" and not search_palette):
         return _supported(MoveCommandPaletteCursor(delta=1))
 
     if key == "pageup":
@@ -583,8 +554,7 @@ def _dispatch_command_palette_input(
         current_query = state.command_palette.query if state.command_palette is not None else ""
         return _supported(SetCommandPaletteQuery(f"{current_query}{character}"))
 
-    source = state.command_palette.source if state.command_palette is not None else None
-    if source in ("grep_search", "file_search"):
+    if search_palette:
         return _warn("Use arrows, type to filter, Enter, Ctrl+E for editor, or Esc")
 
     return _warn("Use arrows, type to filter, Enter to run, or Esc to cancel")
@@ -612,13 +582,22 @@ def _dispatch_filter_input(
     return _warn("This key is unavailable while editing the filter")
 
 
-def _dispatch_confirm_input(state: AppState, key: str) -> DispatchedActions:
+def _dispatch_confirm_input(
+    state: AppState, *, key: str, character: str | None
+) -> DispatchedActions:
     if state.delete_confirmation is not None:
         if key == "escape":
             return _supported(CancelDeleteConfirmation())
         if key == "enter":
             return _supported(ConfirmDeleteTargets())
         return _warn("Use Enter to confirm delete or Esc to cancel")
+
+    if state.empty_trash_confirmation is not None:
+        if key == "escape":
+            return _supported(CancelEmptyTrashConfirmation())
+        if key == "enter":
+            return _supported(ConfirmEmptyTrash())
+        return _warn("Use Enter to confirm empty trash or Esc to cancel")
 
     if state.archive_extract_confirmation is not None:
         if key == "escape":
@@ -700,14 +679,18 @@ def _dispatch_shell_command_input(
     return _warn("Use Enter to run or Esc to cancel")
 
 
-def _dispatch_detail_input(key: str) -> DispatchedActions:
+def _dispatch_detail_input(
+    state: AppState, *, key: str, character: str | None
+) -> DispatchedActions:
     if key in {"enter", "escape"}:
         return _supported(DismissAttributeDialog())
 
     return _warn("Use Enter or Esc to close the attributes dialog")
 
 
-def _dispatch_config_input(state: AppState, key: str) -> DispatchedActions:
+def _dispatch_config_input(
+    state: AppState, *, key: str, character: str | None
+) -> DispatchedActions:
     if key == "escape":
         return _supported(DismissConfigEditor())
 
@@ -782,3 +765,29 @@ def _next_sort_action(state: AppState) -> SetSort:
         field=next_field,
         descending=next_descending,
     )
+
+
+# モード判定条件とディスパッチャのタプルリスト
+# 各タプル: (条件述語関数, ディスパッチャ関数)
+# タプルの順序が優先順位を表す
+_MODE_DISPATCHERS = (
+    # ターミナルフォーカスは ui_mode より優先
+    (lambda state: _terminal_has_focus(state), _dispatch_split_terminal_input),
+    # ui_mode ベースのディスパッチ
+    (lambda state: state.ui_mode == "FILTER", _dispatch_filter_input),
+    (lambda state: state.ui_mode == "CONFIRM", _dispatch_confirm_input),
+    (lambda state: state.ui_mode == "DETAIL", _dispatch_detail_input),
+    (lambda state: state.ui_mode == "CONFIG", _dispatch_config_input),
+    (
+        lambda state: state.ui_mode == "BUSY",
+        lambda state, **_: _warn("Input ignored while processing"),
+    ),
+    (lambda state: state.ui_mode == "PALETTE", _dispatch_command_palette_input),
+    (
+        lambda state: state.ui_mode in {"RENAME", "CREATE", "EXTRACT", "ZIP"},
+        _dispatch_pending_input,
+    ),
+    (lambda state: state.ui_mode == "SHELL", _dispatch_shell_command_input),
+    # デフォルト（BROWSING）
+    (lambda state: True, _dispatch_browsing_input),
+)

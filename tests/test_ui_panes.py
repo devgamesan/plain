@@ -1,5 +1,5 @@
 from peneo.models import PaneEntry
-from peneo.ui.panes import build_entry_label, truncate_middle
+from peneo.ui.panes import SidePane, build_entry_label, truncate_middle
 
 
 def test_truncate_middle_keeps_text_when_width_is_sufficient() -> None:
@@ -44,3 +44,11 @@ def test_pane_entry_defaults_executable_to_false() -> None:
     entry = PaneEntry("README.md", "file")
 
     assert entry.executable is False
+
+
+def test_side_pane_selected_directory_uses_background_highlight() -> None:
+    entry = PaneEntry("docs", "dir", selected=True)
+
+    rendered = SidePane._render_label(entry)
+
+    assert rendered.style == "bold white on blue"

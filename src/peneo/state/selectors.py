@@ -122,6 +122,7 @@ def select_parent_entries(state: AppState) -> tuple[PaneEntry, ...]:
         visible_entries,
         state.directory_size_cache,
         display_directory_sizes=False,
+        selected_path=state.parent_pane.cursor_path,
         cut_paths=_select_visible_cut_paths(visible_entries, _select_cut_paths(state)),
     )
 
@@ -165,6 +166,7 @@ def _select_child_entries_for_cursor(
         visible_entries,
         state.directory_size_cache,
         display_directory_sizes=False,
+        selected_path=None,
         cut_paths=_select_visible_cut_paths(visible_entries, _select_cut_paths(state)),
     )
 
@@ -195,11 +197,16 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     if state.split_terminal.visible:
         if state.config.help_bar.split_terminal:
             return HelpBarState(state.config.help_bar.split_terminal)
-        return HelpBarState(("type in terminal | ctrl+t close | ctrl+v paste",))
+        return HelpBarState(("type in terminal | esc close | ctrl+v paste",))
     if state.ui_mode == "CONFIRM":
         if state.delete_confirmation is not None:
-            if state.config.help_bar.confirm_delete:
+            if (
+                state.delete_confirmation.mode == "trash"
+                and state.config.help_bar.confirm_delete
+            ):
                 return HelpBarState(state.config.help_bar.confirm_delete)
+            if state.delete_confirmation.mode == "permanent":
+                return HelpBarState(("enter confirm permanent delete | esc cancel",))
             return HelpBarState(("enter confirm delete | esc cancel",))
         if state.archive_extract_confirmation is not None:
             return HelpBarState(("enter continue extraction | esc return to input",))
@@ -249,11 +256,18 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         if state.command_palette is not None and state.command_palette.source == "file_search":
             if state.config.help_bar.palette_file_search:
                 return HelpBarState(state.config.help_bar.palette_file_search)
-            return HelpBarState(("type filename | enter jump | Ctrl+E edit | esc cancel",))
+            return HelpBarState(
+                ("type filename | ↑↓ select | enter jump | Ctrl+E edit | esc cancel",)
+            )
         if state.command_palette is not None and state.command_palette.source == "grep_search":
             if state.config.help_bar.palette_grep_search:
                 return HelpBarState(state.config.help_bar.palette_grep_search)
-            return HelpBarState(("type text / re:pattern | enter jump | Ctrl+E edit | esc cancel",))
+            return HelpBarState(
+                (
+                    "type text / re:pattern | ↑↓ select | "
+                    "enter jump | Ctrl+E edit | esc cancel",
+                )
+            )
         if state.command_palette is not None and state.command_palette.source == "history":
             if state.config.help_bar.palette_history:
                 return HelpBarState(state.config.help_bar.palette_history)
@@ -266,11 +280,11 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             if state.config.help_bar.palette_go_to_path:
                 return HelpBarState(state.config.help_bar.palette_go_to_path)
             return HelpBarState(
-                ("type path | up/down select | tab complete | enter jump | esc cancel",)
+                ("type path | ↑↓ select | tab complete | enter jump | esc cancel",)
             )
         if state.config.help_bar.palette:
             return HelpBarState(state.config.help_bar.palette)
-        return HelpBarState(("type command | enter run | esc cancel",))
+        return HelpBarState(("type command | ↑↓ select | enter run | esc cancel",))
     if state.ui_mode == "BUSY":
         if state.config.help_bar.busy:
             return HelpBarState(state.config.help_bar.busy)
@@ -279,9 +293,10 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         return HelpBarState(state.config.help_bar.browsing)
     return HelpBarState(
         (
-            "enter open | e edit | i info | space select | y copy | x cut | p paste | c path",
-            "/ filter | s sort | . hidden | b bookmark | ctrl+f find | ctrl+g grep",
-            ": palette | ! shell | ctrl+t term | q quit",
+            "enter open | e edit | i info | space select | c copy | x cut | p paste | C path",
+            "/ filter | s sort | d dir-first | . hidden | a select-all | ~ home",
+            "f find | g grep | G go-to | H history | b bookmarks | B toggle-bookmark",
+            "n new-file | N new-dir | r rename | R reload | t term | : palette | q quit",
         )
     )
 
@@ -373,62 +388,34 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             empty_message=_grep_search_empty_message(state),
         )
     if state.command_palette.source == "history":
-        items = get_command_palette_items(state)
-        visible_items, _palette_title = _select_command_palette_window(items, cursor_index)
-        return CommandPaletteViewState(
+        return _build_command_palette_items_view(
+            state,
+            cursor_index,
             title="Directory History",
-            query=state.command_palette.query,
-            items=tuple(
-                CommandPaletteItemViewState(
-                    label=item.label,
-                    shortcut=item.shortcut,
-                    enabled=item.enabled,
-                    selected=index == cursor_index,
-                )
-                for index, item in visible_items
-            ),
             empty_message="No directory history",
         )
 
     if state.command_palette.source == "bookmarks":
-        items = get_command_palette_items(state)
-        visible_items, _palette_title = _select_command_palette_window(items, cursor_index)
-        return CommandPaletteViewState(
+        return _build_command_palette_items_view(
+            state,
+            cursor_index,
             title="Bookmarks",
-            query=state.command_palette.query,
-            items=tuple(
-                CommandPaletteItemViewState(
-                    label=item.label,
-                    shortcut=item.shortcut,
-                    enabled=item.enabled,
-                    selected=index == cursor_index,
-                )
-                for index, item in visible_items
-            ),
             empty_message="No bookmarks",
         )
 
     if state.command_palette.source == "go_to_path":
-        items = get_command_palette_items(state)
-        visible_items, _palette_title = _select_command_palette_window(items, cursor_index)
         selection_active = state.command_palette.go_to_path_selection_active
-        return CommandPaletteViewState(
+        empty_message = (
+            "Type a path to jump to"
+            if not state.command_palette.query.strip()
+            else "No matching directories"
+        )
+        return _build_command_palette_items_view(
+            state,
+            cursor_index,
             title="Go to path",
-            query=state.command_palette.query,
-            items=tuple(
-                CommandPaletteItemViewState(
-                    label=item.label,
-                    shortcut=item.shortcut,
-                    enabled=item.enabled,
-                    selected=selection_active and index == cursor_index,
-                )
-                for index, item in visible_items
-            ),
-            empty_message=(
-                "Type a path to jump to"
-                if not state.command_palette.query.strip()
-                else "No matching directories"
-            ),
+            empty_message=empty_message,
+            selected_override=selection_active or False,
         )
 
     items = get_command_palette_items(state)
@@ -477,14 +464,38 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
     """Return dialog content when the app is waiting on conflict input."""
 
     if state.delete_confirmation is not None:
-        target_count = len(state.delete_confirmation.paths)
-        first_name = Path(state.delete_confirmation.paths[0]).name
+        confirmation = state.delete_confirmation
+        target_count = len(confirmation.paths)
+        first_name = Path(confirmation.paths[0]).name
         noun = "item" if target_count == 1 else "items"
-        message = f"Move {target_count} {noun} to trash?"
-        if target_count > 1:
-            message = f"Move {target_count} items to trash? The first target is {first_name}."
+        if confirmation.mode == "permanent":
+            message = f"Permanently delete {target_count} {noun}? This cannot be undone."
+            if target_count > 1:
+                message = (
+                    f"Permanently delete {target_count} items? "
+                    f"The first target is {first_name}. This cannot be undone."
+                )
+            title = "Permanent Delete Confirmation"
+        else:
+            message = f"Move {target_count} {noun} to trash?"
+            if target_count > 1:
+                message = f"Move {target_count} items to trash? The first target is {first_name}."
+            title = "Delete Confirmation"
         return ConflictDialogState(
-            title="Delete Confirmation",
+            title=title,
+            message=message,
+            options=("enter confirm", "esc cancel"),
+        )
+
+    if state.empty_trash_confirmation is not None:
+        confirmation = state.empty_trash_confirmation
+        platform_name = "Linux" if confirmation.platform == "linux" else "macOS"
+        message = (
+            f"Permanently delete all items from the {platform_name} trash? "
+            "This cannot be undone."
+        )
+        return ConflictDialogState(
+            title="Empty Trash Confirmation",
             message=message,
             options=("enter confirm", "esc cancel"),
         )
@@ -634,6 +645,9 @@ def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
         ),
         _format_config_line(
             8, selected_index, "Paste conflict action", config.behavior.paste_conflict_action
+        ),
+        _format_config_line(
+            9, selected_index, "Log level", config.logging.level
         ),
         "",
         _format_custom_editor_hint(config.editor.command),
@@ -894,6 +908,7 @@ def _select_side_pane_entries(
     visible_entries: tuple[DirectoryEntryState, ...],
     directory_size_cache: tuple[DirectorySizeCacheEntry, ...],
     display_directory_sizes: bool,
+    selected_path: str | None,
     cut_paths: frozenset[str],
 ) -> tuple[PaneEntry, ...]:
     return tuple(
@@ -904,6 +919,7 @@ def _select_side_pane_entries(
                 directory_size_cache,
                 display_directory_sizes=display_directory_sizes,
             ),
+            selected=entry.path == selected_path,
             cut=entry.path in cut_paths,
         )
         for entry in visible_entries
@@ -1037,6 +1053,52 @@ def compute_search_visible_window(terminal_height: int) -> int:
     return max(MIN_SEARCH_VISIBLE_WINDOW, palette_rows - _SEARCH_OVERHEAD_ROWS)
 
 
+def _build_command_palette_items_view(
+    state: AppState,
+    cursor_index: int,
+    title: str,
+    empty_message: str | None = None,
+    *,
+    selected_override: bool | None = None,
+) -> CommandPaletteViewState:
+    """コマンドパレットのアイテムビューを構築する共通関数。
+
+    Args:
+        state: アプリケーション状態
+        cursor_index: カーソル位置
+        title: パレットタイトル
+        empty_message: 空メッセージ（Noneの場合はデフォルト値を使用）
+        selected_override: 選択状態の上書き（go_to_path用）
+
+    Returns:
+        CommandPaletteViewState: コマンドパレットの表示状態
+    """
+    items = get_command_palette_items(state)
+    visible_window = compute_search_visible_window(state.terminal_height)
+    visible_items, _palette_title = _select_command_palette_window(
+        items, cursor_index, visible_window=visible_window
+    )
+
+    return CommandPaletteViewState(
+        title=title,
+        query=state.command_palette.query,
+        items=tuple(
+            CommandPaletteItemViewState(
+                label=item.label,
+                shortcut=item.shortcut,
+                enabled=item.enabled,
+                selected=(
+                    (
+                        selected_override if selected_override is not None else True
+                    ) and index == cursor_index
+                ),
+            )
+            for index, item in visible_items
+        ),
+        empty_message=empty_message or "No items",
+    )
+
+
 def compute_current_pane_visible_window(terminal_height: int) -> int:
     """Estimate how many current-pane rows are visible in the terminal."""
 
@@ -1094,20 +1156,21 @@ def _select_search_window(
 def _select_command_palette_window(
     items: tuple[CommandPaletteItem, ...],
     cursor_index: int,
+    visible_window: int = COMMAND_PALETTE_VISIBLE_WINDOW,
 ) -> tuple[tuple[tuple[int, CommandPaletteItem], ...], str]:
     total = len(items)
-    if total <= COMMAND_PALETTE_VISIBLE_WINDOW:
+    if total <= visible_window:
         return tuple(enumerate(items)), "Command Palette"
 
     # 3段階アルゴリズムでスクロール位置を決定
     # 1. 中央揃えの理想的な位置を計算
-    ideal_start = cursor_index - (COMMAND_PALETTE_VISIBLE_WINDOW // 2)
+    ideal_start = cursor_index - (visible_window // 2)
     # 2. 先頭境界を適用
     start = max(0, ideal_start)
     # 3. 末尾境界を適用（末尾が必ず見えるように）
-    max_start = max(0, total - COMMAND_PALETTE_VISIBLE_WINDOW)
+    max_start = max(0, total - visible_window)
     start = min(start, max_start)
-    end = min(total, start + COMMAND_PALETTE_VISIBLE_WINDOW)
+    end = min(total, start + visible_window)
     visible_items = tuple((index, items[index]) for index in range(start, end))
     return visible_items, f"Command Palette ({start + 1}-{end} / {total})"
 

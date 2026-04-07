@@ -1,6 +1,7 @@
 """Command palette definitions and filtering helpers."""
 
 import os
+import platform
 from dataclasses import dataclass
 
 from peneo.archive_utils import is_supported_archive_path
@@ -132,67 +133,67 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         CommandPaletteItem(
             id="file_search",
             label="Find files",
-            shortcut="Ctrl+F",
+            shortcut="f",
             enabled=True,
         ),
         CommandPaletteItem(
             id="grep_search",
             label="Grep search",
-            shortcut="Ctrl+G",
+            shortcut="g",
             enabled=True,
         ),
         CommandPaletteItem(
             id="history_search",
             label="History search",
-            shortcut="Ctrl+O",
+            shortcut="H",
             enabled=True,
         ),
         CommandPaletteItem(
             id="bookmark_search",
             label="Show bookmarks",
-            shortcut="Ctrl+B",
+            shortcut="b",
             enabled=True,
         ),
         CommandPaletteItem(
             id="go_back",
             label="Go back",
-            shortcut="Alt+Left",
+            shortcut="[",
             enabled=bool(state.history.back),
         ),
         CommandPaletteItem(
             id="go_forward",
             label="Go forward",
-            shortcut="Alt+Right",
+            shortcut="]",
             enabled=bool(state.history.forward),
         ),
         CommandPaletteItem(
             id="go_to_path",
             label="Go to path",
-            shortcut="Ctrl+J",
+            shortcut="G",
             enabled=True,
         ),
         CommandPaletteItem(
             id="go_to_home_directory",
             label="Go to home directory",
-            shortcut="Alt+Home",
+            shortcut="~",
             enabled=True,
         ),
         CommandPaletteItem(
             id="reload_directory",
             label="Reload directory",
-            shortcut="F5",
+            shortcut="R",
             enabled=True,
         ),
         CommandPaletteItem(
             id="toggle_split_terminal",
             label="Toggle split terminal",
-            shortcut="Ctrl+T",
+            shortcut="t",
             enabled=True,
         ),
         CommandPaletteItem(
             id="select_all",
             label="Select all",
-            shortcut="Ctrl+A",
+            shortcut="a",
             enabled=has_visible_entries,
         ),
     ]
@@ -202,7 +203,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="show_attributes",
                 label="Show attributes",
-                shortcut="I",
+                shortcut="i",
                 enabled=True,
             )
         )
@@ -210,7 +211,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="rename",
                 label="Rename",
-                shortcut="F2",
+                shortcut="r",
                 enabled=True,
             )
         )
@@ -235,7 +236,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="open_in_editor",
                 label="Open in editor",
-                shortcut="E",
+                shortcut="e",
                 enabled=single_target_entry.kind == "file",
             )
         )
@@ -266,19 +267,27 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 enabled=True,
             )
         )
+        items.append(
+            CommandPaletteItem(
+                id="empty_trash",
+                label="Empty trash",
+                shortcut=None,
+                enabled=_is_empty_trash_supported(),
+            )
+        )
 
     items.extend(
         [
             CommandPaletteItem(
                 id="open_file_manager",
                 label="Open in file manager",
-                shortcut=None,
+                shortcut="m",
                 enabled=True,
             ),
             CommandPaletteItem(
                 id="open_terminal",
                 label="Open terminal here",
-                shortcut=None,
+                shortcut="T",
                 enabled=True,
             ),
             CommandPaletteItem(
@@ -312,13 +321,13 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="create_file",
                 label="Create file",
-                shortcut="Ctrl+N",
+                shortcut="n",
                 enabled=True,
             ),
             CommandPaletteItem(
                 id="create_dir",
                 label="Create directory",
-                shortcut="Ctrl+D",
+                shortcut="N",
                 enabled=True,
             )
         ]
@@ -399,3 +408,8 @@ def _has_visible_current_entries(state: AppState) -> bool:
             continue
         return True
     return False
+
+
+def _is_empty_trash_supported() -> bool:
+    """Check if empty trash is supported on current platform."""
+    return platform.system() in ("Linux", "Darwin")

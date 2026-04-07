@@ -82,6 +82,27 @@ def test_live_browser_snapshot_loader_returns_empty_child_pane_for_file_cursor(t
     assert snapshot.child_pane.entries == ()
 
 
+def test_live_browser_snapshot_loader_returns_empty_parent_pane_for_root_path() -> None:
+    filesystem = StubFilesystemAdapter(
+        entries_by_path={
+            "/": (
+                DirectoryEntryState("/README", "README", "file"),
+                DirectoryEntryState("/tmp", "tmp", "dir"),
+            )
+        }
+    )
+    loader = LiveBrowserSnapshotLoader(filesystem=filesystem)
+
+    snapshot = loader.load_browser_snapshot("/", cursor_path="/README")
+
+    assert snapshot.current_path == "/"
+    assert snapshot.parent_pane.directory_path == "/"
+    assert snapshot.parent_pane.entries == ()
+    assert snapshot.parent_pane.cursor_path is None
+    assert snapshot.current_pane.entries == filesystem.entries_by_path["/"]
+    assert filesystem.list_directory_calls == ["/"]
+
+
 def test_live_browser_snapshot_loader_normalizes_not_found_error() -> None:
     loader = LiveBrowserSnapshotLoader(
         filesystem=StubFilesystemAdapter(errors_by_path={"/missing": FileNotFoundError("nope")})
@@ -193,3 +214,14 @@ def test_fake_browser_snapshot_loader_records_invalidated_directory_listing_path
     assert loader.invalidated_directory_listing_paths == [
         ("/tmp/project", "/tmp/project/docs"),
     ]
+
+
+def test_fake_browser_snapshot_loader_returns_empty_parent_pane_for_root_path() -> None:
+    loader = FakeBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot("/")
+
+    assert snapshot.current_path == "/"
+    assert snapshot.parent_pane.directory_path == "/"
+    assert snapshot.parent_pane.entries == ()
+    assert snapshot.parent_pane.cursor_path is None

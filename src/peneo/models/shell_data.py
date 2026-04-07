@@ -241,7 +241,6 @@ def build_dummy_shell_data() -> ThreePaneShellData:
         ),
         current_entries=current_entries,
         child_entries=(
-            PaneEntry("spec_mvp.md", "file"),
             PaneEntry("notes.md", "file"),
             PaneEntry("wireframes", "dir"),
         ),

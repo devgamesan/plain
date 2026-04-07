@@ -2,9 +2,10 @@
 
 from dataclasses import replace
 from pathlib import Path
+from typing import Literal
 
 from peneo.archive_utils import default_extract_destination, default_zip_destination
-from peneo.models import PasteRequest, RenameRequest, TrashDeleteRequest
+from peneo.models import DeleteRequest, PasteRequest, RenameRequest
 
 from .actions import (
     Action,
@@ -15,11 +16,13 @@ from .actions import (
     ArchivePreparationFailed,
     BeginCreateInput,
     BeginDeleteTargets,
+    BeginEmptyTrash,
     BeginExtractArchiveInput,
     BeginRenameInput,
     BeginZipCompressInput,
     CancelArchiveExtractConfirmation,
     CancelDeleteConfirmation,
+    CancelEmptyTrashConfirmation,
     CancelPasteConflict,
     CancelPendingInput,
     CancelZipCompressConfirmation,
@@ -29,6 +32,7 @@ from .actions import (
     ClipboardPasteNeedsResolution,
     ConfirmArchiveExtract,
     ConfirmDeleteTargets,
+    ConfirmEmptyTrash,
     ConfirmZipCompress,
     CopyTargets,
     CutTargets,
@@ -56,6 +60,7 @@ from .models import (
     ArchiveExtractProgressState,
     ClipboardState,
     DeleteConfirmationState,
+    EmptyTrashConfirmationState,
     NameConflictState,
     NotificationState,
     PasteConflictState,
@@ -179,7 +184,7 @@ def handle_mutation_action(
     if isinstance(action, BeginDeleteTargets):
         if not action.paths:
             return done(state)
-        if state.confirm_delete:
+        if action.mode == "permanent" or state.confirm_delete:
             return done(
                 replace(
                     state,
@@ -190,7 +195,10 @@ def handle_mutation_action(
                     pending_file_search_request_id=None,
                     pending_grep_search_request_id=None,
                     paste_conflict=None,
-                    delete_confirmation=DeleteConfirmationState(paths=action.paths),
+                    delete_confirmation=DeleteConfirmationState(
+                        paths=action.paths,
+                        mode=action.mode,
+                    ),
                     archive_extract_confirmation=None,
                     archive_extract_progress=None,
                     zip_compress_confirmation=None,
@@ -212,7 +220,7 @@ def handle_mutation_action(
                 name_conflict=None,
                 attribute_inspection=None,
             ),
-            TrashDeleteRequest(paths=action.paths),
+            DeleteRequest(paths=action.paths, mode=action.mode),
         )
 
     if isinstance(action, BeginCreateInput):
@@ -497,7 +505,10 @@ def handle_mutation_action(
                 paste_conflict=None,
                 notification=None,
             ),
-            TrashDeleteRequest(paths=state.delete_confirmation.paths),
+            DeleteRequest(
+                paths=state.delete_confirmation.paths,
+                mode=state.delete_confirmation.mode,
+            ),
         )
 
     if isinstance(action, ConfirmArchiveExtract):
@@ -529,12 +540,18 @@ def handle_mutation_action(
         )
 
     if isinstance(action, CancelDeleteConfirmation):
+        message = (
+            "Permanent delete cancelled"
+            if state.delete_confirmation is not None
+            and state.delete_confirmation.mode == "permanent"
+            else "Delete cancelled"
+        )
         return done(
             replace(
                 state,
                 delete_confirmation=None,
                 ui_mode="BROWSING",
-                notification=NotificationState(level="warning", message="Delete cancelled"),
+                notification=NotificationState(level="warning", message=message),
             )
         )
 
@@ -932,4 +949,98 @@ def handle_mutation_action(
             )
         )
 
+    if isinstance(action, BeginEmptyTrash):
+        platform_kind = _detect_platform()
+        if platform_kind not in ("linux", "darwin"):
+            return done(
+                replace(
+                    state,
+                    notification=NotificationState(
+                        level="error",
+                        message="Empty trash is not supported on this platform",
+                    ),
+                )
+            )
+
+        return done(
+            replace(
+                state,
+                ui_mode="CONFIRM",
+                notification=None,
+                pending_input=None,
+                command_palette=None,
+                pending_file_search_request_id=None,
+                pending_grep_search_request_id=None,
+                paste_conflict=None,
+                delete_confirmation=None,
+                empty_trash_confirmation=EmptyTrashConfirmationState(
+                    platform=platform_kind,
+                ),
+                archive_extract_confirmation=None,
+                archive_extract_progress=None,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
+                name_conflict=None,
+                attribute_inspection=None,
+            )
+        )
+
+    if isinstance(action, ConfirmEmptyTrash):
+        if state.empty_trash_confirmation is None:
+            return done(state)
+
+        from peneo.services import resolve_trash_service
+
+        trash_service = resolve_trash_service()
+        removed_count, error_message = trash_service.empty_trash()
+
+        if error_message and removed_count == 0:
+            return done(
+                replace(
+                    state,
+                    ui_mode="BROWSING",
+                    notification=NotificationState(level="error", message=error_message),
+                    empty_trash_confirmation=None,
+                )
+            )
+
+        if error_message:
+            message = error_message
+            level = "warning"
+        else:
+            noun = "item" if removed_count == 1 else "items"
+            message = f"Emptied {removed_count} {noun} from trash"
+            level = "info"
+
+        return done(
+            replace(
+                state,
+                ui_mode="BROWSING",
+                notification=NotificationState(level=level, message=message),
+                empty_trash_confirmation=None,
+            )
+        )
+
+    if isinstance(action, CancelEmptyTrashConfirmation):
+        return done(
+            replace(
+                state,
+                ui_mode="BROWSING",
+                notification=None,
+                empty_trash_confirmation=None,
+            )
+        )
+
+    return None
+
+
+def _detect_platform() -> Literal["linux", "darwin"] | None:
+    """Detect the current platform."""
+    import platform as platform_module
+
+    system = platform_module.system()
+    if system == "Linux":
+        return "linux"
+    elif system == "Darwin":
+        return "darwin"
     return None

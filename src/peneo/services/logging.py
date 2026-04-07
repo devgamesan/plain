@@ -62,12 +62,12 @@ def configure_file_logging(
         )
 
     handler.set_name(_HANDLER_NAME)
-    handler.setLevel(logging.ERROR)
+    handler.setLevel(getattr(logging, config.level))
     handler.setFormatter(
         logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
     )
     _replace_managed_handlers(logger, handler)
-    logger.setLevel(logging.ERROR)
+    logger.setLevel(getattr(logging, config.level))
     logger.propagate = False
     _install_exception_hooks()
     return LoggingSetupResult(enabled=True, path=str(log_path))

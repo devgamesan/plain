@@ -323,7 +323,7 @@ The main keys are listed below.
 | Normal | `Enter` | Enter a directory, or open a file with the default app |
 | Normal | `e` | Open the focused file in a terminal editor, using `editor.command` -> `$EDITOR` -> built-in defaults |
 | Normal | `i` | Show attributes for the selected item, or the focused item if nothing is selected |
-| Normal | `F5` | Reload the current directory |
+| Normal | `R` | Reload the current directory |
 | Normal | `Space` | Toggle selection, then move to the next row |
 | Normal | `Ctrl+A` | Select all currently visible entries in the current directory |
 | Normal | `y` | Copy the selected items, or the focused item if nothing is selected |

@@ -1313,7 +1313,7 @@ def test_select_command_palette_state_shows_single_target_shortcuts() -> None:
 
     assert state is not None
     assert [item.label for item in state.items] == ["Show attributes"]
-    assert [item.shortcut for item in state.items] == ["I"]
+    assert [item.shortcut for item in state.items] == ["i"]
 
 
 def test_select_command_palette_state_shows_copy_path_shortcut() -> None:

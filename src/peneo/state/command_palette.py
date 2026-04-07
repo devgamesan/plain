@@ -180,7 +180,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         CommandPaletteItem(
             id="reload_directory",
             label="Reload directory",
-            shortcut="F5",
+            shortcut="R",
             enabled=True,
         ),
         CommandPaletteItem(
@@ -202,7 +202,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="show_attributes",
                 label="Show attributes",
-                shortcut="I",
+                shortcut="i",
                 enabled=True,
             )
         )
@@ -235,7 +235,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="open_in_editor",
                 label="Open in editor",
-                shortcut="E",
+                shortcut="e",
                 enabled=single_target_entry.kind == "file",
             )
         )

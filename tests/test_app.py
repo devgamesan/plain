@@ -3145,6 +3145,35 @@ async def test_app_split_terminal_focus_routes_input_to_session() -> None:
         session = split_terminal_service.sessions[0]
         assert session.writes == ["a", "\r"]
 
+@pytest.mark.asyncio
+async def test_app_split_terminal_focus_sends_tab() -> None:
+    path = "/tmp/peneo-split-terminal-tab"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    split_terminal_service = FakeSplitTerminalService()
+    app = create_app(
+        snapshot_loader=loader,
+        split_terminal_service=split_terminal_service,
+        initial_path=path,
+    )
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("t")
+        await asyncio.sleep(0.05)
+        await pilot.press("tab")
+        await asyncio.sleep(0.05)
+
+        session = split_terminal_service.sessions[0]
+        assert session.writes == ["\t"]
+
 
 @pytest.mark.asyncio
 async def test_app_split_terminal_coalesces_rapid_output_updates() -> None:

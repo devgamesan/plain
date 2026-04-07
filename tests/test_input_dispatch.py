@@ -876,6 +876,13 @@ def test_split_terminal_focus_sends_navigation_sequences() -> None:
         SendSplitTerminalInput("\x1b[6~"),
     )
 
+def test_split_terminal_focus_sends_tab() -> None:
+    state = _focused_split_terminal_state()
+
+    actions = dispatch_key_input(state, key="tab")
+
+    assert actions == (SetNotification(None), SendSplitTerminalInput("\t"))
+
 
 def test_split_terminal_focus_takes_priority_over_browsing_navigation() -> None:
     state = _focused_split_terminal_state()

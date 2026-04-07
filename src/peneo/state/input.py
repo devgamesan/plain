@@ -143,6 +143,7 @@ CONFLICT_KEYMAP = {
 }
 
 TERMINAL_KEYMAP = {
+    "tab": "terminal_tab",
     "ctrl+v": "paste_from_clipboard",
     "enter": "terminal_enter",
     "backspace": "terminal_backspace",
@@ -255,14 +256,10 @@ def _dispatch_browsing_input(
         return _supported(MoveCursor(delta=1, visible_paths=visible_paths))
 
     if command == "cursor_up_selecting":
-        return _supported(
-            MoveCursorAndSelectRange(delta=-1, visible_paths=visible_paths)
-        )
+        return _supported(MoveCursorAndSelectRange(delta=-1, visible_paths=visible_paths))
 
     if command == "cursor_down_selecting":
-        return _supported(
-            MoveCursorAndSelectRange(delta=1, visible_paths=visible_paths)
-        )
+        return _supported(MoveCursorAndSelectRange(delta=1, visible_paths=visible_paths))
 
     if command == "toggle_selection" and state.current_pane.cursor_path is not None:
         return _supported(
@@ -482,6 +479,7 @@ def _terminal_control_character(key: str) -> str | None:
 
     letter = suffix.lower()
     return chr(ord(letter) - ord("a") + 1)
+
 
 def _dispatch_command_palette_input(
     state: AppState,

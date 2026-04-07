@@ -1,4 +1,20 @@
-"""Service for emptying trash on different platforms."""
+"""Service for emptying trash on different platforms.
+
+This module provides platform-specific trash emptying functionality using Python's
+standard library (shutil, pathlib) for safe and reliable file deletion.
+
+Security Design:
+- Uses only Python standard library (no external commands or dependencies)
+- Individual error handling per file (partial failure tolerance)
+- Symlink checks to prevent accidental deletion outside trash directories
+- Targets only platform-specific trash directories (no risk to non-trash files)
+- Best-effort metadata cleanup (orphaned metadata is non-critical)
+
+Platform Support:
+- Linux: ~/.local/share/Trash/ (freedesktop.org standard)
+- macOS: ~/.Trash/
+- Windows: Not supported (requires Windows API calls)
+"""
 
 import platform
 import shutil
@@ -26,6 +42,19 @@ class LinuxTrashService:
         return str(trash_path) if trash_path.exists() else None
 
     def empty_trash(self) -> tuple[int, str]:
+        """Empty trash using Python standard library for safety.
+
+        Security considerations:
+        - Uses shutil.rmtree() and Path.unlink() from Python stdlib
+        - Individual error handling per file (partial failure tolerance)
+        - Symlink check to prevent accidental deletion outside trash
+        - Targets only trash directory (no risk of deleting non-trash files)
+
+        Returns:
+            tuple[int, str]: (removed_count, error_message)
+                - error_message is empty on full success
+                - error_message contains details on partial/total failure
+        """
         trash_path = self.get_trash_path()
         if not trash_path:
             return 0, "Trash directory not found"
@@ -38,6 +67,8 @@ class LinuxTrashService:
         failures = []
 
         try:
+            # Remove individual items with per-file error handling
+            # This ensures partial failures don't prevent deletion of other items
             for item in files_path.iterdir():
                 try:
                     if item.is_dir() and not item.is_symlink():
@@ -48,14 +79,15 @@ class LinuxTrashService:
                 except OSError as e:
                     failures.append(f"{item.name}: {str(e)}")
 
-            # Also clean up metadata directory
+            # Clean up metadata directory (best effort)
+            # Metadata failures are non-critical as orphaned files will be cleaned up later
             info_path = Path(trash_path) / "info"
             if info_path.exists():
                 for metadata_file in info_path.iterdir():
                     try:
                         metadata_file.unlink()
                     except OSError:
-                        pass  # Best effort cleanup
+                        pass  # Best effort cleanup - metadata is non-critical
 
             if failures:
                 error_msg = f"Removed {removed_count} items with {len(failures)} failures"
@@ -77,6 +109,17 @@ class MacOsTrashService:
         return str(trash_path) if trash_path.exists() else None
 
     def empty_trash(self) -> tuple[int, str]:
+        """Empty trash using Python standard library for safety.
+
+        Security considerations:
+        - Uses shutil.rmtree() and Path.unlink() from Python stdlib
+        - Individual error handling per file (partial failure tolerance)
+        - Symlink check to prevent accidental deletion outside trash
+        - Targets only trash directory (no risk of deleting non-trash files)
+
+        Returns:
+            tuple[int, str]: (removed_count, error_message)
+        """
         trash_path = self.get_trash_path()
         if not trash_path:
             return 0, "Trash directory not found"
@@ -89,6 +132,7 @@ class MacOsTrashService:
         failures = []
 
         try:
+            # Remove individual items with per-file error handling
             for item in trash_dir.iterdir():
                 try:
                     if item.is_dir() and not item.is_symlink():

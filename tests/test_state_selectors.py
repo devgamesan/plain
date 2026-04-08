@@ -383,7 +383,7 @@ def test_select_pane_entries_show_directory_sizes_from_cache() -> None:
     child_entries = select_child_entries(state)
 
     assert parent_entries[0].name_detail is None
-    assert current_entries[0].size_label == "calculating..."
+    assert current_entries[0].size_label == "-"
     assert child_entries[0].name_detail is None
 
 

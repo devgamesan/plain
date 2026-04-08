@@ -226,7 +226,7 @@ class MainPane(Vertical):
     NAME_MIN_WIDTH = 3
     FIXED_COLUMN_PREFERRED_WIDTHS = {
         "sel": 1,
-        "size": 13,
+        "size": 9,
         "modified": 16,
     }
     FIXED_COLUMN_MIN_WIDTHS = {

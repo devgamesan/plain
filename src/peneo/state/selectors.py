@@ -1333,7 +1333,7 @@ def _format_entry_size_label(
     if cached_entry is None or cached_entry.status == "failed":
         return "-"
     if cached_entry.status == "pending":
-        return "calculating..."
+        return "-"
     return _format_size_label(cached_entry.size_bytes)
 
 

@@ -688,7 +688,7 @@ async def test_app_applies_directory_size_updates_without_full_current_pane_refr
     async with app.run_test():
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 2)
-        await _wait_for_table_cell(app, "calculating...", 0, 2)
+        await _wait_for_table_cell(app, "-", 0, 2)
         full_refresh_calls_before_ready = set_entries_calls
         await _wait_for_table_cell(app, "4.2 KB", 0, 2)
 

@@ -209,6 +209,11 @@ async def _wait_for_shell_command_dialog(app, timeout: float = 0.5) -> ShellComm
             await asyncio.sleep(0.01)
 
 
+def _assert_region_vertically_centered(region, container_region, tolerance: int = 1) -> None:
+    expected_y = container_region.y + (container_region.height - region.height) // 2
+    assert abs(region.y - expected_y) <= tolerance
+
+
 async def _wait_for_snapshot_loaded(app, expected_path: str, timeout: float = 0.5) -> None:
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
@@ -688,7 +693,7 @@ async def test_app_applies_directory_size_updates_without_full_current_pane_refr
     async with app.run_test():
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 2)
-        await _wait_for_table_cell(app, "calculating...", 0, 2)
+        await _wait_for_table_cell(app, "-", 0, 2)
         full_refresh_calls_before_ready = set_entries_calls
         await _wait_for_table_cell(app, "4.2 KB", 0, 2)
 
@@ -2107,6 +2112,72 @@ async def test_app_colon_shows_command_palette() -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_command_palette_overlay_stays_top_aligned_without_resizing_main_pane() -> None:
+    path = "/tmp/peneo-command-palette-overlay"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(80, 24)) as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        current_pane = app.query_one("#current-pane")
+        main_pane_width = current_pane.region.width
+
+        await pilot.press(":")
+        await asyncio.sleep(0.05)
+
+        palette = await _wait_for_command_palette(app)
+        palette_layer = app.query_one("#command-palette-layer")
+
+        assert palette.region.y == palette_layer.region.y
+        assert palette.region.bottom == palette_layer.region.bottom
+        assert "-expanded" in palette.classes
+        assert current_pane.region.width == main_pane_width
+
+
+@pytest.mark.asyncio
+async def test_app_command_palette_stays_compact_when_filtered_results_fit() -> None:
+    path = "/tmp/peneo-command-palette-compact"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(80, 24)) as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await pilot.press("r", "e", "n", "a", "m", "e")
+        await asyncio.sleep(0.05)
+
+        palette = await _wait_for_command_palette(app)
+        palette_layer = app.query_one("#command-palette-layer")
+        items = palette.query_one("#command-palette-items", Static)
+
+        assert "-expanded" not in palette.classes
+        assert palette.region.bottom < palette_layer.region.bottom
+        assert "Rename" in str(items.renderable)
+
+
+@pytest.mark.asyncio
 async def test_app_palette_keeps_current_table_cursor_row() -> None:
     path = "/tmp/peneo-command-palette-cursor"
     loader = FakeBrowserSnapshotLoader(
@@ -2686,6 +2757,41 @@ async def test_app_command_palette_show_attributes_opens_read_only_dialog() -> N
         await asyncio.sleep(0.05)
 
         assert app.app_state.ui_mode == "BROWSING"
+
+
+@pytest.mark.asyncio
+async def test_app_attribute_dialog_overlay_is_centered_without_resizing_main_pane() -> None:
+    path = "/tmp/peneo-attribute-dialog-overlay"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file", size_bytes=120),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(80, 24)) as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        current_pane = app.query_one("#current-pane")
+        main_pane_width = current_pane.region.width
+
+        await pilot.press(":")
+        await pilot.press("a", "t", "t", "r")
+        await pilot.press("enter")
+        await asyncio.sleep(0.05)
+
+        dialog = await _wait_for_attribute_dialog(app)
+        dialog_layer = app.query_one("#attribute-dialog-layer")
+
+        _assert_region_vertically_centered(dialog.region, dialog_layer.region)
+        assert dialog.region.bottom <= dialog_layer.region.bottom
+        assert current_pane.region.width == main_pane_width
 
 
 @pytest.mark.asyncio
@@ -3371,6 +3477,36 @@ async def test_app_pressing_bang_opens_shell_command_dialog() -> None:
         await asyncio.sleep(0.05)
 
         assert app.app_state.ui_mode == "BROWSING"
+
+
+@pytest.mark.asyncio
+async def test_app_shell_command_dialog_overlay_is_centered_without_resizing_main_pane() -> None:
+    path = "/tmp/peneo-shell-dialog-overlay"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(80, 24)) as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        current_pane = app.query_one("#current-pane")
+        main_pane_width = current_pane.region.width
+
+        await pilot.press("!")
+        await asyncio.sleep(0.05)
+
+        dialog = await _wait_for_shell_command_dialog(app)
+        dialog_layer = app.query_one("#shell-command-dialog-layer")
+
+        _assert_region_vertically_centered(dialog.region, dialog_layer.region)
+        assert dialog.region.bottom <= dialog_layer.region.bottom
+        assert current_pane.region.width == main_pane_width
 
 
 @pytest.mark.asyncio
@@ -4232,3 +4368,80 @@ async def test_app_cursor_move_updates_large_child_pane_without_clearing(monkeyp
         assert app.query_one("#child-pane-list", Static) is child_list
         assert len(_side_pane_lines(child_list)) == 1000
         assert update_calls == 1
+
+
+# --- Pane visibility on narrow terminals (Issue #390) ---
+
+
+def _pane_visibility_app(path: str = "/tmp/peneo-pane-vis"):
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    return create_app(snapshot_loader=loader, initial_path=path)
+
+
+@pytest.mark.asyncio
+async def test_app_hides_both_side_panes_at_narrow_width() -> None:
+    app = _pane_visibility_app()
+
+    async with app.run_test(size=(60, 20)):
+        await _wait_for_snapshot_loaded(app, "/tmp/peneo-pane-vis")
+        parent = app.query_one("#parent-pane")
+        child = app.query_one("#child-pane")
+        assert not parent.display
+        assert not child.display
+
+
+@pytest.mark.asyncio
+async def test_app_hides_parent_pane_at_medium_width() -> None:
+    app = _pane_visibility_app()
+
+    async with app.run_test(size=(80, 20)):
+        await _wait_for_snapshot_loaded(app, "/tmp/peneo-pane-vis")
+        parent = app.query_one("#parent-pane")
+        child = app.query_one("#child-pane")
+        assert not parent.display
+        assert child.display
+
+
+@pytest.mark.asyncio
+async def test_app_shows_all_panes_at_wide_width() -> None:
+    app = _pane_visibility_app()
+
+    async with app.run_test(size=(120, 20)):
+        await _wait_for_snapshot_loaded(app, "/tmp/peneo-pane-vis")
+        parent = app.query_one("#parent-pane")
+        child = app.query_one("#child-pane")
+        assert parent.display
+        assert child.display
+
+
+@pytest.mark.asyncio
+async def test_app_toggles_pane_visibility_on_resize() -> None:
+    app = _pane_visibility_app()
+
+    async with app.run_test(size=(120, 20)):
+        await _wait_for_snapshot_loaded(app, "/tmp/peneo-pane-vis")
+
+        parent = app.query_one("#parent-pane")
+        child = app.query_one("#child-pane")
+        assert parent.display
+        assert child.display
+
+        app._update_pane_visibility(60)
+        assert not parent.display
+        assert not child.display
+
+        app._update_pane_visibility(80)
+        assert not parent.display
+        assert child.display
+
+        app._update_pane_visibility(120)
+        assert parent.display
+        assert child.display

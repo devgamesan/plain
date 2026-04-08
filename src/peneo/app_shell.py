@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from textual.containers import Horizontal, Vertical
+from textual.containers import Container, Horizontal, Vertical
 from textual.css.query import NoMatches
 
 from peneo.models import ThreePaneShellData
@@ -70,6 +70,11 @@ async def refresh_shell(
         command_palette = app.query_one("#command-palette", CommandPalette)
         help_bar = app.query_one("#help-bar", HelpBar)
         status_bar = app.query_one("#status-bar", StatusBar)
+        command_palette_layer = app.query_one("#command-palette-layer", Container)
+        conflict_dialog_layer = app.query_one("#conflict-dialog-layer", Container)
+        attribute_dialog_layer = app.query_one("#attribute-dialog-layer", Container)
+        config_dialog_layer = app.query_one("#config-dialog-layer", Container)
+        shell_command_dialog_layer = app.query_one("#shell-command-dialog-layer", Container)
         conflict_dialog = app.query_one("#conflict-dialog", ConflictDialog)
         attribute_dialog = app.query_one("#attribute-dialog", AttributeDialog)
         config_dialog = app.query_one("#config-dialog", ConfigDialog)
@@ -78,14 +83,19 @@ async def refresh_shell(
         selectors = (
             "#current-path-bar",
             "#body",
-            "#split-terminal",
             "#command-palette",
+            "#command-palette-layer",
+            "#split-terminal",
             "#help-bar",
             "#status-bar",
             "#conflict-dialog",
+            "#conflict-dialog-layer",
             "#attribute-dialog",
+            "#attribute-dialog-layer",
             "#config-dialog",
+            "#config-dialog-layer",
             "#shell-command-dialog",
+            "#shell-command-dialog-layer",
         )
         for selector in selectors:
             try:
@@ -94,13 +104,43 @@ async def refresh_shell(
                 pass
         await app.mount(CurrentPathBar(shell.current_path, id="current-path-bar"))
         await app.mount(build_body(shell))
-        await app.mount(CommandPalette(shell.command_palette, id="command-palette"))
+        await app.mount(
+            Container(
+                CommandPalette(shell.command_palette, id="command-palette"),
+                id="command-palette-layer",
+                classes="overlay-layer",
+            )
+        )
+        await app.mount(
+            Container(
+                ConflictDialog(shell.conflict_dialog, id="conflict-dialog"),
+                id="conflict-dialog-layer",
+                classes="overlay-layer dialog-layer",
+            )
+        )
+        await app.mount(
+            Container(
+                AttributeDialog(shell.attribute_dialog, id="attribute-dialog"),
+                id="attribute-dialog-layer",
+                classes="overlay-layer dialog-layer",
+            )
+        )
+        await app.mount(
+            Container(
+                ConfigDialog(shell.config_dialog, id="config-dialog"),
+                id="config-dialog-layer",
+                classes="overlay-layer dialog-layer",
+            )
+        )
+        await app.mount(
+            Container(
+                ShellCommandDialog(shell.shell_command_dialog, id="shell-command-dialog"),
+                id="shell-command-dialog-layer",
+                classes="overlay-layer dialog-layer",
+            )
+        )
         await app.mount(HelpBar(shell.help, id="help-bar"))
         await app.mount(StatusBar(shell.status, id="status-bar"))
-        await app.mount(ConflictDialog(shell.conflict_dialog, id="conflict-dialog"))
-        await app.mount(AttributeDialog(shell.attribute_dialog, id="attribute-dialog"))
-        await app.mount(ConfigDialog(shell.config_dialog, id="config-dialog"))
-        await app.mount(ShellCommandDialog(shell.shell_command_dialog, id="shell-command-dialog"))
         return
 
     current_path_bar.set_path(shell.current_path)
@@ -121,12 +161,17 @@ async def refresh_shell(
     await child_pane.set_entries(shell.child_entries)
     split_terminal.set_state(shell.split_terminal)
     resize_split_terminal_session(app, app_state, split_terminal_session)
+    command_palette_layer.display = shell.command_palette is not None
     command_palette.set_state(shell.command_palette)
     help_bar.set_state(shell.help)
     status_bar.set_state(shell.status)
+    conflict_dialog_layer.display = shell.conflict_dialog is not None
     conflict_dialog.set_state(shell.conflict_dialog)
+    attribute_dialog_layer.display = shell.attribute_dialog is not None
     attribute_dialog.set_state(shell.attribute_dialog)
+    config_dialog_layer.display = shell.config_dialog is not None
     config_dialog.set_state(shell.config_dialog)
+    shell_command_dialog_layer.display = shell.shell_command_dialog is not None
     shell_command_dialog.set_state(shell.shell_command_dialog)
 
     if app_state.ui_mode == "BROWSING":

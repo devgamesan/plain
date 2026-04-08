@@ -128,6 +128,7 @@ class CommandPaletteViewState:
     query: str
     items: tuple[CommandPaletteItemViewState, ...]
     empty_message: str
+    has_more_items: bool = False
 
 
 @dataclass(frozen=True)

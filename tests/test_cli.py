@@ -20,7 +20,7 @@ class DummyApp:
         self.app_state = SimpleNamespace(current_path=current_path)
         self.run_calls = 0
 
-    def run(self) -> None:
+    def run(self, *, mouse: bool = True) -> None:
         self.run_calls += 1
 
 
@@ -123,7 +123,7 @@ def test_main_logs_and_reraises_runtime_exception(monkeypatch) -> None:
     def raise_in_run() -> None:
         raise RuntimeError("boom")
 
-    app.run = raise_in_run  # type: ignore[method-assign]
+    app.run = lambda **_kwargs: raise_in_run()  # type: ignore[method-assign]
     monkeypatch.setattr(cli, "load_app_config", lambda: ConfigLoadResult(config=AppConfig()))
     monkeypatch.setattr(
         cli,

@@ -43,7 +43,7 @@ from .models import (
 SIDE_PANE_SORT = SortState(field="name", descending=False, directories_first=True)
 COMMAND_PALETTE_VISIBLE_WINDOW = 8
 MIN_SEARCH_VISIBLE_WINDOW = 3
-_SEARCH_OVERHEAD_ROWS = 5
+_SEARCH_OVERHEAD_ROWS = 8
 MIN_CURRENT_PANE_VISIBLE_WINDOW = 5
 _CURRENT_PANE_OVERHEAD_ROWS = 8
 
@@ -366,6 +366,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
                 for index, result in visible_results
             ),
             empty_message=_file_search_empty_message(state),
+            has_more_items=len(state.command_palette.file_search_results) > len(visible_results),
         )
     if state.command_palette.source == "grep_search":
         visible_results, title = _select_grep_search_window(
@@ -386,6 +387,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
                 for index, result in visible_results
             ),
             empty_message=_grep_search_empty_message(state),
+            has_more_items=len(state.command_palette.grep_search_results) > len(visible_results),
         )
     if state.command_palette.source == "history":
         return _build_command_palette_items_view(
@@ -419,7 +421,12 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
         )
 
     items = get_command_palette_items(state)
-    visible_items, title = _select_command_palette_window(items, cursor_index)
+    visible_window = compute_search_visible_window(state.terminal_height)
+    visible_items, title = _select_command_palette_window(
+        items,
+        cursor_index,
+        visible_window=visible_window,
+    )
     return CommandPaletteViewState(
         title=title,
         query=state.command_palette.query,
@@ -433,6 +440,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             for index, item in visible_items
         ),
         empty_message="No matching commands",
+        has_more_items=len(items) > len(visible_items),
     )
 
 
@@ -1048,9 +1056,9 @@ def _format_sort_label(sort: SortState) -> str:
 
 
 def compute_search_visible_window(terminal_height: int) -> int:
-    """Calculate visible search items based on terminal height."""
-    palette_rows = max(1, terminal_height // 2)
-    return max(MIN_SEARCH_VISIBLE_WINDOW, palette_rows - _SEARCH_OVERHEAD_ROWS)
+    """Calculate visible command-palette items based on terminal height."""
+
+    return max(MIN_SEARCH_VISIBLE_WINDOW, terminal_height - _SEARCH_OVERHEAD_ROWS)
 
 
 def _build_command_palette_items_view(
@@ -1096,6 +1104,7 @@ def _build_command_palette_items_view(
             for index, item in visible_items
         ),
         empty_message=empty_message or "No items",
+        has_more_items=len(items) > len(visible_items),
     )
 
 
@@ -1333,7 +1342,7 @@ def _format_entry_size_label(
     if cached_entry is None or cached_entry.status == "failed":
         return "-"
     if cached_entry.status == "pending":
-        return "calculating..."
+        return "-"
     return _format_size_label(cached_entry.size_bytes)
 
 

@@ -76,6 +76,15 @@ def parse_file_search_query(query: str) -> ParsedFileSearchQuery:
     )
 
 
+def _is_walkable_directory(path: Path) -> bool:
+    """Return whether a path should be traversed, skipping unreadable entries."""
+
+    try:
+        return path.is_dir()
+    except OSError:
+        return False
+
+
 @dataclass(frozen=True)
 class LiveFileSearchService:
     """Search the local filesystem for matching filenames."""
@@ -115,7 +124,7 @@ class LiveFileSearchService:
                     return ()
                 if not show_hidden and child.name.startswith("."):
                     continue
-                if child.is_dir():
+                if _is_walkable_directory(child):
                     stack.append(child)
                     continue
                 if not parsed_query.matches(child.name):

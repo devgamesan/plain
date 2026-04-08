@@ -383,7 +383,7 @@ def test_select_pane_entries_show_directory_sizes_from_cache() -> None:
     child_entries = select_child_entries(state)
 
     assert parent_entries[0].name_detail is None
-    assert current_entries[0].size_label == "calculating..."
+    assert current_entries[0].size_label == "-"
     assert child_entries[0].name_detail is None
 
 
@@ -1546,8 +1546,13 @@ def test_select_command_palette_state_windows_large_file_search_results() -> Non
     palette_state = select_command_palette_state(state)
 
     assert palette_state is not None
-    assert palette_state.title == "Find File (8-14 / 20)"
+    assert palette_state.title == "Find File (3-18 / 20)"
     assert [item.label for item in palette_state.items] == [
+        "src/module_2.py",
+        "src/module_3.py",
+        "src/module_4.py",
+        "src/module_5.py",
+        "src/module_6.py",
         "src/module_7.py",
         "src/module_8.py",
         "src/module_9.py",
@@ -1555,8 +1560,13 @@ def test_select_command_palette_state_windows_large_file_search_results() -> Non
         "src/module_11.py",
         "src/module_12.py",
         "src/module_13.py",
+        "src/module_14.py",
+        "src/module_15.py",
+        "src/module_16.py",
+        "src/module_17.py",
     ]
-    assert palette_state.items[3].selected is True
+    assert palette_state.items[8].selected is True
+    assert palette_state.has_more_items is True
 
 
 def test_select_command_palette_state_for_grep_search_results() -> None:
@@ -1862,13 +1872,13 @@ class TestComputeSearchVisibleWindow:
     """Tests for dynamic search window size calculation."""
 
     def test_default_terminal_height(self) -> None:
-        assert selectors_module.compute_search_visible_window(24) == 7
+        assert selectors_module.compute_search_visible_window(24) == 16
 
     def test_large_terminal(self) -> None:
-        assert selectors_module.compute_search_visible_window(48) == 19
+        assert selectors_module.compute_search_visible_window(48) == 40
 
     def test_very_large_terminal(self) -> None:
-        assert selectors_module.compute_search_visible_window(80) == 35
+        assert selectors_module.compute_search_visible_window(80) == 72
 
     def test_small_terminal_uses_minimum(self) -> None:
         assert selectors_module.compute_search_visible_window(10) == 3
@@ -1905,8 +1915,9 @@ class TestSelectSearchWindowWithDynamicSize:
         palette_state = select_command_palette_state(state)
 
         assert palette_state is not None
-        assert len(palette_state.items) == 19
-        assert palette_state.items[15 - (15 - 9)].selected is True
+        assert len(palette_state.items) == 30
+        assert palette_state.items[15].selected is True
+        assert palette_state.has_more_items is False
 
 
 class TestSelectCommandPaletteWindow:
@@ -2021,8 +2032,7 @@ class TestCommandPaletteDynamicWindow:
     """コマンドパレットの動的表示ウィンドウ計算のテスト."""
 
     def test_go_to_path_uses_dynamic_window_size(self) -> None:
-        """Go to pathで48行端末の場合19件表示されること."""
-        # 48行端末の場合、visible_window = 48 // 2 - 5 = 19
+        """Go to pathで48行端末の場合40件まで表示できること."""
         state = replace(
             _reduce_state(build_initial_app_state(), BeginCommandPalette()),
             terminal_height=48,
@@ -2037,11 +2047,11 @@ class TestCommandPaletteDynamicWindow:
         palette_state = select_command_palette_state(state)
 
         assert palette_state is not None
-        assert len(palette_state.items) == 19
+        assert len(palette_state.items) == 25
+        assert palette_state.has_more_items is False
 
     def test_go_to_path_small_terminal_uses_minimum(self) -> None:
         """Go to pathで小さな端末の場合最小3件表示されること."""
-        # 10行端末の場合、visible_window = max(3, 10 // 2 - 5) = 3
         state = replace(
             _reduce_state(build_initial_app_state(), BeginCommandPalette()),
             terminal_height=10,
@@ -2059,8 +2069,7 @@ class TestCommandPaletteDynamicWindow:
         assert len(palette_state.items) == 3
 
     def test_directory_history_uses_dynamic_window_size(self) -> None:
-        """Directory Historyで48行端末の場合19件表示されること."""
-        # 48行端末の場合、visible_window = 48 // 2 - 5 = 19
+        """Directory Historyで48行端末なら全候補を表示できること."""
         state = replace(
             build_initial_app_state(),
             terminal_height=48,
@@ -2078,11 +2087,11 @@ class TestCommandPaletteDynamicWindow:
         palette_state = select_command_palette_state(state)
 
         assert palette_state is not None
-        assert len(palette_state.items) == 19
+        assert len(palette_state.items) == 25
+        assert palette_state.has_more_items is False
 
     def test_bookmarks_uses_dynamic_window_size(self) -> None:
-        """Bookmarksで48行端末の場合19件表示されること."""
-        # 48行端末の場合、visible_window = 48 // 2 - 5 = 19
+        """Bookmarksで48行端末なら全候補を表示できること."""
         state = replace(
             build_initial_app_state(),
             terminal_height=48,
@@ -2097,4 +2106,19 @@ class TestCommandPaletteDynamicWindow:
         palette_state = select_command_palette_state(state)
 
         assert palette_state is not None
-        assert len(palette_state.items) == 19
+        assert len(palette_state.items) == 25
+        assert palette_state.has_more_items is False
+
+    def test_default_command_palette_uses_terminal_height_for_visible_window(self) -> None:
+        """通常のコマンド一覧も端末高に応じて表示件数が増えること."""
+
+        state = replace(
+            _reduce_state(build_initial_app_state(), BeginCommandPalette()),
+            terminal_height=24,
+        )
+
+        palette_state = select_command_palette_state(state)
+
+        assert palette_state is not None
+        assert len(palette_state.items) == 16
+        assert palette_state.has_more_items is True

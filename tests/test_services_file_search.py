@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from peneo.services import InvalidFileSearchQueryError, LiveFileSearchService
@@ -106,3 +108,67 @@ def test_live_file_search_service_stops_when_cancelled(tmp_path) -> None:
 
     assert cancelled is True
     assert results == ()
+
+
+def test_live_file_search_service_skips_entries_with_permission_errors_during_walk(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    blocked = root / "blocked"
+    blocked.mkdir()
+    (blocked / "README-blocked.md").write_text("blocked\n", encoding="utf-8")
+    ok = root / "ok"
+    ok.mkdir()
+    (ok / "README-ok.md").write_text("ok\n", encoding="utf-8")
+    later = root / "later"
+    later.mkdir()
+    (later / "README-later.md").write_text("later\n", encoding="utf-8")
+
+    original_is_dir = Path.is_dir
+
+    def raising_is_dir(path: Path) -> bool:
+        if path == blocked:
+            raise PermissionError("denied")
+        return original_is_dir(path)
+
+    monkeypatch.setattr(Path, "is_dir", raising_is_dir)
+
+    service = LiveFileSearchService()
+
+    results = service.search(str(root), "read", show_hidden=False)
+
+    assert [result.display_path for result in results] == [
+        "later/README-later.md",
+        "ok/README-ok.md",
+    ]
+
+
+def test_live_file_search_service_skips_entries_with_generic_os_errors_during_walk(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    broken = root / "broken"
+    broken.mkdir()
+    (broken / "README-broken.md").write_text("broken\n", encoding="utf-8")
+    ok = root / "ok"
+    ok.mkdir()
+    (ok / "README-ok.md").write_text("ok\n", encoding="utf-8")
+
+    original_is_dir = Path.is_dir
+
+    def raising_is_dir(path: Path) -> bool:
+        if path == broken:
+            raise OSError("transient failure")
+        return original_is_dir(path)
+
+    monkeypatch.setattr(Path, "is_dir", raising_is_dir)
+
+    service = LiveFileSearchService()
+
+    results = service.search(str(root), "read", show_hidden=False)
+
+    assert [result.display_path for result in results] == ["ok/README-ok.md"]

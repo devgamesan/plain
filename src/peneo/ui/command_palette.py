@@ -38,22 +38,13 @@ class CommandPalette(Container):
         items_widget = self.query_one("#command-palette-items", Static)
 
         if state is None:
-            self.remove_class("search-mode")
+            self.remove_class("-expanded")
             title_widget.update("Command Palette")
             query_widget.update("")
             items_widget.update("")
             return
 
-        if (
-            state.title.startswith("Find File")
-            or state.title.startswith("Grep")
-            or state.title.startswith("Directory History")
-            or state.title.startswith("Go to path")
-        ):
-            self.add_class("search-mode")
-        else:
-            self.remove_class("search-mode")
-
+        self.set_class(state.has_more_items, "-expanded")
         title_widget.update(state.title)
         query_text = Text()
         query_text.append("> ", style="bold")

@@ -8,7 +8,7 @@ from typing import Literal
 from textual import events
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Vertical
+from textual.containers import Container, Vertical
 from textual.css.query import NoMatches
 from textual.message import Message
 from textual.timer import Timer
@@ -153,6 +153,10 @@ class PeneoApp(App[None]):
         height: 1fr;
     }
 
+    .pane-table {
+        scrollbar-size: 0 0;
+    }
+
     .pane-entry {
         padding: 0 1;
     }
@@ -191,16 +195,15 @@ class PeneoApp(App[None]):
         display: none;
         height: auto;
         min-height: 8;
-        max-height: 70%;
+        max-height: 1fr;
         margin: 0 2;
         padding: 0 1;
         border: round $accent;
         background: $surface;
     }
 
-    #command-palette.search-mode {
-        height: 50%;
-        max-height: 70%;
+    #command-palette.-expanded {
+        height: 1fr;
     }
 
     #command-palette-title {
@@ -210,6 +213,15 @@ class PeneoApp(App[None]):
 
     #command-palette-query {
         margin: 0 0 1 0;
+    }
+
+    #command-palette-items {
+        height: auto;
+        max-height: 1fr;
+    }
+
+    #command-palette.-expanded #command-palette-items {
+        height: 1fr;
     }
 
     #status-bar {
@@ -223,6 +235,23 @@ class PeneoApp(App[None]):
         background: $panel;
         color: $text;
         text-style: bold;
+    }
+
+    .overlay-layer {
+        display: none;
+        overlay: screen;
+        position: absolute;
+        offset: 0 0;
+        width: 1fr;
+        height: 1fr;
+    }
+
+    #command-palette-layer {
+        align-horizontal: center;
+    }
+
+    .dialog-layer {
+        align: center middle;
     }
 
     #conflict-dialog {
@@ -425,13 +454,54 @@ class PeneoApp(App[None]):
         shell = select_shell_data(self._app_state)
         yield CurrentPathBar(shell.current_path, id="current-path-bar")
         yield self._build_body(shell)
-        yield CommandPalette(shell.command_palette, id="command-palette")
-        yield ConflictDialog(shell.conflict_dialog, id="conflict-dialog")
-        yield AttributeDialog(shell.attribute_dialog, id="attribute-dialog")
-        yield ConfigDialog(shell.config_dialog, id="config-dialog")
-        yield ShellCommandDialog(shell.shell_command_dialog, id="shell-command-dialog")
+        yield Container(
+            CommandPalette(shell.command_palette, id="command-palette"),
+            id="command-palette-layer",
+            classes="overlay-layer",
+        )
+        yield Container(
+            ConflictDialog(shell.conflict_dialog, id="conflict-dialog"),
+            id="conflict-dialog-layer",
+            classes="overlay-layer dialog-layer",
+        )
+        yield Container(
+            AttributeDialog(shell.attribute_dialog, id="attribute-dialog"),
+            id="attribute-dialog-layer",
+            classes="overlay-layer dialog-layer",
+        )
+        yield Container(
+            ConfigDialog(shell.config_dialog, id="config-dialog"),
+            id="config-dialog-layer",
+            classes="overlay-layer dialog-layer",
+        )
+        yield Container(
+            ShellCommandDialog(shell.shell_command_dialog, id="shell-command-dialog"),
+            id="shell-command-dialog-layer",
+            classes="overlay-layer dialog-layer",
+        )
         yield HelpBar(shell.help, id="help-bar")
         yield StatusBar(shell.status, id="status-bar")
+
+    _PANE_VISIBILITY_NARROW_THRESHOLD = 66
+    _PANE_VISIBILITY_MEDIUM_THRESHOLD = 100
+
+    def _update_pane_visibility(self, width: int) -> None:
+        """Show or hide side panes based on terminal width."""
+        try:
+            parent_pane = self.query_one("#parent-pane")
+            child_pane = self.query_one("#child-pane")
+        except NoMatches:
+            return
+
+        if width >= self._PANE_VISIBILITY_MEDIUM_THRESHOLD:
+            parent_pane.display = True
+            child_pane.display = True
+        elif width >= self._PANE_VISIBILITY_NARROW_THRESHOLD:
+            parent_pane.display = False
+            child_pane.display = True
+        else:
+            parent_pane.display = False
+            child_pane.display = False
 
     async def on_mount(self) -> None:
         """Load the initial directory snapshot after the UI mounts."""
@@ -440,6 +510,7 @@ class PeneoApp(App[None]):
             SetTerminalHeight(height=self.size.height),
             RequestBrowserSnapshot(self._initial_path, blocking=True),
         ))
+        self.call_after_refresh(lambda: self._update_pane_visibility(self.size.width))
 
     def on_unmount(self) -> None:
         """Ensure the embedded terminal session is stopped when the app exits."""
@@ -565,6 +636,7 @@ class PeneoApp(App[None]):
         """Keep the split-terminal PTY dimensions roughly aligned with the viewport."""
 
         await self.dispatch_actions((SetTerminalHeight(height=event.size.height),))
+        self._update_pane_visibility(event.size.width)
 
         if self._split_terminal_session is None or not self._app_state.split_terminal.visible:
             return
@@ -577,6 +649,7 @@ class PeneoApp(App[None]):
             select_shell_data(self._app_state),
             self._split_terminal_session,
         )
+        self._update_pane_visibility(self.size.width)
 
     def _resize_split_terminal_session(self) -> None:
         resize_split_terminal_session(

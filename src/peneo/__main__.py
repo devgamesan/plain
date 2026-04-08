@@ -72,7 +72,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             config_path=config_result.path,
             startup_notification=startup_notification,
         )
-        app.run()
+        app.run(mouse=False)
     except Exception:
         logger.exception("Peneo crashed during startup or runtime")
         raise

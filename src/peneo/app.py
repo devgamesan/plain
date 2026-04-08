@@ -195,16 +195,15 @@ class PeneoApp(App[None]):
         display: none;
         height: auto;
         min-height: 8;
-        max-height: 70%;
+        max-height: 1fr;
         margin: 0 2;
         padding: 0 1;
         border: round $accent;
         background: $surface;
     }
 
-    #command-palette.search-mode {
-        height: 50%;
-        max-height: 70%;
+    #command-palette.-expanded {
+        height: 1fr;
     }
 
     #command-palette-title {
@@ -214,6 +213,15 @@ class PeneoApp(App[None]):
 
     #command-palette-query {
         margin: 0 0 1 0;
+    }
+
+    #command-palette-items {
+        height: auto;
+        max-height: 1fr;
+    }
+
+    #command-palette.-expanded #command-palette-items {
+        height: 1fr;
     }
 
     #status-bar {

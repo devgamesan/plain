@@ -2140,8 +2140,41 @@ async def test_app_command_palette_overlay_stays_top_aligned_without_resizing_ma
         palette_layer = app.query_one("#command-palette-layer")
 
         assert palette.region.y == palette_layer.region.y
-        assert palette.region.bottom <= palette_layer.region.bottom
+        assert palette.region.bottom == palette_layer.region.bottom
+        assert "-expanded" in palette.classes
         assert current_pane.region.width == main_pane_width
+
+
+@pytest.mark.asyncio
+async def test_app_command_palette_stays_compact_when_filtered_results_fit() -> None:
+    path = "/tmp/peneo-command-palette-compact"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(80, 24)) as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await pilot.press("r", "e", "n", "a", "m", "e")
+        await asyncio.sleep(0.05)
+
+        palette = await _wait_for_command_palette(app)
+        palette_layer = app.query_one("#command-palette-layer")
+        items = palette.query_one("#command-palette-items", Static)
+
+        assert "-expanded" not in palette.classes
+        assert palette.region.bottom < palette_layer.region.bottom
+        assert "Rename" in str(items.renderable)
 
 
 @pytest.mark.asyncio

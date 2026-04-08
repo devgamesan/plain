@@ -9,4 +9,4 @@ def test_main_runs_app() -> None:
 
         main([])
 
-    app.run.assert_called_once_with()
+    app.run.assert_called_once_with(mouse=False)

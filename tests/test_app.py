@@ -652,7 +652,7 @@ async def test_app_loads_directory_sizes_when_enabled() -> None:
         initial_path=path,
     )
 
-    async with app.run_test():
+    async with app.run_test(size=(120, 20)):
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 2)
         await _wait_for_table_cell(app, "4.2 KB", 0, 2)
@@ -720,7 +720,7 @@ async def test_app_applies_directory_size_updates_without_full_current_pane_refr
         initial_path=path,
     )
 
-    async with app.run_test():
+    async with app.run_test(size=(120, 20)):
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 2)
         await _wait_for_table_cell(app, "-", 0, 2)
@@ -1040,7 +1040,7 @@ async def test_app_tab_keeps_focus_on_current_pane() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
 
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(120, 20)) as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 2)
 
@@ -1086,7 +1086,7 @@ async def test_app_keyboard_input_updates_selection_and_child_pane() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
 
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(120, 20)) as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 3)
         await pilot.press("space")
@@ -1147,7 +1147,7 @@ async def test_app_child_pane_updates_immediately_on_rapid_cursor_moves() -> Non
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
 
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(120, 20)) as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 3)
         await pilot.press("down", "down")
@@ -1193,7 +1193,7 @@ async def test_app_shift_down_selects_range_and_down_clears_it() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
 
-    async with app.run_test():
+    async with app.run_test(size=(120, 20)):
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 3)
 
@@ -1229,7 +1229,7 @@ async def test_app_cut_marks_row_with_dimmed_style() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
 
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(120, 20)) as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 2)
         await pilot.press("x")
@@ -1839,7 +1839,7 @@ async def test_app_directory_size_update_avoids_rebuilding_large_current_pane(mo
         initial_path=path,
     )
 
-    async with app.run_test():
+    async with app.run_test(size=(120, 20)):
         await _wait_for_snapshot_loaded(app, path)
         visible_window = compute_current_pane_visible_window(app.app_state.terminal_height)
         await _wait_for_row_count(app, visible_window, timeout=2.0)
@@ -1890,7 +1890,7 @@ async def test_app_default_viewport_projection_limits_rendered_rows_for_large_di
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
 
-    async with app.run_test():
+    async with app.run_test(size=(120, 20)):
         await _wait_for_snapshot_loaded(app, path)
         visible_window = compute_current_pane_visible_window(app.app_state.terminal_height)
         await _wait_for_row_count(app, visible_window, timeout=2.0)
@@ -1921,7 +1921,7 @@ async def test_app_default_viewport_projection_shifts_window_after_cursor_crosse
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
 
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(120, 20)) as pilot:
         await _wait_for_snapshot_loaded(app, path)
         visible_window = compute_current_pane_visible_window(app.app_state.terminal_height)
         await _wait_for_row_count(app, visible_window, timeout=2.0)
@@ -1957,7 +1957,7 @@ async def test_app_default_viewport_projection_pages_and_jumps_without_losing_cu
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
 
-    async with app.run_test():
+    async with app.run_test(size=(120, 20)):
         await _wait_for_snapshot_loaded(app, path)
         visible_window = compute_current_pane_visible_window(app.app_state.terminal_height)
         visible_paths = tuple(entry.path for entry in current_entries)
@@ -2012,7 +2012,7 @@ async def test_app_default_viewport_projection_recalculates_window_after_resize(
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
 
-    async with app.run_test():
+    async with app.run_test(size=(120, 20)):
         await _wait_for_snapshot_loaded(app, path)
         visible_window = compute_current_pane_visible_window(app.app_state.terminal_height)
         visible_paths = tuple(entry.path for entry in current_entries)

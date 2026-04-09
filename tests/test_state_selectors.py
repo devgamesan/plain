@@ -607,6 +607,30 @@ def test_select_child_entries_is_empty_when_cursor_is_file() -> None:
     assert select_child_entries(state) == ()
 
 
+def test_select_shell_data_builds_child_preview_for_text_file() -> None:
+    initial_state = build_initial_app_state()
+    path = "/home/tadashi/develop/peneo/README.md"
+    state = replace(
+        initial_state,
+        current_pane=replace(initial_state.current_pane, cursor_path=path),
+        child_pane=PaneState(
+            directory_path="/home/tadashi/develop/peneo",
+            entries=(),
+            mode="preview",
+            preview_path=path,
+            preview_content="# Preview\n",
+            preview_truncated=True,
+        ),
+    )
+
+    shell = select_shell_data(state)
+
+    assert shell.child_pane.is_preview is True
+    assert shell.child_pane.title == "Preview: README.md (truncated)"
+    assert shell.child_pane.preview_path == path
+    assert shell.child_pane.preview_content == "# Preview\n"
+
+
 def test_select_parent_and_child_entries_keep_fixed_name_sort() -> None:
     state = build_initial_app_state()
     state = replace(
@@ -712,7 +736,7 @@ def test_select_shell_data_reuses_pane_entries_when_only_notification_changes() 
 
     assert updated_shell.parent_entries is initial_shell.parent_entries
     assert updated_shell.current_entries is initial_shell.current_entries
-    assert updated_shell.child_entries is initial_shell.child_entries
+    assert updated_shell.child_pane is initial_shell.child_pane
 
 
 def test_select_shell_data_reuses_current_entries_when_only_cursor_changes() -> None:
@@ -728,7 +752,7 @@ def test_select_shell_data_reuses_current_entries_when_only_cursor_changes() -> 
 
     assert moved_shell.current_entries is initial_shell.current_entries
     assert moved_shell.current_cursor_index == 2
-    assert moved_shell.child_entries == initial_shell.child_entries
+    assert moved_shell.child_pane.entries == initial_shell.child_pane.entries
 
 
 def test_select_shell_data_viewport_projection_limits_rendered_entries() -> None:
@@ -875,7 +899,7 @@ def test_select_shell_data_rebuilds_only_current_entries_when_selection_changes(
     )
 
     assert updated_shell.parent_entries is initial_shell.parent_entries
-    assert updated_shell.child_entries is initial_shell.child_entries
+    assert updated_shell.child_pane is initial_shell.child_pane
     assert updated_shell.current_entries is not initial_shell.current_entries
 
 

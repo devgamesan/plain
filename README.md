@@ -12,7 +12,7 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 
 - **No memorization needed**: Common actions are always visible in the help bar
 - **Never get lost**: All actions can be called from the command palette
-- **Clear 3-pane layout**: Parent, current, and child directories displayed side by side
+- **Clear 3-pane layout**: Parent, current, and right panes displayed side by side, with text preview for focused files
 - **Embedded terminal**: Seamlessly switch between browsing and shell with `t`
 - **Powerful search**: Jump directly to files with recursive file search and grep search
 - **Terminal editor integration**: Launch your preferred terminal editor in the current directory
@@ -20,13 +20,17 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 
 ## Features
 
-- Simple three-pane layout for parent / current / child directories. You can navigate directories, multi-select items, copy, cut, paste, move items to trash, delete files, copy paths, rename, create files or directories, extract archives, create zip archives, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
+- Simple three-pane layout for parent / current / right panes. When the cursor is on a directory, the right pane shows its children. When the cursor is on a common text file, the right pane switches to a syntax-highlighted text preview. You can navigate directories, multi-select items, copy, cut, paste, move items to trash, delete files, copy paths, rename, create files or directories, extract archives, create zip archives, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
 
   ![](docs/resources/screen-entire-screen.png)
 
 - Less frequent actions are grouped in the command palette, so you can discover and run them without memorizing every shortcut.
 
   ![](docs/resources/screen-command-palette.png)
+
+- The beginning of a text file can be previewed directly in the right pane, so you can quickly inspect the file without opening it.
+
+  ![](docs/resources/screen-text-preview.png)
 
 - An embedded terminal can be opened below the browser panes. `t` switches quickly between the browser and terminal, and the terminal starts in the current directory so you can move between browsing and shell work without changing directories manually.
 
@@ -226,6 +230,7 @@ peneo
 ```
 
 When a file is focused, press `e` to switch into a terminal editor in the current terminal session. Peneo prefers `config.toml` `editor.command` when set, then falls back to `$EDITOR`, then built-in defaults such as `nvim`, `vim`, or `nano`.
+When a common text file is focused, the right pane also shows a non-wrapping syntax-highlighted preview of the beginning of the file.
 
 ## Configuration File
 

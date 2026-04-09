@@ -514,7 +514,7 @@ def sync_child_pane(
     reduce_state: ReducerFn,
 ) -> ReduceResult:
     entry = current_entry_for_path(state, cursor_path)
-    if entry is None or (entry.kind != "dir" and not is_supported_archive_path(entry.path)):
+    if entry is None:
         next_state = replace(
             state,
             child_pane=PaneState(directory_path=state.current_path, entries=()),
@@ -522,9 +522,9 @@ def sync_child_pane(
         )
         return maybe_request_directory_sizes(next_state, reduce_state)
 
-    if (
-        entry.path == state.child_pane.directory_path
-        and state.pending_child_pane_request_id is None
+    if state.pending_child_pane_request_id is None and _child_pane_matches_entry(
+        state.child_pane,
+        entry,
     ):
         return maybe_request_directory_sizes(state, reduce_state)
 
@@ -543,6 +543,15 @@ def sync_child_pane(
             cursor_path=entry.path,
         ),
     )
+
+
+def _child_pane_matches_entry(
+    child_pane: PaneState,
+    entry: DirectoryEntryState,
+) -> bool:
+    if entry.kind == "dir" or is_supported_archive_path(entry.path):
+        return child_pane.mode == "entries" and child_pane.directory_path == entry.path
+    return child_pane.mode == "preview" and child_pane.preview_path == entry.path
 
 
 def current_entry_for_path(

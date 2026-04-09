@@ -81,6 +81,10 @@ class PaneState:
     cursor_path: str | None = None
     selected_paths: frozenset[str] = frozenset()
     selection_anchor_path: str | None = None
+    mode: Literal["entries", "preview"] = "entries"
+    preview_path: str | None = None
+    preview_content: str | None = None
+    preview_truncated: bool = False
 
 
 @dataclass(frozen=True)

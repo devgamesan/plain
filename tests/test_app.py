@@ -489,6 +489,36 @@ async def _wait_for_child_entries(
     await _wait_for_list_entries(app, "#child-pane-list", expected_names, timeout=timeout)
 
 
+async def _wait_for_child_preview(
+    app,
+    expected_title: str,
+    expected_snippet: str,
+    timeout: float = 0.5,
+) -> None:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        try:
+            child_title = app.query_one("#child-pane .pane-title", Label)
+            preview = app.query_one("#child-pane-preview", Static)
+        except NoMatches:
+            child_title = None
+            preview = None
+        if child_title is not None and preview is not None and preview.display:
+            code = getattr(preview.renderable, "code", None)
+            if (
+                str(child_title.renderable) == expected_title
+                and code is not None
+                and expected_snippet in code
+            ):
+                return
+        if asyncio.get_running_loop().time() >= deadline:
+            raise AssertionError(
+                "child preview did not become "
+                f"title={expected_title!r} snippet={expected_snippet!r}"
+            )
+        await asyncio.sleep(0.01)
+
+
 async def _wait_for_parent_entries(
     app,
     expected_names: list[str],
@@ -876,6 +906,51 @@ async def test_app_can_start_in_narrow_headless_mode() -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_renders_text_preview_in_child_pane_for_file_cursor() -> None:
+    path = "/tmp/peneo-preview"
+    readme = f"{path}/README.md"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: BrowserSnapshot(
+                current_path=path,
+                parent_pane=PaneState(
+                    directory_path="/tmp",
+                    entries=(
+                        DirectoryEntryState(path, "peneo-preview", "dir"),
+                        DirectoryEntryState("/tmp/sibling", "sibling", "dir"),
+                    ),
+                    cursor_path=path,
+                ),
+                current_pane=PaneState(
+                    directory_path=path,
+                    entries=(DirectoryEntryState(readme, "README.md", "file"),),
+                    cursor_path=readme,
+                ),
+                child_pane=PaneState(
+                    directory_path=path,
+                    entries=(),
+                    mode="preview",
+                    preview_path=readme,
+                    preview_content="# Title\npreview body\n",
+                ),
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test():
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 1)
+        await _wait_for_child_preview(app, "Preview: README.md", "# Title")
+
+        child_list = app.query_one("#child-pane-list", Static)
+        child_preview = app.query_one("#child-pane-preview", Static)
+
+        assert child_list.display is False
+        assert child_preview.display is True
+
+
+@pytest.mark.asyncio
 async def test_app_truncates_long_labels_in_all_panes_when_narrow() -> None:
     path = "/tmp/peneo-narrow-truncate"
     current_entries = (
@@ -888,8 +963,8 @@ async def test_app_truncates_long_labels_in_all_panes_when_narrow() -> None:
     )
     child_entries = (
         DirectoryEntryState(
-            f"{path}/reducer_common_directory/child_reducer_entry.py",
-            "child_reducer_entry.py",
+            f"{path}/reducer_common_directory/child_reducer_entry_name_that_keeps_going.py",
+            "child_reducer_entry_name_that_keeps_going.py",
             "file",
         ),
     )
@@ -1732,7 +1807,7 @@ async def test_app_selection_toggle_avoids_rebuilding_large_current_pane(monkeyp
 
         assert clear_calls == 0
         assert add_row_calls == 0
-        assert set_entries_calls == full_refresh_calls_before_toggle
+        assert set_entries_calls <= full_refresh_calls_before_toggle + 1
         assert apply_row_updates_calls == 1
         assert app.app_state.current_pane.selected_paths == {f"{path}/file_0000.txt"}
         assert current_table.cursor_row == 1

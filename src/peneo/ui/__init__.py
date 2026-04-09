@@ -7,7 +7,7 @@ from .conflict_dialog import ConflictDialog
 from .current_path_bar import CurrentPathBar
 from .help_bar import HelpBar
 from .input_bar import InputBar
-from .panes import MainPane, SidePane
+from .panes import ChildPane, MainPane, SidePane
 from .shell_command_dialog import ShellCommandDialog
 from .split_terminal import SplitTerminalPane
 from .status_bar import StatusBar
@@ -19,6 +19,7 @@ __all__ = [
     "ConfigDialog",
     "ConflictDialog",
     "CurrentPathBar",
+    "ChildPane",
     "HelpBar",
     "InputBar",
     "MainPane",

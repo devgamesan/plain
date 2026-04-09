@@ -65,6 +65,7 @@ def _can_promote_child_pane(
     return (
         not state.filter.active
         and state.pending_child_pane_request_id is None
+        and state.child_pane.mode == "entries"
         and state.child_pane.directory_path == entry_path
     )
 

@@ -9,6 +9,7 @@ from stat import S_IMODE, filemode
 from peneo.archive_utils import is_supported_archive_path
 from peneo.models import (
     AttributeDialogState,
+    ChildPaneViewState,
     CommandPaletteItemViewState,
     CommandPaletteViewState,
     ConfigDialogState,
@@ -68,6 +69,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
     """Build the display shell data consumed by the UI layer."""
 
     current_pane = _select_current_pane_projection(state)
+    child_pane = _select_child_pane_for_cursor(state, current_pane.cursor_entry)
     display_directory_sizes = (
         state.config.display.show_directory_sizes or state.sort.field == "size"
     )
@@ -97,7 +99,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
             if current_pane_update.mode == "full"
             else None
         ),
-        child_entries=_select_child_entries_for_cursor(state, current_pane.cursor_entry),
+        child_pane=child_pane,
         current_cursor_index=current_pane.cursor_index,
         current_cursor_visible=state.ui_mode != "FILTER",
         current_pane_update=current_pane_update,
@@ -143,31 +145,55 @@ def select_child_entries(state: AppState) -> tuple[PaneEntry, ...]:
     """Return display entries for the child pane when the cursor is on a directory."""
 
     cursor_entry = _get_current_cursor_entry(state)
-    return _select_child_entries_for_cursor(state, cursor_entry)
-
-
-def _select_child_entries_for_cursor(
-    state: AppState,
-    cursor_entry: DirectoryEntryState | None,
-) -> tuple[PaneEntry, ...]:
     if cursor_entry is None:
         return ()
-    # Check if it's a directory or an archive file
     is_archive = cursor_entry.kind == "file" and is_supported_archive_path(cursor_entry.path)
     if cursor_entry.kind != "dir" and not is_archive:
         return ()
-    if (
-        cursor_entry.path != state.child_pane.directory_path
-        and state.pending_child_pane_request_id is None
-    ):
-        return ()
+    return _select_child_pane_for_cursor(state, cursor_entry).entries
+
+
+def _select_child_pane_for_cursor(
+    state: AppState,
+    cursor_entry: DirectoryEntryState | None,
+) -> ChildPaneViewState:
+    syntax_theme = _select_child_syntax_theme(state.config.display.theme)
+    if cursor_entry is None:
+        return _build_child_entries_view((), syntax_theme)
+
+    is_archive = cursor_entry.kind == "file" and is_supported_archive_path(cursor_entry.path)
+    if state.pending_child_pane_request_id is None:
+        if cursor_entry.kind == "dir" or is_archive:
+            if (
+                state.child_pane.mode != "entries"
+                or cursor_entry.path != state.child_pane.directory_path
+            ):
+                return _build_child_entries_view((), syntax_theme)
+        elif (
+            state.child_pane.mode != "preview"
+            or cursor_entry.path != state.child_pane.preview_path
+        ):
+            return _build_child_entries_view((), syntax_theme)
+
+    if state.child_pane.mode == "preview" and state.child_pane.preview_content is not None:
+        preview_path = state.child_pane.preview_path or cursor_entry.path
+        return _build_child_preview_view(
+            preview_path,
+            state.child_pane.preview_content,
+            state.child_pane.preview_truncated,
+            syntax_theme,
+        )
+
     visible_entries = _select_side_pane_entry_states(state.child_pane.entries, state.show_hidden)
-    return _select_side_pane_entries(
-        visible_entries,
-        state.directory_size_cache,
-        display_directory_sizes=False,
-        selected_path=None,
-        cut_paths=_select_visible_cut_paths(visible_entries, _select_cut_paths(state)),
+    return _build_child_entries_view(
+        _select_side_pane_entries(
+            visible_entries,
+            state.directory_size_cache,
+            display_directory_sizes=False,
+            selected_path=None,
+            cut_paths=_select_visible_cut_paths(visible_entries, _select_cut_paths(state)),
+        ),
+        syntax_theme,
     )
 
 
@@ -940,6 +966,34 @@ def _select_side_pane_entries(
     )
 
 
+@lru_cache(maxsize=256)
+def _build_child_entries_view(
+    entries: tuple[PaneEntry, ...],
+    syntax_theme: str,
+) -> ChildPaneViewState:
+    return ChildPaneViewState(
+        title="Child Directory",
+        entries=entries,
+        syntax_theme=syntax_theme,
+    )
+
+
+@lru_cache(maxsize=256)
+def _build_child_preview_view(
+    preview_path: str,
+    preview_content: str,
+    preview_truncated: bool,
+    syntax_theme: str,
+) -> ChildPaneViewState:
+    return ChildPaneViewState(
+        title=_format_child_preview_title(preview_path, preview_truncated),
+        preview_path=preview_path,
+        preview_content=preview_content,
+        preview_truncated=preview_truncated,
+        syntax_theme=syntax_theme,
+    )
+
+
 @lru_cache(maxsize=512)
 def _select_visible_cut_paths(
     visible_entries: tuple[DirectoryEntryState, ...],
@@ -978,6 +1032,17 @@ def _format_config_line(index: int, selected_index: int, label: str, value: str)
 
 def _format_bool(value: bool) -> str:
     return "true" if value else "false"
+
+
+@lru_cache(maxsize=32)
+def _select_child_syntax_theme(app_theme: str) -> str:
+    return "friendly" if app_theme == "textual-light" else "monokai"
+
+
+@lru_cache(maxsize=256)
+def _format_child_preview_title(path: str, truncated: bool) -> str:
+    suffix = " (truncated)" if truncated else ""
+    return f"Preview: {Path(path).name}{suffix}"
 
 
 @lru_cache(maxsize=256)

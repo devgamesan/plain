@@ -70,6 +70,24 @@ class CurrentSummaryState:
 
 
 @dataclass(frozen=True)
+class ChildPaneViewState:
+    """Display data rendered in the right-side child pane."""
+
+    title: str
+    entries: tuple[PaneEntry, ...] = ()
+    preview_path: str | None = None
+    preview_content: str | None = None
+    preview_truncated: bool = False
+    syntax_theme: str = "monokai"
+
+    @property
+    def is_preview(self) -> bool:
+        """Return whether the pane should render a text preview."""
+
+        return self.preview_content is not None
+
+
+@dataclass(frozen=True)
 class StatusBarState:
     """Notification content displayed in the bottom status bar."""
 
@@ -176,7 +194,7 @@ class ThreePaneShellData:
     current_path: str
     parent_entries: tuple[PaneEntry, ...]
     current_entries: tuple[PaneEntry, ...] | None
-    child_entries: tuple[PaneEntry, ...]
+    child_pane: ChildPaneViewState
     current_cursor_index: int | None
     current_cursor_visible: bool
     current_pane_update: CurrentPaneUpdateHint
@@ -241,9 +259,12 @@ def build_dummy_shell_data() -> ThreePaneShellData:
             PaneEntry("notes.txt", "file"),
         ),
         current_entries=current_entries,
-        child_entries=(
-            PaneEntry("notes.md", "file"),
-            PaneEntry("wireframes", "dir"),
+        child_pane=ChildPaneViewState(
+            title="Child Directory",
+            entries=(
+                PaneEntry("notes.md", "file"),
+                PaneEntry("wireframes", "dir"),
+            ),
         ),
         current_cursor_index=0,
         current_cursor_visible=True,

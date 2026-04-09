@@ -339,6 +339,7 @@ class AppState:
     config: AppConfig = field(default_factory=AppConfig)
     config_path: str = ""
     show_hidden: bool = False
+    show_help_bar: bool = True
     sort: SortState = SortState()
     confirm_delete: bool = True
     paste_conflict_action: PasteConflictAction = "prompt"
@@ -399,6 +400,7 @@ def build_initial_app_state(
     config: AppConfig | None = None,
     config_path: str = "/home/tadashi/.config/peneo/config.toml",
     show_hidden: bool = False,
+    show_help_bar: bool = True,
     sort: SortState | None = None,
     confirm_delete: bool = True,
     paste_conflict_action: PasteConflictAction = "prompt",
@@ -466,6 +468,7 @@ def build_initial_app_state(
         ),
         child_pane=PaneState(directory_path=docs_path, entries=child_entries),
         show_hidden=show_hidden,
+        show_help_bar=show_help_bar,
         sort=sort or SortState(field="name", descending=False, directories_first=True),
         confirm_delete=confirm_delete,
         paste_conflict_action=paste_conflict_action,
@@ -481,6 +484,7 @@ def build_placeholder_app_state(
     config: AppConfig | None = None,
     config_path: str = "",
     show_hidden: bool = False,
+    show_help_bar: bool = True,
     sort: SortState | None = None,
     confirm_delete: bool = True,
     paste_conflict_action: PasteConflictAction = "prompt",
@@ -498,6 +502,7 @@ def build_placeholder_app_state(
         current_pane=PaneState(directory_path=resolved_path, entries=()),
         child_pane=PaneState(directory_path=resolved_path, entries=()),
         show_hidden=show_hidden,
+        show_help_bar=show_help_bar,
         sort=sort or SortState(),
         confirm_delete=confirm_delete,
         paste_conflict_action=paste_conflict_action,

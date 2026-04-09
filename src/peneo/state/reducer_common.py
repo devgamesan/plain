@@ -611,6 +611,14 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
                 show_directory_sizes=not config.display.show_directory_sizes,
             ),
         )
+    if field_id == "display.show_help_bar":
+        return replace(
+            config,
+            display=replace(
+                config.display,
+                show_help_bar=not config.display.show_help_bar,
+            ),
+        )
     if field_id == "display.theme":
         return replace(
             config,
@@ -703,6 +711,7 @@ def config_editor_field_ids() -> tuple[str, ...]:
         "display.show_hidden_files",
         "display.theme",
         "display.show_directory_sizes",
+        "display.show_help_bar",
         "display.default_sort_field",
         "display.default_sort_descending",
         "display.directories_first",
@@ -718,6 +727,7 @@ def config_editor_labels() -> tuple[str, ...]:
         "Show hidden files",
         "Theme",
         "Show directory sizes",
+        "Show help bar",
         "Default sort field",
         "Default sort descending",
         "Directories first",
@@ -731,6 +741,7 @@ def apply_config_to_runtime_state(state: AppState, config: AppConfig) -> AppStat
     return replace(
         state,
         show_hidden=config.display.show_hidden_files,
+        show_help_bar=config.display.show_help_bar,
         sort=SortState(
             field=config.display.default_sort_field,
             descending=config.display.default_sort_descending,

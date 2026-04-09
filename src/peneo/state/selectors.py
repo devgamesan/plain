@@ -636,26 +636,32 @@ def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
         _format_config_line(
             4,
             selected_index,
+            "Show help bar",
+            _format_bool(config.display.show_help_bar),
+        ),
+        _format_config_line(
+            5,
+            selected_index,
             "Default sort field",
             config.display.default_sort_field,
         ),
         _format_config_line(
-            5,
+            6,
             selected_index,
             "Default sort descending",
             _format_bool(config.display.default_sort_descending),
         ),
         _format_config_line(
-            6, selected_index, "Directories first", _format_bool(config.display.directories_first)
+            7, selected_index, "Directories first", _format_bool(config.display.directories_first)
         ),
         _format_config_line(
-            7, selected_index, "Confirm delete", _format_bool(config.behavior.confirm_delete)
+            8, selected_index, "Confirm delete", _format_bool(config.behavior.confirm_delete)
         ),
         _format_config_line(
-            8, selected_index, "Paste conflict action", config.behavior.paste_conflict_action
+            9, selected_index, "Paste conflict action", config.behavior.paste_conflict_action
         ),
         _format_config_line(
-            9, selected_index, "Log level", config.logging.level
+            10, selected_index, "Log level", config.logging.level
         ),
         "",
         _format_custom_editor_hint(config.editor.command),

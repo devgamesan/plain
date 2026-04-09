@@ -31,6 +31,7 @@ class DisplayConfig:
 
     show_hidden_files: bool = False
     show_directory_sizes: bool = False
+    show_help_bar: bool = True
     theme: ConfigTheme = "textual-dark"
     default_sort_field: ConfigSortField = "name"
     default_sort_descending: bool = False

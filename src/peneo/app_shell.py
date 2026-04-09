@@ -164,6 +164,11 @@ async def refresh_shell(
     command_palette_layer.display = shell.command_palette is not None
     command_palette.set_state(shell.command_palette)
     help_bar.set_state(shell.help)
+    help_bar.display = (
+        app_state.show_help_bar
+        or shell.command_palette is not None
+        or app_state.split_terminal.visible
+    )
     status_bar.set_state(shell.status)
     conflict_dialog_layer.display = shell.conflict_dialog is not None
     conflict_dialog.set_state(shell.conflict_dialog)

@@ -409,6 +409,7 @@ class PeneoApp(App[None]):
             config=self._app_config,
             config_path=config_path or str(resolve_config_path()),
             show_hidden=self._app_config.display.show_hidden_files,
+            show_help_bar=self._app_config.display.show_help_bar,
             sort=_initial_sort_state(self._app_config),
             confirm_delete=self._app_config.behavior.confirm_delete,
             paste_conflict_action=self._app_config.behavior.paste_conflict_action,

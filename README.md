@@ -15,10 +15,12 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 - **Clear 3-pane layout**: Parent, current, and child directories displayed side by side
 - **Embedded terminal**: Seamlessly switch between browsing and shell with `t`
 - **Powerful search**: Jump directly to files with recursive file search and grep search
+- **Terminal editor integration**: Launch your preferred terminal editor in the current directory
+- **External app integration**: Open files directly with their default applications
 
 ## Features
 
-- Simple three-pane layout for parent / current / child directories. You can navigate directories, multi-select items, copy, cut, paste, move items to trash, permanently delete items with `Shift+Delete`, copy paths, rename, create files or directories, extract archives, create zip archives, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
+- Simple three-pane layout for parent / current / child directories. You can navigate directories, multi-select items, copy, cut, paste, move items to trash, delete files, copy paths, rename, create files or directories, extract archives, create zip archives, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
 
   ![](docs/resources/screen-entire-screen.png)
 
@@ -34,7 +36,7 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 
   ![](docs/resources/screen-find-command.png)
 
-- Recursive grep search is available under the current directory. You can jump from search results directly to the matching file.
+- Recursive grep search is available under the current directory. You can jump from search results directly to the matching file. You can also open the matching location directly in a terminal editor.
 
   ![](docs/resources/screen-grep-command.png)
 
@@ -244,6 +246,7 @@ The supported settings are:
 | `editor` | `command` | Shell-style string, for example `nvim -u NONE` | Optional terminal editor command used by `e`. Do not include the file path; Peneo appends it automatically. Unsupported GUI editors or invalid commands are ignored. |
 | `display` | `show_hidden_files` | `true` / `false` | Default hidden-file visibility when the app starts. |
 | `display` | `show_directory_sizes` | `true` / `false` | Shows recursive directory sizes in the panes. Defaults to `false` because large directories can be expensive to scan. Peneo also calculates sizes automatically while the main pane is sorted by `size`. |
+| `display` | `show_help_bar` | `true` / `false` | Shows the help bar at the bottom of the screen. Defaults to `true`. The help bar is always shown when the command palette or split terminal is open, regardless of this setting. |
 | `display` | `theme` | `textual-dark` / `textual-light` | Default UI theme applied on startup and after saving from the settings editor. |
 | `display` | `default_sort_field` | `name` / `modified` / `size` | Default sort field for the main pane. |
 | `display` | `default_sort_descending` | `true` / `false` | Starts the main-pane sort in descending order when enabled. |
@@ -269,6 +272,7 @@ command = "nvim -u NONE"
 [display]
 show_hidden_files = false
 show_directory_sizes = false
+show_help_bar = true
 theme = "textual-dark"
 default_sort_field = "name"
 default_sort_descending = false

@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from dataclasses import replace
 
 from rich.cells import cell_len
+from rich.syntax import Syntax
 from rich.text import Text
 from textual import events
 from textual.app import ComposeResult
@@ -11,6 +12,7 @@ from textual.containers import Vertical
 from textual.widgets import DataTable, Label, Static
 
 from peneo.models.shell_data import (
+    ChildPaneViewState,
     CurrentPaneRowUpdate,
     CurrentPaneSizeUpdate,
     CurrentSummaryState,
@@ -207,6 +209,113 @@ class SidePane(Vertical):
 
     def _entry_width(self, content: Static) -> int:
         return max(0, content.size.width - self.ENTRY_HORIZONTAL_PADDING)
+
+
+class ChildPane(Vertical):
+    """Right-side pane that switches between entries and text preview."""
+
+    PREVIEW_HORIZONTAL_PADDING = 2
+
+    def __init__(
+        self,
+        state: ChildPaneViewState,
+        *,
+        id: str | None = None,
+        classes: str | None = None,
+    ) -> None:
+        super().__init__(id=id, classes=classes)
+        self._state = state
+        self._last_render_width = 0
+
+    @property
+    def list_view_id(self) -> str | None:
+        return f"{self.id}-list" if self.id else None
+
+    @property
+    def preview_id(self) -> str | None:
+        return f"{self.id}-preview" if self.id else None
+
+    def compose(self) -> ComposeResult:
+        yield Label(self._state.title, classes="pane-title")
+        list_content = Static(
+            SidePane._render_entries(self._state.entries, 0),
+            id=self.list_view_id,
+            classes="pane-list",
+        )
+        list_content.can_focus = False
+        preview_content = Static(
+            self._render_preview(self._state, 0),
+            id=self.preview_id,
+            classes="pane-preview",
+        )
+        preview_content.can_focus = False
+        preview_content.display = self._state.is_preview
+        list_content.display = not self._state.is_preview
+        yield list_content
+        yield preview_content
+
+    def on_mount(self) -> None:
+        self.call_after_refresh(self._refresh_rendered_content)
+
+    def on_resize(self, _event: events.Resize) -> None:
+        self._refresh_rendered_content()
+
+    async def set_state(self, state: ChildPaneViewState) -> None:
+        if state == self._state:
+            return
+
+        self._state = state
+        self.query_one(Label).update(state.title)
+        list_widget = self._list_widget()
+        preview_widget = self._preview_widget()
+        list_widget.display = not state.is_preview
+        preview_widget.display = state.is_preview
+        self._last_render_width = 0
+        self._refresh_rendered_content()
+
+    def _refresh_rendered_content(self) -> None:
+        if self._state.is_preview:
+            widget = self._preview_widget()
+            render_width = max(0, widget.size.width - self.PREVIEW_HORIZONTAL_PADDING)
+            if render_width <= 0 or render_width == self._last_render_width:
+                return
+            widget.update(self._render_preview(self._state, render_width))
+            self._last_render_width = render_width
+            return
+
+        widget = self._list_widget()
+        render_width = max(0, widget.size.width - SidePane.ENTRY_HORIZONTAL_PADDING)
+        if render_width <= 0 or render_width == self._last_render_width:
+            return
+        widget.update(SidePane._render_entries(self._state.entries, render_width))
+        self._last_render_width = render_width
+
+    def _list_widget(self) -> Static:
+        return self.query_one(f"#{self.list_view_id}", Static)
+
+    def _preview_widget(self) -> Static:
+        return self.query_one(f"#{self.preview_id}", Static)
+
+    @staticmethod
+    def _render_preview(state: ChildPaneViewState, render_width: int):
+        if state.preview_content is None:
+            return Text()
+
+        lexer = "text"
+        if state.preview_path is not None:
+            try:
+                lexer = Syntax.guess_lexer(state.preview_path, code=state.preview_content)
+            except Exception:
+                lexer = "text"
+
+        return Syntax(
+            state.preview_content,
+            lexer=lexer,
+            theme=state.syntax_theme,
+            word_wrap=False,
+            line_numbers=False,
+            code_width=max(1, render_width),
+        )
 
 
 class MainPane(Vertical):

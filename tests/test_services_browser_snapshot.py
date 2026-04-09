@@ -78,8 +78,45 @@ def test_live_browser_snapshot_loader_returns_empty_child_pane_for_file_cursor(t
     snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(readme))
 
     assert snapshot.current_pane.cursor_path == str(readme)
+    assert snapshot.child_pane.mode == "preview"
+    assert snapshot.child_pane.preview_path == str(readme)
+    assert snapshot.child_pane.preview_content == "plain\n"
+    assert snapshot.child_pane.preview_truncated is False
+
+
+def test_live_browser_snapshot_loader_returns_empty_child_pane_for_binary_file_cursor(
+    tmp_path,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    binary = project / "archive.bin"
+    binary.write_bytes(b"\x00\x01\x02\x03")
+
+    loader = LiveBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(binary))
+
+    assert snapshot.current_pane.cursor_path == str(binary)
     assert snapshot.child_pane.directory_path == str(project)
     assert snapshot.child_pane.entries == ()
+    assert snapshot.child_pane.mode == "entries"
+    assert snapshot.child_pane.preview_content is None
+
+
+def test_live_browser_snapshot_loader_truncates_large_text_preview(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    readme = project / "README.md"
+    readme.write_text("a" * (64 * 1024 + 10), encoding="utf-8")
+
+    loader = LiveBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(readme))
+
+    assert snapshot.child_pane.mode == "preview"
+    assert snapshot.child_pane.preview_path == str(readme)
+    assert snapshot.child_pane.preview_truncated is True
+    assert snapshot.child_pane.preview_content == "a" * (64 * 1024)
 
 
 def test_live_browser_snapshot_loader_returns_empty_parent_pane_for_root_path() -> None:

@@ -20,6 +20,36 @@ from peneo.state.models import (
 )
 
 DEFAULT_DIRECTORY_CACHE_CAPACITY = 64
+TEXT_PREVIEW_MAX_BYTES = 64 * 1024
+TEXT_PREVIEW_EXTENSIONS = frozenset(
+    {
+        ".c",
+        ".cc",
+        ".cpp",
+        ".css",
+        ".csv",
+        ".h",
+        ".hpp",
+        ".html",
+        ".java",
+        ".js",
+        ".json",
+        ".jsx",
+        ".md",
+        ".py",
+        ".rb",
+        ".rs",
+        ".sh",
+        ".sql",
+        ".toml",
+        ".ts",
+        ".tsx",
+        ".txt",
+        ".xml",
+        ".yaml",
+        ".yml",
+    }
+)
 
 
 class BrowserSnapshotLoader(Protocol):
@@ -117,6 +147,18 @@ class LiveBrowserSnapshotLoader:
                 return PaneState(directory_path=str(child_path), entries=child_entries)
             except OSError:
                 return PaneState(directory_path=current_path, entries=())
+
+        preview = _load_text_preview(child_path)
+        if preview is not None:
+            preview_content, preview_truncated = preview
+            return PaneState(
+                directory_path=current_path,
+                entries=(),
+                mode="preview",
+                preview_path=str(child_path),
+                preview_content=preview_content,
+                preview_truncated=preview_truncated,
+            )
 
         return PaneState(directory_path=current_path, entries=())
 
@@ -311,3 +353,33 @@ def _contains_path(entries, path: str) -> bool:
 
 def _normalize_directory_cache_path(path: str) -> str:
     return str(Path(path).expanduser().resolve())
+
+
+def _load_text_preview(path: Path) -> tuple[str, bool] | None:
+    if not _is_preview_candidate(path):
+        return None
+
+    try:
+        with path.open("rb") as handle:
+            chunk = handle.read(TEXT_PREVIEW_MAX_BYTES + 1)
+    except OSError:
+        return None
+
+    if b"\x00" in chunk[:TEXT_PREVIEW_MAX_BYTES]:
+        return None
+
+    truncated = len(chunk) > TEXT_PREVIEW_MAX_BYTES
+    preview_bytes = chunk[:TEXT_PREVIEW_MAX_BYTES]
+    try:
+        preview_text = preview_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+    return preview_text, truncated
+
+
+def _is_preview_candidate(path: Path) -> bool:
+    suffix = path.suffix.casefold()
+    if suffix in TEXT_PREVIEW_EXTENSIONS:
+        return True
+    return suffix == ""

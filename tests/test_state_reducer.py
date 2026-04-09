@@ -4314,14 +4314,20 @@ def test_move_cursor_emits_child_snapshot_effect_only_when_target_changes() -> N
     )
 
 
-def test_set_cursor_path_to_file_clears_child_pane_without_effect() -> None:
+def test_set_cursor_path_to_file_requests_child_pane_preview() -> None:
     state = build_initial_app_state()
 
     result = reduce_app_state(state, SetCursorPath("/home/tadashi/develop/peneo/README.md"))
 
-    assert result.state.child_pane.directory_path == "/home/tadashi/develop/peneo"
-    assert result.state.child_pane.entries == ()
-    assert result.effects == ()
+    assert result.state.child_pane == state.child_pane
+    assert result.state.pending_child_pane_request_id == 1
+    assert result.effects == (
+        LoadChildPaneSnapshotEffect(
+            request_id=1,
+            current_path="/home/tadashi/develop/peneo",
+            cursor_path="/home/tadashi/develop/peneo/README.md",
+        ),
+    )
 
 
 def test_child_pane_snapshot_loaded_ignores_stale_request() -> None:

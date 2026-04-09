@@ -10,6 +10,7 @@ from peneo.services import SplitTerminalSession
 from peneo.state import AppState
 from peneo.ui import (
     AttributeDialog,
+    ChildPane,
     CommandPalette,
     ConfigDialog,
     ConflictDialog,
@@ -42,9 +43,8 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
                 id="current-pane",
                 classes="pane main-pane",
             ),
-            SidePane(
-                "Child Directory",
-                shell.child_entries,
+            ChildPane(
+                shell.child_pane,
                 id="child-pane",
                 classes="pane side-pane",
             ),
@@ -65,7 +65,7 @@ async def refresh_shell(
         current_path_bar = app.query_one("#current-path-bar", CurrentPathBar)
         parent_pane = app.query_one("#parent-pane", SidePane)
         current_pane = app.query_one("#current-pane", MainPane)
-        child_pane = app.query_one("#child-pane", SidePane)
+        child_pane = app.query_one("#child-pane", ChildPane)
         split_terminal = app.query_one("#split-terminal", SplitTerminalPane)
         command_palette = app.query_one("#command-palette", CommandPalette)
         help_bar = app.query_one("#help-bar", HelpBar)
@@ -158,7 +158,7 @@ async def refresh_shell(
     current_pane.set_summary(shell.current_summary)
     current_pane.set_context_input(shell.current_context_input)
     await parent_pane.set_entries(shell.parent_entries)
-    await child_pane.set_entries(shell.child_entries)
+    await child_pane.set_state(shell.child_pane)
     split_terminal.set_state(shell.split_terminal)
     resize_split_terminal_session(app, app_state, split_terminal_session)
     command_palette_layer.display = shell.command_palette is not None

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Literal
 
 from textual import events
-from textual.app import App, ComposeResult
+from textual.app import App, ComposeResult, ScreenStackError
 from textual.binding import Binding
 from textual.containers import Container, Vertical
 from textual.css.query import NoMatches
@@ -132,12 +132,16 @@ class PeneoApp(App[None]):
     }
 
     .side-pane {
-        width: 0.9fr;
+        width: 0.6fr;
     }
 
     .main-pane {
         width: 2.2fr;
         min-width: 44;
+    }
+
+    #child-pane {
+        width: 2.2fr;
     }
 
     .pane-title {
@@ -149,12 +153,17 @@ class PeneoApp(App[None]):
     }
 
     .pane-list,
+    .pane-preview,
     .pane-table {
         height: 1fr;
     }
 
     .pane-table {
         scrollbar-size: 0 0;
+    }
+
+    .pane-preview {
+        overflow: hidden hidden;
     }
 
     .pane-entry {
@@ -644,13 +653,16 @@ class PeneoApp(App[None]):
         self.call_after_refresh(self._resize_split_terminal_session)
 
     async def _refresh_shell(self) -> None:
-        await refresh_shell(
-            self,
-            self._app_state,
-            select_shell_data(self._app_state),
-            self._split_terminal_session,
-        )
-        self._update_pane_visibility(self.size.width)
+        try:
+            await refresh_shell(
+                self,
+                self._app_state,
+                select_shell_data(self._app_state),
+                self._split_terminal_session,
+            )
+            self._update_pane_visibility(self.size.width)
+        except ScreenStackError:
+            return
 
     def _resize_split_terminal_session(self) -> None:
         resize_split_terminal_session(

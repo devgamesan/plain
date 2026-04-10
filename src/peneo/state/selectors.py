@@ -328,10 +328,9 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         return HelpBarState(state.config.help_bar.browsing)
     return HelpBarState(
         (
-            "enter open | e edit | i info | space select | c copy | x cut | p paste | C path",
-            "/ filter | s sort | d dir-first | . hidden | a select-all | ~ home",
-            "f find | g grep | G go-to | H history | b bookmarks | B toggle-bookmark",
-            "n new-file | N new-dir | r rename | R reload | t term | : palette | q quit",
+            "enter open | e edit | i info | space select | c copy | x cut | p paste | r rename",
+            "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to",
+            "n new-file | N new-dir | H history | b bookmarks | t term | : palette | q quit",
         )
     )
 

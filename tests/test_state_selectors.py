@@ -1130,16 +1130,14 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     help_state = select_help_bar_state(state)
 
     assert help_state.lines == (
-        "enter open | e edit | i info | space select | c copy | x cut | p paste | C path",
-        "/ filter | s sort | d dir-first | . hidden | a select-all | ~ home",
-        "f find | g grep | G go-to | H history | b bookmarks | B toggle-bookmark",
-        "n new-file | N new-dir | r rename | R reload | t term | : palette | q quit",
+        "enter open | e edit | i info | space select | c copy | x cut | p paste | r rename",
+        "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to",
+        "n new-file | N new-dir | H history | b bookmarks | t term | : palette | q quit",
     )
     assert help_state.text == (
-        "enter open | e edit | i info | space select | c copy | x cut | p paste | C path\n"
-        "/ filter | s sort | d dir-first | . hidden | a select-all | ~ home\n"
-        "f find | g grep | G go-to | H history | b bookmarks | B toggle-bookmark\n"
-        "n new-file | N new-dir | r rename | R reload | t term | : palette | q quit"
+        "enter open | e edit | i info | space select | c copy | x cut | p paste | r rename\n"
+        "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to\n"
+        "n new-file | N new-dir | H history | b bookmarks | t term | : palette | q quit"
     )
 
 

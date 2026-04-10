@@ -2361,10 +2361,9 @@ async def test_app_displays_browsing_help_bar() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
-        "enter open | e edit | i info | space select | c copy | x cut | p paste | C path\n"
-        "/ filter | s sort | d dir-first | . hidden | a select-all | ~ home\n"
-        "f find | g grep | G go-to | H history | b bookmarks | B toggle-bookmark\n"
-        "n new-file | N new-dir | r rename | R reload | t term | : palette | q quit"
+        "enter open | e edit | i info | space select | c copy | x cut | p paste | r rename\n"
+        "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to\n"
+        "n new-file | N new-dir | H history | b bookmarks | t term | : palette | q quit"
     )
 
     async with app.run_test():

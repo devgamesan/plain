@@ -66,3 +66,49 @@ def test_live_grep_search_service_raises_invalid_query_for_bad_regex(tmp_path) -
 
     with pytest.raises(InvalidGrepSearchQueryError):
         service.search(str(root), "re:[", show_hidden=False)
+
+
+@skip_if_no_rg
+def test_live_grep_search_service_continues_when_some_paths_are_permission_denied(
+    tmp_path,
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    docs = root / "docs"
+    docs.mkdir()
+    (docs / "README.md").write_text("TODO: update docs\n", encoding="utf-8")
+    blocked = root / "blocked"
+    blocked.mkdir()
+    (blocked / "secret.txt").write_text("TODO: hidden\n", encoding="utf-8")
+
+    service = LiveGrepSearchService()
+
+    blocked.chmod(0)
+    try:
+        results = service.search(str(root), "todo", show_hidden=False)
+    finally:
+        blocked.chmod(0o700)
+
+    assert [result.display_label for result in results] == ["docs/README.md:1: TODO: update docs"]
+
+
+@skip_if_no_rg
+def test_live_grep_search_service_ignores_permission_denied_without_matches(tmp_path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    docs = root / "docs"
+    docs.mkdir()
+    (docs / "README.md").write_text("guide\n", encoding="utf-8")
+    blocked = root / "blocked"
+    blocked.mkdir()
+    (blocked / "secret.txt").write_text("TODO: hidden\n", encoding="utf-8")
+
+    service = LiveGrepSearchService()
+
+    blocked.chmod(0)
+    try:
+        results = service.search(str(root), "todo", show_hidden=False)
+    finally:
+        blocked.chmod(0o700)
+
+    assert results == ()

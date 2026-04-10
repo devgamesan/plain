@@ -94,6 +94,13 @@ class LiveGrepSearchService:
 
         if return_code not in {0, 1}:
             message = stderr_text.strip() or "grep search failed"
+            if self._is_nonfatal_ripgrep_error(return_code, stderr_text, stripped_query):
+                return tuple(
+                    sorted(
+                        self._parse_results(root, stdout_lines),
+                        key=lambda result: (result.display_path.casefold(), result.line_number),
+                    )
+                )
             if is_regex_grep_search_query(stripped_query):
                 raise InvalidGrepSearchQueryError(message)
             raise OSError(message)
@@ -115,6 +122,7 @@ class LiveGrepSearchService:
             "never",
             "--no-heading",
             "--no-ignore",
+            "--no-messages",
         ]
         if show_hidden:
             command.append("--hidden")
@@ -165,6 +173,14 @@ class LiveGrepSearchService:
             return str(path.relative_to(root))
         except ValueError:
             return str(path)
+
+    @staticmethod
+    def _is_nonfatal_ripgrep_error(return_code: int, stderr_text: str, query: str) -> bool:
+        return (
+            return_code == 2
+            and not stderr_text.strip()
+            and not is_regex_grep_search_query(query)
+        )
 
 
 @dataclass

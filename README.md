@@ -20,7 +20,7 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 
 ## Features
 
-- Simple three-pane layout for parent / current / right panes. When the cursor is on a directory, the right pane shows its children. When the cursor is on a common text file, the right pane switches to a syntax-highlighted text preview. You can navigate directories, multi-select items, copy, cut, paste, move items to trash, delete files, copy paths, rename, create files or directories, extract archives, create zip archives, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
+- Simple three-pane layout for parent / current / right panes. When the cursor is on a directory, the right pane shows its children. When the cursor is on a supported text file, the right pane switches to a syntax-highlighted text preview. Supported targets include common source, config, markup, and log file extensions as well as extensionless text files such as `Dockerfile` or `.env`. You can navigate directories, multi-select items, copy, cut, paste, move items to trash, delete files, copy paths, rename, create files or directories, extract archives, create zip archives, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
 
   ![](docs/resources/screen-entire-screen.png)
 
@@ -232,7 +232,7 @@ peneo
 ```
 
 When a file is focused, press `e` to switch into a terminal editor in the current terminal session. Peneo prefers `config.toml` `editor.command` when set, then falls back to `$EDITOR`, then built-in defaults such as `nvim`, `vim`, or `nano`.
-When a common text file is focused, the right pane also shows a non-wrapping syntax-highlighted preview of the beginning of the file. You can disable this behavior with `display.show_preview`.
+When a supported text file is focused, the right pane also shows a non-wrapping syntax-highlighted preview of the beginning of the file. Supported targets include common source, config, markup, and log file extensions as well as extensionless text files such as `Dockerfile` or `.env`. You can disable this behavior with `display.show_preview`.
 
 ## Configuration File
 

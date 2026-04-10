@@ -85,6 +85,7 @@ class PaneState:
     mode: Literal["entries", "preview"] = "entries"
     preview_path: str | None = None
     preview_content: str | None = None
+    preview_message: str | None = None
     preview_truncated: bool = False
 
 

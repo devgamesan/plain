@@ -179,6 +179,16 @@ def _select_child_pane_for_cursor(
         return _build_child_preview_view(
             preview_path,
             state.child_pane.preview_content,
+            state.child_pane.preview_message,
+            state.child_pane.preview_truncated,
+            syntax_theme,
+        )
+    if state.child_pane.mode == "preview" and state.child_pane.preview_message is not None:
+        preview_path = state.child_pane.preview_path or cursor_entry.path
+        return _build_child_preview_view(
+            preview_path,
+            state.child_pane.preview_content,
+            state.child_pane.preview_message,
             state.child_pane.preview_truncated,
             syntax_theme,
         )
@@ -986,7 +996,8 @@ def _build_child_entries_view(
 @lru_cache(maxsize=256)
 def _build_child_preview_view(
     preview_path: str,
-    preview_content: str,
+    preview_content: str | None,
+    preview_message: str | None,
     preview_truncated: bool,
     syntax_theme: str,
 ) -> ChildPaneViewState:
@@ -994,6 +1005,7 @@ def _build_child_preview_view(
         title=_format_child_preview_title(preview_path, preview_truncated),
         preview_path=preview_path,
         preview_content=preview_content,
+        preview_message=preview_message,
         preview_truncated=preview_truncated,
         syntax_theme=syntax_theme,
     )

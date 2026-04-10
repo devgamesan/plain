@@ -299,6 +299,9 @@ class ChildPane(Vertical):
 
     @staticmethod
     def _render_preview(state: ChildPaneViewState, render_width: int):
+        if state.preview_message is not None:
+            return Text(state.preview_message, style="italic dim")
+
         if state.preview_content is None:
             return Text()
 

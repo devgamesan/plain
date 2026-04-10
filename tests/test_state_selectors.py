@@ -659,6 +659,36 @@ def test_select_shell_data_builds_child_preview_for_text_file() -> None:
     assert shell.child_pane.title == "Preview: README.md (truncated)"
     assert shell.child_pane.preview_path == path
     assert shell.child_pane.preview_content == "# Preview\n"
+    assert shell.child_pane.preview_message is None
+
+
+def test_select_shell_data_builds_child_preview_message_for_unavailable_file() -> None:
+    initial_state = build_initial_app_state()
+    path = "/home/tadashi/develop/peneo/archive.bin"
+    state = replace(
+        initial_state,
+        current_pane=replace(
+            initial_state.current_pane,
+            entries=initial_state.current_pane.entries
+            + (DirectoryEntryState(path, "archive.bin", "file"),),
+            cursor_path=path,
+        ),
+        child_pane=PaneState(
+            directory_path="/home/tadashi/develop/peneo",
+            entries=(),
+            mode="preview",
+            preview_path=path,
+            preview_message="Preview unavailable for this file type",
+        ),
+    )
+
+    shell = select_shell_data(state)
+
+    assert shell.child_pane.is_preview is True
+    assert shell.child_pane.title == "Preview: archive.bin"
+    assert shell.child_pane.preview_path == path
+    assert shell.child_pane.preview_content is None
+    assert shell.child_pane.preview_message == "Preview unavailable for this file type"
 
 
 def test_select_parent_and_child_entries_keep_fixed_name_sort() -> None:

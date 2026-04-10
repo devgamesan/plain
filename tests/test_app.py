@@ -505,10 +505,10 @@ async def _wait_for_child_preview(
             preview = None
         if child_title is not None and preview is not None and preview.display:
             code = getattr(preview.renderable, "code", None)
+            rendered_text = code if code is not None else str(preview.renderable)
             if (
                 str(child_title.renderable) == expected_title
-                and code is not None
-                and expected_snippet in code
+                and expected_snippet in rendered_text
             ):
                 return
         if asyncio.get_running_loop().time() >= deadline:
@@ -1064,6 +1064,92 @@ async def test_app_updates_child_preview_when_cursor_moves_between_files() -> No
         await _wait_for_child_entries(app, [], timeout=1.0)
         await _wait_for_child_preview(app, "Preview: config.toml", "show_preview = true")
         await _wait_for_child_pane_runtime_idle(app, timeout=1.0)
+
+
+@pytest.mark.asyncio
+async def test_app_renders_preview_message_for_unsupported_file_cursor() -> None:
+    path = "/tmp/peneo-preview-unsupported"
+    binary = f"{path}/archive.bin"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: BrowserSnapshot(
+                current_path=path,
+                parent_pane=PaneState(
+                    directory_path="/tmp",
+                    entries=(
+                        DirectoryEntryState(path, "peneo-preview-unsupported", "dir"),
+                        DirectoryEntryState("/tmp/sibling", "sibling", "dir"),
+                    ),
+                    cursor_path=path,
+                ),
+                current_pane=PaneState(
+                    directory_path=path,
+                    entries=(DirectoryEntryState(binary, "archive.bin", "file"),),
+                    cursor_path=binary,
+                ),
+                child_pane=PaneState(
+                    directory_path=path,
+                    entries=(),
+                    mode="preview",
+                    preview_path=binary,
+                    preview_message="Preview unavailable for this file type",
+                ),
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test():
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 1)
+        await _wait_for_child_preview(
+            app,
+            "Preview: archive.bin",
+            "Preview unavailable for this file type",
+        )
+
+
+@pytest.mark.asyncio
+async def test_app_renders_preview_message_for_permission_denied_file_cursor() -> None:
+    path = "/tmp/peneo-preview-permission-denied"
+    readme = f"{path}/README.md"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: BrowserSnapshot(
+                current_path=path,
+                parent_pane=PaneState(
+                    directory_path="/tmp",
+                    entries=(
+                        DirectoryEntryState(path, "peneo-preview-permission-denied", "dir"),
+                        DirectoryEntryState("/tmp/sibling", "sibling", "dir"),
+                    ),
+                    cursor_path=path,
+                ),
+                current_pane=PaneState(
+                    directory_path=path,
+                    entries=(DirectoryEntryState(readme, "README.md", "file"),),
+                    cursor_path=readme,
+                ),
+                child_pane=PaneState(
+                    directory_path=path,
+                    entries=(),
+                    mode="preview",
+                    preview_path=readme,
+                    preview_message="Preview unavailable: permission denied",
+                ),
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test():
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 1)
+        await _wait_for_child_preview(
+            app,
+            "Preview: README.md",
+            "Preview unavailable: permission denied",
+        )
 
 
 @pytest.mark.asyncio

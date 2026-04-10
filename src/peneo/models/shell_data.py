@@ -77,6 +77,7 @@ class ChildPaneViewState:
     entries: tuple[PaneEntry, ...] = ()
     preview_path: str | None = None
     preview_content: str | None = None
+    preview_message: str | None = None
     preview_truncated: bool = False
     syntax_theme: str = "monokai"
 
@@ -84,7 +85,7 @@ class ChildPaneViewState:
     def is_preview(self) -> bool:
         """Return whether the pane should render a text preview."""
 
-        return self.preview_content is not None
+        return self.preview_content is not None or self.preview_message is not None
 
 
 @dataclass(frozen=True)

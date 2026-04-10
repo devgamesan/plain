@@ -90,3 +90,24 @@ def test_local_filesystem_adapter_directory_size_ignores_symlinks(tmp_path) -> N
     size = adapter.calculate_directory_size(str(docs))
 
     assert size == len("guide")
+
+
+def test_local_filesystem_adapter_directory_size_skips_permission_denied_descendants(
+    tmp_path,
+) -> None:
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "guide.md").write_text("guide", encoding="utf-8")
+    private = docs / "private"
+    private.mkdir()
+    (private / "secret.txt").write_text("secret", encoding="utf-8")
+
+    adapter = LocalFilesystemAdapter()
+
+    private.chmod(0)
+    try:
+        size = adapter.calculate_directory_size(str(docs))
+    finally:
+        private.chmod(0o755)
+
+    assert size == len("guide")

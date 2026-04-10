@@ -83,22 +83,25 @@ def _calculate_directory_size(
         raise DirectorySizeCancelled()
 
     total_size = 0
-    with os.scandir(directory) as iterator:
-        for child in iterator:
-            if is_cancelled is not None and is_cancelled():
-                raise DirectorySizeCancelled()
-            try:
-                if child.is_symlink():
+    try:
+        with os.scandir(directory) as iterator:
+            for child in iterator:
+                if is_cancelled is not None and is_cancelled():
+                    raise DirectorySizeCancelled()
+                try:
+                    if child.is_symlink():
+                        continue
+                    if child.is_dir(follow_symlinks=False):
+                        total_size += _calculate_directory_size(
+                            Path(child.path),
+                            is_cancelled=is_cancelled,
+                        )
+                        continue
+                    total_size += child.stat(follow_symlinks=False).st_size
+                except (FileNotFoundError, PermissionError):
                     continue
-                if child.is_dir(follow_symlinks=False):
-                    total_size += _calculate_directory_size(
-                        Path(child.path),
-                        is_cancelled=is_cancelled,
-                    )
-                    continue
-                total_size += child.stat(follow_symlinks=False).st_size
-            except FileNotFoundError:
-                continue
+    except PermissionError:
+        return 0
     return total_size
 
 

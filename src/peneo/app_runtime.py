@@ -1021,193 +1021,60 @@ def _complete_grep_search(effect: RunGrepSearchEffect, result: object) -> tuple[
     )
 
 
-def _failed_browser_snapshot(
-    effect: LoadBrowserSnapshotEffect,
-    error: BaseException | None,
-    message: str,
-) -> tuple[Any, ...]:
-    return (
-        BrowserSnapshotFailed(
-            request_id=effect.request_id,
-            message=message,
-            blocking=effect.blocking,
-        ),
-    )
+ExtraFieldBuilder = Callable[[Effect, BaseException | None, str], Any]
 
 
-def _failed_child_pane_snapshot(
-    effect: LoadChildPaneSnapshotEffect,
-    error: BaseException | None,
-    message: str,
-) -> tuple[Any, ...]:
-    return (
-        ChildPaneSnapshotFailed(
-            request_id=effect.request_id,
-            message=message,
-        ),
-    )
+def _make_failed_handler(
+    event_cls: type,
+    *,
+    extra_field_builders: dict[str, ExtraFieldBuilder] | None = None,
+) -> FailureActionHandler:
+    builders = extra_field_builders or {}
+
+    def handler(effect: Effect, error: BaseException | None, message: str) -> tuple[Any, ...]:
+        kwargs: dict[str, Any] = {"request_id": effect.request_id, "message": message}
+        for name, builder in builders.items():
+            kwargs[name] = builder(effect, error, message)
+        return (event_cls(**kwargs),)
+
+    return handler
 
 
-def _failed_clipboard_paste(
-    effect: RunClipboardPasteEffect,
-    error: BaseException | None,
-    message: str,
-) -> tuple[Any, ...]:
-    return (
-        ClipboardPasteFailed(
-            request_id=effect.request_id,
-            message=message,
-        ),
-    )
-
-
-def _failed_file_mutation(
-    effect: RunFileMutationEffect,
-    error: BaseException | None,
-    message: str,
-) -> tuple[Any, ...]:
-    return (
-        FileMutationFailed(
-            request_id=effect.request_id,
-            message=message,
-        ),
-    )
-
-
-def _failed_archive_preparation(
-    effect: RunArchivePreparationEffect,
-    error: BaseException | None,
-    message: str,
-) -> tuple[Any, ...]:
-    return (
-        ArchivePreparationFailed(
-            request_id=effect.request_id,
-            message=message,
-        ),
-    )
-
-
-def _failed_archive_extract(
-    effect: RunArchiveExtractEffect,
-    error: BaseException | None,
-    message: str,
-) -> tuple[Any, ...]:
-    return (
-        ArchiveExtractFailed(
-            request_id=effect.request_id,
-            message=message,
-        ),
-    )
-
-
-def _failed_zip_compress_preparation(
-    effect: RunZipCompressPreparationEffect,
-    error: BaseException | None,
-    message: str,
-) -> tuple[Any, ...]:
-    return (
-        ZipCompressPreparationFailed(
-            request_id=effect.request_id,
-            message=message,
-        ),
-    )
-
-
-def _failed_zip_compress(
-    effect: RunZipCompressEffect,
-    error: BaseException | None,
-    message: str,
-) -> tuple[Any, ...]:
-    return (
-        ZipCompressFailed(
-            request_id=effect.request_id,
-            message=message,
-        ),
-    )
-
-
-def _failed_config_save(
-    effect: RunConfigSaveEffect,
-    error: BaseException | None,
-    message: str,
-) -> tuple[Any, ...]:
-    return (
-        ConfigSaveFailed(
-            request_id=effect.request_id,
-            message=message,
-        ),
-    )
-
-
-def _failed_directory_sizes(
-    effect: RunDirectorySizeEffect,
-    error: BaseException | None,
-    message: str,
-) -> tuple[Any, ...]:
-    return (
-        DirectorySizesFailed(
-            request_id=effect.request_id,
-            paths=effect.paths,
-            message=message,
-        ),
-    )
-
-
-def _failed_external_launch(
-    effect: RunExternalLaunchEffect,
-    error: BaseException | None,
-    message: str,
-) -> tuple[Any, ...]:
-    return (
-        ExternalLaunchFailed(
-            request_id=effect.request_id,
-            request=effect.request,
-            message=message,
-        ),
-    )
-
-
-def _failed_shell_command(
-    effect: RunShellCommandEffect,
-    error: BaseException | None,
-    message: str,
-) -> tuple[Any, ...]:
-    return (
-        ShellCommandFailed(
-            request_id=effect.request_id,
-            message=message,
-        ),
-    )
-
-
-def _failed_file_search(
-    effect: RunFileSearchEffect,
-    error: BaseException | None,
-    message: str,
-) -> tuple[Any, ...]:
-    return (
-        FileSearchFailed(
-            request_id=effect.request_id,
-            query=effect.query,
-            message=message,
-            invalid_query=isinstance(error, InvalidFileSearchQueryError),
-        ),
-    )
-
-
-def _failed_grep_search(
-    effect: RunGrepSearchEffect,
-    error: BaseException | None,
-    message: str,
-) -> tuple[Any, ...]:
-    return (
-        GrepSearchFailed(
-            request_id=effect.request_id,
-            query=effect.query,
-            message=message,
-            invalid_query=isinstance(error, InvalidGrepSearchQueryError),
-        ),
-    )
+_failed_browser_snapshot = _make_failed_handler(
+    BrowserSnapshotFailed,
+    extra_field_builders={"blocking": lambda e, _err, _msg: e.blocking},
+)
+_failed_child_pane_snapshot = _make_failed_handler(ChildPaneSnapshotFailed)
+_failed_clipboard_paste = _make_failed_handler(ClipboardPasteFailed)
+_failed_file_mutation = _make_failed_handler(FileMutationFailed)
+_failed_archive_preparation = _make_failed_handler(ArchivePreparationFailed)
+_failed_archive_extract = _make_failed_handler(ArchiveExtractFailed)
+_failed_zip_compress_preparation = _make_failed_handler(ZipCompressPreparationFailed)
+_failed_zip_compress = _make_failed_handler(ZipCompressFailed)
+_failed_config_save = _make_failed_handler(ConfigSaveFailed)
+_failed_directory_sizes = _make_failed_handler(
+    DirectorySizesFailed,
+    extra_field_builders={"paths": lambda e, _err, _msg: e.paths},
+)
+_failed_external_launch = _make_failed_handler(
+    ExternalLaunchFailed,
+    extra_field_builders={"request": lambda e, _err, _msg: e.request},
+)
+_failed_shell_command = _make_failed_handler(ShellCommandFailed)
+_failed_file_search = _make_failed_handler(
+    FileSearchFailed,
+    extra_field_builders={
+        "query": lambda e, _err, _msg: e.query,
+        "invalid_query": lambda _e, err, _msg: isinstance(err, InvalidFileSearchQueryError),
+    },
+)
+_failed_grep_search = _make_failed_handler(
+    GrepSearchFailed,
+    extra_field_builders={
+        "query": lambda e, _err, _msg: e.query,
+        "invalid_query": lambda _e, err, _msg: isinstance(err, InvalidGrepSearchQueryError),
+    },
+)
 
 
 _RESULT_COMPLETE_HANDLERS: tuple[tuple[type[Any], CompleteActionHandler], ...] = (

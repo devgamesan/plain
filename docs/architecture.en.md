@@ -25,7 +25,7 @@ flowchart LR
     subgraph UI["UI (`src/peneo/app.py`, `src/peneo/app_shell.py`, `src/peneo/ui`)"]
         App["PeneoApp"]
         Shell["app_shell.py\nwidget mount / refresh / focus"]
-        Widgets["CurrentPathBar / MainPane / SidePane / CommandPalette / ConflictDialog / AttributeDialog / ConfigDialog / SplitTerminalPane / HelpBar / StatusBar"]
+        Widgets["TabBar / CurrentPathBar / MainPane / SidePane / CommandPalette / ConflictDialog / AttributeDialog / ConfigDialog / SplitTerminalPane / HelpBar / StatusBar"]
     end
 
     subgraph State["State (`src/peneo/state`)"]
@@ -38,7 +38,7 @@ flowchart LR
         TerminalReducer["reducer_terminal_config.py\nterminal / config / external launch"]
         Effects["effects.py\nEffect definitions"]
         Selectors["selectors.py\nselect_shell_data"]
-        Models["models.py\nAppState / PaneState / UiMode"]
+        Models["models.py\nAppState / BrowserTabState / PaneState / UiMode"]
         Palette["command_palette.py\npalette item builder"]
     end
 
@@ -335,7 +335,7 @@ Notes:
 
 ## 7. Areas Still Unimplemented Or Constrained
 
-- File preview, in-app editing, Git integration, tabs, and keybinding customization are not implemented
+- In-app editing, Git integration, tab reordering, and keybinding customization are not implemented
 - Native Windows runtime remains unsupported, even though the config accepts a `windows` terminal key for future compatibility
 - Directory-size calculation and archive extraction grow in cost with visible directory count or archive contents, so runtime cancellation and progress tracking are part of the design
 

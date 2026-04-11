@@ -12,6 +12,7 @@ from .shell_command_dialog import ShellCommandDialog
 from .split_terminal import SplitTerminalPane
 from .status_bar import StatusBar
 from .summary_bar import SummaryBar
+from .tab_bar import TabBar
 
 __all__ = [
     "AttributeDialog",
@@ -28,4 +29,5 @@ __all__ = [
     "SplitTerminalPane",
     "StatusBar",
     "SummaryBar",
+    "TabBar",
 ]

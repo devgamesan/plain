@@ -60,6 +60,8 @@ from .shell_data import (
     ShellCommandDialogState,
     SplitTerminalViewState,
     StatusBarState,
+    TabBarState,
+    TabItemState,
     ThreePaneShellData,
     build_dummy_shell_data,
 )
@@ -120,6 +122,8 @@ __all__ = [
     "ShellCommandDialogState",
     "ShellCommandResult",
     "StatusBarState",
+    "TabBarState",
+    "TabItemState",
     "TerminalConfig",
     "ThreePaneShellData",
     "build_dummy_shell_data",

@@ -9,6 +9,8 @@ from peneo.models.external_launch import ExternalLaunchRequest
 
 from .actions import (
     Action,
+    ActivateNextTab,
+    ActivatePreviousTab,
     AddBookmark,
     BeginBookmarkSearch,
     BeginCommandPalette,
@@ -24,6 +26,7 @@ from .actions import (
     BeginShellCommandInput,
     BeginZipCompressInput,
     CancelCommandPalette,
+    CloseCurrentTab,
     CopyPathsToClipboard,
     CycleGrepSearchField,
     DismissAttributeDialog,
@@ -37,6 +40,7 @@ from .actions import (
     MoveCommandPaletteCursor,
     OpenFindResultInEditor,
     OpenGrepResultInEditor,
+    OpenNewTab,
     OpenPathInEditor,
     OpenPathWithDefaultApp,
     OpenTerminalAtPath,
@@ -649,6 +653,14 @@ def _run_palette_command_item(
     item_id: str,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
+    if item_id == "new_tab":
+        return _run_new_tab_command(next_state, reduce_state)
+    if item_id == "next_tab":
+        return _run_next_tab_command(next_state, reduce_state)
+    if item_id == "previous_tab":
+        return _run_previous_tab_command(next_state, reduce_state)
+    if item_id == "close_current_tab":
+        return _run_close_current_tab_command(next_state, reduce_state)
     if item_id == "file_search":
         return _run_file_search_command(next_state, reduce_state)
     if item_id == "grep_search":
@@ -706,6 +718,34 @@ def _run_palette_command_item(
     if item_id == "create_dir":
         return _run_create_dir_command(next_state, reduce_state)
     return done(next_state)
+
+
+def _run_new_tab_command(
+    state: AppState,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return reduce_state(state, OpenNewTab())
+
+
+def _run_next_tab_command(
+    state: AppState,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return reduce_state(state, ActivateNextTab())
+
+
+def _run_previous_tab_command(
+    state: AppState,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return reduce_state(state, ActivatePreviousTab())
+
+
+def _run_close_current_tab_command(
+    state: AppState,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return reduce_state(state, CloseCurrentTab())
 
 
 def _run_file_search_command(

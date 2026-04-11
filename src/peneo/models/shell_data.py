@@ -114,6 +114,21 @@ class SplitTerminalViewState:
 
 
 @dataclass(frozen=True)
+class TabItemState:
+    """Single tab item rendered in the tab bar."""
+
+    label: str
+    active: bool = False
+
+
+@dataclass(frozen=True)
+class TabBarState:
+    """Top-level tab strip rendered above the current path bar."""
+
+    tabs: tuple[TabItemState, ...]
+
+
+@dataclass(frozen=True)
 class HelpBarState:
     """Compact help summary rendered above the status bar."""
 
@@ -210,6 +225,7 @@ class ShellCommandDialogState:
 class ThreePaneShellData:
     """Complete display state for the shell UI."""
 
+    tab_bar: TabBarState
     current_path: str
     parent_entries: tuple[PaneEntry, ...]
     current_entries: tuple[PaneEntry, ...] | None
@@ -271,6 +287,7 @@ def build_dummy_shell_data() -> ThreePaneShellData:
     )
 
     return ThreePaneShellData(
+        tab_bar=TabBarState((TabItemState("peneo", active=True),)),
         current_path="/home/tadashi/develop/peneo",
         parent_entries=(
             PaneEntry("develop", "dir"),
@@ -303,7 +320,7 @@ def build_dummy_shell_data() -> ThreePaneShellData:
         help=HelpBarState(
             (
                 "Enter open | e edit | / filter | : palette | ctrl+f find | ctrl+g grep | q quit",
-                "Space select | y copy | x cut | p paste | s sort | d dirs | ctrl+t term",
+                "Space select | y copy | x cut | p paste | s sort | d dirs | t term",
             )
         ),
         command_palette=None,

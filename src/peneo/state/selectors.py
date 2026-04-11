@@ -25,6 +25,8 @@ from peneo.models import (
     ShellCommandDialogState,
     SplitTerminalViewState,
     StatusBarState,
+    TabBarState,
+    TabItemState,
     ThreePaneShellData,
 )
 
@@ -41,15 +43,26 @@ from .models import (
     FileSearchResultState,
     GrepSearchResultState,
     SortState,
+    select_browser_tabs,
 )
 
 SIDE_PANE_SORT = SortState(field="name", descending=False, directories_first=True)
 COMMAND_PALETTE_VISIBLE_WINDOW = 8
 MIN_SEARCH_VISIBLE_WINDOW = 3
-_SEARCH_OVERHEAD_ROWS = 9
+_SEARCH_OVERHEAD_ROWS = 10
 _GREP_SEARCH_EXTRA_INPUT_ROWS = 2
 MIN_CURRENT_PANE_VISIBLE_WINDOW = 5
-_CURRENT_PANE_OVERHEAD_ROWS = 8
+_CURRENT_PANE_OVERHEAD_ROWS = 9
+
+
+def _format_tab_label(path: str) -> str:
+    resolved = Path(path).expanduser()
+    home = Path("~").expanduser()
+    if resolved == home:
+        return "~"
+    if resolved == resolved.parent:
+        return "/"
+    return resolved.name or str(resolved)
 
 
 def _has_execute_permission(entry: DirectoryEntryState) -> bool:
@@ -89,6 +102,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         state.directory_size_delta.revision,
     )
     return ThreePaneShellData(
+        tab_bar=select_tab_bar_state(state),
         current_path=state.current_path,
         parent_entries=select_parent_entries(state),
         current_entries=(
@@ -117,6 +131,19 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         config_dialog=select_config_dialog_state(state),
         shell_command_dialog=select_shell_command_dialog_state(state),
     )
+
+
+def select_tab_bar_state(state: AppState) -> TabBarState:
+    """Return display state for the top-level tab bar."""
+
+    tabs = tuple(
+        TabItemState(
+            label=_format_tab_label(tab.current_path),
+            active=index == state.active_tab_index,
+        )
+        for index, tab in enumerate(select_browser_tabs(state))
+    )
+    return TabBarState(tabs=tabs)
 
 
 def select_parent_entries(state: AppState) -> tuple[PaneEntry, ...]:

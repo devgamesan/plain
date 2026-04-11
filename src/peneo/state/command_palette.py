@@ -128,6 +128,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
     has_single_target = single_target_entry is not None
     current_path_is_bookmarked = state.current_path in state.config.bookmarks.paths
     has_visible_entries = _has_visible_current_entries(state)
+    tab_count = len(state.browser_tabs) or 1
 
     items = [
         CommandPaletteItem(
@@ -183,6 +184,30 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             label="Reload directory",
             shortcut="R",
             enabled=True,
+        ),
+        CommandPaletteItem(
+            id="new_tab",
+            label="New tab",
+            shortcut="o",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="next_tab",
+            label="Next tab",
+            shortcut="tab",
+            enabled=tab_count > 1,
+        ),
+        CommandPaletteItem(
+            id="previous_tab",
+            label="Previous tab",
+            shortcut="shift+tab",
+            enabled=tab_count > 1,
+        ),
+        CommandPaletteItem(
+            id="close_current_tab",
+            label="Close current tab",
+            shortcut="w",
+            enabled=tab_count > 1,
         ),
         CommandPaletteItem(
             id="toggle_split_terminal",

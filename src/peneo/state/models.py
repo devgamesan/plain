@@ -1,6 +1,6 @@
 """State models for app-level updates and selector inputs."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
@@ -347,6 +347,22 @@ class BrowserSnapshot:
 
 
 @dataclass(frozen=True)
+class BrowserTabState:
+    """Per-tab browser state that can be swapped into the active app view."""
+
+    current_path: str
+    parent_pane: PaneState
+    current_pane: PaneState
+    child_pane: PaneState
+    history: HistoryState = HistoryState()
+    filter: FilterState = FilterState()
+    current_pane_window_start: int = 0
+    current_pane_delta: CurrentPaneDeltaState = CurrentPaneDeltaState()
+    pending_browser_snapshot_request_id: int | None = None
+    pending_child_pane_request_id: int | None = None
+
+
+@dataclass(frozen=True)
 class AppState:
     """Single source of truth for reducer-managed application state."""
 
@@ -354,6 +370,8 @@ class AppState:
     parent_pane: PaneState
     current_pane: PaneState
     child_pane: PaneState
+    browser_tabs: tuple[BrowserTabState, ...] = ()
+    active_tab_index: int = 0
     config: AppConfig = field(default_factory=AppConfig)
     config_path: str = ""
     show_hidden: bool = False
@@ -401,6 +419,72 @@ class AppState:
     current_pane_projection_mode: CurrentPaneProjectionMode = "full"
     current_pane_window_start: int = 0
     next_request_id: int = 1
+
+
+def browser_tab_from_app_state(state: AppState) -> BrowserTabState:
+    """Capture the active browser-facing state as a tab payload."""
+
+    return BrowserTabState(
+        current_path=state.current_path,
+        parent_pane=state.parent_pane,
+        current_pane=state.current_pane,
+        child_pane=state.child_pane,
+        history=state.history,
+        filter=state.filter,
+        current_pane_window_start=state.current_pane_window_start,
+        current_pane_delta=state.current_pane_delta,
+        pending_browser_snapshot_request_id=state.pending_browser_snapshot_request_id,
+        pending_child_pane_request_id=state.pending_child_pane_request_id,
+    )
+
+
+def select_browser_tabs(state: AppState) -> tuple[BrowserTabState, ...]:
+    """Return browser tabs with the active tab overlaid from top-level state."""
+
+    if not state.browser_tabs:
+        return (browser_tab_from_app_state(state),)
+
+    tabs = list(state.browser_tabs)
+    active_index = max(0, min(state.active_tab_index, len(tabs) - 1))
+    tabs[active_index] = browser_tab_from_app_state(state)
+    return tuple(tabs)
+
+
+def sync_active_browser_tab(state: AppState) -> AppState:
+    """Persist the active top-level browser state into the tab list."""
+
+    tabs = select_browser_tabs(state)
+    active_tab_index = max(0, min(state.active_tab_index, len(tabs) - 1))
+    if tabs == state.browser_tabs and active_tab_index == state.active_tab_index:
+        return state
+    return replace(
+        state,
+        browser_tabs=tabs,
+        active_tab_index=active_tab_index,
+    )
+
+
+def load_browser_tab(state: AppState, index: int) -> AppState:
+    """Load the requested tab into the active top-level browser fields."""
+
+    tabs = select_browser_tabs(state)
+    clamped_index = max(0, min(index, len(tabs) - 1))
+    tab = tabs[clamped_index]
+    return replace(
+        state,
+        browser_tabs=tabs,
+        active_tab_index=clamped_index,
+        current_path=tab.current_path,
+        parent_pane=tab.parent_pane,
+        current_pane=tab.current_pane,
+        child_pane=tab.child_pane,
+        history=tab.history,
+        filter=tab.filter,
+        current_pane_window_start=tab.current_pane_window_start,
+        current_pane_delta=tab.current_pane_delta,
+        pending_browser_snapshot_request_id=tab.pending_browser_snapshot_request_id,
+        pending_child_pane_request_id=tab.pending_child_pane_request_id,
+    )
 
 
 def resolve_parent_directory_path(path: str) -> tuple[str, str | None]:
@@ -474,7 +558,7 @@ def build_initial_app_state(
         DirectoryEntryState(f"{docs_path}/wireframes", "wireframes", "dir"),
     )
 
-    return AppState(
+    state = AppState(
         current_path=current_path,
         config=config or AppConfig(),
         config_path=config_path,
@@ -494,6 +578,7 @@ def build_initial_app_state(
         post_reload_notification=post_reload_notification,
         current_pane_projection_mode=current_pane_projection_mode,
     )
+    return sync_active_browser_tab(state)
 
 
 def build_placeholder_app_state(
@@ -512,7 +597,7 @@ def build_placeholder_app_state(
     """Return an empty browser state used before the first snapshot loads."""
 
     resolved_path, parent_path = resolve_parent_directory_path(current_path)
-    return AppState(
+    state = AppState(
         current_path=resolved_path,
         config=config or AppConfig(),
         config_path=config_path,
@@ -527,3 +612,4 @@ def build_placeholder_app_state(
         post_reload_notification=post_reload_notification,
         current_pane_projection_mode=current_pane_projection_mode,
     )
+    return sync_active_browser_tab(state)

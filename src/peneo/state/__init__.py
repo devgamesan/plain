@@ -2,6 +2,8 @@
 
 from .actions import (
     Action,
+    ActivateNextTab,
+    ActivatePreviousTab,
     AddBookmark,
     ArchiveExtractCompleted,
     ArchiveExtractFailed,
@@ -37,6 +39,7 @@ from .actions import (
     ClipboardPasteCompleted,
     ClipboardPasteFailed,
     ClipboardPasteNeedsResolution,
+    CloseCurrentTab,
     ConfigSaveCompleted,
     ConfigSaveFailed,
     ConfirmArchiveExtract,
@@ -77,6 +80,7 @@ from .actions import (
     MoveCursorByPage,
     OpenFindResultInEditor,
     OpenGrepResultInEditor,
+    OpenNewTab,
     OpenPathInEditor,
     OpenPathWithDefaultApp,
     OpenTerminalAtPath,
@@ -149,6 +153,7 @@ from .models import (
     ArchiveExtractProgressState,
     AttributeInspectionState,
     BrowserSnapshot,
+    BrowserTabState,
     ClipboardState,
     CommandPaletteSource,
     CommandPaletteState,
@@ -179,6 +184,8 @@ from .models import (
     ZipCompressProgressState,
     build_initial_app_state,
     build_placeholder_app_state,
+    load_browser_tab,
+    select_browser_tabs,
 )
 from .reducer import reduce_app_state
 from .selectors import (
@@ -196,12 +203,15 @@ from .selectors import (
     select_shell_data,
     select_split_terminal_state,
     select_status_bar_state,
+    select_tab_bar_state,
     select_target_paths,
     select_visible_current_entry_states,
 )
 
 __all__ = [
     "Action",
+    "ActivateNextTab",
+    "ActivatePreviousTab",
     "AppState",
     "ArchiveExtractCompleted",
     "ArchiveExtractConfirmationState",
@@ -224,6 +234,7 @@ __all__ = [
     "BeginHistorySearch",
     "BeginRenameInput",
     "BeginShellCommandInput",
+    "BrowserTabState",
     "BrowserSnapshot",
     "BrowserSnapshotFailed",
     "BrowserSnapshotLoaded",
@@ -237,6 +248,7 @@ __all__ = [
     "CancelShellCommandInput",
     "ChildPaneSnapshotFailed",
     "ChildPaneSnapshotLoaded",
+    "CloseCurrentTab",
     "ClearSelection",
     "ClipboardState",
     "CommandPaletteSource",
@@ -297,6 +309,7 @@ __all__ = [
     "MoveCursor",
     "MoveCursorAndSelectRange",
     "MoveCursorByPage",
+    "OpenNewTab",
     "AddBookmark",
     "OpenGrepResultInEditor",
     "OpenFindResultInEditor",
@@ -377,8 +390,11 @@ __all__ = [
     "build_placeholder_app_state",
     "dispatch_key_input",
     "iter_bound_keys",
+    "load_browser_tab",
     "reduce_app_state",
+    "select_browser_tabs",
     "select_attribute_dialog_state",
+    "select_tab_bar_state",
     "select_child_entries",
     "select_command_palette_state",
     "select_conflict_dialog_state",

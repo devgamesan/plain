@@ -130,6 +130,26 @@ class BeginCommandPalette:
 
 
 @dataclass(frozen=True)
+class OpenNewTab:
+    """Create and activate a new browser tab."""
+
+
+@dataclass(frozen=True)
+class ActivateNextTab:
+    """Activate the next browser tab."""
+
+
+@dataclass(frozen=True)
+class ActivatePreviousTab:
+    """Activate the previous browser tab."""
+
+
+@dataclass(frozen=True)
+class CloseCurrentTab:
+    """Close the currently active browser tab."""
+
+
+@dataclass(frozen=True)
 class BeginShellCommandInput:
     """Open the shell command input dialog."""
 
@@ -876,6 +896,10 @@ Action = (
     | BeginHistorySearch
     | BeginBookmarkSearch
     | BeginCommandPalette
+    | OpenNewTab
+    | ActivateNextTab
+    | ActivatePreviousTab
+    | CloseCurrentTab
     | BeginShellCommandInput
     | CancelCommandPalette
     | MoveCommandPaletteCursor

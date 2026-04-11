@@ -31,6 +31,7 @@ from peneo.state import (
     HistoryState,
     NameConflictState,
     NotificationState,
+    OpenNewTab,
     PaneState,
     PasteConflictState,
     PendingInputState,
@@ -55,6 +56,7 @@ from peneo.state import (
     select_shell_data,
     select_split_terminal_state,
     select_status_bar_state,
+    select_tab_bar_state,
     select_target_paths,
     select_visible_current_entry_states,
 )
@@ -1883,7 +1885,7 @@ def test_select_command_palette_state_windows_large_file_search_results() -> Non
     palette_state = select_command_palette_state(state)
 
     assert palette_state is not None
-    assert palette_state.title == "Find File (4-18 / 20)"
+    assert palette_state.title == "Find File (4-17 / 20)"
     assert [item.label for item in palette_state.items] == [
         "src/module_3.py",
         "src/module_4.py",
@@ -1899,7 +1901,6 @@ def test_select_command_palette_state_windows_large_file_search_results() -> Non
         "src/module_14.py",
         "src/module_15.py",
         "src/module_16.py",
-        "src/module_17.py",
     ]
     assert palette_state.items[7].selected is True
     assert palette_state.has_more_items is True
@@ -1956,8 +1957,8 @@ def test_select_command_palette_state_windows_large_grep_search_results() -> Non
     palette_state = select_command_palette_state(state)
 
     assert palette_state is not None
-    assert palette_state.title == "Grep (5-17 / 20)"
-    assert len(palette_state.items) == 13
+    assert palette_state.title == "Grep (5-16 / 20)"
+    assert len(palette_state.items) == 12
     assert palette_state.items[6].selected is True
     assert palette_state.has_more_items is True
 
@@ -2238,13 +2239,13 @@ class TestComputeSearchVisibleWindow:
     """Tests for dynamic search window size calculation."""
 
     def test_default_terminal_height(self) -> None:
-        assert selectors_module.compute_search_visible_window(24) == 15
+        assert selectors_module.compute_search_visible_window(24) == 14
 
     def test_large_terminal(self) -> None:
-        assert selectors_module.compute_search_visible_window(48) == 39
+        assert selectors_module.compute_search_visible_window(48) == 38
 
     def test_very_large_terminal(self) -> None:
-        assert selectors_module.compute_search_visible_window(80) == 71
+        assert selectors_module.compute_search_visible_window(80) == 70
 
     def test_small_terminal_uses_minimum(self) -> None:
         assert selectors_module.compute_search_visible_window(10) == 3
@@ -2253,7 +2254,7 @@ class TestComputeSearchVisibleWindow:
         assert selectors_module.compute_search_visible_window(1) == 3
 
     def test_extra_rows_reduce_visible_window(self) -> None:
-        assert selectors_module.compute_search_visible_window(24, extra_rows=2) == 13
+        assert selectors_module.compute_search_visible_window(24, extra_rows=2) == 12
 
 
 class TestSelectSearchWindowWithDynamicSize:
@@ -2489,5 +2490,28 @@ class TestCommandPaletteDynamicWindow:
         palette_state = select_command_palette_state(state)
 
         assert palette_state is not None
-        assert len(palette_state.items) == 15
+        assert len(palette_state.items) == 14
         assert palette_state.has_more_items is True
+
+
+def test_select_tab_bar_state_marks_active_tab() -> None:
+    state = _reduce_state(build_initial_app_state(), OpenNewTab())
+
+    tab_bar = select_tab_bar_state(state)
+
+    assert [tab.label for tab in tab_bar.tabs] == ["peneo", "peneo"]
+    assert [tab.active for tab in tab_bar.tabs] == [False, True]
+
+
+def test_command_palette_includes_tab_commands_with_lowercase_shortcuts() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+
+    palette_state = select_command_palette_state(state)
+
+    assert palette_state is not None
+    items = {item.label: item for item in palette_state.items}
+    assert items["New tab"].shortcut == "o"
+    assert items["Next tab"].shortcut == "tab"
+    assert items["Previous tab"].shortcut == "shift+tab"
+    assert items["Close current tab"].shortcut == "w"
+    assert items["Close current tab"].enabled is False

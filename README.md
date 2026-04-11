@@ -13,6 +13,7 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 - **No memorization needed**: Common actions are always visible in the help bar
 - **Never get lost**: All actions can be called from the command palette
 - **Clear 3-pane layout**: Parent, current, and right panes displayed side by side, with text preview for focused files
+- **Tabbed browsing**: Keep multiple browser workspaces open inside one TUI and switch between them quickly
 - **Embedded terminal**: Seamlessly switch between browsing and shell with `t`
 - **Powerful search**: Jump directly to files with recursive file search and grep search
 - **Terminal editor integration**: Launch your preferred terminal editor in the current directory
@@ -31,6 +32,8 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 - The beginning of a text file can be previewed directly in the right pane, so you can quickly inspect the file without opening it.
 
   ![](docs/resources/screen-text-preview.png)
+
+- Multiple tabs let you keep separate working directories open in one Peneo session. You can open a new tab, switch to the next or previous tab, and close the current tab without leaving the TUI.
 
 - An embedded terminal can be opened below the browser panes. `t` switches quickly between the browser and terminal, and the terminal starts in the current directory so you can move between browsing and shell work without changing directories manually.
 
@@ -105,6 +108,10 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 | `R` | Reload directory |
 | `t` | Toggle split terminal |
 | `T` | Open terminal at current directory |
+| `o` | Open new tab |
+| `w` | Close current tab |
+| `tab` | Switch to next tab |
+| `shift+tab` | Switch to previous tab |
 | `m` | Open current directory in file manager |
 | `:` | Open command palette |
 | `q` | Quit |
@@ -360,9 +367,14 @@ When logging is enabled, startup failures and unhandled exceptions are appended 
 ## Command Palette
 
 Less frequent actions are grouped in the command palette opened with `:`.
+The tab strip is only shown when two or more browser tabs are open.
 
 | Command | Shown when | Behavior / Notes |
 | --- | --- | --- |
+| `New tab` | Always | Opens a new browser tab initialized from the current directory. Also available with `o`. |
+| `Next tab` | Two or more tabs are open | Activates the next browser tab. Also available with `tab`. |
+| `Previous tab` | Two or more tabs are open | Activates the previous browser tab. Also available with `shift+tab`. |
+| `Close current tab` | Two or more tabs are open | Closes the active browser tab. The last remaining tab cannot be closed. Also available with `w`. |
 | `Find files` | Always | Opens recursive file search. |
 | `Grep search` | Always | Opens recursive grep search (`ripgrep` / `rg` required on `PATH`). |
 | `History search` | Always | Opens directory history list and jump to a selected directory. |

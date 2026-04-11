@@ -17,6 +17,8 @@ from peneo.models import (
     RenameRequest,
 )
 from peneo.state import (
+    ActivateNextTab,
+    ActivatePreviousTab,
     AddBookmark,
     ArchiveExtractCompleted,
     ArchiveExtractConfirmationState,
@@ -54,6 +56,7 @@ from peneo.state import (
     ClipboardPasteCompleted,
     ClipboardPasteFailed,
     ClipboardPasteNeedsResolution,
+    CloseCurrentTab,
     CloseSplitTerminalEffect,
     CommandPaletteState,
     ConfigEditorState,
@@ -106,6 +109,7 @@ from peneo.state import (
     NotificationState,
     OpenFindResultInEditor,
     OpenGrepResultInEditor,
+    OpenNewTab,
     OpenPathInEditor,
     OpenPathWithDefaultApp,
     OpenTerminalAtPath,
@@ -161,6 +165,7 @@ from peneo.state import (
     ZipCompressProgressState,
     build_initial_app_state,
     reduce_app_state,
+    select_browser_tabs,
 )
 from tests.state_test_helpers import reduce_state
 
@@ -5530,3 +5535,88 @@ def test_move_cursor_by_page_empty_paths() -> None:
 
     assert result.state is state
     assert result.effects == ()
+
+
+def test_open_new_tab_clones_path_but_resets_filter_and_selection() -> None:
+    state = replace(
+        build_initial_app_state(),
+        filter=replace(build_initial_app_state().filter, query="read", active=True),
+        current_pane=replace(
+            build_initial_app_state().current_pane,
+            selected_paths=frozenset({"/home/tadashi/develop/peneo/docs"}),
+            selection_anchor_path="/home/tadashi/develop/peneo/docs",
+        ),
+    )
+
+    next_state = _reduce_state(state, OpenNewTab())
+
+    assert next_state.active_tab_index == 1
+    assert next_state.current_path == state.current_path
+    assert next_state.filter.query == ""
+    assert next_state.filter.active is False
+    assert next_state.current_pane.selected_paths == frozenset()
+    assert len(select_browser_tabs(next_state)) == 2
+    assert select_browser_tabs(next_state)[0].filter.query == "read"
+    assert select_browser_tabs(next_state)[0].current_pane.selected_paths == frozenset(
+        {"/home/tadashi/develop/peneo/docs"}
+    )
+
+
+def test_activate_tabs_restores_per_tab_filter_state() -> None:
+    state = _reduce_state(build_initial_app_state(), OpenNewTab())
+    state = _reduce_state(state, SetFilterQuery("read"))
+
+    state = _reduce_state(state, ActivatePreviousTab())
+    assert state.active_tab_index == 0
+    assert state.filter.query == ""
+
+    state = _reduce_state(state, ActivateNextTab())
+    assert state.active_tab_index == 1
+    assert state.filter.query == "read"
+
+
+def test_close_current_tab_warns_when_only_one_tab_remains() -> None:
+    next_state = _reduce_state(build_initial_app_state(), CloseCurrentTab())
+
+    assert next_state.notification == NotificationState(
+        level="warning",
+        message="Cannot close the last tab",
+    )
+
+
+def test_browser_snapshot_loaded_updates_inactive_tab_only() -> None:
+    state = _reduce_state(build_initial_app_state(), OpenNewTab())
+    result = reduce_app_state(state, RequestBrowserSnapshot("/tmp/project", blocking=True))
+    state = result.state
+    request_id = state.pending_browser_snapshot_request_id
+
+    state = _reduce_state(state, ActivatePreviousTab())
+    base_path = state.current_path
+
+    loaded = reduce_app_state(
+        state,
+        BrowserSnapshotLoaded(
+            request_id=request_id,
+            blocking=True,
+            snapshot=BrowserSnapshot(
+                current_path="/tmp/project",
+                parent_pane=PaneState(
+                    directory_path="/tmp",
+                    entries=(DirectoryEntryState("/tmp/project", "project", "dir"),),
+                    cursor_path="/tmp/project",
+                ),
+                current_pane=PaneState(
+                    directory_path="/tmp/project",
+                    entries=(DirectoryEntryState("/tmp/project/file.txt", "file.txt", "file"),),
+                    cursor_path="/tmp/project/file.txt",
+                ),
+                child_pane=PaneState(directory_path="/tmp/project", entries=()),
+            ),
+        ),
+    ).state
+
+    assert loaded.current_path == base_path
+    assert select_browser_tabs(loaded)[1].current_path == "/tmp/project"
+
+    loaded = _reduce_state(loaded, ActivateNextTab())
+    assert loaded.current_path == "/tmp/project"

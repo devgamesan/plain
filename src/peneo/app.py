@@ -181,10 +181,16 @@ class PeneoApp(App[None]):
         color: $text;
     }
 
+    #tab-bar,
     #current-path-bar,
     #status-bar {
         height: 1;
         padding: 0 1;
+    }
+
+    #tab-bar {
+        background: $surface;
+        color: $text;
     }
 
     #help-bar {
@@ -379,7 +385,6 @@ class PeneoApp(App[None]):
         display: none;
         height: 1fr;
         min-height: 6;
-        border: round $accent;
         background: $surface;
     }
 
@@ -388,7 +393,7 @@ class PeneoApp(App[None]):
     }
 
     #split-terminal.-focused {
-        border: round $success;
+        background: $boost;
     }
     """
 

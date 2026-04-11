@@ -12,7 +12,7 @@ from .actions import (
     SetUiMode,
 )
 from .effects import ReduceResult
-from .models import AppState
+from .models import AppState, sync_active_browser_tab
 from .reducer_common import done
 from .reducer_mutations import handle_mutation_action
 from .reducer_navigation import handle_navigation_action
@@ -62,6 +62,10 @@ def _finalize_reduce_result(
 ) -> ReduceResult:
     result = _finalize_current_pane_window(previous_state, result)
     result = _finalize_current_pane_delta(previous_state, result)
+    result = ReduceResult(
+        state=sync_active_browser_tab(result.state),
+        effects=result.effects,
+    )
     if isinstance(action, (DirectorySizesLoaded, DirectorySizesFailed)):
         return result
     if result.state == previous_state:

@@ -33,7 +33,7 @@ def test_local_filesystem_adapter_lists_entries_with_metadata(tmp_path) -> None:
     assert readme_entry.permissions_mode is not None
 
 
-def test_local_filesystem_adapter_skips_broken_symlink_entries(tmp_path) -> None:
+def test_local_filesystem_adapter_includes_broken_symlink_entries(tmp_path) -> None:
     docs = tmp_path / "docs"
     docs.mkdir()
     broken = tmp_path / "broken-link"
@@ -43,7 +43,8 @@ def test_local_filesystem_adapter_skips_broken_symlink_entries(tmp_path) -> None
 
     entries = adapter.list_directory(str(tmp_path))
 
-    assert [entry.name for entry in entries] == ["docs"]
+    assert [entry.name for entry in entries] == ["docs", "broken-link"]
+    assert entries[1].symlink is True
 
 
 def test_local_filesystem_adapter_treats_directory_symlink_as_dir(tmp_path) -> None:

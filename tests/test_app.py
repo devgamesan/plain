@@ -830,7 +830,7 @@ async def test_app_live_snapshot_highlights_current_directory_in_parent_pane(tmp
         assert app.app_state.parent_pane.cursor_path == str(tmp_path)
         assert isinstance(parent_renderable, Text)
         assert tmp_path.name in parent_renderable.plain.splitlines()
-        assert any(span.style == "bold white on blue" for span in parent_renderable.spans)
+        assert any(span.style == "bold white on #5555FF" for span in parent_renderable.spans)
 
 
 @pytest.mark.asyncio
@@ -878,7 +878,7 @@ async def test_app_renders_loaded_three_pane_shell() -> None:
         assert parent_entries == ["peneo-app", "sibling"]
         parent_renderable = parent_list.renderable
         assert isinstance(parent_renderable, Text)
-        assert any(span.style == "bold white on blue" for span in parent_renderable.spans)
+        assert any(span.style == "bold white on #5555FF" for span in parent_renderable.spans)
         assert headers == ["Sel", "Name", "Size", "Modified"]
         assert current_table.row_count == 2
         assert child_entries == ["spec.md"]
@@ -1314,7 +1314,7 @@ async def test_app_keyboard_input_updates_selection_and_child_pane() -> None:
 
         assert isinstance(first_row[0], Text)
         assert first_row[0].plain == "*"
-        assert first_row[0].style == "bold blue"
+        assert first_row[0].style == "bold #5555FF"
         assert first_row[1].plain == "docs"
         await _wait_for_child_pane_runtime_idle(app, timeout=1.0)
 
@@ -1487,7 +1487,7 @@ async def test_app_cut_marks_row_with_dimmed_style() -> None:
         assert app.app_state.clipboard.paths == (f"{path}/docs",)
         assert isinstance(first_row[1], Text)
         assert first_row[1].plain == "docs"
-        assert first_row[1].style == "blue dim"
+        assert first_row[1].style == "bold #5555FF dim"
 
 
 @pytest.mark.asyncio

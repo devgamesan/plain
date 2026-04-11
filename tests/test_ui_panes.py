@@ -51,4 +51,4 @@ def test_side_pane_selected_directory_uses_background_highlight() -> None:
 
     rendered = SidePane._render_label(entry)
 
-    assert rendered.style == "bold white on blue"
+    assert rendered.style == "bold white on #5555FF"

@@ -19,12 +19,15 @@ class PaneEntry:
     selected: bool = False
     cut: bool = False
     executable: bool = False
+    symlink: bool = False
     path: str = ""
 
     @property
     def kind_label(self) -> str:
         """Return the short label shown in the center table."""
 
+        if self.symlink:
+            return "LINK"
         return "DIR" if self.kind == "dir" else "FILE"
 
     @property

@@ -57,10 +57,18 @@ class LocalFilesystemAdapter:
 
 
 def _build_directory_entry(entry: os.DirEntry[str]) -> DirectoryEntryState | None:
+    is_symlink = entry.is_symlink()
     try:
         stat_result = entry.stat()
     except FileNotFoundError:
-        # Skip broken symlinks or entries removed during iteration.
+        if is_symlink:
+            return DirectoryEntryState(
+                path=entry.path,
+                name=entry.name,
+                kind="file",
+                hidden=entry.name.startswith("."),
+                symlink=True,
+            )
         return None
     kind = "dir" if entry.is_dir() else "file"
     return DirectoryEntryState(
@@ -71,6 +79,7 @@ def _build_directory_entry(entry: os.DirEntry[str]) -> DirectoryEntryState | Non
         modified_at=datetime.fromtimestamp(stat_result.st_mtime),
         hidden=entry.name.startswith("."),
         permissions_mode=stat_result.st_mode,
+        symlink=is_symlink,
     )
 
 

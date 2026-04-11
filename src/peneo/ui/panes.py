@@ -317,7 +317,13 @@ class ChildPane(Vertical):
             lexer=lexer,
             theme=state.syntax_theme,
             word_wrap=False,
-            line_numbers=False,
+            line_numbers=state.preview_start_line is not None,
+            start_line=state.preview_start_line or 1,
+            highlight_lines=(
+                {state.preview_highlight_line}
+                if state.preview_highlight_line is not None
+                else None
+            ),
             code_width=max(1, render_width),
         )
 

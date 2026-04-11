@@ -286,14 +286,22 @@ def start_child_pane_snapshot(app: Any, effect: LoadChildPaneSnapshotEffect) -> 
         return
     cancel_event = threading.Event()
     _set_active_tracking(app, _CHILD_PANE_TRACKING, effect.request_id, cancel_event)
+    loader = partial(
+        app._snapshot_loader.load_child_pane_snapshot,
+        effect.current_path,
+        effect.cursor_path,
+    )
+    if effect.grep_result is not None:
+        loader = partial(
+            app._snapshot_loader.load_grep_preview,
+            effect.current_path,
+            effect.grep_result,
+            context_lines=effect.grep_context_lines,
+        )
     _run_worker(
         app,
         effect,
-        partial(
-            app._snapshot_loader.load_child_pane_snapshot,
-            effect.current_path,
-            effect.cursor_path,
-        ),
+        loader,
         _WorkerSpec(
             name=f"child-pane-snapshot:{effect.request_id}",
             group="child-pane-snapshot",

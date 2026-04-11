@@ -2923,6 +2923,41 @@ async def test_app_command_palette_grep_jumps_to_matching_parent_directory() -> 
 
 
 @pytest.mark.asyncio
+async def test_app_grep_search_renders_context_preview_within_current_pane(tmp_path) -> None:
+    path = str(tmp_path)
+    notes = tmp_path / "notes.txt"
+    notes.write_text("alpha\nbeta\nTODO: update docs\ndelta\nepsilon\n", encoding="utf-8")
+    grep_search_service = FakeGrepSearchService(
+        results_by_query={
+            (path, "todo", False): (
+                GrepSearchResultState(
+                    path=str(notes),
+                    display_path="notes.txt",
+                    line_number=3,
+                    line_text="TODO: update docs",
+                ),
+            )
+        }
+    )
+    app = create_app(
+        grep_search_service=grep_search_service,
+        initial_path=path,
+    )
+
+    async with app.run_test(size=(240, 40)) as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("g")
+        await pilot.press("t", "o", "d", "o")
+        await _wait_for_request_count(grep_search_service, 1)
+        await _wait_for_child_preview(app, "Preview: notes.txt:3", "TODO: update docs")
+
+        command_palette = app.query_one("#command-palette")
+        child_pane = app.query_one("#child-pane")
+
+        assert command_palette.region.x + command_palette.region.width <= child_pane.region.x
+
+
+@pytest.mark.asyncio
 async def test_app_grep_search_debounces_rapid_query_updates(tmp_path) -> None:
     path = str(tmp_path)
     (tmp_path / "README.md").write_text("TODO: readme\n", encoding="utf-8")

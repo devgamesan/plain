@@ -78,6 +78,7 @@ from peneo.ui import (
     ConflictDialog,
     CurrentPathBar,
     HelpBar,
+    MainPane,
     ShellCommandDialog,
     SplitTerminalPane,
     StatusBar,
@@ -516,6 +517,23 @@ class PeneoApp(App[None]):
             parent_pane.display = False
             child_pane.display = False
 
+    def _update_command_palette_geometry(self) -> None:
+        """Constrain the command palette overlay to the current pane."""
+
+        try:
+            command_palette_layer = self.query_one("#command-palette-layer", Container)
+            current_pane = self.query_one("#current-pane", MainPane)
+        except NoMatches:
+            return
+
+        region = current_pane.region
+        if region.width <= 0 or region.height <= 0:
+            return
+
+        command_palette_layer.styles.width = region.width
+        command_palette_layer.styles.height = region.height
+        command_palette_layer.styles.offset = (region.x, max(0, region.y - 1))
+
     async def on_mount(self) -> None:
         """Load the initial directory snapshot after the UI mounts."""
 
@@ -523,7 +541,7 @@ class PeneoApp(App[None]):
             SetTerminalHeight(height=self.size.height),
             RequestBrowserSnapshot(self._initial_path, blocking=True),
         ))
-        self.call_after_refresh(lambda: self._update_pane_visibility(self.size.width))
+        self.call_after_refresh(self._sync_overlay_layout)
 
     def on_unmount(self) -> None:
         """Ensure the embedded terminal session is stopped when the app exits."""
@@ -649,7 +667,7 @@ class PeneoApp(App[None]):
         """Keep the split-terminal PTY dimensions roughly aligned with the viewport."""
 
         await self.dispatch_actions((SetTerminalHeight(height=event.size.height),))
-        self._update_pane_visibility(event.size.width)
+        self._sync_overlay_layout(event.size.width)
 
         if self._split_terminal_session is None or not self._app_state.split_terminal.visible:
             return
@@ -663,9 +681,15 @@ class PeneoApp(App[None]):
                 select_shell_data(self._app_state),
                 self._split_terminal_session,
             )
-            self._update_pane_visibility(self.size.width)
+            self.call_after_refresh(self._sync_overlay_layout)
         except ScreenStackError:
             return
+
+    def _sync_overlay_layout(self, width: int | None = None) -> None:
+        """Refresh side-pane visibility and overlay geometry together."""
+
+        self._update_pane_visibility(self.size.width if width is None else width)
+        self._update_command_palette_geometry()
 
     def _resize_split_terminal_session(self) -> None:
         resize_split_terminal_session(

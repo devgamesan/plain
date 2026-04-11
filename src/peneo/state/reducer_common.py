@@ -559,7 +559,13 @@ def _child_pane_matches_entry(
 ) -> bool:
     if entry.kind == "dir" or is_supported_archive_path(entry.path):
         return child_pane.mode == "entries" and child_pane.directory_path == entry.path
-    return child_pane.mode == "preview" and child_pane.preview_path == entry.path
+    return (
+        child_pane.mode == "preview"
+        and child_pane.preview_path == entry.path
+        and child_pane.preview_title is None
+        and child_pane.preview_start_line is None
+        and child_pane.preview_highlight_line is None
+    )
 
 
 def normalize_child_pane_for_display(

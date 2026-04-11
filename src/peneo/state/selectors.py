@@ -1517,9 +1517,9 @@ def _format_permissions_detail_label(entry: DirectoryEntryState) -> str:
         return ""
     permission_str = _format_permissions_label(entry.permissions_mode)
     if entry.owner and entry.group:
-        return f"{entry.owner} {entry.group} {permission_str}"
+        return f"{permission_str} {entry.owner} {entry.group}"
     if entry.owner:
-        return f"{entry.owner} {permission_str}"
+        return f"{permission_str} {entry.owner}"
     return permission_str
 
 

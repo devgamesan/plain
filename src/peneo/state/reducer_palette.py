@@ -60,6 +60,7 @@ from .models import (
     AttributeInspectionState,
     CommandPaletteState,
     ConfigEditorState,
+    FileSearchResultState,
     GrepSearchResultState,
     NotificationState,
 )
@@ -179,6 +180,8 @@ def _handle_move_palette_cursor(
     )
     if state.command_palette.source == "grep_search":
         return _sync_grep_preview(next_state)
+    if state.command_palette.source == "file_search":
+        return _sync_file_search_preview(next_state)
     return done(next_state)
 
 
@@ -217,7 +220,7 @@ def _handle_set_file_search_query(
 ) -> ReduceResult:
     stripped_query = query.strip()
     if not stripped_query:
-        return done(
+        return _sync_file_search_preview(
             replace(
                 state,
                 command_palette=replace(
@@ -227,6 +230,7 @@ def _handle_set_file_search_query(
                 ),
                 pending_file_search_request_id=None,
                 pending_grep_search_request_id=None,
+                pending_child_pane_request_id=None,
             )
         )
 
@@ -239,7 +243,7 @@ def _handle_set_file_search_query(
         and state.command_palette.file_search_cache_root_path == state.current_path
         and state.command_palette.file_search_cache_show_hidden == state.show_hidden
     ):
-        return done(
+        return _sync_file_search_preview(
             replace(
                 state,
                 command_palette=replace(
@@ -905,7 +909,7 @@ def _handle_file_search_completed(
         cache_query = action.query.casefold()
         cache_results = action.results
 
-    return done(
+    return _sync_file_search_preview(
         replace(
             state,
             command_palette=replace(
@@ -931,7 +935,7 @@ def _handle_file_search_failed(
         return done(state)
 
     if state.command_palette is not None and action.invalid_query:
-        return done(
+        return _sync_file_search_preview(
             replace(
                 state,
                 command_palette=replace(
@@ -940,6 +944,7 @@ def _handle_file_search_failed(
                     file_search_error_message=action.message,
                 ),
                 pending_file_search_request_id=None,
+                pending_child_pane_request_id=None,
             )
         )
 
@@ -1057,6 +1062,51 @@ def _sync_grep_preview(state: AppState) -> ReduceResult:
     )
 
 
+def _selected_file_search_result(state: AppState) -> FileSearchResultState | None:
+    if state.command_palette is None or state.command_palette.source != "file_search":
+        return None
+    results = state.command_palette.file_search_results
+    if not results:
+        return None
+    return results[normalize_command_palette_cursor(state, state.command_palette.cursor_index)]
+
+
+def _matches_file_search_preview(
+    state: AppState,
+    result: FileSearchResultState,
+) -> bool:
+    return (
+        state.child_pane.mode == "preview"
+        and state.child_pane.preview_path == result.path
+    )
+
+
+def _sync_file_search_preview(state: AppState) -> ReduceResult:
+    selected_result = _selected_file_search_result(state)
+    if selected_result is None or not state.config.display.show_preview:
+        return done(replace(state, pending_child_pane_request_id=None))
+
+    if state.pending_child_pane_request_id is None and _matches_file_search_preview(
+        state,
+        selected_result,
+    ):
+        return done(state)
+
+    request_id = state.next_request_id
+    return done(
+        replace(
+            state,
+            pending_child_pane_request_id=request_id,
+            next_request_id=request_id + 1,
+        ),
+        LoadChildPaneSnapshotEffect(
+            request_id=request_id,
+            current_path=state.current_path,
+            cursor_path=selected_result.path,
+        ),
+    )
+
+
 def handle_palette_action(
     state: AppState,
     action: Action,
@@ -1082,7 +1132,11 @@ def handle_palette_action(
 
     if isinstance(action, CancelCommandPalette):
         next_state = _restore_browsing_from_palette(state, clear_name_conflict=True)
-        if state.command_palette is not None and state.command_palette.source == "grep_search":
+        preview_sources = ("grep_search", "file_search")
+        if (
+            state.command_palette is not None
+            and state.command_palette.source in preview_sources
+        ):
             return sync_child_pane(next_state, next_state.current_pane.cursor_path, reduce_state)
         return done(next_state)
 

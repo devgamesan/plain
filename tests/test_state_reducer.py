@@ -2413,8 +2413,14 @@ def test_set_command_palette_query_reuses_completed_file_search_results_for_pref
 
     result = reduce_app_state(state, SetCommandPaletteQuery("readm"))
 
-    assert result.effects == ()
     assert result.state.pending_file_search_request_id is None
+    assert len(result.effects) == 1
+    assert result.effects[0] == LoadChildPaneSnapshotEffect(
+        request_id=5,
+        current_path="/home/tadashi/develop/peneo",
+        cursor_path="/home/tadashi/develop/peneo/README.md",
+    )
+    assert result.state.next_request_id == 6
     assert result.state.command_palette is not None
     assert result.state.command_palette.file_search_results == (
         FileSearchResultState(
@@ -2422,7 +2428,6 @@ def test_set_command_palette_query_reuses_completed_file_search_results_for_pref
             display_path="README.md",
         ),
     )
-    assert result.state.next_request_id == 5
 
 
 def test_set_command_palette_query_runs_new_search_when_query_is_not_prefix_extension() -> None:
@@ -2600,6 +2605,149 @@ def test_file_search_failed_sets_inline_error_for_invalid_regex() -> None:
     )
     assert next_state.notification is None
     assert next_state.pending_file_search_request_id is None
+
+
+def test_file_search_completed_requests_preview() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
+    search_state = replace(
+        state,
+        command_palette=replace(state.command_palette, query="read"),
+        pending_file_search_request_id=4,
+    )
+    file_result = FileSearchResultState(
+        path="/home/tadashi/develop/peneo/README.md",
+        display_path="README.md",
+    )
+
+    result = reduce_app_state(
+        search_state,
+        FileSearchCompleted(
+            request_id=4,
+            query="read",
+            results=(file_result,),
+        ),
+    )
+
+    assert result.state.pending_child_pane_request_id == 1
+    assert result.effects == (
+        LoadChildPaneSnapshotEffect(
+            request_id=1,
+            current_path="/home/tadashi/develop/peneo",
+            cursor_path="/home/tadashi/develop/peneo/README.md",
+        ),
+    )
+
+
+def test_file_search_completed_skips_preview_when_preview_disabled() -> None:
+    file_result = FileSearchResultState(
+        path="/home/tadashi/develop/peneo/README.md",
+        display_path="README.md",
+    )
+    search_state = replace(
+        _reduce_state(build_initial_app_state(), BeginFileSearch()),
+        config=replace(
+            build_initial_app_state().config,
+            display=replace(build_initial_app_state().config.display, show_preview=False),
+        ),
+        command_palette=replace(
+            _reduce_state(build_initial_app_state(), BeginFileSearch()).command_palette,
+            query="read",
+        ),
+        pending_file_search_request_id=4,
+    )
+
+    result = reduce_app_state(
+        search_state,
+        FileSearchCompleted(
+            request_id=4,
+            query="read",
+            results=(file_result,),
+        ),
+    )
+
+    assert result.state.config.display.show_preview is False
+    assert result.state.pending_child_pane_request_id is None
+    assert result.effects == ()
+
+
+def test_file_search_move_cursor_requests_preview() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
+    file_results = (
+        FileSearchResultState(
+            path="/home/tadashi/develop/peneo/README.md",
+            display_path="README.md",
+        ),
+        FileSearchResultState(
+            path="/home/tadashi/develop/peneo/docs/spec.md",
+            display_path="docs/spec.md",
+        ),
+    )
+    search_state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            query="read",
+            file_search_results=file_results,
+            cursor_index=0,
+        ),
+    )
+
+    result = reduce_app_state(search_state, MoveCommandPaletteCursor(delta=1))
+
+    assert result.state.pending_child_pane_request_id == 1
+    assert result.state.command_palette.cursor_index == 1
+    assert result.effects == (
+        LoadChildPaneSnapshotEffect(
+            request_id=1,
+            current_path="/home/tadashi/develop/peneo",
+            cursor_path="/home/tadashi/develop/peneo/docs/spec.md",
+        ),
+    )
+
+
+def test_cancel_file_search_command_palette_restores_current_cursor_preview() -> None:
+    path = "/home/tadashi/develop/peneo/README.md"
+    state = replace(
+        build_initial_app_state(),
+        current_pane=replace(
+            build_initial_app_state().current_pane,
+            entries=(
+                DirectoryEntryState(
+                    path=path,
+                    name="README.md",
+                    kind="file",
+                ),
+            ),
+            cursor_path=path,
+        ),
+    )
+    state = _reduce_state(state, BeginFileSearch())
+    file_results = (
+        FileSearchResultState(
+            path="/home/tadashi/develop/peneo/docs/spec.md",
+            display_path="docs/spec.md",
+        ),
+    )
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            query="spec",
+            file_search_results=file_results,
+        ),
+    )
+
+    result = reduce_app_state(state, CancelCommandPalette())
+
+    assert result.state.ui_mode == "BROWSING"
+    assert result.state.command_palette is None
+    assert result.state.pending_child_pane_request_id == 1
+    assert len(result.effects) == 1
+    assert result.effects[0] == LoadChildPaneSnapshotEffect(
+        request_id=1,
+        current_path="/home/tadashi/develop/peneo",
+        cursor_path=path,
+    )
 
 
 def test_submit_command_palette_uses_inline_error_message_when_present() -> None:

@@ -2694,6 +2694,102 @@ async def test_app_command_palette_find_file_jumps_to_matching_parent_directory(
 
 
 @pytest.mark.asyncio
+async def test_app_file_search_renders_preview_within_current_pane(tmp_path) -> None:
+    path = str(tmp_path)
+    notes = tmp_path / "notes.txt"
+    notes.write_text("alpha\nbeta\nTODO: update docs\ndelta\n", encoding="utf-8")
+    file_search_service = FakeFileSearchService(
+        results_by_query={
+            (path, "note", False): (
+                FileSearchResultState(
+                    path=str(notes),
+                    display_path="notes.txt",
+                ),
+            )
+        }
+    )
+    app = create_app(
+        file_search_service=file_search_service,
+        initial_path=path,
+    )
+
+    async with app.run_test(size=(240, 40)) as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("f")
+        await pilot.press("n", "o", "t", "e")
+        await _wait_for_request_count(file_search_service, 1)
+        await _wait_for_child_preview(app, "Preview: notes.txt", "TODO: update docs")
+
+        command_palette = app.query_one("#command-palette")
+        child_pane = app.query_one("#child-pane")
+
+        assert command_palette.region.x + command_palette.region.width <= child_pane.region.x
+
+
+@pytest.mark.asyncio
+async def test_app_file_search_cancel_restores_child_pane_snapshot() -> None:
+    path = "/tmp/peneo-file-search-preview-cancel"
+    docs_path = f"{path}/docs"
+    notes_path = f"{path}/notes.txt"
+    child_entries = (
+        DirectoryEntryState(f"{docs_path}/README.md", "README.md", "file"),
+        DirectoryEntryState(f"{docs_path}/guide.md", "guide.md", "file"),
+    )
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(docs_path, "docs", "dir"),
+                    DirectoryEntryState(notes_path, "notes.txt", "file"),
+                ),
+                child_path=docs_path,
+                child_entries=child_entries,
+            ),
+        },
+        child_panes={
+            (path, docs_path): PaneState(directory_path=docs_path, entries=child_entries),
+            (
+                path,
+                notes_path,
+            ): PaneState(
+                directory_path=path,
+                entries=(),
+                mode="preview",
+                preview_path=notes_path,
+                preview_content="alpha\nbeta\n",
+            ),
+        },
+    )
+    file_search_service = FakeFileSearchService(
+        results_by_query={
+            (path, "note", False): (
+                FileSearchResultState(
+                    path=notes_path,
+                    display_path="notes.txt",
+                ),
+            )
+        }
+    )
+    app = create_app(
+        snapshot_loader=loader,
+        file_search_service=file_search_service,
+        initial_path=path,
+    )
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_child_entries(app, ["guide.md", "README.md"])
+        await pilot.press("f")
+        await pilot.press("n", "o", "t", "e")
+        await _wait_for_request_count(file_search_service, 1)
+        await _wait_for_child_preview(app, "Preview: notes.txt", "alpha")
+
+        await pilot.press("escape")
+        await _wait_for_child_entries(app, ["guide.md", "README.md"])
+
+
+@pytest.mark.asyncio
 async def test_app_file_search_debounces_rapid_query_updates(tmp_path) -> None:
     path = str(tmp_path)
     (tmp_path / "README.md").write_text("readme\n", encoding="utf-8")

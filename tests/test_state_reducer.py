@@ -2413,8 +2413,15 @@ def test_set_command_palette_query_reuses_completed_file_search_results_for_pref
 
     result = reduce_app_state(state, SetCommandPaletteQuery("readm"))
 
-    assert result.effects == ()
+    assert result.effects == (
+        LoadChildPaneSnapshotEffect(
+            request_id=5,
+            current_path="/home/tadashi/develop/peneo",
+            cursor_path="/home/tadashi/develop/peneo/README.md",
+        ),
+    )
     assert result.state.pending_file_search_request_id is None
+    assert result.state.pending_child_pane_request_id == 5
     assert result.state.command_palette is not None
     assert result.state.command_palette.file_search_results == (
         FileSearchResultState(
@@ -2422,7 +2429,7 @@ def test_set_command_palette_query_reuses_completed_file_search_results_for_pref
             display_path="README.md",
         ),
     )
-    assert result.state.next_request_id == 5
+    assert result.state.next_request_id == 6
 
 
 def test_set_command_palette_query_runs_new_search_when_query_is_not_prefix_extension() -> None:

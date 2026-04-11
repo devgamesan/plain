@@ -158,9 +158,9 @@ def _select_child_pane_for_cursor(
     cursor_entry: DirectoryEntryState | None,
 ) -> ChildPaneViewState:
     syntax_theme = _select_child_syntax_theme(state.config.display.theme)
-    grep_preview = _select_grep_preview_pane(state, syntax_theme)
-    if grep_preview is not None:
-        return grep_preview
+    palette_preview = _select_command_palette_preview_pane(state, syntax_theme)
+    if palette_preview is not None:
+        return palette_preview
 
     if cursor_entry is None:
         return _build_child_entries_view((), syntax_theme)
@@ -216,17 +216,58 @@ def _select_child_pane_for_cursor(
     )
 
 
-def _select_grep_preview_pane(
+def _select_command_palette_preview_pane(
     state: AppState,
     syntax_theme: str,
 ) -> ChildPaneViewState | None:
-    if (
-        state.ui_mode != "PALETTE"
-        or state.command_palette is None
-        or state.command_palette.source != "grep_search"
-    ):
+    if state.ui_mode != "PALETTE" or state.command_palette is None:
         return None
+    if state.command_palette.source == "file_search":
+        return _select_file_search_preview_pane(state, syntax_theme)
+    if state.command_palette.source == "grep_search":
+        return _select_grep_preview_pane(state, syntax_theme)
+    return None
 
+
+def _select_file_search_preview_pane(
+    state: AppState,
+    syntax_theme: str,
+) -> ChildPaneViewState:
+    if not state.config.display.show_preview:
+        return _build_child_entries_view((), syntax_theme)
+
+    results = state.command_palette.file_search_results
+    if not results:
+        return _build_child_entries_view((), syntax_theme)
+
+    selected_result = results[
+        normalize_command_palette_cursor(state, state.command_palette.cursor_index)
+    ]
+    if (
+        state.child_pane.mode != "preview"
+        or state.child_pane.preview_path != selected_result.path
+        or state.child_pane.preview_title is not None
+        or state.child_pane.preview_start_line is not None
+        or state.child_pane.preview_highlight_line is not None
+    ):
+        return _build_child_entries_view((), syntax_theme)
+
+    return _build_child_preview_view(
+        state.child_pane.preview_title,
+        state.child_pane.preview_path or selected_result.path,
+        state.child_pane.preview_content,
+        state.child_pane.preview_message,
+        state.child_pane.preview_truncated,
+        state.child_pane.preview_start_line,
+        state.child_pane.preview_highlight_line,
+        syntax_theme,
+    )
+
+
+def _select_grep_preview_pane(
+    state: AppState,
+    syntax_theme: str,
+) -> ChildPaneViewState:
     if not state.config.display.show_preview:
         return _build_child_entries_view((), syntax_theme)
 

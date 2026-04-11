@@ -67,3 +67,4 @@ asyncio_mode = "auto"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/peneo"]
+artifacts = ["src/peneo/**/*.tcss"]

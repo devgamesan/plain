@@ -20,7 +20,7 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 
 ## Features
 
-- Simple three-pane layout for parent / current / right panes. When the cursor is on a directory, the right pane shows its children. When the cursor is on a supported text file, the right pane switches to a syntax-highlighted text preview. Supported targets include common source, config, markup, and log file extensions as well as extensionless text files such as `Dockerfile` or `.env`. You can navigate directories, multi-select items, copy, cut, paste, move items to trash, delete files, copy paths, rename, create files or directories, extract archives, create zip archives, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
+- Simple three-pane layout for parent / current / right panes. When the cursor is on a directory, the right pane shows its children. When the cursor is on a common text file, the right pane shows a syntax-highlighted text preview. You can navigate directories, multi-select items, copy, cut, paste, move items to trash, delete files, copy paths, rename, create files or directories, extract archives, create zip archives, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
 
   ![](docs/resources/screen-entire-screen.png)
 
@@ -36,11 +36,11 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 
   ![](docs/resources/screen-split-terminal.png)
 
-- Recursive file search makes it easy to jump to the file you want without drilling through the directory tree manually.
+- Recursive file search makes it easy to jump to the file you want. Just type part of the name to instantly filter through thousands of files and reach your target without drilling through the directory tree manually. Search results also support file preview, making it easy to find what you are looking for.
 
   ![](docs/resources/screen-find-command.png)
 
-- Recursive grep search is available under the current directory. The grep palette now has separate keyword, include-extension, and exclude-extension fields, and `Tab` / `Shift+Tab` moves between them. You can jump from search results directly to the matching file or open the matching location directly in a terminal editor.
+- Recursive grep search is available under the current directory. You can jump from search results directly to the matching file. Context lines around each match can be previewed, making it easy to find what you are looking for. You can also open the matching location directly in a terminal editor.
 
   ![](docs/resources/screen-grep-command.png)
 
@@ -56,7 +56,7 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 
   ![](docs/resources/screen-history.png)
 
-- Press `e` on a file to switch into a terminal editor in the current terminal session. Editors such as `nvim`, `vim`, and `nano` can be used seamlessly.
+- Press `e` on a file to switch into a terminal editor in the current terminal session. Editors such as `nvim`, `vim`, and `nano` can be used seamlessly. The following shows an example of opening Vim from Peneo.
 
   ![](docs/resources/screen-terminal-editor.png)
 
@@ -276,7 +276,6 @@ peneo-cd
 Use plain `peneo` when you only want to browse without changing the shell's working directory.
 
 When a file is focused, press `e` to switch into a terminal editor in the current terminal session. Peneo prefers `config.toml` `editor.command` when set, then falls back to `$EDITOR`, then built-in defaults such as `nvim`, `vim`, or `nano`.
-When a supported text file is focused, the right pane also shows a non-wrapping syntax-highlighted preview of the beginning of the file. Supported targets include common source, config, markup, and log file extensions as well as extensionless text files such as `Dockerfile` or `.env`. You can disable this behavior with `display.show_preview`.
 
 ## Configuration File
 
@@ -354,7 +353,7 @@ Less frequent actions are grouped in the command palette opened with `:`.
 | Command | Shown when | Behavior / Notes |
 | --- | --- | --- |
 | `Find files` | Always | Opens recursive file search. |
-| `Grep search` | Always | Opens recursive grep search (`ripgrep` / `rg` required on `PATH`) with separate keyword, include-extension, and exclude-extension fields. `Tab` / `Shift+Tab` cycles fields. |
+| `Grep search` | Always | Opens recursive grep search (`ripgrep` / `rg` required on `PATH`). |
 | `History search` | Always | Opens directory history list and jump to a selected directory. |
 | `Show bookmarks` | Always | Opens the saved bookmark list and jumps to the selected directory. |
 | `Go back` | Directory history has a previous entry | Moves to the previous directory in history. |
@@ -369,13 +368,13 @@ Less frequent actions are grouped in the command palette opened with `:`.
 | `Compress as zip` | At least one target is selected or focused | Starts zip compression for the selected items, or the focused item when nothing is selected. The destination input accepts absolute and relative paths resolved from the current directory, defaults to a `.zip` path next to the selected content, and asks for confirmation before overwriting an existing zip file. |
 | `Extract archive` | Exactly one supported archive file is selected or focused | Starts archive extraction for `.zip`, `.tar`, `.tar.gz`, or `.tar.bz2`. The destination input accepts absolute and relative paths. Relative paths are resolved from the archive file's parent directory, and the default value is a same-name directory next to the archive. Existing destination paths are confirmed before extraction, and the status bar shows entry-count progress while the extraction runs. |
 | `Open in editor` | Exactly one file is selected or focused | Opens the focused file in a terminal editor, using `editor.command` -> `$EDITOR` -> built-in defaults. |
-| `Copy path` | At least one target is selected or focused | Copies the selected path list, or the focused path when nothing is selected, to the system clipboard. Also available with `c`. |
+| `Copy path` | At least one target is selected or focused | Copies the selected path list, or the focused path when nothing is selected, to the system clipboard. Also available with `C`. |
 | `Move to trash` | At least one target is selected or focused | Moves the selected items, or the focused item, to trash (confirmation is enabled by default and can be configured). |
 | `Empty trash` | Always (Linux/macOS only) | Permanently deletes all items from the trash. Shows a confirmation dialog before emptying. Not available on Windows. |
 | `Open in file manager` | Always | Opens the current directory in the OS file manager. Also available with `m`. |
 | `Open terminal` | Always | Launches an external terminal rooted at the current directory, using `config.toml` templates before built-in fallbacks. Also available with `T`. |
 | `Run shell command` | Always | Opens a one-line shell command dialog, runs the command in the current directory in the background, and returns the first output line or failure summary in the status bar. Also available with `!`. |
-| `Bookmark this directory` / `Remove bookmark` | Always | Saves or removes the current directory in `[bookmarks].paths`. The label reflects whether the current directory is already bookmarked. Also available with `b`. |
+| `Bookmark this directory` / `Remove bookmark` | Always | Saves or removes the current directory in `[bookmarks].paths`. The label reflects whether the current directory is already bookmarked. Also available with `B`. |
 | `Show hidden files` / `Hide hidden files` | Always | Toggles hidden-file visibility for the browser panes. The label reflects the current visibility state. Also available with `.`. |
 | `Edit config` | Always | Opens the settings overlay for startup defaults. You can edit the preferred terminal editor, hidden-file visibility, directory-size visibility, text preview visibility, theme, sorting, default paste-conflict behavior, and delete confirmation. Use `↑` / `↓` to move, `←` / `→` / `Enter` to change values, `s` to save `config.toml`, and `e` to open the raw config file in a terminal editor. |
 | `Create file` | Always | Starts the inline create-file flow in the current directory. |

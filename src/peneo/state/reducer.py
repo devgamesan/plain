@@ -13,7 +13,7 @@ from .actions import (
 )
 from .effects import ReduceResult
 from .models import AppState, sync_active_browser_tab
-from .reducer_common import done
+from .reducer_common import finalize
 from .reducer_mutations import handle_mutation_action
 from .reducer_navigation import handle_navigation_action
 from .reducer_palette import handle_palette_action
@@ -27,16 +27,16 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
     """Return a new state after applying a reducer action."""
 
     if isinstance(action, InitializeState):
-        return done(action.state)
+        return finalize(action.state)
 
     if isinstance(action, SetUiMode):
-        return _finalize_reduce_result(state, action, done(replace(state, ui_mode=action.mode)))
+        return _finalize_reduce_result(state, action, finalize(replace(state, ui_mode=action.mode)))
 
     if isinstance(action, SetNotification):
         return _finalize_reduce_result(
             state,
             action,
-            done(replace(state, notification=action.notification)),
+            finalize(replace(state, notification=action.notification)),
         )
 
     for handler in (
@@ -52,7 +52,7 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
             return _finalize_reduce_result(state, action, result)
 
     logger.debug("No handler processed action: %s", type(action).__name__)
-    return _finalize_reduce_result(state, action, done(state))
+    return _finalize_reduce_result(state, action, finalize(state))
 
 
 def _finalize_reduce_result(

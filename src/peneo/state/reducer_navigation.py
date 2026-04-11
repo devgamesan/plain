@@ -55,7 +55,7 @@ from .reducer_common import (
     build_history_after_snapshot_load,
     current_entry_for_path,
     current_entry_paths,
-    done,
+    finalize,
     maybe_request_directory_sizes,
     move_cursor,
     normalize_child_pane_for_display,
@@ -256,19 +256,19 @@ def handle_navigation_action(
     if isinstance(action, ActivateNextTab):
         tabs = select_browser_tabs(state)
         if len(tabs) <= 1:
-            return done(state)
+            return finalize(state)
         return _activate_tab(state, (state.active_tab_index + 1) % len(tabs), reduce_state)
 
     if isinstance(action, ActivatePreviousTab):
         tabs = select_browser_tabs(state)
         if len(tabs) <= 1:
-            return done(state)
+            return finalize(state)
         return _activate_tab(state, (state.active_tab_index - 1) % len(tabs), reduce_state)
 
     if isinstance(action, CloseCurrentTab):
         tabs = list(select_browser_tabs(state))
         if len(tabs) <= 1:
-            return done(
+            return finalize(
                 replace(
                     state,
                     notification=NotificationState(
@@ -288,7 +288,7 @@ def handle_navigation_action(
         return maybe_request_directory_sizes(next_state, reduce_state)
 
     if isinstance(action, BeginFilterInput):
-        return done(
+        return finalize(
             replace(
                 state,
                 ui_mode="FILTER",
@@ -308,7 +308,7 @@ def handle_navigation_action(
         )
 
     if isinstance(action, ConfirmFilterInput):
-        return done(
+        return finalize(
             replace(
                 state,
                 ui_mode="BROWSING",
@@ -321,7 +321,7 @@ def handle_navigation_action(
         )
 
     if isinstance(action, CancelFilterInput):
-        return done(
+        return finalize(
             replace(
                 state,
                 ui_mode="BROWSING",
@@ -358,7 +358,7 @@ def handle_navigation_action(
 
     if isinstance(action, MoveCursorAndSelectRange):
         if not action.visible_paths:
-            return done(state)
+            return finalize(state)
         base_cursor_path = (
             state.current_pane.cursor_path
             if state.current_pane.cursor_path in action.visible_paths
@@ -372,7 +372,7 @@ def handle_navigation_action(
             anchor_path = base_cursor_path
         cursor_path = move_cursor(base_cursor_path, action.visible_paths, action.delta)
         if cursor_path is None:
-            return done(state)
+            return finalize(state)
         next_state = replace(
             state,
             current_pane=replace(
@@ -391,7 +391,7 @@ def handle_navigation_action(
 
     if isinstance(action, JumpCursor):
         if not action.visible_paths:
-            return done(state)
+            return finalize(state)
         cursor_path = (
             action.visible_paths[0]
             if action.position == "start"
@@ -410,7 +410,7 @@ def handle_navigation_action(
 
     if isinstance(action, MoveCursorByPage):
         if not action.visible_paths:
-            return done(state)
+            return finalize(state)
         current_index = (
             action.visible_paths.index(state.current_pane.cursor_path)
             if state.current_pane.cursor_path in action.visible_paths
@@ -434,7 +434,7 @@ def handle_navigation_action(
 
     if isinstance(action, SetCursorPath):
         if action.path is not None and action.path not in current_entry_paths(state):
-            return done(state)
+            return finalize(state)
         next_state = replace(
             state,
             current_pane=replace(
@@ -449,7 +449,7 @@ def handle_navigation_action(
     if isinstance(action, EnterCursorDirectory):
         entry = current_entry_for_path(state, state.current_pane.cursor_path)
         if entry is None or entry.kind != "dir":
-            return done(state)
+            return finalize(state)
         if _can_promote_child_pane(state, entry.path):
             next_state = _promote_child_pane_to_current(state, entry.path)
             return sync_child_pane(next_state, next_state.current_pane.cursor_path, reduce_state)
@@ -478,7 +478,7 @@ def handle_navigation_action(
 
     if isinstance(action, GoBack):
         if not state.history.back:
-            return done(state)
+            return finalize(state)
         return reduce_state(
             state,
             RequestBrowserSnapshot(state.history.back[-1], blocking=True),
@@ -486,7 +486,7 @@ def handle_navigation_action(
 
     if isinstance(action, GoForward):
         if not state.history.forward:
-            return done(state)
+            return finalize(state)
         return reduce_state(
             state,
             RequestBrowserSnapshot(state.history.forward[0], blocking=True),
@@ -515,7 +515,7 @@ def handle_navigation_action(
         visible_paths = tuple(
             entry.path for entry in select_visible_current_entry_states(next_state)
         )
-        return done(
+        return finalize(
             replace(
                 next_state,
                 current_pane=replace(
@@ -604,7 +604,7 @@ def handle_navigation_action(
             next_request_id=request_id + 1,
             ui_mode="BUSY" if action.blocking else state.ui_mode,
         )
-        return done(
+        return finalize(
             next_state,
             LoadBrowserSnapshotEffect(
                 request_id=request_id,
@@ -618,7 +618,7 @@ def handle_navigation_action(
     if isinstance(action, RequestDirectorySizes):
         unique_paths = tuple(dict.fromkeys(action.paths))
         if not unique_paths:
-            return done(state)
+            return finalize(state)
         request_id = state.next_request_id
         next_state = replace(
             state,
@@ -632,7 +632,7 @@ def handle_navigation_action(
             pending_directory_size_request_id=request_id,
             next_request_id=request_id + 1,
         )
-        return done(
+        return finalize(
             next_state,
             RunDirectorySizeEffect(request_id=request_id, paths=unique_paths),
         )
@@ -640,7 +640,7 @@ def handle_navigation_action(
     if isinstance(action, BrowserSnapshotLoaded):
         tab_index = _find_browser_snapshot_tab_index(state, action.request_id)
         if tab_index is None:
-            return done(state)
+            return finalize(state)
         tab = select_browser_tabs(state)[tab_index]
         next_state = _replace_browser_tab(
             state,
@@ -648,7 +648,7 @@ def handle_navigation_action(
             _apply_loaded_snapshot_to_tab(state, tab, action),
         )
         if tab_index != state.active_tab_index:
-            return done(replace(next_state, post_reload_notification=None))
+            return finalize(replace(next_state, post_reload_notification=None))
         next_state = replace(
             next_state,
             notification=state.post_reload_notification,
@@ -660,7 +660,7 @@ def handle_navigation_action(
     if isinstance(action, BrowserSnapshotFailed):
         tab_index = _find_browser_snapshot_tab_index(state, action.request_id)
         if tab_index is None:
-            return done(state)
+            return finalize(state)
         tab = replace(
             select_browser_tabs(state)[tab_index],
             pending_browser_snapshot_request_id=None,
@@ -668,8 +668,8 @@ def handle_navigation_action(
         )
         next_state = _replace_browser_tab(state, tab_index, tab)
         if tab_index != state.active_tab_index:
-            return done(replace(next_state, post_reload_notification=None))
-        return done(
+            return finalize(replace(next_state, post_reload_notification=None))
+        return finalize(
             replace(
                 next_state,
                 notification=NotificationState(level="error", message=action.message),
@@ -681,7 +681,7 @@ def handle_navigation_action(
     if isinstance(action, ChildPaneSnapshotLoaded):
         tab_index = _find_child_pane_snapshot_tab_index(state, action.request_id)
         if tab_index is None:
-            return done(state)
+            return finalize(state)
         tab = select_browser_tabs(state)[tab_index]
         next_state = _replace_browser_tab(
             state,
@@ -697,14 +697,14 @@ def handle_navigation_action(
             ),
         )
         if tab_index != state.active_tab_index:
-            return done(next_state)
+            return finalize(next_state)
         next_state = replace(next_state, notification=None)
         return maybe_request_directory_sizes(next_state, reduce_state)
 
     if isinstance(action, ChildPaneSnapshotFailed):
         tab_index = _find_child_pane_snapshot_tab_index(state, action.request_id)
         if tab_index is None:
-            return done(state)
+            return finalize(state)
         tab = select_browser_tabs(state)[tab_index]
         next_state = _replace_browser_tab(
             state,
@@ -716,8 +716,8 @@ def handle_navigation_action(
             ),
         )
         if tab_index != state.active_tab_index:
-            return done(next_state)
-        return done(
+            return finalize(next_state)
+        return finalize(
             replace(
                 next_state,
                 notification=NotificationState(level="error", message=action.message),
@@ -726,7 +726,7 @@ def handle_navigation_action(
 
     if isinstance(action, DirectorySizesLoaded):
         if action.request_id != state.pending_directory_size_request_id:
-            return done(state)
+            return finalize(state)
         loaded_entries = tuple(
             DirectorySizeCacheEntry(
                 path=path,
@@ -757,11 +757,11 @@ def handle_navigation_action(
             ),
             pending_directory_size_request_id=None,
         )
-        return done(next_state)
+        return finalize(next_state)
 
     if isinstance(action, DirectorySizesFailed):
         if action.request_id != state.pending_directory_size_request_id:
-            return done(state)
+            return finalize(state)
         next_state = replace(
             state,
             directory_size_cache=upsert_directory_size_entries(
@@ -781,6 +781,6 @@ def handle_navigation_action(
             ),
             pending_directory_size_request_id=None,
         )
-        return done(next_state)
+        return finalize(next_state)
 
     return None

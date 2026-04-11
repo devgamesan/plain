@@ -74,9 +74,9 @@ from .models import (
 )
 from .reducer_common import (
     ReducerFn,
-    done,
     expand_and_validate_path,
     filter_file_search_results,
+    finalize,
     is_regex_file_search_query,
     list_matching_directory_paths,
     run_external_launch_request,
@@ -162,7 +162,7 @@ def _notify(
     level: str,
     message: str,
 ) -> ReduceResult:
-    return done(
+    return finalize(
         replace(
             state,
             notification=NotificationState(level=level, message=message),
@@ -227,11 +227,11 @@ def _request_palette_snapshot(
 
 def _handle_begin_history_search(state: AppState) -> ReduceResult:
     history_items = tuple(dict.fromkeys(state.history.visited_all))
-    return done(_enter_palette(state, source="history", history_results=history_items))
+    return finalize(_enter_palette(state, source="history", history_results=history_items))
 
 
 def _handle_begin_bookmark_search(state: AppState) -> ReduceResult:
-    return done(_enter_palette(state, source="bookmarks"))
+    return finalize(_enter_palette(state, source="bookmarks"))
 
 
 def _handle_move_palette_cursor(
@@ -239,7 +239,7 @@ def _handle_move_palette_cursor(
     action: MoveCommandPaletteCursor,
 ) -> ReduceResult:
     if state.command_palette is None:
-        return done(state)
+        return finalize(state)
     next_palette = replace(
         state.command_palette,
         cursor_index=normalize_command_palette_cursor(
@@ -257,7 +257,7 @@ def _handle_move_palette_cursor(
         return _sync_file_search_preview(next_state)
     if state.command_palette.source == "grep_search":
         return _sync_grep_preview(next_state)
-    return done(next_state)
+    return finalize(next_state)
 
 
 def _next_palette_query_state(state: AppState, query: str) -> CommandPaletteState:
@@ -275,7 +275,7 @@ def _handle_set_palette_query(
     action: SetCommandPaletteQuery,
 ) -> ReduceResult:
     if state.command_palette is None:
-        return done(state)
+        return finalize(state)
 
     next_palette = _next_palette_query_state(state, action.query)
 
@@ -285,7 +285,7 @@ def _handle_set_palette_query(
         return _handle_set_grep_search_field(state, "keyword", action.query)
     if state.command_palette.source == "go_to_path":
         return _handle_set_go_to_path_query(state, next_palette, action.query)
-    return done(replace(state, command_palette=next_palette))
+    return finalize(replace(state, command_palette=next_palette))
 
 
 def _handle_set_file_search_query(
@@ -341,7 +341,7 @@ def _handle_set_file_search_query(
         pending_grep_search_request_id=None,
         next_request_id=request_id + 1,
     )
-    return done(
+    return finalize(
         next_state,
         RunFileSearchEffect(
             request_id=request_id,
@@ -400,7 +400,7 @@ def _handle_set_grep_search_field(
         pending_grep_search_request_id=request_id,
         next_request_id=request_id + 1,
     )
-    return done(
+    return finalize(
         next_state,
         RunGrepSearchEffect(
             request_id=request_id,
@@ -418,10 +418,10 @@ def _handle_cycle_grep_search_field(
     action: CycleGrepSearchField,
 ) -> ReduceResult:
     if state.command_palette is None or state.command_palette.source != "grep_search":
-        return done(state)
+        return finalize(state)
     current_index = _GREP_SEARCH_FIELDS.index(state.command_palette.grep_search_active_field)
     next_index = (current_index + action.delta) % len(_GREP_SEARCH_FIELDS)
-    return done(
+    return finalize(
         replace(
             state,
             command_palette=replace(
@@ -439,7 +439,7 @@ def _handle_set_go_to_path_query(
 ) -> ReduceResult:
     matches = list_matching_directory_paths(query, state.current_path)
     has_trailing_separator = query.endswith("/")
-    return done(
+    return finalize(
         replace(
             state,
             command_palette=replace(
@@ -456,7 +456,7 @@ def _handle_submit_palette(
     reduce_state: ReducerFn,
 ) -> ReduceResult:
     if state.command_palette is None:
-        return done(state)
+        return finalize(state)
 
     if state.command_palette.source == "file_search":
         return _handle_submit_file_search_palette(state, reduce_state)
@@ -717,7 +717,7 @@ def _run_palette_command_item(
         return _run_create_file_command(next_state, reduce_state)
     if item_id == "create_dir":
         return _run_create_dir_command(next_state, reduce_state)
-    return done(next_state)
+    return finalize(next_state)
 
 
 def _run_new_tab_command(
@@ -835,7 +835,7 @@ def _run_show_attributes_command(state: AppState) -> ReduceResult:
             message="Show attributes requires a single target",
         )
 
-    return done(
+    return finalize(
         replace(
             state,
             ui_mode="DETAIL",
@@ -996,7 +996,7 @@ def _run_toggle_hidden_command(
 
 
 def _run_edit_config_command(state: AppState) -> ReduceResult:
-    return done(
+    return finalize(
         replace(
             state,
             ui_mode="CONFIG",
@@ -1054,7 +1054,7 @@ def _handle_file_search_completed(
         source="file_search",
         query=action.query,
     ):
-        return done(state)
+        return finalize(state)
 
     cache_query = ""
     cache_results = ()
@@ -1085,7 +1085,7 @@ def _handle_file_search_failed(
     action: FileSearchFailed,
 ) -> ReduceResult:
     if action.request_id != state.pending_file_search_request_id:
-        return done(state)
+        return finalize(state)
 
     if state.command_palette is not None and action.invalid_query:
         return _sync_file_search_preview(
@@ -1100,7 +1100,7 @@ def _handle_file_search_failed(
             )
         )
 
-    return done(
+    return finalize(
         replace(
             state,
             notification=NotificationState(level="error", message=action.message),
@@ -1118,7 +1118,7 @@ def _handle_grep_search_completed(
         or state.command_palette is None
         or state.command_palette.source != "grep_search"
     ):
-        return done(state)
+        return finalize(state)
 
     return _sync_grep_preview(
         replace(
@@ -1139,7 +1139,7 @@ def _handle_grep_search_failed(
     action: GrepSearchFailed,
 ) -> ReduceResult:
     if action.request_id != state.pending_grep_search_request_id:
-        return done(state)
+        return finalize(state)
 
     if state.command_palette is not None and action.invalid_query:
         return _sync_grep_preview(
@@ -1156,7 +1156,7 @@ def _handle_grep_search_failed(
             )
         )
 
-    return done(
+    return finalize(
         replace(
             state,
             notification=NotificationState(level="error", message=action.message),
@@ -1199,16 +1199,16 @@ def _matches_file_search_preview(
 def _sync_file_search_preview(state: AppState) -> ReduceResult:
     selected_result = _selected_file_search_result(state)
     if selected_result is None or not state.config.display.show_preview:
-        return done(replace(state, pending_child_pane_request_id=None))
+        return finalize(replace(state, pending_child_pane_request_id=None))
 
     if state.pending_child_pane_request_id is None and _matches_file_search_preview(
         state,
         selected_result,
     ):
-        return done(state)
+        return finalize(state)
 
     request_id = state.next_request_id
-    return done(
+    return finalize(
         replace(
             state,
             pending_child_pane_request_id=request_id,
@@ -1236,16 +1236,16 @@ def _matches_grep_preview(
 def _sync_grep_preview(state: AppState) -> ReduceResult:
     selected_result = _selected_grep_result(state)
     if selected_result is None or not state.config.display.show_preview:
-        return done(replace(state, pending_child_pane_request_id=None))
+        return finalize(replace(state, pending_child_pane_request_id=None))
 
     if state.pending_child_pane_request_id is None and _matches_grep_preview(
         state,
         selected_result,
     ):
-        return done(state)
+        return finalize(state)
 
     request_id = state.next_request_id
-    return done(
+    return finalize(
         replace(
             state,
             pending_child_pane_request_id=request_id,
@@ -1267,13 +1267,13 @@ def handle_palette_action(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if isinstance(action, BeginCommandPalette):
-        return done(_enter_palette(state))
+        return finalize(_enter_palette(state))
 
     if isinstance(action, BeginFileSearch):
-        return done(_enter_palette(state, source="file_search"))
+        return finalize(_enter_palette(state, source="file_search"))
 
     if isinstance(action, BeginGrepSearch):
-        return done(_enter_palette(state, source="grep_search"))
+        return finalize(_enter_palette(state, source="grep_search"))
 
     if isinstance(action, BeginHistorySearch):
         return _handle_begin_history_search(state)
@@ -1282,7 +1282,7 @@ def handle_palette_action(
         return _handle_begin_bookmark_search(state)
 
     if isinstance(action, BeginGoToPath):
-        return done(_enter_palette(state, source="go_to_path"))
+        return finalize(_enter_palette(state, source="go_to_path"))
 
     if isinstance(action, CancelCommandPalette):
         next_state = _restore_browsing_from_palette(state, clear_name_conflict=True)
@@ -1291,10 +1291,10 @@ def handle_palette_action(
             "grep_search",
         }:
             return sync_child_pane(next_state, next_state.current_pane.cursor_path, reduce_state)
-        return done(next_state)
+        return finalize(next_state)
 
     if isinstance(action, DismissAttributeDialog):
-        return done(
+        return finalize(
             replace(
                 state,
                 ui_mode="BROWSING",

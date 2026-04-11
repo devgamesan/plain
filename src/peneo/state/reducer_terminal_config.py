@@ -52,7 +52,7 @@ from .reducer_common import (
     ReducerFn,
     apply_config_to_runtime_state,
     cycle_config_editor_value,
-    done,
+    finalize,
     normalize_config_editor_cursor,
     notification_for_external_launch,
     run_external_launch_request,
@@ -68,7 +68,7 @@ def handle_terminal_config_action(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if isinstance(action, BeginShellCommandInput):
-        return done(
+        return finalize(
             replace(
                 state,
                 ui_mode="SHELL",
@@ -86,7 +86,7 @@ def handle_terminal_config_action(
         )
 
     if isinstance(action, DismissConfigEditor):
-        return done(
+        return finalize(
             replace(
                 state,
                 ui_mode="BROWSING",
@@ -96,7 +96,7 @@ def handle_terminal_config_action(
         )
 
     if isinstance(action, CancelShellCommandInput):
-        return done(
+        return finalize(
             replace(
                 state,
                 ui_mode="BROWSING",
@@ -107,8 +107,8 @@ def handle_terminal_config_action(
 
     if isinstance(action, SetShellCommandValue):
         if state.shell_command is None:
-            return done(state)
-        return done(
+            return finalize(state)
+        return finalize(
             replace(
                 state,
                 shell_command=replace(state.shell_command, command=action.command),
@@ -117,8 +117,8 @@ def handle_terminal_config_action(
 
     if isinstance(action, MoveConfigEditorCursor):
         if state.config_editor is None:
-            return done(state)
-        return done(
+            return finalize(state)
+        return finalize(
             replace(
                 state,
                 config_editor=replace(
@@ -132,13 +132,13 @@ def handle_terminal_config_action(
 
     if isinstance(action, CycleConfigEditorValue):
         if state.config_editor is None:
-            return done(state)
+            return finalize(state)
         next_draft = cycle_config_editor_value(
             state.config_editor.draft,
             state.config_editor.cursor_index,
             action.delta,
         )
-        return done(
+        return finalize(
             replace(
                 state,
                 config_editor=replace(
@@ -151,9 +151,9 @@ def handle_terminal_config_action(
 
     if isinstance(action, SaveConfigEditor):
         if state.config_editor is None:
-            return done(state)
+            return finalize(state)
         request_id = state.next_request_id
-        return done(
+        return finalize(
             replace(
                 state,
                 notification=None,
@@ -169,10 +169,10 @@ def handle_terminal_config_action(
 
     if isinstance(action, SubmitShellCommand):
         if state.shell_command is None:
-            return done(state)
+            return finalize(state)
         command = state.shell_command.command.strip()
         if not command:
-            return done(
+            return finalize(
                 replace(
                     state,
                     notification=NotificationState(
@@ -182,7 +182,7 @@ def handle_terminal_config_action(
                 )
             )
         request_id = state.next_request_id
-        return done(
+        return finalize(
             replace(
                 state,
                 ui_mode="BUSY",
@@ -200,7 +200,7 @@ def handle_terminal_config_action(
 
     if isinstance(action, AddBookmark):
         if action.path in state.config.bookmarks.paths:
-            return done(
+            return finalize(
                 replace(
                     state,
                     notification=NotificationState(
@@ -216,7 +216,7 @@ def handle_terminal_config_action(
             ),
         )
         request_id = state.next_request_id
-        return done(
+        return finalize(
             replace(
                 state,
                 notification=None,
@@ -232,7 +232,7 @@ def handle_terminal_config_action(
 
     if isinstance(action, RemoveBookmark):
         if action.path not in state.config.bookmarks.paths:
-            return done(
+            return finalize(
                 replace(
                     state,
                     notification=NotificationState(
@@ -248,7 +248,7 @@ def handle_terminal_config_action(
             ),
         )
         request_id = state.next_request_id
-        return done(
+        return finalize(
             replace(
                 state,
                 notification=None,
@@ -268,7 +268,7 @@ def handle_terminal_config_action(
             help_bar=HelpBarConfig(),
         )
         request_id = state.next_request_id
-        return done(
+        return finalize(
             replace(
                 state,
                 notification=None,
@@ -307,7 +307,7 @@ def handle_terminal_config_action(
     if isinstance(action, CopyPathsToClipboard):
         target_paths = select_target_paths(state)
         if not target_paths:
-            return done(
+            return finalize(
                 replace(
                     state,
                     notification=NotificationState(level="warning", message="Nothing to copy"),
@@ -327,8 +327,8 @@ def handle_terminal_config_action(
             )
             session_id = state.split_terminal.session_id
             if session_id is None:
-                return done(next_state)
-            return done(next_state, CloseSplitTerminalEffect(session_id=session_id))
+                return finalize(next_state)
+            return finalize(next_state, CloseSplitTerminalEffect(session_id=session_id))
 
         session_id = state.next_request_id
         next_state = replace(
@@ -343,15 +343,15 @@ def handle_terminal_config_action(
                 session_id=session_id,
             ),
         )
-        return done(
+        return finalize(
             next_state,
             StartSplitTerminalEffect(session_id=session_id, cwd=state.current_path),
         )
 
     if isinstance(action, FocusSplitTerminal):
         if not state.split_terminal.visible or state.split_terminal.status != "running":
-            return done(state)
-        return done(
+            return finalize(state)
+        return finalize(
             replace(
                 state,
                 notification=None,
@@ -366,8 +366,8 @@ def handle_terminal_config_action(
             or state.split_terminal.status != "running"
             or session_id is None
         ):
-            return done(state)
-        return done(
+            return finalize(state)
+        return finalize(
             state,
             WriteSplitTerminalInputEffect(session_id=session_id, data=action.data),
         )
@@ -379,8 +379,8 @@ def handle_terminal_config_action(
             or state.split_terminal.status != "running"
             or session_id is None
         ):
-            return done(state)
-        return done(
+            return finalize(state)
+        return finalize(
             state,
             PasteFromClipboardEffect(session_id=session_id),
         )
@@ -388,11 +388,11 @@ def handle_terminal_config_action(
     if isinstance(action, ExternalLaunchCompleted):
         notification = notification_for_external_launch(action.request)
         if notification is None:
-            return done(state)
-        return done(replace(state, notification=notification))
+            return finalize(state)
+        return finalize(replace(state, notification=notification))
 
     if isinstance(action, ExternalLaunchFailed):
-        return done(
+        return finalize(
             replace(
                 state,
                 notification=NotificationState(level="error", message=action.message),
@@ -401,9 +401,9 @@ def handle_terminal_config_action(
 
     if isinstance(action, ShellCommandCompleted):
         if state.pending_shell_command_request_id != action.request_id:
-            return done(state)
+            return finalize(state)
         level, message = _notification_for_shell_command(action.result)
-        return done(
+        return finalize(
             replace(
                 state,
                 ui_mode="BROWSING",
@@ -414,8 +414,8 @@ def handle_terminal_config_action(
 
     if isinstance(action, ShellCommandFailed):
         if state.pending_shell_command_request_id != action.request_id:
-            return done(state)
-        return done(
+            return finalize(state)
+        return finalize(
             replace(
                 state,
                 ui_mode="BROWSING",
@@ -426,8 +426,8 @@ def handle_terminal_config_action(
 
     if isinstance(action, SplitTerminalStarted):
         if state.split_terminal.session_id != action.session_id:
-            return done(state)
-        return done(
+            return finalize(state)
+        return finalize(
             replace(
                 state,
                 split_terminal=replace(
@@ -441,8 +441,8 @@ def handle_terminal_config_action(
 
     if isinstance(action, SplitTerminalStartFailed):
         if state.split_terminal.session_id != action.session_id:
-            return done(state)
-        return done(
+            return finalize(state)
+        return finalize(
             replace(
                 state,
                 split_terminal=SplitTerminalState(),
@@ -451,12 +451,12 @@ def handle_terminal_config_action(
         )
 
     if isinstance(action, SplitTerminalOutputReceived):
-        return done(state)
+        return finalize(state)
 
     if isinstance(action, SplitTerminalExited):
         if state.split_terminal.session_id != action.session_id:
-            return done(state)
-        return done(
+            return finalize(state)
+        return finalize(
             replace(
                 state,
                 split_terminal=SplitTerminalState(),
@@ -469,7 +469,7 @@ def handle_terminal_config_action(
 
     if isinstance(action, ConfigSaveCompleted):
         if state.pending_config_save_request_id != action.request_id:
-            return done(state)
+            return finalize(state)
         next_config_editor = state.config_editor
         if next_config_editor is not None:
             next_config_editor = replace(
@@ -496,8 +496,8 @@ def handle_terminal_config_action(
 
     if isinstance(action, ConfigSaveFailed):
         if state.pending_config_save_request_id != action.request_id:
-            return done(state)
-        return done(
+            return finalize(state)
+        return finalize(
             replace(
                 state,
                 pending_config_save_request_id=None,
@@ -510,8 +510,8 @@ def handle_terminal_config_action(
 
     if isinstance(action, SetTerminalHeight):
         if action.height == state.terminal_height:
-            return done(state)
-        return done(replace(state, terminal_height=action.height))
+            return finalize(state)
+        return finalize(replace(state, terminal_height=action.height))
 
     return None
 

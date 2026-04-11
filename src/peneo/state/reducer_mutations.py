@@ -78,7 +78,7 @@ from .reducer_common import (
     current_entry_for_path,
     current_entry_paths,
     cursor_path_after_file_mutation,
-    done,
+    finalize,
     format_clipboard_message,
     is_name_conflict_validation_error,
     move_cursor,
@@ -120,7 +120,7 @@ def _handle_begin_extract_archive_input(
     action: BeginExtractArchiveInput,
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
-    return done(
+    return finalize(
         replace(
             state,
             ui_mode="EXTRACT",
@@ -149,7 +149,7 @@ def _handle_begin_zip_compress_input(
     action: BeginZipCompressInput,
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
-    return done(
+    return finalize(
         replace(
             state,
             ui_mode="ZIP",
@@ -183,8 +183,8 @@ def _handle_begin_rename_input(
 ) -> ReduceResult | None:
     entry = current_entry_for_path(state, action.path)
     if entry is None:
-        return done(state)
-    return done(
+        return finalize(state)
+    return finalize(
         replace(
             state,
             ui_mode="RENAME",
@@ -214,9 +214,9 @@ def _handle_begin_delete_targets(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if not action.paths:
-        return done(state)
+        return finalize(state)
     if action.mode == "permanent" or state.confirm_delete:
-        return done(
+        return finalize(
             replace(
                 state,
                 ui_mode="CONFIRM",
@@ -261,7 +261,7 @@ def _handle_begin_create_input(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     prompt = "New file: " if action.kind == "file" else "New directory: "
-    return done(
+    return finalize(
         replace(
             state,
             ui_mode="CREATE",
@@ -291,7 +291,7 @@ def _handle_begin_empty_trash(
 ) -> ReduceResult | None:
     platform_kind = _detect_platform()
     if platform_kind not in ("linux", "darwin"):
-        return done(
+        return finalize(
             replace(
                 state,
                 notification=NotificationState(
@@ -301,7 +301,7 @@ def _handle_begin_empty_trash(
             )
         )
 
-    return done(
+    return finalize(
         replace(
             state,
             ui_mode="CONFIRM",
@@ -336,8 +336,8 @@ def _handle_set_pending_input_value(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if state.pending_input is None:
-        return done(state)
-    return done(
+        return finalize(state)
+    return finalize(
         replace(
             state,
             pending_input=replace(state.pending_input, value=action.value),
@@ -350,7 +350,7 @@ def _handle_cancel_pending_input(
     action: CancelPendingInput,
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
-    return done(
+    return finalize(
         replace(
             state,
             ui_mode="BROWSING",
@@ -380,11 +380,11 @@ def _handle_submit_pending_input(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if state.pending_input is None:
-        return done(state)
+        return finalize(state)
     validation_error = validate_pending_input(state)
     if validation_error is not None:
         if is_name_conflict_validation_error(state, validation_error):
-            return done(
+            return finalize(
                 replace(
                     state,
                     ui_mode="CONFIRM",
@@ -397,7 +397,7 @@ def _handle_submit_pending_input(
                     ),
                 )
             )
-        return done(
+        return finalize(
             replace(
                 state,
                 notification=NotificationState(level="error", message=validation_error),
@@ -412,11 +412,11 @@ def _handle_submit_pending_input(
     if zip_request is not None:
         return run_zip_compress_prepare_request(state, zip_request)
     if request is None:
-        return done(state)
+        return finalize(state)
     if isinstance(request, RenameRequest):
         current_name = Path(request.source_path).name
         if current_name == request.new_name:
-            return done(
+            return finalize(
                 replace(
                     state,
                     ui_mode="BROWSING",
@@ -438,7 +438,7 @@ def _handle_toggle_selection(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if action.path not in current_entry_paths(state):
-        return done(state)
+        return finalize(state)
     active_entries = active_current_entries(state)
     selected_paths = set(
         normalize_selected_paths(
@@ -450,7 +450,7 @@ def _handle_toggle_selection(
         selected_paths.remove(action.path)
     else:
         selected_paths.add(action.path)
-    return done(
+    return finalize(
         replace(
             state,
             current_pane=replace(
@@ -468,7 +468,7 @@ def _handle_toggle_selection_and_advance(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if action.path not in current_entry_paths(state):
-        return done(state)
+        return finalize(state)
     active_entries = active_current_entries(state)
     selected_paths = set(
         normalize_selected_paths(
@@ -499,7 +499,7 @@ def _handle_clear_selection(
     action: ClearSelection,
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
-    return done(
+    return finalize(
         replace(
             state,
             current_pane=replace(
@@ -521,7 +521,7 @@ def _handle_select_all_visible_entries(
         frozenset(action.paths),
         active_entries,
     )
-    return done(
+    return finalize(
         replace(
             state,
             current_pane=replace(
@@ -545,13 +545,13 @@ def _handle_copy_targets(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if not action.paths:
-        return done(
+        return finalize(
             replace(
                 state,
                 notification=NotificationState(level="warning", message="Nothing to copy"),
             )
         )
-    return done(
+    return finalize(
         replace(
             state,
             clipboard=ClipboardState(mode="copy", paths=action.paths),
@@ -569,13 +569,13 @@ def _handle_cut_targets(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if not action.paths:
-        return done(
+        return finalize(
             replace(
                 state,
                 notification=NotificationState(level="warning", message="Nothing to cut"),
             )
         )
-    return done(
+    return finalize(
         replace(
             state,
             clipboard=ClipboardState(mode="cut", paths=action.paths),
@@ -593,7 +593,7 @@ def _handle_paste_clipboard(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if state.clipboard.mode == "none" or not state.clipboard.paths:
-        return done(
+        return finalize(
             replace(
                 state,
                 notification=NotificationState(level="warning", message="Clipboard is empty"),
@@ -614,7 +614,7 @@ def _handle_resolve_paste_conflict(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if state.paste_conflict is None:
-        return done(state)
+        return finalize(state)
     request = replace(
         state.paste_conflict.request,
         conflict_resolution=action.resolution,
@@ -637,7 +637,7 @@ def _handle_cancel_paste_conflict(
     action: CancelPasteConflict,
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
-    return done(
+    return finalize(
         replace(
             state,
             paste_conflict=None,
@@ -654,7 +654,7 @@ def _handle_clipboard_paste_needs_resolution(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if action.request_id != state.pending_paste_request_id or not action.conflicts:
-        return done(state)
+        return finalize(state)
     if state.paste_conflict_action != "prompt":
         request = replace(
             action.request,
@@ -672,7 +672,7 @@ def _handle_clipboard_paste_needs_resolution(
             ),
             request,
         )
-    return done(
+    return finalize(
         replace(
             state,
             paste_conflict=PasteConflictState(
@@ -694,7 +694,7 @@ def _handle_clipboard_paste_completed(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if action.request_id != state.pending_paste_request_id:
-        return done(state)
+        return finalize(state)
 
     next_clipboard = state.clipboard
     if state.clipboard.mode == "cut" and action.summary.success_count > 0:
@@ -720,8 +720,8 @@ def _handle_clipboard_paste_failed(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if action.request_id != state.pending_paste_request_id:
-        return done(state)
-    return done(
+        return finalize(state)
+    return finalize(
         replace(
             state,
             notification=NotificationState(level="error", message=action.message),
@@ -745,7 +745,7 @@ def _handle_confirm_delete_targets(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if state.delete_confirmation is None:
-        return done(state)
+        return finalize(state)
     return run_file_mutation_request(
         replace(
             state,
@@ -766,7 +766,7 @@ def _handle_confirm_archive_extract(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if state.archive_extract_confirmation is None:
-        return done(state)
+        return finalize(state)
     return run_archive_extract_request(
         replace(
             state,
@@ -786,7 +786,7 @@ def _handle_confirm_zip_compress(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if state.zip_compress_confirmation is None:
-        return done(state)
+        return finalize(state)
     return run_zip_compress_request(
         replace(
             state,
@@ -804,7 +804,7 @@ def _handle_confirm_empty_trash(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if state.empty_trash_confirmation is None:
-        return done(state)
+        return finalize(state)
 
     from peneo.services import resolve_trash_service
 
@@ -812,7 +812,7 @@ def _handle_confirm_empty_trash(
     removed_count, error_message = trash_service.empty_trash()
 
     if error_message and removed_count == 0:
-        return done(
+        return finalize(
             replace(
                 state,
                 ui_mode="BROWSING",
@@ -829,7 +829,7 @@ def _handle_confirm_empty_trash(
         message = f"Emptied {removed_count} {noun} from trash"
         level = "info"
 
-    return done(
+    return finalize(
         replace(
             state,
             ui_mode="BROWSING",
@@ -850,7 +850,7 @@ def _handle_cancel_delete_confirmation(
         and state.delete_confirmation.mode == "permanent"
         else "Delete cancelled"
     )
-    return done(
+    return finalize(
         replace(
             state,
             delete_confirmation=None,
@@ -866,8 +866,8 @@ def _handle_cancel_archive_extract_confirmation(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if state.archive_extract_confirmation is None:
-        return done(state)
-    return done(
+        return finalize(state)
+    return finalize(
         replace(
             state,
             archive_extract_confirmation=None,
@@ -886,8 +886,8 @@ def _handle_cancel_zip_compress_confirmation(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if state.zip_compress_confirmation is None:
-        return done(state)
-    return done(
+        return finalize(state)
+    return finalize(
         replace(
             state,
             zip_compress_confirmation=None,
@@ -906,7 +906,7 @@ def _handle_cancel_empty_trash_confirmation(
     action: CancelEmptyTrashConfirmation,
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
-    return done(
+    return finalize(
         replace(
             state,
             ui_mode="BROWSING",
@@ -922,8 +922,8 @@ def _handle_dismiss_name_conflict(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if state.name_conflict is None:
-        return done(state)
-    return done(
+        return finalize(state)
+    return finalize(
         replace(
             state,
             notification=None,
@@ -944,10 +944,10 @@ def _handle_archive_preparation_completed(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if action.request_id != state.pending_archive_prepare_request_id:
-        return done(state)
+        return finalize(state)
 
     if action.conflict_count > 0 and action.first_conflict_path is not None:
-        return done(
+        return finalize(
             replace(
                 state,
                 notification=None,
@@ -983,8 +983,8 @@ def _handle_archive_preparation_failed(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if action.request_id != state.pending_archive_prepare_request_id:
-        return done(state)
-    return done(
+        return finalize(state)
+    return finalize(
         replace(
             state,
             notification=NotificationState(level="error", message=action.message),
@@ -1004,12 +1004,12 @@ def _handle_archive_extract_progress(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if action.request_id != state.pending_archive_extract_request_id:
-        return done(state)
+        return finalize(state)
 
     message = f"Extracting archive {action.completed_entries}/{action.total_entries}"
     if action.current_path is not None:
         message = f"{message}: {Path(action.current_path).name}"
-    return done(
+    return finalize(
         replace(
             state,
             archive_extract_progress=ArchiveExtractProgressState(
@@ -1028,7 +1028,7 @@ def _handle_archive_extract_completed(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if action.request_id != state.pending_archive_extract_request_id:
-        return done(state)
+        return finalize(state)
 
     next_state = replace(
         state,
@@ -1066,8 +1066,8 @@ def _handle_archive_extract_failed(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if action.request_id != state.pending_archive_extract_request_id:
-        return done(state)
-    return done(
+        return finalize(state)
+    return finalize(
         replace(
             state,
             notification=NotificationState(level="error", message=action.message),
@@ -1087,10 +1087,10 @@ def _handle_zip_compress_preparation_completed(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if action.request_id != state.pending_zip_compress_prepare_request_id:
-        return done(state)
+        return finalize(state)
 
     if action.destination_exists:
-        return done(
+        return finalize(
             replace(
                 state,
                 notification=None,
@@ -1122,8 +1122,8 @@ def _handle_zip_compress_preparation_failed(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if action.request_id != state.pending_zip_compress_prepare_request_id:
-        return done(state)
-    return done(
+        return finalize(state)
+    return finalize(
         replace(
             state,
             notification=NotificationState(level="error", message=action.message),
@@ -1141,12 +1141,12 @@ def _handle_zip_compress_progress(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if action.request_id != state.pending_zip_compress_request_id:
-        return done(state)
+        return finalize(state)
 
     message = f"Compressing as zip {action.completed_entries}/{action.total_entries}"
     if action.current_path is not None:
         message = f"{message}: {Path(action.current_path).name}"
-    return done(
+    return finalize(
         replace(
             state,
             zip_compress_progress=ZipCompressProgressState(
@@ -1165,7 +1165,7 @@ def _handle_zip_compress_completed(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if action.request_id != state.pending_zip_compress_request_id:
-        return done(state)
+        return finalize(state)
 
     next_state = replace(
         state,
@@ -1201,8 +1201,8 @@ def _handle_zip_compress_failed(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if action.request_id != state.pending_zip_compress_request_id:
-        return done(state)
-    return done(
+        return finalize(state)
+    return finalize(
         replace(
             state,
             notification=NotificationState(level="error", message=action.message),
@@ -1220,7 +1220,7 @@ def _handle_file_mutation_completed(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if action.request_id != state.pending_file_mutation_request_id:
-        return done(state)
+        return finalize(state)
     selected_paths = state.current_pane.selected_paths
     if action.result.removed_paths:
         selected_paths = frozenset(
@@ -1261,8 +1261,8 @@ def _handle_file_mutation_failed(
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
     if action.request_id != state.pending_file_mutation_request_id:
-        return done(state)
-    return done(
+        return finalize(state)
+    return finalize(
         replace(
             state,
             notification=NotificationState(level="error", message=action.message),

@@ -84,9 +84,12 @@ class PaneState:
     selection_anchor_path: str | None = None
     mode: Literal["entries", "preview"] = "entries"
     preview_path: str | None = None
+    preview_title: str | None = None
     preview_content: str | None = None
     preview_message: str | None = None
     preview_truncated: bool = False
+    preview_start_line: int | None = None
+    preview_highlight_line: int | None = None
 
 
 @dataclass(frozen=True)

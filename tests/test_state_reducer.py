@@ -2688,6 +2688,75 @@ def test_grep_search_completed_updates_palette_results() -> None:
     assert next_state.pending_grep_search_request_id is None
 
 
+def test_grep_search_completed_requests_context_preview() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginGrepSearch())
+    search_state = replace(
+        state,
+        command_palette=replace(state.command_palette, query="todo"),
+        pending_grep_search_request_id=4,
+    )
+    grep_result = GrepSearchResultState(
+        path="/home/tadashi/develop/peneo/src/peneo/app.py",
+        display_path="src/peneo/app.py",
+        line_number=42,
+        line_text="TODO: update palette",
+    )
+
+    result = reduce_app_state(
+        search_state,
+        GrepSearchCompleted(
+            request_id=4,
+            query="todo",
+            results=(grep_result,),
+        ),
+    )
+
+    assert result.state.pending_child_pane_request_id == 1
+    assert result.effects == (
+        LoadChildPaneSnapshotEffect(
+            request_id=1,
+            current_path="/home/tadashi/develop/peneo",
+            cursor_path="/home/tadashi/develop/peneo/src/peneo/app.py",
+            grep_result=grep_result,
+            grep_context_lines=3,
+        ),
+    )
+
+
+def test_grep_search_completed_skips_context_preview_when_preview_disabled() -> None:
+    grep_result = GrepSearchResultState(
+        path="/home/tadashi/develop/peneo/src/peneo/app.py",
+        display_path="src/peneo/app.py",
+        line_number=42,
+        line_text="TODO: update palette",
+    )
+    search_state = replace(
+        _reduce_state(build_initial_app_state(), BeginGrepSearch()),
+        config=replace(
+            build_initial_app_state().config,
+            display=replace(build_initial_app_state().config.display, show_preview=False),
+        ),
+        command_palette=replace(
+            _reduce_state(build_initial_app_state(), BeginGrepSearch()).command_palette,
+            query="todo",
+        ),
+        pending_grep_search_request_id=4,
+    )
+
+    result = reduce_app_state(
+        search_state,
+        GrepSearchCompleted(
+            request_id=4,
+            query="todo",
+            results=(grep_result,),
+        ),
+    )
+
+    assert result.state.config.display.show_preview is False
+    assert result.state.pending_child_pane_request_id is None
+    assert result.effects == ()
+
+
 def test_grep_search_failed_sets_inline_error_for_invalid_regex() -> None:
     state = _reduce_state(build_initial_app_state(), BeginGrepSearch())
     search_state = replace(
@@ -2792,6 +2861,47 @@ def test_cancel_command_palette_returns_to_browsing() -> None:
 
     assert next_state.ui_mode == "BROWSING"
     assert next_state.command_palette is None
+
+
+def test_cancel_grep_command_palette_restores_current_cursor_preview() -> None:
+    path = "/home/tadashi/develop/peneo/README.md"
+    grep_result = GrepSearchResultState(
+        path=path,
+        display_path="README.md",
+        line_number=3,
+        line_text="TODO: update docs",
+    )
+    state = replace(
+        _reduce_state(build_initial_app_state(), BeginGrepSearch()),
+        current_pane=replace(build_initial_app_state().current_pane, cursor_path=path),
+        command_palette=CommandPaletteState(
+            source="grep_search",
+            query="todo",
+            grep_search_results=(grep_result,),
+        ),
+        child_pane=PaneState(
+            directory_path="/home/tadashi/develop/peneo",
+            entries=(),
+            mode="preview",
+            preview_path=path,
+            preview_title="Preview: README.md:3",
+            preview_content="TODO: update docs\n",
+            preview_start_line=3,
+            preview_highlight_line=3,
+        ),
+    )
+
+    result = reduce_app_state(state, CancelCommandPalette())
+
+    assert result.state.ui_mode == "BROWSING"
+    assert result.state.pending_child_pane_request_id == 1
+    assert result.effects == (
+        LoadChildPaneSnapshotEffect(
+            request_id=1,
+            current_path="/home/tadashi/develop/peneo",
+            cursor_path=path,
+        ),
+    )
 
 
 def test_begin_delete_targets_single_runs_file_mutation() -> None:
@@ -4482,6 +4592,41 @@ def test_child_pane_snapshot_loaded_ignores_stale_request() -> None:
     )
 
     assert next_state == requested
+
+
+def test_child_pane_snapshot_loaded_clears_grep_preview_when_file_preview_disabled() -> None:
+    path = "/home/tadashi/develop/peneo/README.md"
+    state = replace(
+        build_initial_app_state(),
+        config=replace(
+            build_initial_app_state().config,
+            display=replace(build_initial_app_state().config.display, show_preview=False),
+        ),
+        pending_child_pane_request_id=7,
+    )
+
+    next_state = _reduce_state(
+        state,
+        ChildPaneSnapshotLoaded(
+            request_id=7,
+            pane=PaneState(
+                directory_path="/home/tadashi/develop/peneo",
+                entries=(),
+                mode="preview",
+                preview_path=path,
+                preview_title="Preview: README.md:3",
+                preview_content="one\ntwo\nTODO: update docs\n",
+                preview_start_line=1,
+                preview_highlight_line=3,
+            ),
+        ),
+    )
+
+    assert next_state.child_pane == PaneState(
+        directory_path="/home/tadashi/develop/peneo",
+        entries=(),
+    )
+    assert next_state.pending_child_pane_request_id is None
 
 
 def test_child_pane_snapshot_failed_ignores_stale_request() -> None:

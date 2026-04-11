@@ -804,6 +804,44 @@ def test_select_shell_data_builds_child_preview_message_for_unavailable_file() -
     assert shell.child_pane.preview_message == "Preview unavailable for this file type"
 
 
+def test_select_shell_data_builds_grep_preview_for_palette_selection() -> None:
+    initial_state = build_initial_app_state()
+    path = "/home/tadashi/develop/peneo/README.md"
+    grep_result = GrepSearchResultState(
+        path=path,
+        display_path="README.md",
+        line_number=5,
+        line_text="TODO: update docs",
+    )
+    state = replace(
+        initial_state,
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="grep_search",
+            query="todo",
+            grep_search_results=(grep_result,),
+        ),
+        child_pane=PaneState(
+            directory_path="/home/tadashi/develop/peneo",
+            entries=(),
+            mode="preview",
+            preview_path=path,
+            preview_title="Preview: README.md:5",
+            preview_content="line3\nline4\nTODO: update docs\nline6\n",
+            preview_start_line=2,
+            preview_highlight_line=5,
+        ),
+    )
+
+    shell = select_shell_data(state)
+
+    assert shell.child_pane.is_preview is True
+    assert shell.child_pane.title == "Preview: README.md:5"
+    assert shell.child_pane.preview_path == path
+    assert shell.child_pane.preview_start_line == 2
+    assert shell.child_pane.preview_highlight_line == 5
+
+
 def test_select_parent_and_child_entries_keep_fixed_name_sort() -> None:
     state = build_initial_app_state()
     state = replace(
@@ -1337,7 +1375,8 @@ def test_select_help_bar_state_for_grep_search_palette() -> None:
     help_bar = select_help_bar_state(state)
 
     assert help_bar.lines == (
-        "type text / re:pattern | ↑↓ or Ctrl+N/P select | enter jump | Ctrl+E edit | esc cancel",
+        "type text / re:pattern | ↑↓ or Ctrl+N/P select | "
+        "enter jump | Ctrl+E edit | esc cancel",
     )
 
 

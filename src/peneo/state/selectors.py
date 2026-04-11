@@ -158,6 +158,10 @@ def _select_child_pane_for_cursor(
     cursor_entry: DirectoryEntryState | None,
 ) -> ChildPaneViewState:
     syntax_theme = _select_child_syntax_theme(state.config.display.theme)
+    grep_preview = _select_grep_preview_pane(state, syntax_theme)
+    if grep_preview is not None:
+        return grep_preview
+
     if cursor_entry is None:
         return _build_child_entries_view((), syntax_theme)
 
@@ -177,19 +181,25 @@ def _select_child_pane_for_cursor(
     if state.child_pane.mode == "preview" and state.child_pane.preview_content is not None:
         preview_path = state.child_pane.preview_path or cursor_entry.path
         return _build_child_preview_view(
+            state.child_pane.preview_title,
             preview_path,
             state.child_pane.preview_content,
             state.child_pane.preview_message,
             state.child_pane.preview_truncated,
+            state.child_pane.preview_start_line,
+            state.child_pane.preview_highlight_line,
             syntax_theme,
         )
     if state.child_pane.mode == "preview" and state.child_pane.preview_message is not None:
         preview_path = state.child_pane.preview_path or cursor_entry.path
         return _build_child_preview_view(
+            state.child_pane.preview_title,
             preview_path,
             state.child_pane.preview_content,
             state.child_pane.preview_message,
             state.child_pane.preview_truncated,
+            state.child_pane.preview_start_line,
+            state.child_pane.preview_highlight_line,
             syntax_theme,
         )
 
@@ -202,6 +212,46 @@ def _select_child_pane_for_cursor(
             selected_path=None,
             cut_paths=_select_visible_cut_paths(visible_entries, _select_cut_paths(state)),
         ),
+        syntax_theme,
+    )
+
+
+def _select_grep_preview_pane(
+    state: AppState,
+    syntax_theme: str,
+) -> ChildPaneViewState | None:
+    if (
+        state.ui_mode != "PALETTE"
+        or state.command_palette is None
+        or state.command_palette.source != "grep_search"
+    ):
+        return None
+
+    if not state.config.display.show_preview:
+        return _build_child_entries_view((), syntax_theme)
+
+    results = state.command_palette.grep_search_results
+    if not results:
+        return _build_child_entries_view((), syntax_theme)
+
+    selected_result = results[
+        normalize_command_palette_cursor(state, state.command_palette.cursor_index)
+    ]
+    if (
+        state.child_pane.mode != "preview"
+        or state.child_pane.preview_path != selected_result.path
+        or state.child_pane.preview_highlight_line != selected_result.line_number
+    ):
+        return _build_child_entries_view((), syntax_theme)
+
+    return _build_child_preview_view(
+        state.child_pane.preview_title,
+        state.child_pane.preview_path or selected_result.path,
+        state.child_pane.preview_content,
+        state.child_pane.preview_message,
+        state.child_pane.preview_truncated,
+        state.child_pane.preview_start_line,
+        state.child_pane.preview_highlight_line,
         syntax_theme,
     )
 
@@ -994,18 +1044,24 @@ def _build_child_entries_view(
 
 @lru_cache(maxsize=256)
 def _build_child_preview_view(
+    preview_title: str | None,
     preview_path: str,
     preview_content: str | None,
     preview_message: str | None,
     preview_truncated: bool,
+    preview_start_line: int | None,
+    preview_highlight_line: int | None,
     syntax_theme: str,
 ) -> ChildPaneViewState:
     return ChildPaneViewState(
-        title=_format_child_preview_title(preview_path, preview_truncated),
+        title=preview_title or _format_child_preview_title(preview_path, preview_truncated),
         preview_path=preview_path,
+        preview_title=preview_title,
         preview_content=preview_content,
         preview_message=preview_message,
         preview_truncated=preview_truncated,
+        preview_start_line=preview_start_line,
+        preview_highlight_line=preview_highlight_line,
         syntax_theme=syntax_theme,
     )
 

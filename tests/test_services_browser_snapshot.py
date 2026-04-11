@@ -5,7 +5,7 @@ import pytest
 
 from peneo.adapters import LocalFilesystemAdapter
 from peneo.services import FakeBrowserSnapshotLoader, LiveBrowserSnapshotLoader
-from peneo.state import BrowserSnapshot, DirectoryEntryState, PaneState
+from peneo.state import BrowserSnapshot, DirectoryEntryState, GrepSearchResultState, PaneState
 
 
 @dataclass
@@ -136,6 +136,53 @@ def test_live_browser_snapshot_loader_returns_empty_child_pane_for_binary_file_c
     assert snapshot.child_pane.preview_path == str(binary)
     assert snapshot.child_pane.preview_content is None
     assert snapshot.child_pane.preview_message == "Preview unavailable for this file type"
+
+
+def test_live_browser_snapshot_loader_builds_grep_context_preview(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    readme = project / "README.md"
+    readme.write_text("one\ntwo\nTODO: update docs\nfour\nfive\n", encoding="utf-8")
+    loader = LiveBrowserSnapshotLoader()
+
+    pane = loader.load_grep_preview(
+        str(project),
+        GrepSearchResultState(
+            path=str(readme),
+            display_path="README.md",
+            line_number=3,
+            line_text="TODO: update docs",
+        ),
+    )
+
+    assert pane.mode == "preview"
+    assert pane.preview_title == "Preview: README.md:3"
+    assert pane.preview_content == "one\ntwo\nTODO: update docs\nfour\nfive\n"
+    assert pane.preview_start_line == 1
+    assert pane.preview_highlight_line == 3
+
+
+def test_live_browser_snapshot_loader_marks_unsupported_grep_preview(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    binary = project / "archive.bin"
+    binary.write_bytes(b"\x00\x01\x02\x03")
+    loader = LiveBrowserSnapshotLoader()
+
+    pane = loader.load_grep_preview(
+        str(project),
+        GrepSearchResultState(
+            path=str(binary),
+            display_path="archive.bin",
+            line_number=1,
+            line_text="",
+        ),
+    )
+
+    assert pane.mode == "preview"
+    assert pane.preview_title == "Preview: archive.bin:1"
+    assert pane.preview_content is None
+    assert pane.preview_message == "Preview unavailable for this file type"
 
 
 def test_live_browser_snapshot_loader_marks_permission_denied_preview_candidate(

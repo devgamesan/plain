@@ -14,6 +14,7 @@ from peneo.state.models import (
     AppState,
     BrowserSnapshot,
     DirectoryEntryState,
+    GrepSearchResultState,
     PaneState,
     build_initial_app_state,
     resolve_parent_directory_path,
@@ -183,6 +184,7 @@ TEXT_PREVIEW_FILENAMES = frozenset(
 PREVIEW_PERMISSION_DENIED_MESSAGE = "Preview unavailable: permission denied"
 PREVIEW_UNSUPPORTED_MESSAGE = "Preview unavailable for this file type"
 PREVIEW_ERROR_MESSAGE = "Preview unavailable"
+GREP_PREVIEW_ERROR_MESSAGE = "Preview unavailable: failed to load context"
 
 
 class BrowserSnapshotLoader(Protocol):
@@ -198,6 +200,14 @@ class BrowserSnapshotLoader(Protocol):
         self,
         current_path: str,
         cursor_path: str | None,
+    ) -> PaneState: ...
+
+    def load_grep_preview(
+        self,
+        current_path: str,
+        result: GrepSearchResultState,
+        *,
+        context_lines: int = 3,
     ) -> PaneState: ...
 
     def invalidate_directory_listing_cache(
@@ -295,6 +305,27 @@ class LiveBrowserSnapshotLoader:
 
         return PaneState(directory_path=current_path, entries=())
 
+    def load_grep_preview(
+        self,
+        current_path: str,
+        result: GrepSearchResultState,
+        *,
+        context_lines: int = 3,
+    ) -> PaneState:
+        child_path = Path(result.path).expanduser().resolve()
+        preview = _load_grep_context_preview(child_path, result.line_number, context_lines)
+        return PaneState(
+            directory_path=current_path,
+            entries=(),
+            mode="preview",
+            preview_path=str(child_path),
+            preview_title=_format_grep_preview_title(result),
+            preview_content=preview.content,
+            preview_message=preview.message,
+            preview_start_line=preview.start_line,
+            preview_highlight_line=preview.highlight_line,
+        )
+
     def invalidate_directory_listing_cache(
         self,
         paths: tuple[str, ...] = (),
@@ -361,6 +392,7 @@ class FakeBrowserSnapshotLoader:
 
     snapshots: Mapping[str, BrowserSnapshot] = field(default_factory=dict)
     child_panes: Mapping[tuple[str, str | None], PaneState] = field(default_factory=dict)
+    grep_previews: Mapping[tuple[str, str, int], PaneState] = field(default_factory=dict)
     failure_messages: Mapping[str, str] = field(default_factory=dict)
     child_failure_messages: Mapping[tuple[str, str | None], str] = field(default_factory=dict)
     default_delay_seconds: float = 0.0
@@ -368,6 +400,7 @@ class FakeBrowserSnapshotLoader:
     child_delay_seconds: Mapping[tuple[str, str | None], float] = field(default_factory=dict)
     archive_list: ArchiveListService = field(default_factory=LiveArchiveListService)
     executed_child_pane_requests: list[tuple[str, str | None]] = field(default_factory=list)
+    executed_grep_preview_requests: list[tuple[str, str, int]] = field(default_factory=list)
     invalidated_directory_listing_paths: list[tuple[str, ...]] = field(default_factory=list)
 
     def load_browser_snapshot(
@@ -403,6 +436,28 @@ class FakeBrowserSnapshotLoader:
             raise OSError(self.child_failure_messages[key])
 
         pane = self.child_panes.get(key)
+        if pane is not None:
+            return pane
+
+        return PaneState(directory_path=current_path, entries=())
+
+    def load_grep_preview(
+        self,
+        current_path: str,
+        result: GrepSearchResultState,
+        *,
+        context_lines: int = 3,
+    ) -> PaneState:
+        key = (current_path, result.path, result.line_number)
+        self.executed_grep_preview_requests.append(key)
+        delay = self.child_delay_seconds.get(
+            (current_path, result.path),
+            self.default_delay_seconds,
+        )
+        if delay > 0:
+            sleep(delay)
+
+        pane = self.grep_previews.get(key)
         if pane is not None:
             return pane
 
@@ -513,6 +568,58 @@ def _load_text_preview(path: Path) -> "FilePreviewState":
     return FilePreviewState.with_content(preview_text, truncated)
 
 
+def _load_grep_context_preview(
+    path: Path,
+    line_number: int,
+    context_lines: int,
+) -> "ContextPreviewState":
+    if not _is_preview_candidate(path):
+        return ContextPreviewState.with_message(PREVIEW_UNSUPPORTED_MESSAGE)
+
+    try:
+        with path.open("rb") as handle:
+            sample = handle.read(TEXT_PREVIEW_MAX_BYTES + 1)
+    except PermissionError:
+        return ContextPreviewState.with_message(PREVIEW_PERMISSION_DENIED_MESSAGE)
+    except OSError:
+        return ContextPreviewState.with_message(GREP_PREVIEW_ERROR_MESSAGE)
+
+    if b"\x00" in sample[:TEXT_PREVIEW_MAX_BYTES]:
+        return ContextPreviewState.with_message(PREVIEW_UNSUPPORTED_MESSAGE)
+
+    try:
+        sample.decode("utf-8")
+    except UnicodeDecodeError:
+        return ContextPreviewState.with_message(PREVIEW_UNSUPPORTED_MESSAGE)
+
+    start_line = max(1, line_number - max(0, context_lines))
+    end_line = line_number + max(0, context_lines)
+    lines: list[str] = []
+    last_line = 0
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            for current_line, line in enumerate(handle, start=1):
+                if current_line < start_line:
+                    continue
+                if current_line > end_line:
+                    break
+                lines.append(line)
+                last_line = current_line
+    except PermissionError:
+        return ContextPreviewState.with_message(PREVIEW_PERMISSION_DENIED_MESSAGE)
+    except (OSError, UnicodeDecodeError):
+        return ContextPreviewState.with_message(GREP_PREVIEW_ERROR_MESSAGE)
+
+    if not lines or last_line < line_number:
+        return ContextPreviewState.with_message(GREP_PREVIEW_ERROR_MESSAGE)
+
+    return ContextPreviewState.with_content(
+        "".join(lines),
+        start_line=start_line,
+        highlight_line=line_number,
+    )
+
+
 @dataclass(frozen=True)
 class FilePreviewState:
     kind: Literal["content", "message", "unavailable"]
@@ -535,6 +642,38 @@ class FilePreviewState:
     @classmethod
     def error(cls) -> "FilePreviewState":
         return cls(kind="message", message=PREVIEW_ERROR_MESSAGE)
+
+
+@dataclass(frozen=True)
+class ContextPreviewState:
+    content: str | None = None
+    message: str | None = None
+    start_line: int | None = None
+    highlight_line: int | None = None
+
+    @classmethod
+    def with_content(
+        cls,
+        content: str,
+        *,
+        start_line: int,
+        highlight_line: int,
+    ) -> "ContextPreviewState":
+        return cls(
+            content=content,
+            start_line=start_line,
+            highlight_line=highlight_line,
+        )
+
+    @classmethod
+    def with_message(cls, message: str) -> "ContextPreviewState":
+        return cls(message=message)
+
+
+def _format_grep_preview_title(result: GrepSearchResultState) -> str:
+    return f"Preview: {result.display_path}:{result.line_number}"
+
+
 def _is_preview_candidate(path: Path) -> bool:
     if path.name.casefold() in TEXT_PREVIEW_FILENAMES:
         return True

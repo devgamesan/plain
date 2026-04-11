@@ -588,6 +588,8 @@ def _dispatch_command_palette_input(
         return _supported(SetCommandPaletteQuery(f"{current_query}{character}"))
 
     if search_palette:
+        if state.command_palette is not None and state.command_palette.source == "grep_search":
+            return _warn("Use arrows, type to filter, Enter, Ctrl+E, or Esc")
         return _warn("Use arrows, type to filter, Enter, Ctrl+E for editor, or Esc")
 
     return _warn("Use arrows, type to filter, Enter to run, or Esc to cancel")

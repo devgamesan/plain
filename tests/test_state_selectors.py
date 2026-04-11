@@ -2510,8 +2510,8 @@ def test_command_palette_includes_tab_commands_with_lowercase_shortcuts() -> Non
 
     assert palette_state is not None
     items = {item.label: item for item in palette_state.items}
-    assert items["New tab"].shortcut == "ctrl+t"
-    assert items["Next tab"].shortcut == "ctrl+tab"
-    assert items["Previous tab"].shortcut == "ctrl+shift+tab"
-    assert items["Close current tab"].shortcut == "ctrl+w"
+    assert items["New tab"].shortcut == "o"
+    assert items["Next tab"].shortcut == "tab"
+    assert items["Previous tab"].shortcut == "shift+tab"
+    assert items["Close current tab"].shortcut == "w"
     assert items["Close current tab"].enabled is False

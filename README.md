@@ -108,10 +108,10 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 | `R` | Reload directory |
 | `t` | Toggle split terminal |
 | `T` | Open terminal at current directory |
-| `ctrl+t` | Open new tab |
-| `ctrl+w` | Close current tab |
-| `ctrl+tab` | Switch to next tab |
-| `ctrl+shift+tab` | Switch to previous tab |
+| `o` | Open new tab |
+| `w` | Close current tab |
+| `tab` | Switch to next tab |
+| `shift+tab` | Switch to previous tab |
 | `m` | Open current directory in file manager |
 | `:` | Open command palette |
 | `q` | Quit |
@@ -367,13 +367,14 @@ When logging is enabled, startup failures and unhandled exceptions are appended 
 ## Command Palette
 
 Less frequent actions are grouped in the command palette opened with `:`.
+The tab strip is only shown when two or more browser tabs are open.
 
 | Command | Shown when | Behavior / Notes |
 | --- | --- | --- |
-| `New tab` | Always | Opens a new browser tab initialized from the current directory. Also available with `ctrl+t`. |
-| `Next tab` | Two or more tabs are open | Activates the next browser tab. Also available with `ctrl+tab`. |
-| `Previous tab` | Two or more tabs are open | Activates the previous browser tab. Also available with `ctrl+shift+tab`. |
-| `Close current tab` | Two or more tabs are open | Closes the active browser tab. The last remaining tab cannot be closed. Also available with `ctrl+w`. |
+| `New tab` | Always | Opens a new browser tab initialized from the current directory. Also available with `o`. |
+| `Next tab` | Two or more tabs are open | Activates the next browser tab. Also available with `tab`. |
+| `Previous tab` | Two or more tabs are open | Activates the previous browser tab. Also available with `shift+tab`. |
+| `Close current tab` | Two or more tabs are open | Closes the active browser tab. The last remaining tab cannot be closed. Also available with `w`. |
 | `Find files` | Always | Opens recursive file search. |
 | `Grep search` | Always | Opens recursive grep search (`ripgrep` / `rg` required on `PATH`). |
 | `History search` | Always | Opens directory history list and jump to a selected directory. |

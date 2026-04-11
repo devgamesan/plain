@@ -188,25 +188,25 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         CommandPaletteItem(
             id="new_tab",
             label="New tab",
-            shortcut="ctrl+t",
+            shortcut="o",
             enabled=True,
         ),
         CommandPaletteItem(
             id="next_tab",
             label="Next tab",
-            shortcut="ctrl+tab",
+            shortcut="tab",
             enabled=tab_count > 1,
         ),
         CommandPaletteItem(
             id="previous_tab",
             label="Previous tab",
-            shortcut="ctrl+shift+tab",
+            shortcut="shift+tab",
             enabled=tab_count > 1,
         ),
         CommandPaletteItem(
             id="close_current_tab",
             label="Close current tab",
-            shortcut="ctrl+w",
+            shortcut="w",
             enabled=tab_count > 1,
         ),
         CommandPaletteItem(

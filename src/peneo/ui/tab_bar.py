@@ -18,10 +18,12 @@ class TabBar(Static):
     ) -> None:
         super().__init__(self._render_state(state), id=id, classes=classes)
         self.state = state
+        self.display = len(state.tabs) > 1
 
     def set_state(self, state: TabBarState) -> None:
         """Update the rendered tabs without remounting the widget."""
 
+        self.display = len(state.tabs) > 1
         if state == self.state:
             return
         self.state = state

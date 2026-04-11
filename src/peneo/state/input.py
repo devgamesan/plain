@@ -148,10 +148,10 @@ BROWSING_KEYMAP = {
     "end": "jump_cursor_end",
     "pageup": "cursor_pageup",
     "pagedown": "cursor_pagedown",
-    "ctrl+t": "open_new_tab",
-    "ctrl+w": "close_current_tab",
-    "ctrl+tab": "activate_next_tab",
-    "ctrl+shift+tab": "activate_previous_tab",
+    "o": "open_new_tab",
+    "w": "close_current_tab",
+    "tab": "activate_next_tab",
+    "shift+tab": "activate_previous_tab",
 }
 
 CONFLICT_KEYMAP = {
@@ -523,7 +523,7 @@ def _dispatch_split_terminal_input(
 
 
 def _terminal_control_character(key: str) -> str | None:
-    if not key.startswith("ctrl+") or key in ("ctrl+t", "ctrl+v"):
+    if not key.startswith("ctrl+") or key == "ctrl+v":
         return None
 
     suffix = key[5:]

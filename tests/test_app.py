@@ -1275,7 +1275,29 @@ async def test_app_tab_keeps_focus_on_current_pane() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_ctrl_tab_switches_between_browser_tabs() -> None:
+async def test_app_hides_tab_bar_until_multiple_tabs_are_open() -> None:
+    path = "/tmp/peneo-single-tab"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(120, 20)):
+        await _wait_for_snapshot_loaded(app, path)
+
+        tab_bar = await _wait_for_tab_bar(app)
+
+        assert tab_bar.display is False
+
+
+@pytest.mark.asyncio
+async def test_app_tab_shortcuts_switch_between_browser_tabs() -> None:
     path = "/tmp/peneo-tabs"
     docs_path = f"{path}/docs"
     loader = FakeBrowserSnapshotLoader(
@@ -1302,10 +1324,11 @@ async def test_app_ctrl_tab_switches_between_browser_tabs() -> None:
         await _wait_for_snapshot_loaded(app, path)
         current_table = app.query_one("#current-pane-table", DataTable)
 
-        await pilot.press("ctrl+t")
+        await pilot.press("o")
         await asyncio.sleep(0.05)
 
         tab_bar = await _wait_for_tab_bar(app)
+        assert tab_bar.display is True
         assert str(tab_bar.renderable) == "[1:peneo-tabs] [2:peneo-tabs]"
         assert app.focused is current_table
 
@@ -1315,13 +1338,13 @@ async def test_app_ctrl_tab_switches_between_browser_tabs() -> None:
         current_path_bar = await _wait_for_current_path_bar(app)
         assert str(current_path_bar.renderable) == f"Current Path: {docs_path}"
 
-        await pilot.press("ctrl+shift+tab")
+        await pilot.press("shift+tab")
         await _wait_for_snapshot_loaded(app, path)
         current_path_bar = await _wait_for_current_path_bar(app)
         assert str(current_path_bar.renderable) == f"Current Path: {path}"
         assert app.focused is current_table
 
-        await pilot.press("ctrl+tab")
+        await pilot.press("tab")
         await _wait_for_snapshot_loaded(app, docs_path)
         current_path_bar = await _wait_for_current_path_bar(app)
         assert str(current_path_bar.renderable) == f"Current Path: {docs_path}"

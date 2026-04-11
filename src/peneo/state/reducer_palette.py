@@ -74,9 +74,9 @@ from .models import (
 )
 from .reducer_common import (
     ReducerFn,
-    finalize,
     expand_and_validate_path,
     filter_file_search_results,
+    finalize,
     is_regex_file_search_query,
     list_matching_directory_paths,
     run_external_launch_request,

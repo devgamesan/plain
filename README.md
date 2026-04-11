@@ -155,7 +155,18 @@ Peneo is a TUI file manager you can use without memorizing keybindings. Common a
 
 | Key | Action |
 | --- | ------ |
-| Text input / `↑` / `↓` / `k` / `j` / `Enter` / `Esc` | Filter, select, run, or cancel commands. In `Find files` and `Grep search`, `j` / `k` are treated as text input and result navigation uses `↑` / `↓`. |
+| Text input / `↑` / `↓` / `Ctrl+N` / `Ctrl+P` / `k` / `j` / `Enter` / `Esc` | Filter, select, run, or cancel commands. In `Find files` and `Grep search`, `j` / `k` are treated as text input and result navigation uses `↑` / `↓` or `Ctrl+N` / `Ctrl+P`. |
+
+### Config Editor Mode
+
+| Key | Action |
+| --- | ------ |
+| `↑` / `↓` / `Ctrl+N` / `Ctrl+P` | Move between settings |
+| `←` / `→` / `Enter` | Change the selected value |
+| `s` | Save `config.toml` |
+| `e` | Open the raw config file in a terminal editor |
+| `r` | Reset help bar text to the built-in defaults |
+| `Esc` | Close the config editor |
 
 ### Name Input Mode
 
@@ -376,7 +387,7 @@ Less frequent actions are grouped in the command palette opened with `:`.
 | `Run shell command` | Always | Opens a one-line shell command dialog, runs the command in the current directory in the background, and returns the first output line or failure summary in the status bar. Also available with `!`. |
 | `Bookmark this directory` / `Remove bookmark` | Always | Saves or removes the current directory in `[bookmarks].paths`. The label reflects whether the current directory is already bookmarked. Also available with `B`. |
 | `Show hidden files` / `Hide hidden files` | Always | Toggles hidden-file visibility for the browser panes. The label reflects the current visibility state. Also available with `.`. |
-| `Edit config` | Always | Opens the settings overlay for startup defaults. You can edit the preferred terminal editor, hidden-file visibility, directory-size visibility, text preview visibility, theme, sorting, default paste-conflict behavior, and delete confirmation. Use `↑` / `↓` to move, `←` / `→` / `Enter` to change values, `s` to save `config.toml`, and `e` to open the raw config file in a terminal editor. |
+| `Edit config` | Always | Opens the settings overlay for startup defaults. You can edit the preferred terminal editor, hidden-file visibility, directory-size visibility, text preview visibility, theme, sorting, default paste-conflict behavior, and delete confirmation. Use `↑` / `↓` or `Ctrl+N` / `Ctrl+P` to move, `←` / `→` / `Enter` to change values, `s` to save `config.toml`, and `e` to open the raw config file in a terminal editor. |
 | `Create file` | Always | Starts the inline create-file flow in the current directory. |
 | `Create directory` | Always | Starts the inline create-directory flow in the current directory. |
 

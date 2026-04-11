@@ -1356,7 +1356,35 @@ def test_select_help_bar_state_for_go_to_path_palette_mentions_tab_completion() 
     help_bar = select_help_bar_state(state)
 
     assert help_bar.lines == (
-        "type path | ↑↓ select | tab complete | enter jump | esc cancel",
+        "type path | ↑↓ or Ctrl+N/P select | tab complete | enter jump | esc cancel",
+    )
+
+
+def test_select_help_bar_state_for_history_palette() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(source="history"),
+    )
+
+    help_bar = select_help_bar_state(state)
+
+    assert help_bar.lines == (
+        "type path | ↑↓ or Ctrl+N/P select | enter jump | esc cancel",
+    )
+
+
+def test_select_help_bar_state_for_bookmarks_palette() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(source="bookmarks"),
+    )
+
+    help_bar = select_help_bar_state(state)
+
+    assert help_bar.lines == (
+        "type path | ↑↓ or Ctrl+N/P select | enter jump | esc cancel",
     )
 
 
@@ -1386,6 +1414,38 @@ def test_select_help_bar_state_for_grep_search_palette() -> None:
     assert help_bar.lines == (
         "type text / tab fields / ↑↓ or Ctrl+N/P select | "
         "enter jump | Ctrl+E edit | esc cancel",
+    )
+
+
+def test_select_help_bar_state_for_command_palette() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(),
+    )
+
+    help_bar = select_help_bar_state(state)
+
+    assert help_bar.lines == (
+        "type command | ↑↓ or Ctrl+N/P select | enter run | esc cancel",
+    )
+
+
+def test_select_help_bar_state_for_config_editor() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/peneo/config.toml",
+            draft=build_initial_app_state().config,
+        ),
+    )
+
+    help_bar = select_help_bar_state(state)
+
+    assert help_bar.lines == (
+        "↑↓ or Ctrl+N/P choose | ←→ or Enter change | s save | e edit file | r reset help",
+        "esc close",
     )
 
 
@@ -1710,7 +1770,14 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
     assert "  Default sort field: name" in dialog.lines
     assert "Editor presets: system default, nvim, vim, nano, hx, micro, emacs -nw" in dialog.lines
     assert "Terminal launch templates: edit config.toml with e" in dialog.lines
-    assert dialog.options == ("left/right/enter change", "s save", "e edit file", "esc close")
+    assert dialog.options == (
+        "↑↓/Ctrl+N/P choose",
+        "←→/enter change",
+        "s save",
+        "e edit file",
+        "r reset help",
+        "esc close",
+    )
 
 
 def test_select_config_dialog_state_shows_custom_editor_command_hint() -> None:

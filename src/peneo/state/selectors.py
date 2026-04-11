@@ -361,7 +361,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             return HelpBarState(state.config.help_bar.config)
         return HelpBarState(
             (
-                "up/down choose | left/right/enter change | s save | e edit file | r reset help",
+                "↑↓ or Ctrl+N/P choose | ←→ or Enter change | s save | e edit file | r reset help",
                 "esc close",
             )
         )
@@ -408,20 +408,20 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         if state.command_palette is not None and state.command_palette.source == "history":
             if state.config.help_bar.palette_history:
                 return HelpBarState(state.config.help_bar.palette_history)
-            return HelpBarState(("type path | enter jump | esc cancel",))
+            return HelpBarState(("type path | ↑↓ or Ctrl+N/P select | enter jump | esc cancel",))
         if state.command_palette is not None and state.command_palette.source == "bookmarks":
             if state.config.help_bar.palette_bookmarks:
                 return HelpBarState(state.config.help_bar.palette_bookmarks)
-            return HelpBarState(("type path | enter jump | esc cancel",))
+            return HelpBarState(("type path | ↑↓ or Ctrl+N/P select | enter jump | esc cancel",))
         if state.command_palette is not None and state.command_palette.source == "go_to_path":
             if state.config.help_bar.palette_go_to_path:
                 return HelpBarState(state.config.help_bar.palette_go_to_path)
             return HelpBarState(
-                ("type path | ↑↓ select | tab complete | enter jump | esc cancel",)
+                ("type path | ↑↓ or Ctrl+N/P select | tab complete | enter jump | esc cancel",)
             )
         if state.config.help_bar.palette:
             return HelpBarState(state.config.help_bar.palette)
-        return HelpBarState(("type command | ↑↓ select | enter run | esc cancel",))
+        return HelpBarState(("type command | ↑↓ or Ctrl+N/P select | enter run | esc cancel",))
     if state.ui_mode == "BUSY":
         if state.config.help_bar.busy:
             return HelpBarState(state.config.help_bar.busy)
@@ -844,7 +844,14 @@ def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
     return ConfigDialogState(
         title=title,
         lines=lines,
-        options=("left/right/enter change", "s save", "e edit file", "esc close"),
+        options=(
+            "↑↓/Ctrl+N/P choose",
+            "←→/enter change",
+            "s save",
+            "e edit file",
+            "r reset help",
+            "esc close",
+        ),
     )
 
 

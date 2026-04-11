@@ -58,6 +58,12 @@ REGEX_GREP_SEARCH_PREFIX = "re:"
 
 
 def finalize(next_state: AppState, *effects: Effect) -> ReduceResult:
+    """Wrap a state transition and optional side effects into a ReduceResult.
+
+    This is the standard way to return from reducer action handlers.
+    The result will be further processed by _finalize_reduce_result in
+    reducer.py (viewport adjustment, tab sync, transient delta clearing).
+    """
     return ReduceResult(state=next_state, effects=effects)
 
 

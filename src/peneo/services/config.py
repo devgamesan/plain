@@ -223,6 +223,14 @@ def _load_display_config(section: object, warnings: list[str]) -> DisplayConfig:
             warnings=warnings,
             section_name="display",
         ),
+        grep_preview_context_lines=_read_int(
+            validated,
+            key="grep_preview_context_lines",
+            default=config.grep_preview_context_lines,
+            minimum=0,
+            warnings=warnings,
+            section_name="display",
+        ),
     )
     config = replace(
         config,
@@ -480,6 +488,29 @@ def _read_bool(
     return default
 
 
+def _read_int(
+    section: dict[str, object],
+    *,
+    key: str,
+    default: int,
+    minimum: int = 0,
+    warnings: list[str],
+    section_name: str,
+) -> int:
+    value = section.get(key, default)
+    if isinstance(value, int) and not isinstance(value, bool):
+        if value >= minimum:
+            return value
+        if key in section:
+            warnings.append(
+                f"{section_name}.{key} must be >= {minimum}; using default."
+            )
+        return default
+    if key in section:
+        warnings.append(f"{section_name}.{key} must be an integer; using default.")
+    return default
+
+
 def _read_enum(
     section: dict[str, object],
     *,
@@ -546,7 +577,8 @@ def _render_display_section(config: AppConfig) -> str:
         f'preview_syntax_theme = "{config.display.preview_syntax_theme}"\n'
         f'default_sort_field = "{config.display.default_sort_field}"\n'
         f"default_sort_descending = {_render_bool(config.display.default_sort_descending)}\n"
-        f"directories_first = {_render_bool(config.display.directories_first)}"
+        f"directories_first = {_render_bool(config.display.directories_first)}\n"
+        f"grep_preview_context_lines = {config.display.grep_preview_context_lines}"
     )
 
 

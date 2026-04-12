@@ -45,6 +45,7 @@ def test_loader_creates_default_config_when_missing(tmp_path) -> None:
     assert "enabled = true" in written
     assert 'path = ""' in written
     assert '# paths = ["/home/user/src", "/home/user/docs"]' in written
+    assert "grep_preview_context_lines = 3" in written
 
 
 def test_loader_reads_valid_config_values(tmp_path) -> None:
@@ -66,6 +67,7 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
         default_sort_field = "modified"
         default_sort_descending = true
         directories_first = false
+        grep_preview_context_lines = 5
 
         [behavior]
         confirm_delete = false
@@ -95,6 +97,7 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
     assert result.config.display.default_sort_field == "modified"
     assert result.config.display.default_sort_descending is True
     assert result.config.display.directories_first is False
+    assert result.config.display.grep_preview_context_lines == 5
     assert result.config.behavior.confirm_delete is False
     assert result.config.behavior.paste_conflict_action == "rename"
     assert result.config.logging.enabled is False
@@ -119,6 +122,7 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
         theme = "bad-theme"
         preview_syntax_theme = "bad-preview-style"
         default_sort_field = "invalid"
+        grep_preview_context_lines = -1
 
         [behavior]
         confirm_delete = "yes"
@@ -149,7 +153,7 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
     assert result.config.logging.enabled is True
     assert result.config.logging.path is None
     assert result.config.bookmarks.paths == ()
-    assert len(result.warnings) == 13
+    assert len(result.warnings) == 14
 
 
 def test_loader_warns_for_invalid_editor_command_syntax(tmp_path) -> None:
@@ -188,6 +192,7 @@ def test_config_save_service_writes_normalized_config_file(tmp_path) -> None:
                 default_sort_field="size",
                 default_sort_descending=True,
                 directories_first=False,
+                grep_preview_context_lines=7,
             ),
             behavior=BehaviorConfig(
                 confirm_delete=False,
@@ -218,6 +223,7 @@ def test_config_save_service_writes_normalized_config_file(tmp_path) -> None:
     assert "enabled = false" in written
     assert 'path = "/tmp/peneo-errors.log"' in written
     assert 'paths = ["/tmp/project", "/tmp/docs"]' in written
+    assert "grep_preview_context_lines = 7" in written
 
 
 def test_loader_accepts_all_supported_builtin_themes(tmp_path) -> None:
@@ -270,3 +276,38 @@ def test_loader_treats_blank_logging_path_as_default(tmp_path) -> None:
 
     assert result.config.logging.enabled is True
     assert result.config.logging.path is None
+
+
+def test_loader_rejects_non_integer_grep_preview_context_lines(tmp_path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+        [display]
+        grep_preview_context_lines = "many"
+        """,
+        encoding="utf-8",
+    )
+
+    result = AppConfigLoader(config_path_resolver=lambda: config_path).load()
+
+    assert result.config.display.grep_preview_context_lines == 3
+    assert any(
+        "display.grep_preview_context_lines must be an integer" in w
+        for w in result.warnings
+    )
+
+
+def test_loader_accepts_zero_grep_preview_context_lines(tmp_path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+        [display]
+        grep_preview_context_lines = 0
+        """,
+        encoding="utf-8",
+    )
+
+    result = AppConfigLoader(config_path_resolver=lambda: config_path).load()
+
+    assert result.warnings == ()
+    assert result.config.display.grep_preview_context_lines == 0

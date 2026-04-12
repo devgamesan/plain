@@ -41,6 +41,7 @@ class DisplayConfig:
     default_sort_field: ConfigSortField = "name"
     default_sort_descending: bool = False
     directories_first: bool = True
+    grep_preview_context_lines: int = 3
 
 
 @dataclass(frozen=True)

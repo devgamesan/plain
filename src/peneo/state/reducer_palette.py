@@ -87,7 +87,6 @@ from .reducer_common import (
 )
 from .selectors import select_target_paths, select_visible_current_entry_states
 
-GREP_PREVIEW_CONTEXT_LINES = 3
 _GREP_SEARCH_FIELDS: tuple[GrepSearchFieldId, ...] = ("keyword", "include", "exclude")
 _EXTENSION_SEPARATOR_RE = re.compile(r"[\s,]+")
 _VALID_EXTENSION_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*")
@@ -1259,7 +1258,7 @@ def _sync_grep_preview(state: AppState) -> ReduceResult:
             current_path=state.current_path,
             cursor_path=selected_result.path,
             grep_result=selected_result,
-            grep_context_lines=GREP_PREVIEW_CONTEXT_LINES,
+            grep_context_lines=state.config.display.grep_preview_context_lines,
         ),
     )
 

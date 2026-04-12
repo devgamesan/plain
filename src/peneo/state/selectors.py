@@ -56,6 +56,18 @@ MIN_CURRENT_PANE_VISIBLE_WINDOW = 5
 _CURRENT_PANE_OVERHEAD_ROWS = 9
 
 
+def _select_active_app_theme(state: AppState) -> str:
+    if state.ui_mode == "CONFIG" and state.config_editor is not None:
+        return state.config_editor.draft.display.theme
+    return state.config.display.theme
+
+
+def _select_active_preview_syntax_theme(state: AppState) -> str:
+    if state.ui_mode == "CONFIG" and state.config_editor is not None:
+        return state.config_editor.draft.display.preview_syntax_theme
+    return state.config.display.preview_syntax_theme
+
+
 def _format_tab_label(path: str) -> str:
     resolved = Path(path).expanduser()
     home = Path("~").expanduser()
@@ -189,8 +201,8 @@ def _select_child_pane_for_cursor(
     cursor_entry: DirectoryEntryState | None,
 ) -> ChildPaneViewState:
     syntax_theme = _select_child_syntax_theme(
-        state.config.display.theme,
-        state.config.display.preview_syntax_theme,
+        _select_active_app_theme(state),
+        _select_active_preview_syntax_theme(state),
     )
     permissions_label = (
         _format_permissions_detail_label(cursor_entry)

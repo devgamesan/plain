@@ -171,6 +171,26 @@ async def _wait_for_status_message(app, expected_text: str, timeout: float = 0.5
         await asyncio.sleep(0.01)
 
 
+async def _wait_for_app_theme(app, expected_theme: str, timeout: float = 0.5) -> None:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        if app.theme == expected_theme:
+            return
+        if asyncio.get_running_loop().time() >= deadline:
+            raise AssertionError(f"app theme did not become {expected_theme!r}")
+        await asyncio.sleep(0.01)
+
+
+async def _wait_for_predicate(predicate, *, timeout: float = 0.5, message: str) -> None:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        if predicate():
+            return
+        if asyncio.get_running_loop().time() >= deadline:
+            raise AssertionError(message)
+        await asyncio.sleep(0.01)
+
+
 async def _wait_for_current_path_bar(app, timeout: float = 0.5) -> CurrentPathBar:
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
@@ -3634,6 +3654,8 @@ async def test_app_config_dialog_save_updates_theme(monkeypatch) -> None:
         parent_pane = app.query_one("#parent-pane", SidePane)
         child_pane = app.query_one("#child-pane", ChildPane)
         current_pane = app.query_one("#current-pane", MainPane)
+        initial_parent_style = parent_pane.get_component_rich_style("ft-directory-sel")
+        initial_table_style = current_pane.get_component_rich_style("ft-directory-sel-table")
         refresh_calls = {"parent": 0, "current": 0, "child": 0}
 
         original_parent_refresh = parent_pane.refresh_styles
@@ -3664,6 +3686,14 @@ async def test_app_config_dialog_save_updates_theme(monkeypatch) -> None:
 
         await pilot.press("down")
         await pilot.press("enter")
+        await _wait_for_app_theme(app, "textual-light")
+        await _wait_for_predicate(
+            lambda: refresh_calls == {"parent": 1, "current": 1, "child": 1},
+            message="theme preview did not refresh pane styles",
+        )
+
+        assert app.app_state.config.display.theme == "textual-dark"
+
         await pilot.press("s")
         await _wait_for_notification_message(app, "Config saved: /tmp/peneo/config.toml")
 
@@ -3681,9 +3711,114 @@ async def test_app_config_dialog_save_updates_theme(monkeypatch) -> None:
 
         assert refresh_calls == {"parent": 1, "current": 1, "child": 1}
         assert isinstance(parent_renderable, Text)
+        assert updated_parent_style != initial_parent_style
         assert _text_has_style(parent_renderable, _style_without_background(updated_parent_style))
         assert isinstance(first_row[0], Text)
+        assert updated_table_style != initial_table_style
         assert _text_style_matches(first_row[0], _style_without_background(updated_table_style))
+
+
+@pytest.mark.asyncio
+async def test_app_config_dialog_dismiss_restores_theme_preview() -> None:
+    path = "/tmp/peneo-command-palette-theme-dismiss"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file", size_bytes=120),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(
+        snapshot_loader=loader,
+        config_path="/tmp/peneo/config.toml",
+        initial_path=path,
+    )
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await pilot.press("c", "o", "n", "f", "i", "g")
+        await pilot.press("enter")
+        await _wait_for_config_dialog(app)
+
+        await pilot.press("down")
+        await pilot.press("enter")
+        await _wait_for_app_theme(app, "textual-light")
+
+        assert app.app_state.config.display.theme == "textual-dark"
+
+        await pilot.press("escape")
+        await _wait_for_app_theme(app, "textual-dark")
+
+        assert app.app_state.ui_mode == "BROWSING"
+        assert app.app_state.config.display.theme == "textual-dark"
+
+
+@pytest.mark.asyncio
+async def test_app_config_dialog_theme_preview_updates_auto_syntax_theme() -> None:
+    path = "/tmp/peneo-command-palette-theme-preview"
+    preview_path = f"{path}/README.md"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: BrowserSnapshot(
+                current_path=path,
+                parent_pane=PaneState(
+                    directory_path="/tmp",
+                    entries=(DirectoryEntryState(path, Path(path).name, "dir"),),
+                    cursor_path=path,
+                ),
+                current_pane=PaneState(
+                    directory_path=path,
+                    entries=(
+                        DirectoryEntryState(
+                            preview_path,
+                            "README.md",
+                            "file",
+                            size_bytes=120,
+                        ),
+                    ),
+                    cursor_path=preview_path,
+                ),
+                child_pane=PaneState(
+                    directory_path=path,
+                    entries=(),
+                    mode="preview",
+                    preview_path=preview_path,
+                    preview_title="Preview: README.md",
+                    preview_content="# heading\nbody\n",
+                ),
+            )
+        }
+    )
+    app = create_app(
+        snapshot_loader=loader,
+        config_path="/tmp/peneo/config.toml",
+        initial_path=path,
+    )
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        assert select_shell_data(app.app_state).child_pane.syntax_theme == "monokai"
+
+        await pilot.press(":")
+        await pilot.press("c", "o", "n", "f", "i", "g")
+        await pilot.press("enter")
+        await _wait_for_config_dialog(app)
+        await pilot.press("down")
+        await pilot.press("enter")
+        await _wait_for_app_theme(app, "textual-light")
+
+        assert select_shell_data(app.app_state).child_pane.syntax_theme == "friendly"
+
+        await pilot.press("escape")
+        await _wait_for_app_theme(app, "textual-dark")
+
+        assert select_shell_data(app.app_state).child_pane.syntax_theme == "monokai"
 
 
 @pytest.mark.asyncio
@@ -3744,6 +3879,13 @@ async def test_app_config_dialog_save_updates_preview_syntax_theme() -> None:
         for _ in range(2):
             await pilot.press("down")
         await pilot.press("enter")
+
+        assert (
+            select_shell_data(app.app_state).child_pane.syntax_theme
+            == SUPPORTED_PREVIEW_SYNTAX_THEMES[1]
+        )
+        assert app.app_state.config.display.preview_syntax_theme == "auto"
+
         await pilot.press("s")
         deadline = asyncio.get_running_loop().time() + 1.5
         while True:

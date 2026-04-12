@@ -1452,12 +1452,13 @@ def test_cycle_config_editor_value_updates_draft_and_dirty_state() -> None:
 
 
 def test_cycle_config_editor_theme_updates_draft_and_dirty_state() -> None:
+    original_state = build_initial_app_state(config_path="/tmp/peneo/config.toml")
     state = replace(
-        build_initial_app_state(config_path="/tmp/peneo/config.toml"),
+        original_state,
         ui_mode="CONFIG",
         config_editor=ConfigEditorState(
             path="/tmp/peneo/config.toml",
-            draft=build_initial_app_state().config,
+            draft=original_state.config,
             cursor_index=2,
         ),
     )
@@ -1466,6 +1467,7 @@ def test_cycle_config_editor_theme_updates_draft_and_dirty_state() -> None:
 
     assert next_state.config_editor is not None
     assert next_state.config_editor.draft.display.theme == "textual-light"
+    assert next_state.config.display.theme == "textual-dark"
     assert next_state.config_editor.dirty is True
 
 

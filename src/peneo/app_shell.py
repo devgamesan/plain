@@ -167,9 +167,12 @@ async def refresh_shell(
     await parent_pane.set_entries(shell.parent_entries)
     await child_pane.set_state(shell.child_pane)
     if theme_changed:
-        parent_pane.refresh_styles()
-        current_pane.refresh_styles()
-        child_pane.refresh_styles()
+        def _refresh_themed_panes() -> None:
+            parent_pane.refresh_styles()
+            current_pane.refresh_styles()
+            child_pane.refresh_styles()
+
+        app.call_after_refresh(_refresh_themed_panes)
     split_terminal.set_state(shell.split_terminal)
     resize_split_terminal_session(app, app_state, split_terminal_session)
     command_palette_layer.display = shell.command_palette is not None

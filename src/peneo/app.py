@@ -87,6 +87,14 @@ from peneo.ui import (
 )
 
 
+def _active_app_theme(state: AppState) -> str:
+    """Return the live theme shown in the UI, including config-editor previews."""
+
+    if state.ui_mode == "CONFIG" and state.config_editor is not None:
+        return state.config_editor.draft.display.theme
+    return state.config.display.theme
+
+
 class PeneoApp(App[None]):
     """Three-pane shell with reducer-driven file operations."""
 
@@ -332,13 +340,13 @@ class PeneoApp(App[None]):
         """Apply reducer actions, refresh the UI, and schedule any effects."""
 
         previous_state = self._app_state
+        previous_theme = _active_app_theme(previous_state)
         changed, effects = self._apply_actions(actions)
         sync_runtime_state(self, previous_state, self._app_state)
-        theme_changed = (
-            previous_state.config.display.theme != self._app_state.config.display.theme
-        )
+        next_theme = _active_app_theme(self._app_state)
+        theme_changed = previous_theme != next_theme
         if theme_changed:
-            self.theme = self._app_state.config.display.theme
+            self.theme = next_theme
         if previous_state.config != self._app_state.config:
             self._sync_external_launch_service()
         if changed or theme_changed:

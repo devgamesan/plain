@@ -1627,7 +1627,7 @@ async def test_app_cut_uses_targeted_row_updates(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_right_enters_directory_and_backspace_returns_to_parent() -> None:
+async def test_app_right_enters_directory_and_left_returns_to_parent() -> None:
     root = "/tmp/peneo-nav"
     docs = f"{root}/docs"
     root_entries = (
@@ -1674,7 +1674,7 @@ async def test_app_right_enters_directory_and_backspace_returns_to_parent() -> N
         assert app.app_state.current_path == docs
         assert current_table.cursor_row == 0
 
-        await pilot.press("backspace")
+        await pilot.press("left")
         await _wait_for_path(app, root)
         assert str(current_path_bar.renderable) == f"Current Path: {root}"
 
@@ -1684,7 +1684,7 @@ async def test_app_right_enters_directory_and_backspace_returns_to_parent() -> N
 
 
 @pytest.mark.asyncio
-async def test_app_backspace_can_move_above_initial_directory() -> None:
+async def test_app_left_can_move_above_initial_directory() -> None:
     initial_path = "/tmp/peneo-nav/deeper"
     parent_path = "/tmp/peneo-nav"
     grandparent_path = "/tmp"
@@ -1746,7 +1746,7 @@ async def test_app_backspace_can_move_above_initial_directory() -> None:
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, initial_path)
-        await pilot.press("backspace")
+        await pilot.press("left")
         await _wait_for_path(app, parent_path)
         await pilot.press("left")
         await _wait_for_path(app, grandparent_path)
@@ -4908,7 +4908,7 @@ async def test_app_main_flow_round_trip_on_live_filesystem(tmp_path) -> None:
         assert (docs_dir / "notes.txt").is_file()
         assert str(status_bar.renderable) == "info: Copied 1 item(s)"
 
-        await pilot.press("backspace")
+        await pilot.press("left")
         await _wait_for_path(app, str(tmp_path))
         await _wait_for_row_count(app, 4)
 

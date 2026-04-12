@@ -543,14 +543,6 @@ def test_browsing_e_on_directory_warns() -> None:
     )
 
 
-def test_browsing_backspace_goes_to_parent_directory() -> None:
-    state = build_initial_app_state()
-
-    actions = dispatch_key_input(state, key="backspace")
-
-    assert actions == (SetNotification(None), GoToParentDirectory())
-
-
 def test_browsing_capital_R_reloads_current_directory() -> None:
     state = build_initial_app_state()
 

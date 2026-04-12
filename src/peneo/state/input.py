@@ -125,7 +125,6 @@ BROWSING_KEYMAP = {
     "escape": "clear_selection",
     "/": "begin_filter",
     "left": "go_to_parent",
-    "backspace": "go_to_parent",
     "h": "go_to_parent",
     "R": "reload_directory",
     "q": "exit_current_path",

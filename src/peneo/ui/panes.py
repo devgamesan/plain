@@ -441,6 +441,8 @@ class MainPane(Vertical):
     def on_resize(self, _event: events.Resize) -> None:
         self._refresh_table_width()
 
+    # -- Public state updates ---------------------------------------------------
+
     def set_entries(
         self,
         entries: Sequence[PaneEntry],
@@ -466,6 +468,8 @@ class MainPane(Vertical):
         if entries_changed or cursor_changed:
             self._apply_cursor_state(table)
 
+    # -- Cursor management ------------------------------------------------------
+
     def set_cursor_state(
         self,
         cursor_index: int | None,
@@ -486,6 +490,21 @@ class MainPane(Vertical):
         self._apply_cursor_state(table)
         self.call_after_refresh(self._refresh_cursor_state)
 
+    def _sync_cursor(self, table: DataTable) -> None:
+        if not self._entries or self._cursor_index is None:
+            return
+        clamped_index = max(0, min(len(self._entries) - 1, self._cursor_index))
+        table.move_cursor(row=clamped_index, animate=False, scroll=True)
+
+    def _apply_cursor_state(self, table: DataTable) -> None:
+        table.show_cursor = self._cursor_visible
+        self._sync_cursor(table)
+
+    def _refresh_cursor_state(self) -> None:
+        self._apply_cursor_state(self.query_one(DataTable))
+
+    # -- Context input / summary ------------------------------------------------
+
     def set_context_input(self, state: InputBarState | None) -> None:
         """Update the contextual input line without remounting the pane."""
 
@@ -503,6 +522,8 @@ class MainPane(Vertical):
 
         self._summary = state
         self.query_one(SummaryBar).set_state(state)
+
+    # -- Incremental updates ----------------------------------------------------
 
     def apply_size_updates(self, updates: Sequence[CurrentPaneSizeUpdate]) -> None:
         """Update only the size cells for the supplied paths."""
@@ -529,18 +550,7 @@ class MainPane(Vertical):
         table = self.query_one(DataTable)
         for row_key, entry in changed_rows:
             try:
-                table.update_cell(
-                    row_key,
-                    "size",
-                    self._render_cell(
-                        entry.size_label,
-                        entry.selected,
-                        entry.cut,
-                        entry.executable,
-                        entry.kind,
-                        entry.symlink,
-                    ),
-                )
+                table.update_cell(row_key, "size", self._render_cell(entry.size_label, entry))
             except KeyError:
                 continue
 
@@ -579,18 +589,7 @@ class MainPane(Vertical):
                 except KeyError:
                     continue
 
-    def _sync_cursor(self, table: DataTable) -> None:
-        if not self._entries or self._cursor_index is None:
-            return
-        clamped_index = max(0, min(len(self._entries) - 1, self._cursor_index))
-        table.move_cursor(row=clamped_index, animate=False, scroll=True)
-
-    def _apply_cursor_state(self, table: DataTable) -> None:
-        table.show_cursor = self._cursor_visible
-        self._sync_cursor(table)
-
-    def _refresh_cursor_state(self) -> None:
-        self._apply_cursor_state(self.query_one(DataTable))
+    # -- Table building ---------------------------------------------------------
 
     def _refresh_table_width(self) -> None:
         table = self.query_one(DataTable)
@@ -656,6 +655,8 @@ class MainPane(Vertical):
             )
         self._last_table_width = table.size.width
 
+    # -- Row / cell helpers -----------------------------------------------------
+
     @classmethod
     def _entry_row_keys(cls, entries: Sequence[PaneEntry]) -> tuple[str, ...]:
         return tuple(cls._row_key(entry, index) for index, entry in enumerate(entries))
@@ -671,46 +672,33 @@ class MainPane(Vertical):
         column_widths: dict[str, int],
     ) -> tuple[Text, Text, Text, Text]:
         return (
-            cls._render_cell(
-                entry.selection_marker,
-                entry.selected,
-                entry.cut,
-                entry.executable,
-                entry.kind,
-                entry.symlink,
-            ),
+            cls._render_cell(entry.selection_marker, entry),
             cls._render_cell(
                 truncate_middle(build_entry_label(entry), column_widths["name"]),
-                entry.selected,
-                entry.cut,
-                entry.executable,
-                entry.kind,
-                entry.symlink,
+                entry,
             ),
-            cls._render_cell(
-                entry.size_label,
-                entry.selected,
-                entry.cut,
-                entry.executable,
-                entry.kind,
-                entry.symlink,
-            ),
-            cls._render_cell(
-                entry.modified_label,
-                entry.selected,
-                entry.cut,
-                entry.executable,
-                entry.kind,
-                entry.symlink,
-            ),
+            cls._render_cell(entry.size_label, entry),
+            cls._render_cell(entry.modified_label, entry),
         )
+
+    # -- Column layout ----------------------------------------------------------
 
     @classmethod
     def _allocate_column_widths(cls, table: DataTable) -> dict[str, int]:
         column_count = len(cls.COLUMN_LABELS)
         padding_width = column_count * table.cell_padding * 2
         available_content_width = max(1, table.size.width - padding_width)
+        fixed_widths = cls._shrink_fixed_columns(available_content_width)
+        name_width = max(1, available_content_width - sum(fixed_widths.values()))
+        return {
+            "sel": fixed_widths["sel"],
+            "name": name_width,
+            "size": fixed_widths["size"],
+            "modified": fixed_widths["modified"],
+        }
 
+    @classmethod
+    def _shrink_fixed_columns(cls, available_content_width: int) -> dict[str, int]:
         fixed_widths = dict(cls.FIXED_COLUMN_PREFERRED_WIDTHS)
         fixed_budget = max(0, available_content_width - cls.NAME_MIN_WIDTH)
         overflow = sum(fixed_widths.values()) - fixed_budget
@@ -727,56 +715,39 @@ class MainPane(Vertical):
         if sum(fixed_widths.values()) + cls.NAME_MIN_WIDTH > available_content_width:
             fixed_widths = dict(cls.FIXED_COLUMN_MIN_WIDTHS)
 
-        name_width = max(1, available_content_width - sum(fixed_widths.values()))
-        return {
-            "sel": fixed_widths["sel"],
-            "name": name_width,
-            "size": fixed_widths["size"],
-            "modified": fixed_widths["modified"],
-        }
+        return fixed_widths
+
+    # -- Style / rendering ------------------------------------------------------
 
     @classmethod
-    def _render_cell(
-        cls,
-        value: str,
-        selected: bool,
-        cut: bool,
-        executable: bool = False,
-        kind: str | None = None,
-        symlink: bool = False,
-    ) -> Text:
-        # カット状態が最優先
-        if cut:
-            if symlink:
-                return Text(value, style=cls.SYMLINK_CUT_STYLE)
-            if kind == "dir":
-                return Text(value, style=cls.DIRECTORY_CUT_STYLE)
-            if executable:
-                return Text(value, style=cls.EXECUTABLE_CUT_STYLE)
-            if selected:
-                return Text(value, style=cls.SELECTED_CUT_STYLE)
-            return Text(value, style=cls.CUT_STYLE)
+    def _entry_style(cls, entry: PaneEntry) -> str | None:
+        if entry.cut:
+            if entry.symlink:
+                return cls.SYMLINK_CUT_STYLE
+            if entry.kind == "dir":
+                return cls.DIRECTORY_CUT_STYLE
+            if entry.executable:
+                return cls.EXECUTABLE_CUT_STYLE
+            if entry.selected:
+                return cls.SELECTED_CUT_STYLE
+            return cls.CUT_STYLE
+        if entry.symlink:
+            if entry.selected:
+                return cls.SYMLINK_SELECTED_STYLE
+            return cls.SYMLINK_STYLE
+        if entry.kind == "dir":
+            if entry.selected:
+                return cls.DIRECTORY_SELECTED_STYLE
+            return cls.DIRECTORY_STYLE
+        if entry.executable:
+            if entry.selected:
+                return cls.EXECUTABLE_SELECTED_STYLE
+            return cls.EXECUTABLE_STYLE
+        if entry.selected:
+            return cls.SELECTED_STYLE
+        return None
 
-        # シンボリックリンク
-        if symlink:
-            if selected:
-                return Text(value, style=cls.SYMLINK_SELECTED_STYLE)
-            return Text(value, style=cls.SYMLINK_STYLE)
-
-        # ディレクトリ（実行権限に関わらずディレクトリ色を優先）
-        if kind == "dir":
-            if selected:
-                return Text(value, style=cls.DIRECTORY_SELECTED_STYLE)
-            return Text(value, style=cls.DIRECTORY_STYLE)
-
-        # 実行権限付きファイル
-        if executable:
-            if selected:
-                return Text(value, style=cls.EXECUTABLE_SELECTED_STYLE)
-            return Text(value, style=cls.EXECUTABLE_STYLE)
-
-        # 選択状態
-        if selected:
-            return Text(value, style=cls.SELECTED_STYLE)
-
-        return Text(value)
+    @classmethod
+    def _render_cell(cls, value: str, entry: PaneEntry) -> Text:
+        style = cls._entry_style(entry)
+        return Text(value) if style is None else Text(value, style=style)

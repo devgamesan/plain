@@ -1224,6 +1224,8 @@ def _config_field_value(field_index: int, config: "AppConfig") -> str:  # type: 
         return _format_bool(config.display.default_sort_descending)
     if field_id == "display.directories_first":
         return _format_bool(config.display.directories_first)
+    if field_id == "display.grep_preview_context_lines":
+        return str(config.display.grep_preview_context_lines)
     if field_id == "behavior.confirm_delete":
         return _format_bool(config.behavior.confirm_delete)
     if field_id == "behavior.paste_conflict_action":

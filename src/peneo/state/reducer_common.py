@@ -739,6 +739,16 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
                 directories_first=not config.display.directories_first,
             ),
         )
+    if field_id == "display.grep_preview_context_lines":
+        return replace(
+            config,
+            display=replace(
+                config.display,
+                grep_preview_context_lines=max(
+                    0, config.display.grep_preview_context_lines + delta
+                ),
+            ),
+        )
     if field_id == "behavior.confirm_delete":
         return replace(
             config,
@@ -797,6 +807,7 @@ def config_editor_field_ids() -> tuple[str, ...]:
         "display.default_sort_field",
         "display.default_sort_descending",
         "display.directories_first",
+        "display.grep_preview_context_lines",
         "behavior.confirm_delete",
         "behavior.paste_conflict_action",
         "logging.level",
@@ -815,6 +826,7 @@ def config_editor_labels() -> tuple[str, ...]:
         "Default sort field",
         "Default sort descending",
         "Directories first",
+        "Grep preview context lines",
         "Confirm delete",
         "Paste conflict action",
         "Log level",
@@ -823,10 +835,10 @@ def config_editor_labels() -> tuple[str, ...]:
 
 CONFIG_EDITOR_CATEGORIES: tuple[tuple[str, tuple[int, ...]], ...] = (
     ("External", (0,)),
-    ("Display", (2, 5, 1, 3, 4, 6)),
+    ("Display", (2, 5, 1, 3, 4, 6, 10)),
     ("Sorting", (7, 8, 9)),
-    ("Behavior", (10, 11)),
-    ("Logging", (12,)),
+    ("Behavior", (11, 12)),
+    ("Logging", (13,)),
 )
 
 

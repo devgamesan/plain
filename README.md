@@ -443,6 +443,20 @@ The accepted `display.preview_syntax_theme` values are `auto` plus the Pygments 
 - Implementation structure: [docs/architecture.en.md](docs/architecture.en.md)
 - Performance notes: [docs/performance.en.md](docs/performance.en.md)
 
+## License
+
+zivo is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+### Third-Party Licenses
+
+zivo depends on third-party packages. For a complete list of dependencies and their licenses, see [NOTICE.txt](NOTICE.txt).
+
+To update NOTICE.txt after dependency changes:
+
+```bash
+uv run pip-licenses --format=plain --from=mixed --with-urls --output-file NOTICE.txt
+```
+
 ## Development
 
 To prepare the development environment:

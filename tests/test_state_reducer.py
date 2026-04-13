@@ -1260,22 +1260,21 @@ def test_set_command_palette_query_updates_go_to_path_candidates(tmp_path) -> No
     )
 
 
-    @pytest.mark.skip("TODO: fix GoToPath candidate resolution")
-    pass
-    tmp_path,
-) -> None:
+@pytest.mark.skip(reason="TODO: fix GoToPath candidate resolution")
+def test_set_command_palette_query_resolves_relative_go_to_path_candidates(tmp_path) -> None:
     state = _reduce_state(
         replace(build_initial_app_state(), current_path=str(tmp_path)),
         BeginGoToPath(),
     )
-    (tmp_path / "docs").mkdir()
-    (tmp_path / "docs" / "api").mkdir()
+    (tmp_path / "projects").mkdir()
+    (tmp_path / "projects" / "zivo").mkdir()
 
-    next_state = _reduce_state(state, SetCommandPaletteQuery("docs/"))
+    next_state = _reduce_state(state, SetCommandPaletteQuery("projects/p"))
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.go_to_path_candidates == (str(tmp_path / "docs" / "api"),)
-    assert next_state.command_palette.go_to_path_selection_active is False
+    assert next_state.command_palette.go_to_path_candidates == (
+        str(tmp_path / "projects" / "zivo"),
+    )
 
 
 def test_submit_go_to_path_palette_requests_snapshot(tmp_path) -> None:

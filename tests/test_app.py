@@ -919,7 +919,7 @@ async def test_app_live_snapshot_highlights_current_directory_in_parent_pane(tmp
 
 
 @pytest.mark.asyncio
- @pytest.mark.skip("TODO: fix parent snapshot data")
+@pytest.mark.skip(reason="TODO: fix parent snapshot data")
 async def test_app_can_start_in_narrow_headless_mode() -> None:
     path = "/tmp/zivo-narrow"
     loader = FakeBrowserSnapshotLoader(

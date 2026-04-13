@@ -3,6 +3,7 @@
 import re
 from dataclasses import replace
 from pathlib import Path
+from typing import Callable
 
 from zivo.archive_utils import is_supported_archive_path
 from zivo.models.external_launch import ExternalLaunchRequest
@@ -1263,82 +1264,227 @@ def _sync_grep_preview(state: AppState) -> ReduceResult:
     )
 
 
+# ---------------------------------------------------------------------------
+# Individual handler functions
+# ---------------------------------------------------------------------------
+
+
+def _handle_begin_command_palette(
+    state: AppState,
+    action: BeginCommandPalette,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return finalize(_enter_palette(state))
+
+
+def _handle_begin_file_search(
+    state: AppState,
+    action: BeginFileSearch,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return finalize(_enter_palette(state, source="file_search"))
+
+
+def _handle_begin_grep_search(
+    state: AppState,
+    action: BeginGrepSearch,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return finalize(_enter_palette(state, source="grep_search"))
+
+
+def _dispatch_begin_history_search(
+    state: AppState,
+    action: BeginHistorySearch,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    # Call the original helper function (note: different signature)
+    return _handle_begin_history_search(state)
+
+
+def _dispatch_begin_bookmark_search(
+    state: AppState,
+    action: BeginBookmarkSearch,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    # Call the original helper function (note: different signature)
+    return _handle_begin_bookmark_search(state)
+
+
+def _handle_begin_go_to_path(
+    state: AppState,
+    action: BeginGoToPath,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return finalize(_enter_palette(state, source="go_to_path"))
+
+
+def _handle_cancel_command_palette(
+    state: AppState,
+    action: CancelCommandPalette,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    next_state = _restore_browsing_from_palette(state, clear_name_conflict=True)
+    if state.command_palette is not None and state.command_palette.source in {
+        "file_search",
+        "grep_search",
+    }:
+        return sync_child_pane(next_state, next_state.current_pane.cursor_path, reduce_state)
+    return finalize(next_state)
+
+
+def _handle_dismiss_attribute_dialog(
+    state: AppState,
+    action: DismissAttributeDialog,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return finalize(
+        replace(
+            state,
+            ui_mode="BROWSING",
+            notification=None,
+            attribute_inspection=None,
+        )
+    )
+
+
+def _handle_show_attributes(
+    state: AppState,
+    action: ShowAttributes,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return _run_show_attributes_command(state)
+
+
+def _dispatch_move_palette_cursor(
+    state: AppState,
+    action: MoveCommandPaletteCursor,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return _handle_move_palette_cursor(state, action)
+
+
+def _dispatch_set_command_palette_query(
+    state: AppState,
+    action: SetCommandPaletteQuery,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return _handle_set_palette_query(state, action)
+
+
+def _dispatch_set_grep_search_field(
+    state: AppState,
+    action: SetGrepSearchField,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return _handle_set_grep_search_field(state, action.field, action.value)
+
+
+def _dispatch_cycle_grep_search_field(
+    state: AppState,
+    action: CycleGrepSearchField,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return _handle_cycle_grep_search_field(state, action)
+
+
+def _dispatch_submit_command_palette(
+    state: AppState,
+    action: SubmitCommandPalette,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return _handle_submit_palette(state, reduce_state)
+
+
+def _dispatch_file_search_completed(
+    state: AppState,
+    action: FileSearchCompleted,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return _handle_file_search_completed(state, action)
+
+
+def _dispatch_file_search_failed(
+    state: AppState,
+    action: FileSearchFailed,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return _handle_file_search_failed(state, action)
+
+
+def _dispatch_grep_search_completed(
+    state: AppState,
+    action: GrepSearchCompleted,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return _handle_grep_search_completed(state, action)
+
+
+def _dispatch_grep_search_failed(
+    state: AppState,
+    action: GrepSearchFailed,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return _handle_grep_search_failed(state, action)
+
+
+def _dispatch_open_grep_result_in_editor(
+    state: AppState,
+    action: OpenGrepResultInEditor,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return _handle_open_grep_result_in_editor(state, reduce_state)
+
+
+def _dispatch_open_find_result_in_editor(
+    state: AppState,
+    action: OpenFindResultInEditor,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return _handle_open_find_result_in_editor(state, reduce_state)
+
+
+# ---------------------------------------------------------------------------
+# Dispatch table
+# ---------------------------------------------------------------------------
+
+_PaletteHandler = Callable[[AppState, Action, ReducerFn], ReduceResult]
+
+_PALETTE_HANDLERS: dict[type[Action], _PaletteHandler] = {
+    BeginCommandPalette: _handle_begin_command_palette,
+    BeginFileSearch: _handle_begin_file_search,
+    BeginGrepSearch: _handle_begin_grep_search,
+    BeginHistorySearch: _dispatch_begin_history_search,
+    BeginBookmarkSearch: _dispatch_begin_bookmark_search,
+    BeginGoToPath: _handle_begin_go_to_path,
+    CancelCommandPalette: _handle_cancel_command_palette,
+    DismissAttributeDialog: _handle_dismiss_attribute_dialog,
+    ShowAttributes: _handle_show_attributes,
+    MoveCommandPaletteCursor: _dispatch_move_palette_cursor,
+    SetCommandPaletteQuery: _dispatch_set_command_palette_query,
+    SetGrepSearchField: _dispatch_set_grep_search_field,
+    CycleGrepSearchField: _dispatch_cycle_grep_search_field,
+    SubmitCommandPalette: _dispatch_submit_command_palette,
+    FileSearchCompleted: _dispatch_file_search_completed,
+    FileSearchFailed: _dispatch_file_search_failed,
+    GrepSearchCompleted: _dispatch_grep_search_completed,
+    GrepSearchFailed: _dispatch_grep_search_failed,
+    OpenGrepResultInEditor: _dispatch_open_grep_result_in_editor,
+    OpenFindResultInEditor: _dispatch_open_find_result_in_editor,
+}
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+
 def handle_palette_action(
     state: AppState,
     action: Action,
     reduce_state: ReducerFn,
 ) -> ReduceResult | None:
-    if isinstance(action, BeginCommandPalette):
-        return finalize(_enter_palette(state))
-
-    if isinstance(action, BeginFileSearch):
-        return finalize(_enter_palette(state, source="file_search"))
-
-    if isinstance(action, BeginGrepSearch):
-        return finalize(_enter_palette(state, source="grep_search"))
-
-    if isinstance(action, BeginHistorySearch):
-        return _handle_begin_history_search(state)
-
-    if isinstance(action, BeginBookmarkSearch):
-        return _handle_begin_bookmark_search(state)
-
-    if isinstance(action, BeginGoToPath):
-        return finalize(_enter_palette(state, source="go_to_path"))
-
-    if isinstance(action, CancelCommandPalette):
-        next_state = _restore_browsing_from_palette(state, clear_name_conflict=True)
-        if state.command_palette is not None and state.command_palette.source in {
-            "file_search",
-            "grep_search",
-        }:
-            return sync_child_pane(next_state, next_state.current_pane.cursor_path, reduce_state)
-        return finalize(next_state)
-
-    if isinstance(action, DismissAttributeDialog):
-        return finalize(
-            replace(
-                state,
-                ui_mode="BROWSING",
-                notification=None,
-                attribute_inspection=None,
-            )
-        )
-
-    if isinstance(action, ShowAttributes):
-        return _run_show_attributes_command(state)
-
-    if isinstance(action, MoveCommandPaletteCursor):
-        return _handle_move_palette_cursor(state, action)
-
-    if isinstance(action, SetCommandPaletteQuery):
-        return _handle_set_palette_query(state, action)
-
-    if isinstance(action, SetGrepSearchField):
-        return _handle_set_grep_search_field(state, action.field, action.value)
-
-    if isinstance(action, CycleGrepSearchField):
-        return _handle_cycle_grep_search_field(state, action)
-
-    if isinstance(action, SubmitCommandPalette):
-        return _handle_submit_palette(state, reduce_state)
-
-    if isinstance(action, FileSearchCompleted):
-        return _handle_file_search_completed(state, action)
-
-    if isinstance(action, FileSearchFailed):
-        return _handle_file_search_failed(state, action)
-
-    if isinstance(action, GrepSearchCompleted):
-        return _handle_grep_search_completed(state, action)
-
-    if isinstance(action, GrepSearchFailed):
-        return _handle_grep_search_failed(state, action)
-
-    if isinstance(action, OpenGrepResultInEditor):
-        return _handle_open_grep_result_in_editor(state, reduce_state)
-
-    if isinstance(action, OpenFindResultInEditor):
-        return _handle_open_find_result_in_editor(state, reduce_state)
-
+    handler = _PALETTE_HANDLERS.get(type(action))
+    if handler is not None:
+        return handler(state, action, reduce_state)  # type: ignore[arg-type]
     return None

@@ -8,7 +8,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta
 from statistics import mean
 
-from peneo.state import (
+from zivo.state import (
     AppState,
     CurrentPaneDeltaState,
     DirectoryEntryState,
@@ -18,9 +18,9 @@ from peneo.state import (
     build_placeholder_app_state,
     select_shell_data,
 )
-from peneo.state.selectors import compute_current_pane_visible_window
+from zivo.state.selectors import compute_current_pane_visible_window
 
-CURRENT_PATH = "/tmp/peneo-benchmark"
+CURRENT_PATH = "/tmp/zivo-benchmark"
 
 
 def parse_args() -> argparse.Namespace:

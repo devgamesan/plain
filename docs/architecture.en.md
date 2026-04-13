@@ -1,6 +1,6 @@
-# Peneo Architecture Overview
+# zivo Architecture Overview
 
-This document gives a high-level view of the current implementation structure of `Peneo`.  
+This document gives a high-level view of the current implementation structure of `zivo`.  
 It describes the actual responsibilities and data flow that exist in the codebase as of `2026-04-02`, not the full MVP vision.
 
 ## 1. Principles
@@ -22,13 +22,13 @@ Actual UI refresh stays confined to selector-produced view models plus `app_shel
 
 ```mermaid
 flowchart LR
-    subgraph UI["UI (`src/peneo/app.py`, `src/peneo/app_shell.py`, `src/peneo/ui`)"]
-        App["PeneoApp"]
+    subgraph UI["UI (`src/zivo/app.py`, `src/zivo/app_shell.py`, `src/zivo/ui`)"]
+        App["zivoApp"]
         Shell["app_shell.py\nwidget mount / refresh / focus"]
         Widgets["TabBar / CurrentPathBar / MainPane / SidePane / CommandPalette / ConflictDialog / AttributeDialog / ConfigDialog / SplitTerminalPane / HelpBar / StatusBar"]
     end
 
-    subgraph State["State (`src/peneo/state`)"]
+    subgraph State["State (`src/zivo/state`)"]
         Input["input.py\nkey input dispatcher"]
         Actions["actions.py\nAction definitions"]
         Reducer["reducer.py\ndispatch entrypoint"]
@@ -42,12 +42,12 @@ flowchart LR
         Palette["command_palette.py\npalette item builder"]
     end
 
-    subgraph Runtime["Runtime (`src/peneo/app_runtime.py`)"]
+    subgraph Runtime["Runtime (`src/zivo/app_runtime.py`)"]
         RuntimeMain["effect scheduling / worker tracking"]
         Debounce["debounce and cancel for file search / grep / directory size"]
     end
 
-    subgraph Services["Services (`src/peneo/services`)"]
+    subgraph Services["Services (`src/zivo/services`)"]
         Snapshot["browser_snapshot.py"]
         Search["file_search.py / grep_search.py"]
         DirSize["directory_size.py"]
@@ -60,13 +60,13 @@ flowchart LR
         ArchiveUtils["archive_utils.py\narchive detection / destination resolution"]
     end
 
-    subgraph Adapters["Adapters (`src/peneo/adapters`)"]
+    subgraph Adapters["Adapters (`src/zivo/adapters`)"]
         FS["filesystem.py"]
         FileOps["file_operations.py"]
         External["external_launcher.py"]
     end
 
-    subgraph Display["Display / Domain models (`src/peneo/models`)"]
+    subgraph Display["Display / Domain models (`src/zivo/models`)"]
         ShellModel["shell_data.py\nThreePaneShellData"]
         Domain["config.py / file_operations.py / external_launch.py"]
     end
@@ -112,7 +112,7 @@ Search work and directory-size calculation use `app_runtime.py` for debounce and
 ```mermaid
 sequenceDiagram
     participant User as User
-    participant App as PeneoApp
+    participant App as zivoApp
     participant Input as dispatch_key_input
     participant Reducer as reduce_app_state
     participant Runtime as app_runtime
@@ -142,67 +142,67 @@ sequenceDiagram
 
 ## 4. Responsibilities Of Major Modules
 
-### `src/peneo/app.py`
+### `src/zivo/app.py`
 
-- `PeneoApp` assembles the whole application
+- `zivoApp` assembles the whole application
 - Sends Textual `Key` events into the central dispatcher
 - Passes reducer effects into `app_runtime.py`
 - Updates the UI shell from selector output
 
-### `src/peneo/app_runtime.py`
+### `src/zivo/app_runtime.py`
 
 - Chooses how each effect is scheduled as a worker
 - Manages debounce, request ids, and cancellation for file search, grep search, and directory-size work
 - Normalizes service results and exceptions into reducer-facing actions
 - Tracks longer-lived work such as snapshots and split-terminal sessions
 
-### `src/peneo/app_shell.py`
+### `src/zivo/app_shell.py`
 
 - Mounts and refreshes the widget tree for the three-pane browser, dialogs, and split terminal
 - Applies selector-generated view models to widgets
 - Handles split-terminal focus and terminal-size synchronization
 
-### `src/peneo/state/input.py`
+### `src/zivo/state/input.py`
 
 - Normalizes key input into `Action` values by mode
 - The main supported modes are `BROWSING`, `FILTER`, `RENAME`, `CREATE`, `EXTRACT`, `PALETTE`, `DETAIL`, `CONFIRM`, `CONFIG`, and `BUSY`
 - When the split terminal owns input, browser shortcuts are bypassed in favor of terminal input
 - Also absorbs compound shortcuts such as `Ctrl+f`, `Ctrl+g`, `Ctrl+o`, `Ctrl+b`, `Ctrl+j`, `Alt+Left`, `Alt+Right`, and `Alt+Home`
 
-### `src/peneo/state/reducer.py`
+### `src/zivo/state/reducer.py`
 
 - The single public update point for `AppState`
 - Acts as a thin entrypoint that delegates work to responsibility-specific reducer handlers
 
-### `src/peneo/state/reducer_navigation.py`
+### `src/zivo/state/reducer_navigation.py`
 
 - Handles directory movement, history back / forward, home navigation, reload, filter, sort, and hidden-files toggling
 - Also applies browser snapshots, child-pane snapshots, directory-size requests, and directory-size results
 
-### `src/peneo/state/reducer_mutations.py`
+### `src/zivo/state/reducer_mutations.py`
 
 - Handles selection, copy / cut / paste, undo, rename, create, trash delete, and archive-extract transitions
 - Owns paste-conflict, name-conflict, archive-confirmation, and extraction-progress state
 
-### `src/peneo/state/reducer_palette.py`
+### `src/zivo/state/reducer_palette.py`
 
 - Handles command-palette open / close, query updates, cursor movement, and execution
 - Starts derived flows such as `Find files`, `Grep search`, `History search`, `Show bookmarks`, `Go to path`, bookmark add/remove, `Show attributes`, and `Extract archive`
 - Also owns attribute-dialog dismissal and file-search / grep-search result application
 
-### `src/peneo/state/reducer_terminal_config.py`
+### `src/zivo/state/reducer_terminal_config.py`
 
 - Handles split-terminal start / stop / I/O
 - Handles config-editor edits and saves, bookmark persistence, external-app launch, and terminal-editor launch
 
-### `src/peneo/state/selectors.py`
+### `src/zivo/state/selectors.py`
 
 - Builds `ThreePaneShellData` from `AppState`
 - Applies filter, sort, and directory-size display only to the main pane, while parent and child panes remain fixed-order
 - Formats display text for the help bar, status bar, input bar, command palette, conflict dialog, attribute dialog, config dialog, and split terminal
 - Summarizes busy state, extraction progress, search errors, and notifications for the UI
 
-### `src/peneo/state/command_palette.py`
+### `src/zivo/state/command_palette.py`
 
 - Builds palette items and filters them by query
 - The default command palette includes:
@@ -233,7 +233,7 @@ sequenceDiagram
 - `go_to_path` shows matching directory candidates while the user types and lets `Tab` complete the selected one
 - `grep_search` uses separate keyword / include-extensions / exclude-extensions fields and moves focus with `Tab` / `Shift+Tab`
 
-### `src/peneo/services/`
+### `src/zivo/services/`
 
 - `browser_snapshot.py`: builds the three-pane snapshot from the real filesystem
 - `file_search.py`: handles recursive file search under the current directory
@@ -247,18 +247,18 @@ sequenceDiagram
 - `external_launcher.py`: handles default-app launch, terminal-editor launch, external-terminal launch, and path copy
 - `split_terminal.py`: starts PTY-backed split-terminal sessions, forwards I/O, and reports exit events
 
-### `src/peneo/archive_utils.py`
+### `src/zivo/archive_utils.py`
 
 - Detects supported archive formats
 - Resolves default extraction destinations and user-entered relative or absolute destination paths
 
-### `src/peneo/adapters/`
+### `src/zivo/adapters/`
 
 - `filesystem.py`: enumerates entries, reads metadata, and calculates directory sizes
 - `file_operations.py`: performs copy / move / rename / create / trash and archive-related file operations
 - `external_launcher.py`: hides OS-specific launch command differences
 
-### `src/peneo/models/` and `src/peneo/state/models.py`
+### `src/zivo/models/` and `src/zivo/state/models.py`
 
 - `models/` stores request / result / view-model types shared across services and UI
 - `state/models.py` stores reducer-owned persistent state

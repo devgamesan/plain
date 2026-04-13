@@ -118,7 +118,7 @@ jobs:
             echo "Package not available yet on TestPyPI, retrying..."
             sleep 15
           done
-          echo "Failed to install peneo==${VERSION} from TestPyPI"
+          echo "Failed to install zivo==${VERSION} from TestPyPI"
           exit 1
 
       - name: Verify installed package import
@@ -129,7 +129,7 @@ jobs:
     needs: verify-testpypi
     environment:
       name: pypi
-      url: https://pypi.org/p/peneo
+      url: https://pypi.org/p/zivo
 
     steps:
       - name: Download distribution artifacts

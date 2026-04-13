@@ -1,6 +1,6 @@
-# Peneo アーキテクチャ概要
+# zivo アーキテクチャ概要
 
-このドキュメントは、`Peneo` の現在の実装構造を俯瞰するためのものです。  
+このドキュメントは、`zivo` の現在の実装構造を俯瞰するためのものです。  
 対象は `2026-04-02` 時点でコード上に存在する責務分割とデータフローであり、MVP 構想全体ではなく現実装を説明します。
 
 ## 1. 方針
@@ -22,13 +22,13 @@ widget 側に操作分岐を持たせず、状態遷移は `state/` に寄せる
 
 ```mermaid
 flowchart LR
-    subgraph UI["UI (`src/peneo/app.py`, `src/peneo/app_shell.py`, `src/peneo/ui`)"]
-        App["PeneoApp"]
+    subgraph UI["UI (`src/zivo/app.py`, `src/zivo/app_shell.py`, `src/zivo/ui`)"]
+        App["zivoApp"]
         Shell["app_shell.py\nwidget mount / refresh / focus"]
         Widgets["TabBar / CurrentPathBar / MainPane / SidePane / CommandPalette / ConflictDialog / AttributeDialog / ConfigDialog / SplitTerminalPane / HelpBar / StatusBar"]
     end
 
-    subgraph State["State (`src/peneo/state`)"]
+    subgraph State["State (`src/zivo/state`)"]
         Input["input.py\nキー入力 dispatcher"]
         Actions["actions.py\nAction 定義"]
         Reducer["reducer.py\nハンドラ振り分け"]
@@ -42,12 +42,12 @@ flowchart LR
         Palette["command_palette.py\npalette 候補構築"]
     end
 
-    subgraph Runtime["Runtime (`src/peneo/app_runtime.py`)"]
+    subgraph Runtime["Runtime (`src/zivo/app_runtime.py`)"]
         RuntimeMain["effect scheduling / worker tracking"]
         Debounce["file search / grep / directory size の debounce と cancel"]
     end
 
-    subgraph Services["Services (`src/peneo/services`)"]
+    subgraph Services["Services (`src/zivo/services`)"]
         Snapshot["browser_snapshot.py"]
         Search["file_search.py / grep_search.py"]
         DirSize["directory_size.py"]
@@ -60,13 +60,13 @@ flowchart LR
         ArchiveUtils["archive_utils.py\narchive 判定 / 展開先解決"]
     end
 
-    subgraph Adapters["Adapters (`src/peneo/adapters`)"]
+    subgraph Adapters["Adapters (`src/zivo/adapters`)"]
         FS["filesystem.py"]
         FileOps["file_operations.py"]
         External["external_launcher.py"]
     end
 
-    subgraph Display["Display / Domain models (`src/peneo/models`)"]
+    subgraph Display["Display / Domain models (`src/zivo/models`)"]
         ShellModel["shell_data.py\nThreePaneShellData"]
         Domain["config.py / file_operations.py / external_launch.py"]
     end
@@ -112,7 +112,7 @@ flowchart LR
 ```mermaid
 sequenceDiagram
     participant User as User
-    participant App as PeneoApp
+    participant App as zivoApp
     participant Input as dispatch_key_input
     participant Reducer as reduce_app_state
     participant Runtime as app_runtime
@@ -142,67 +142,67 @@ sequenceDiagram
 
 ## 4. 主要モジュールの責務
 
-### `src/peneo/app.py`
+### `src/zivo/app.py`
 
-- `PeneoApp` がアプリ全体の組み立て役
+- `zivoApp` がアプリ全体の組み立て役
 - Textual の `Key` イベントを中央 dispatcher に流す
 - reducer が返した effect を `app_runtime.py` に橋渡しする
 - selector の結果を使って UI shell を更新する
 
-### `src/peneo/app_runtime.py`
+### `src/zivo/app_runtime.py`
 
 - effect ごとに worker 起動方法を切り替える
 - file search / grep search / directory size の debounce、request id 管理、cancel 制御を担当する
 - service の結果や例外を reducer 向け action に正規化する
 - snapshot や split terminal など長寿命処理の tracking を行う
 
-### `src/peneo/app_shell.py`
+### `src/zivo/app_shell.py`
 
 - 3 ペイン本体、dialog、split terminal を含む widget ツリーの mount / refresh を担当する
 - selector が返した view model を各 widget へ反映する
 - split terminal の focus 制御と terminal サイズ同期を行う
 
-### `src/peneo/state/input.py`
+### `src/zivo/state/input.py`
 
 - モード別にキー入力を `Action` へ正規化する
 - 現在サポートしている主なモードは `BROWSING` / `FILTER` / `RENAME` / `CREATE` / `EXTRACT` / `PALETTE` / `DETAIL` / `CONFIRM` / `CONFIG` / `BUSY`
 - split terminal が入力を持つ間は browser 用キーバインドではなく terminal 入力を優先する
 - `Ctrl+f` / `Ctrl+g` / `Ctrl+o` / `Ctrl+b` / `Ctrl+j` / `Alt+←` / `Alt+→` / `Alt+Home` などの複合キーもここで吸収する
 
-### `src/peneo/state/reducer.py`
+### `src/zivo/state/reducer.py`
 
 - `AppState` の唯一の公開更新点
 - 実処理は責務別ハンドラへ振り分ける薄いエントリポイントとして振る舞う
 
-### `src/peneo/state/reducer_navigation.py`
+### `src/zivo/state/reducer_navigation.py`
 
 - ディレクトリ移動、history 戻る / 進む、home 移動、reload、filter、sort、hidden files 切り替えを担当する
 - browser snapshot と child pane snapshot の反映、directory size request の発行と結果反映もここで扱う
 
-### `src/peneo/state/reducer_mutations.py`
+### `src/zivo/state/reducer_mutations.py`
 
 - 選択、copy / cut / paste、undo、rename、create、trash delete、archive extract の state 遷移を担当する
 - paste conflict、name conflict、archive extract confirm、進捗表示の各状態を管理する
 
-### `src/peneo/state/reducer_palette.py`
+### `src/zivo/state/reducer_palette.py`
 
 - コマンドパレットの開閉、query 更新、候補カーソル移動、実行を担当する
 - `Find files`、`Grep search`、`History search`、`Show bookmarks`、`Go to path`、bookmark add/remove、`Show attributes`、`Extract archive` などの派生フローを起動する
 - 属性ダイアログの開閉や file search / grep search の結果反映もここで扱う
 
-### `src/peneo/state/reducer_terminal_config.py`
+### `src/zivo/state/reducer_terminal_config.py`
 
 - split terminal の起動 / 終了 / 入出力を担当する
 - config editor の編集と保存、bookmark 保存、外部アプリ起動、terminal editor 起動を担当する
 
-### `src/peneo/state/selectors.py`
+### `src/zivo/state/selectors.py`
 
 - `AppState` から `ThreePaneShellData` を組み立てる
 - 中央ペインにだけ filter / sort / directory size 表示を適用し、親・子ペインは固定順で表示する
 - help bar、status bar、input bar、command palette、conflict dialog、attribute dialog、config dialog、split terminal の表示文言を整形する
 - busy 状態、extract 進捗、検索エラー、通知メッセージを UI 向けに要約する
 
-### `src/peneo/state/command_palette.py`
+### `src/zivo/state/command_palette.py`
 
 - palette 候補の構築と query フィルタリングを担当する
 - 通常 palette には次の候補がある
@@ -233,7 +233,7 @@ sequenceDiagram
 - `go_to_path` は入力中に一致するディレクトリ候補を複数表示し、`Tab` で選択候補を補完できる
 - `grep_search` は keyword / include extensions / exclude extensions の 3 フィールドを持ち、`Tab` / `Shift+Tab` で入力欄を移動する
 
-### `src/peneo/services/`
+### `src/zivo/services/`
 
 - `browser_snapshot.py`: 実 filesystem から 3 ペイン用 snapshot を構築する
 - `file_search.py`: 現在ディレクトリ以下の再帰ファイル検索を担当する
@@ -247,18 +247,18 @@ sequenceDiagram
 - `external_launcher.py`: 既定アプリ起動、terminal editor 起動、外部 terminal 起動、パスコピーを担当する
 - `split_terminal.py`: 埋め込み split terminal の PTY セッション起動、入出力、終了通知を担当する
 
-### `src/peneo/archive_utils.py`
+### `src/zivo/archive_utils.py`
 
 - 対応 archive 形式の判定を行う
 - 展開先の既定値生成と、ユーザー入力された相対 / 絶対パスの解決を担当する
 
-### `src/peneo/adapters/`
+### `src/zivo/adapters/`
 
 - `filesystem.py`: ディレクトリエントリ列挙、メタデータ取得、directory size 計算を担当する
 - `file_operations.py`: copy / move / rename / create / trash / archive 展開補助などのファイル操作を担当する
 - `external_launcher.py`: OS ごとの起動コマンド差異を吸収する
 
-### `src/peneo/models/` と `src/peneo/state/models.py`
+### `src/zivo/models/` と `src/zivo/state/models.py`
 
 - `models/` には service と UI が共有する request / result / view model を置く
 - `state/models.py` には reducer 管理下の永続 state を置く

@@ -285,14 +285,13 @@ class LiveBrowserSnapshotLoader:
                 child_entries = self._list_directory(str(child_path))
                 return PaneState(directory_path=str(child_path), entries=child_entries)
             except OSError as error:
-                if "Permission denied" in str(error):
-                    return PaneState(
-                        directory_path=str(child_path),
-                        entries=(),
-                        mode="preview",
-                        preview_message="Permission denied",
-                    )
-                raise
+                # Show permission denied message for any OS error when accessing directory
+                return PaneState(
+                    directory_path=str(child_path),
+                    entries=(),
+                    mode="preview",
+                    preview_message="Permission denied",
+                )
 
         if is_supported_archive_path(child_path):
             try:
@@ -444,14 +443,13 @@ class FakeBrowserSnapshotLoader:
 
         if key in self.child_failure_messages:
             error_message = self.child_failure_messages[key]
-            if "Permission denied" in error_message:
-                return PaneState(
-                    directory_path=current_path,
-                    entries=(),
-                    mode="preview",
-                    preview_message="Permission denied",
-                )
-            raise OSError(error_message)
+            # Show permission denied message for any error message
+            return PaneState(
+                directory_path=current_path,
+                entries=(),
+                mode="preview",
+                preview_message="Permission denied",
+            )
 
         pane = self.child_panes.get(key)
         if pane is not None:

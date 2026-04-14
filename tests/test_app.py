@@ -6,6 +6,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+
 from rich.style import Style
 from rich.text import Text
 from textual.css.query import NoMatches
@@ -56,6 +57,7 @@ from zivo.state import (
     SetTerminalHeight,
 )
 from zivo.state.selectors import (
+    _to_pane_entry,
     compute_current_pane_visible_window,
     select_command_palette_state,
     select_shell_data,
@@ -296,16 +298,27 @@ def _assert_region_vertically_centered(region, container_region, tolerance: int 
 
 
 async def _wait_for_snapshot_loaded(app, expected_path: str, timeout: float = 0.5) -> None:
+    import os
+    expected_path_resolved = os.path.realpath(expected_path)
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
+        current_path = app.app_state.current_path
+        pending_id = app.app_state.pending_browser_snapshot_request_id
+        entries = app.app_state.current_pane.entries
         if (
-            app.app_state.current_path == expected_path
-            and app.app_state.pending_browser_snapshot_request_id is None
-            and app.app_state.current_pane.entries
+            current_path == expected_path_resolved
+            and pending_id is None
+            and entries
         ):
             return
         if asyncio.get_running_loop().time() >= deadline:
-            raise AssertionError(f"snapshot did not finish for {expected_path}")
+            raise AssertionError(
+                f"snapshot did not finish for {expected_path}: "
+                f"current_path={current_path!r}, "
+                f"expected_path_resolved={expected_path_resolved!r}, "
+                f"pending_id={pending_id!r}, "
+                f"entries_count={len(entries) if entries else 0}"
+            )
         await asyncio.sleep(0.01)
 
 
@@ -708,6 +721,7 @@ def test_create_app_applies_configured_startup_state() -> None:
 
 @pytest.mark.asyncio
 async def test_app_loads_directory_sizes_when_enabled() -> None:
+    _to_pane_entry.cache_clear()
     path = "/tmp/zivo-dir-size"
     loader = FakeBrowserSnapshotLoader(
         snapshots={

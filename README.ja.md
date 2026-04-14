@@ -440,6 +440,20 @@ paths = ["/home/user/src", "/home/user/docs"]
 - 実装構造: [docs/architecture.md](docs/architecture.md)
 - 性能確認メモ: [docs/performance.md](docs/performance.md)
 
+## ライセンス
+
+zivo は MIT ライセンスで提供されています。詳細は [LICENSE](LICENSE) を確認してください。
+
+### サードパーティーライセンス
+
+zivo はサードパーティーパッケージに依存しています。依存パッケージとそのライセンスの一覧は [NOTICE.txt](NOTICE.txt) を確認してください。
+
+依存関係を更新した後に NOTICE.txt を更新するには:
+
+```bash
+uv run pip-licenses --format=plain --from=mixed --with-urls --output-file NOTICE.txt
+```
+
 ## 開発者向け
 
 開発環境を作る場合は次を実行します。

@@ -45,13 +45,10 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
         handle_palette_action,
         handle_terminal_config_action,
     ):
-        logger.debug("Trying handler: %s for action: %s", handler.__name__, type(action).__name__)
         result = handler(state, action, reduce_app_state)
         if result is not None:
-            logger.debug("Handler %s processed action: %s", handler.__name__, type(action).__name__)
             return _finalize_reduce_result(state, action, result)
 
-    logger.debug("No handler processed action: %s", type(action).__name__)
     return _finalize_reduce_result(state, action, finalize(state))
 
 

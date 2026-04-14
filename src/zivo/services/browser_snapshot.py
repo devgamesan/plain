@@ -544,9 +544,6 @@ def _normalize_directory_cache_path(path: str) -> str:
 
 
 def _load_text_preview(path: Path) -> "FilePreviewState":
-    if not _is_preview_candidate(path):
-        return FilePreviewState.unsupported()
-
     try:
         with path.open("rb") as handle:
             chunk = handle.read(TEXT_PREVIEW_MAX_BYTES + 1)
@@ -573,9 +570,6 @@ def _load_grep_context_preview(
     line_number: int,
     context_lines: int,
 ) -> "ContextPreviewState":
-    if not _is_preview_candidate(path):
-        return ContextPreviewState.with_message(PREVIEW_UNSUPPORTED_MESSAGE)
-
     try:
         with path.open("rb") as handle:
             sample = handle.read(TEXT_PREVIEW_MAX_BYTES + 1)
@@ -674,10 +668,53 @@ def _format_grep_preview_title(result: GrepSearchResultState) -> str:
     return f"Preview: {result.display_path}:{result.line_number}"
 
 
+def _is_text_content(path: Path, blocksize: int = 512) -> bool:
+    """ファイル内容からテキストかどうかをヒューリスティックに判定.
+
+    Args:
+        path: 判定対象のファイルパス
+        blocksize: 読み込むバイト数（デフォルト512）
+
+    Returns:
+        テキストと判定された場合は True、バイナリと判定された場合は False
+    """
+    try:
+        with path.open("rb") as f:
+            chunk = f.read(blocksize)
+    except (PermissionError, OSError):
+        return False
+
+    # 空ファイルはテキスト扱い
+    if not chunk:
+        return True
+
+    # 1. NULLバイトチェック（即バイナリ判定）
+    if b'\x00' in chunk:
+        return False
+
+    # 2. UTF-8として読めるならOK（高速）
+    try:
+        chunk.decode('utf-8')
+        return True
+    except UnicodeDecodeError:
+        pass
+
+    # 3. printable率で雑に判定（軽量）
+    # ASCII印刷可能文字（32-126）、タブ（9）、LF（10）、CR（13）をカウント
+    printable = sum(
+        (32 <= b <= 126) or b in (9, 10, 13)
+        for b in chunk
+    )
+    return printable / len(chunk) > 0.7
+
+
 def _is_preview_candidate(path: Path) -> bool:
+    # 既存：拡張子ベースの判定（高速パス）
     if path.name.casefold() in TEXT_PREVIEW_FILENAMES:
         return True
     suffix = path.suffix.casefold()
     if suffix in TEXT_PREVIEW_EXTENSIONS:
         return True
-    return suffix == ""
+
+    # 新規：拡張子がない、またはリストにないファイルはヒューリスティック判定
+    return _is_text_content(path)

@@ -756,7 +756,9 @@ class MainPane(Vertical):
             return True
         if len(previous_entries) != len(next_entries):
             return True
-        return self._entry_row_keys(previous_entries) != self._entry_row_keys(next_entries)
+        previous_paths = {entry.path for entry in previous_entries}
+        next_paths = {entry.path for entry in next_entries}
+        return previous_paths != next_paths
 
     def _update_changed_rows(
         self,

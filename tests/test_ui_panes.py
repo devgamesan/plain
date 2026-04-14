@@ -1,6 +1,9 @@
-from rich.style import Style
+from unittest.mock import Mock
 
-from zivo.models import PaneEntry
+from rich.style import Style
+from textual.widgets import DataTable
+
+from zivo.models import CurrentSummaryState, PaneEntry
 from zivo.ui.panes import (
     MainPane,
     _ft_resolve_style,
@@ -332,3 +335,124 @@ def test_shrink_fixed_columns_tight_space() -> None:
 def test_shrink_fixed_columns_extremely_tight() -> None:
     result = MainPane._shrink_fixed_columns(5)
     assert result == dict(MainPane.FIXED_COLUMN_MIN_WIDTHS)
+
+
+# -- MainPane._should_rebuild_rows ------------------------------------------------
+
+
+def test_should_rebuild_rows_with_same_paths() -> None:
+    """同じパス集合の場合、差分更新のみ行うこと"""
+    summary = CurrentSummaryState(item_count=3, selected_count=0, sort_label="Name")
+    pane = MainPane(title="Test", entries=[], summary=summary)
+    table = Mock(spec=DataTable)
+    table.size.width = 80
+    pane._last_table_width = 80
+
+    previous_entries = (
+        PaneEntry("a.txt", "file", path="/path/a.txt"),
+        PaneEntry("b.txt", "file", path="/path/b.txt"),
+        PaneEntry("c.txt", "file", path="/path/c.txt"),
+    )
+    next_entries = (
+        PaneEntry("a.txt", "file", path="/path/a.txt"),
+        PaneEntry("b.txt", "file", path="/path/b.txt"),
+        PaneEntry("c.txt", "file", path="/path/c.txt"),
+    )
+
+    result = pane._should_rebuild_rows(table, previous_entries, next_entries)
+
+    assert result is False, "同じパス集合の場合は差分更新のみ"
+
+
+def test_should_rebuild_rows_with_path_changes() -> None:
+    """パス変更がある場合、全再構築すること"""
+    summary = CurrentSummaryState(item_count=3, selected_count=0, sort_label="Name")
+    pane = MainPane(title="Test", entries=[], summary=summary)
+    table = Mock(spec=DataTable)
+    table.size.width = 80
+    pane._last_table_width = 80
+
+    previous_entries = (
+        PaneEntry("a.txt", "file", path="/path/a.txt"),
+        PaneEntry("b.txt", "file", path="/path/b.txt"),
+        PaneEntry("c.txt", "file", path="/path/c.txt"),
+    )
+    next_entries = (
+        PaneEntry("a.txt", "file", path="/path/a.txt"),
+        PaneEntry("d.txt", "file", path="/path/d.txt"),  # 異なるパス
+        PaneEntry("c.txt", "file", path="/path/c.txt"),
+    )
+
+    result = pane._should_rebuild_rows(table, previous_entries, next_entries)
+
+    assert result is True, "パス変更がある場合は全再構築"
+
+
+def test_should_rebuild_rows_with_sort() -> None:
+    """ソート時（同じパス集合）、差分更新のみ行うこと"""
+    summary = CurrentSummaryState(item_count=3, selected_count=0, sort_label="Name")
+    pane = MainPane(title="Test", entries=[], summary=summary)
+    table = Mock(spec=DataTable)
+    table.size.width = 80
+    pane._last_table_width = 80
+
+    previous_entries = (
+        PaneEntry("c.txt", "file", path="/path/c.txt"),
+        PaneEntry("a.txt", "file", path="/path/a.txt"),
+        PaneEntry("b.txt", "file", path="/path/b.txt"),
+    )
+    next_entries = (
+        PaneEntry("a.txt", "file", path="/path/a.txt"),
+        PaneEntry("b.txt", "file", path="/path/b.txt"),
+        PaneEntry("c.txt", "file", path="/path/c.txt"),
+    )
+
+    result = pane._should_rebuild_rows(table, previous_entries, next_entries)
+
+    assert result is False, "ソート時は差分更新のみ"
+
+
+def test_should_rebuild_rows_with_width_change() -> None:
+    """テーブル幅変更時、全再構築すること"""
+    summary = CurrentSummaryState(item_count=2, selected_count=0, sort_label="Name")
+    pane = MainPane(title="Test", entries=[], summary=summary)
+    table = Mock(spec=DataTable)
+    table.size.width = 100  # 異なる幅
+    pane._last_table_width = 80
+
+    previous_entries = (
+        PaneEntry("a.txt", "file", path="/path/a.txt"),
+        PaneEntry("b.txt", "file", path="/path/b.txt"),
+    )
+    next_entries = (
+        PaneEntry("a.txt", "file", path="/path/a.txt"),
+        PaneEntry("b.txt", "file", path="/path/b.txt"),
+    )
+
+    result = pane._should_rebuild_rows(table, previous_entries, next_entries)
+
+    assert result is True, "テーブル幅変更時は全再構築"
+
+
+def test_should_rebuild_rows_with_count_change() -> None:
+    """エントリ数変更時、全再構築すること"""
+    summary = CurrentSummaryState(item_count=2, selected_count=0, sort_label="Name")
+    pane = MainPane(title="Test", entries=[], summary=summary)
+    table = Mock(spec=DataTable)
+    table.size.width = 80
+    pane._last_table_width = 80
+
+    previous_entries = (
+        PaneEntry("a.txt", "file", path="/path/a.txt"),
+        PaneEntry("b.txt", "file", path="/path/b.txt"),
+    )
+    next_entries = (
+        PaneEntry("a.txt", "file", path="/path/a.txt"),
+        PaneEntry("b.txt", "file", path="/path/b.txt"),
+        PaneEntry("c.txt", "file", path="/path/c.txt"),  # 追加
+    )
+
+    result = pane._should_rebuild_rows(table, previous_entries, next_entries)
+
+    assert result is True, "エントリ数変更時は全再構築"
+

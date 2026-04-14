@@ -370,4 +370,145 @@ def test_fake_browser_snapshot_loader_returns_empty_parent_pane_for_root_path() 
     assert snapshot.current_path == "/"
     assert snapshot.parent_pane.directory_path == "/"
     assert snapshot.parent_pane.entries == ()
-    assert snapshot.parent_pane.cursor_path is None
+
+
+# ヒューリスティックテキスト判定のテスト
+
+
+def test_live_browser_snapshot_loader_previews_text_file_without_extension(tmp_path) -> None:
+    """拡張子がないテキストファイルをプレビューできること."""
+    project = tmp_path / "project"
+    project.mkdir()
+    readme = project / "README"
+    readme.write_text("This is a README file.\n", encoding="utf-8")
+
+    loader = LiveBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(readme))
+
+    assert snapshot.current_pane.cursor_path == str(readme)
+    assert snapshot.child_pane.mode == "preview"
+    assert snapshot.child_pane.preview_path == str(readme)
+    assert snapshot.child_pane.preview_content == "This is a README file.\n"
+    assert snapshot.child_pane.preview_truncated is False
+
+
+def test_live_browser_snapshot_loader_previews_text_file_with_unknown_extension(tmp_path) -> None:
+    """拡張子リストにないテキストファイルをプレビューできること."""
+    project = tmp_path / "project"
+    project.mkdir()
+    custom = project / "config.custom"
+    custom.write_text("custom setting\n", encoding="utf-8")
+
+    loader = LiveBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(custom))
+
+    assert snapshot.current_pane.cursor_path == str(custom)
+    assert snapshot.child_pane.mode == "preview"
+    assert snapshot.child_pane.preview_path == str(custom)
+    assert snapshot.child_pane.preview_content == "custom setting\n"
+    assert snapshot.child_pane.preview_truncated is False
+
+
+def test_live_browser_snapshot_loader_rejects_binary_file_with_unknown_extension(tmp_path) -> None:
+    """拡張子リストにないバイナリファイルをプレビューしないこと."""
+    project = tmp_path / "project"
+    project.mkdir()
+    binary = project / "data.unknown"
+    binary.write_bytes(b"\x00\x01\x02\x03\x04\x05")
+
+    loader = LiveBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(binary))
+
+    assert snapshot.current_pane.cursor_path == str(binary)
+    assert snapshot.child_pane.mode == "preview"
+    assert snapshot.child_pane.preview_path == str(binary)
+    assert snapshot.child_pane.preview_content is None
+    assert snapshot.child_pane.preview_message == "Preview unavailable for this file type"
+
+
+def test_live_browser_snapshot_loader_previews_empty_file_as_text(tmp_path) -> None:
+    """空ファイルをテキストとしてプレビューできること."""
+    project = tmp_path / "project"
+    project.mkdir()
+    empty = project / "empty.txt"
+    empty.write_text("", encoding="utf-8")
+
+    loader = LiveBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(empty))
+
+    assert snapshot.current_pane.cursor_path == str(empty)
+    assert snapshot.child_pane.mode == "preview"
+    assert snapshot.child_pane.preview_path == str(empty)
+    assert snapshot.child_pane.preview_content == ""
+    assert snapshot.child_pane.preview_truncated is False
+
+
+def test_live_browser_snapshot_loader_previews_high_printable_ratio_file(tmp_path) -> None:
+    """printable率が70%以上のファイルをテキストとしてプレビューできること."""
+    project = tmp_path / "project"
+    project.mkdir()
+    # printable率が高いテキスト（ASCII文字のみ）
+    text = project / "high_printable.txt"
+    text.write_text("Hello World! " * 50 + "\n", encoding="utf-8")
+
+    loader = LiveBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(text))
+
+    assert snapshot.current_pane.cursor_path == str(text)
+    assert snapshot.child_pane.mode == "preview"
+    assert snapshot.child_pane.preview_path == str(text)
+    assert snapshot.child_pane.preview_content is not None
+    assert "Hello World!" in snapshot.child_pane.preview_content
+
+
+def test_live_browser_snapshot_loader_rejects_low_printable_ratio_file(tmp_path) -> None:
+    """printable率が70%未満のファイルをバイナリとして扱うこと."""
+    project = tmp_path / "project"
+    project.mkdir()
+    # printable率が低いデータ（バイナリっぽいデータ）
+    binary = project / "low_printable.dat"
+    # 70%未満のprintable率になるように作成
+    content = bytes([i % 256 for i in range(512)])  # ランダムっぽいデータ
+    binary.write_bytes(content)
+
+    loader = LiveBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(binary))
+
+    assert snapshot.current_pane.cursor_path == str(binary)
+    assert snapshot.child_pane.mode == "preview"
+    assert snapshot.child_pane.preview_path == str(binary)
+    assert snapshot.child_pane.preview_content is None
+    assert snapshot.child_pane.preview_message == "Preview unavailable for this file type"
+
+
+def test_live_browser_snapshot_loader_grep_preview_with_unknown_extension(tmp_path) -> None:
+    """grepプレビューで拡張子リストにないテキストファイルをプレビューできること."""
+    project = tmp_path / "project"
+    project.mkdir()
+    custom = project / "source.custom"
+    custom.write_text("line 1\nline 2\nline 3\n", encoding="utf-8")
+
+    loader = LiveBrowserSnapshotLoader()
+
+    result = GrepSearchResultState(
+        path=str(custom),
+        display_path="source.custom",
+        line_number=2,
+        line_text="line 2",
+    )
+    preview = loader.load_grep_preview(str(project), result, context_lines=1)
+
+    assert preview.mode == "preview"
+    assert preview.preview_path == str(custom)
+    assert preview.preview_content is not None
+    assert "line 1" in preview.preview_content
+    assert "line 2" in preview.preview_content
+    assert "line 3" in preview.preview_content
+    assert preview.preview_start_line == 1
+    assert preview.preview_highlight_line == 2

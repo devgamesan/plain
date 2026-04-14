@@ -6,7 +6,6 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-
 from rich.style import Style
 from rich.text import Text
 from textual.css.query import NoMatches
@@ -298,8 +297,7 @@ def _assert_region_vertically_centered(region, container_region, tolerance: int 
 
 
 async def _wait_for_snapshot_loaded(app, expected_path: str, timeout: float = 0.5) -> None:
-    import os
-    expected_path_resolved = os.path.realpath(expected_path)
+    expected_path_resolved = str(Path(expected_path).resolve())
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
         current_path = app.app_state.current_path

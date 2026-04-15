@@ -127,20 +127,17 @@ def test_macos_empty_trash_returns_zero_when_only_ds_store(tmp_path, monkeypatch
     assert error == ""
 
 
-def test_macos_empty_trash_falls_back_to_manual_on_osascript_failure(tmp_path, monkeypatch) -> None:
+def test_macos_empty_trash_returns_error_on_osascript_failure(tmp_path, monkeypatch) -> None:
     trash_dir = tmp_path / ".Trash"
     trash_dir.mkdir()
     (trash_dir / "file.txt").write_text("data")
-    (trash_dir / "subdir").mkdir()
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
 
-    mock_run = MagicMock(return_value=MagicMock(returncode=1, stderr="not allowed"))
+    mock_run = MagicMock(return_value=MagicMock(returncode=1, stderr="not authorized"))
     monkeypatch.setattr("zivo.services.trash_operations.subprocess.run", mock_run)
 
     service = MacOsTrashService()
     count, error = service.empty_trash()
 
-    assert count == 2
-    assert error == ""
-    assert not (trash_dir / "file.txt").exists()
-    assert not (trash_dir / "subdir").exists()
+    assert count == 0
+    assert "Full Disk Access" in error

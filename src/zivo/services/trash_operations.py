@@ -162,21 +162,12 @@ class MacOsTrashService:
             text=True,
             check=False,
         )
-        if result.returncode == 0:
-            return len(items), ""
-
-        removed_count = 0
-        failures = []
-        for item in items:
-            try:
-                _remove_path(item)
-                removed_count += 1
-            except OSError as error:
-                failures.append(f"{item.name}: {error}")
-
-        if failures:
-            return removed_count, f"Removed {removed_count} items with {len(failures)} failures"
-        return removed_count, ""
+        if result.returncode != 0:
+            return 0, (
+                "Failed to empty trash. Grant Full Disk Access to your"
+                " terminal in System Settings > Privacy & Security"
+            )
+        return len(items), ""
 
     def capture_restorable_trash(
         self,

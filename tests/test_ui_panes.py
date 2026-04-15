@@ -389,7 +389,7 @@ def test_should_rebuild_rows_with_path_changes() -> None:
 
 
 def test_should_rebuild_rows_with_sort() -> None:
-    """ソート時（同じパス集合）、差分更新のみ行うこと"""
+    """ソート時（同じパス集合でも順序が異なる）は全再構築が必要なこと"""
     summary = CurrentSummaryState(item_count=3, selected_count=0, sort_label="Name")
     pane = MainPane(title="Test", entries=[], summary=summary)
     table = Mock(spec=DataTable)
@@ -409,7 +409,7 @@ def test_should_rebuild_rows_with_sort() -> None:
 
     result = pane._should_rebuild_rows(table, previous_entries, next_entries)
 
-    assert result is False, "ソート時は差分更新のみ"
+    assert result is True, "ソート時は全再構築が必要"
 
 
 def test_should_rebuild_rows_with_width_change() -> None:

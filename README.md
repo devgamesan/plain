@@ -155,6 +155,7 @@ sudo apt install ripgrep wslu
 
 - For grep search (`g`): `ripgrep` (`rg`)
 - For copy path (`C`): the built-in `pbcopy`
+- For empty trash and other file operations: grant **Full Disk Access** to your terminal application. Open **System Settings > Privacy & Security > Full Disk Access** and enable the terminal app you use to run zivo (e.g. Terminal.app, iTerm2, Alacritty, etc.). Without this permission, operations that access `~/.Trash` or other protected directories will fail.
 
 Install example:
 

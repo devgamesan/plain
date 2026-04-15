@@ -1,5 +1,7 @@
 """Archive inspection and extraction services."""
 
+import bz2
+import gzip
 import os
 import shutil
 import tarfile
@@ -67,6 +69,18 @@ class LiveArchiveExtractService:
 
         if archive_format == "zip":
             extracted_entries = _extract_zip_archive(
+                source_path,
+                destination_path,
+                progress_callback=progress_callback,
+            )
+        elif archive_format == "gz":
+            extracted_entries = _extract_gz_archive(
+                source_path,
+                destination_path,
+                progress_callback=progress_callback,
+            )
+        elif archive_format == "bz2":
+            extracted_entries = _extract_bz2_archive(
                 source_path,
                 destination_path,
                 progress_callback=progress_callback,
@@ -168,6 +182,16 @@ def _scan_archive_entries(
                 if (parts := _normalize_archive_member_path(info.filename)) is not None
             )
 
+    if archive_format in ("gz", "bz2"):
+        entry_name = _get_decompressed_entry_name(source_path)
+        return (
+            _ArchiveEntry(
+                archive_path=entry_name,
+                destination_parts=(entry_name,),
+                is_dir=False,
+            ),
+        )
+
     with tarfile.open(source_path, mode="r:*") as archive:
         return tuple(
             _ArchiveEntry(
@@ -212,6 +236,17 @@ def _normalize_archive_member_path(name: str) -> tuple[str, ...] | None:
     if any(part == ".." for part in parts):
         raise OSError(f"Archive entry escapes the destination directory: {name}")
     return parts
+
+
+def _get_decompressed_entry_name(source_path: Path) -> str:
+    """Derive the decompressed filename by stripping the compression suffix."""
+    name = source_path.name
+    lower = name.casefold()
+    if lower.endswith(".bz2") and len(name) > 4:
+        return name[:-4]
+    if lower.endswith(".gz") and len(name) > 3:
+        return name[:-3]
+    return name
 
 
 def _extract_zip_archive(
@@ -276,6 +311,36 @@ def _extract_tar_archive(
             _report_progress(progress_callback, extracted_entries, total_entries, str(target_path))
 
     return extracted_entries
+
+
+def _extract_gz_archive(
+    source_path: Path,
+    destination_path: Path,
+    *,
+    progress_callback: ProgressCallback | None,
+) -> int:
+    entry_name = _get_decompressed_entry_name(source_path)
+    target_path = destination_path / entry_name
+    _prepare_file_target(target_path)
+    with gzip.open(source_path, "rb") as source_file, target_path.open("wb") as destination_file:
+        shutil.copyfileobj(source_file, destination_file)
+    _report_progress(progress_callback, 1, 1, str(target_path))
+    return 1
+
+
+def _extract_bz2_archive(
+    source_path: Path,
+    destination_path: Path,
+    *,
+    progress_callback: ProgressCallback | None,
+) -> int:
+    entry_name = _get_decompressed_entry_name(source_path)
+    target_path = destination_path / entry_name
+    _prepare_file_target(target_path)
+    with bz2.open(source_path, "rb") as source_file, target_path.open("wb") as destination_file:
+        shutil.copyfileobj(source_file, destination_file)
+    _report_progress(progress_callback, 1, 1, str(target_path))
+    return 1
 
 
 def _prepare_directory_target(target_path: Path) -> None:

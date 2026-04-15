@@ -4,7 +4,11 @@ from pathlib import Path
 import pytest
 
 from zivo.adapters import LocalFilesystemAdapter
-from zivo.services import FakeBrowserSnapshotLoader, LiveBrowserSnapshotLoader
+from zivo.services import (
+    PREVIEW_PERMISSION_DENIED_MESSAGE,
+    FakeBrowserSnapshotLoader,
+    LiveBrowserSnapshotLoader,
+)
 from zivo.state import BrowserSnapshot, DirectoryEntryState, GrepSearchResultState, PaneState
 
 
@@ -512,3 +516,45 @@ def test_live_browser_snapshot_loader_grep_preview_with_unknown_extension(tmp_pa
     assert "line 3" in preview.preview_content
     assert preview.preview_start_line == 1
     assert preview.preview_highlight_line == 2
+
+
+def test_live_browser_snapshot_loader_returns_permission_denied_for_denied_directory(
+    tmp_path,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    secret = project / "secret"
+    secret.mkdir()
+
+    loader = LiveBrowserSnapshotLoader(
+        filesystem=StubFilesystemAdapter(
+            entries_by_path={str(project): ()},
+            errors_by_path={str(secret): PermissionError("blocked")},
+        )
+    )
+
+    pane = loader.load_child_pane_snapshot(str(project), str(secret))
+
+    assert pane.mode == "preview"
+    assert pane.preview_message == PREVIEW_PERMISSION_DENIED_MESSAGE
+    assert pane.entries == ()
+    assert pane.directory_path == str(secret)
+
+
+def test_live_browser_snapshot_loader_propagates_non_permission_os_error_for_directory(
+    tmp_path,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    inaccessible = project / "inaccessible"
+    inaccessible.mkdir()
+
+    loader = LiveBrowserSnapshotLoader(
+        filesystem=StubFilesystemAdapter(
+            entries_by_path={str(project): ()},
+            errors_by_path={str(inaccessible): FileNotFoundError("gone")},
+        )
+    )
+
+    with pytest.raises(OSError, match="Not found:"):
+        loader.load_child_pane_snapshot(str(project), str(inaccessible))

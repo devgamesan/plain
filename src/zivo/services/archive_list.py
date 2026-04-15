@@ -1,6 +1,7 @@
 """Archive inspection service for listing archive contents."""
 
 import os
+import struct
 import tarfile
 import zipfile
 from dataclasses import dataclass
@@ -80,6 +81,20 @@ def _scan_archive_entries(
                 if _normalize_archive_member_path(info.filename) is not None
             )
 
+    if archive_format in ("gz", "bz2"):
+        entry_name = _get_decompressed_entry_name(source_path)
+        size_bytes: int | None = None
+        if archive_format == "gz":
+            size_bytes = _read_gz_decompressed_size(source_path)
+        return (
+            _ArchiveEntry(
+                archive_path=entry_name,
+                display_name=entry_name,
+                is_dir=False,
+                size_bytes=size_bytes,
+            ),
+        )
+
     with tarfile.open(source_path, mode="r:*") as archive:
         return tuple(
             _ArchiveEntry(
@@ -113,6 +128,27 @@ def _get_display_name(archive_path: str) -> str:
     if parts is None:
         return archive_path
     return parts[-1]
+
+
+def _get_decompressed_entry_name(source_path: Path) -> str:
+    """Derive the decompressed filename by stripping the compression suffix."""
+    name = source_path.name
+    lower = name.casefold()
+    if lower.endswith(".bz2") and len(name) > 4:
+        return name[:-4]
+    if lower.endswith(".gz") and len(name) > 3:
+        return name[:-3]
+    return name
+
+
+def _read_gz_decompressed_size(path: Path) -> int | None:
+    """Read the uncompressed size from the gzip file trailer (last 4 bytes)."""
+    try:
+        with path.open("rb") as f:
+            f.seek(-4, 2)
+            return struct.unpack("<I", f.read(4))[0]
+    except (OSError, struct.error):
+        return None
 
 
 def _build_virtual_path(archive_path: Path, entry: _ArchiveEntry) -> str:

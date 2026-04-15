@@ -1,3 +1,5 @@
+import bz2
+import gzip
 import tarfile
 import zipfile
 from io import BytesIO
@@ -23,6 +25,16 @@ def _create_tar_archive(path, mode: str) -> None:
             info = tarfile.TarInfo(name=name)
             info.size = len(body)
             archive.addfile(info, BytesIO(body))
+
+
+def _create_gz_archive(path) -> None:
+    with gzip.open(path, "wb") as f:
+        f.write(b"hello from gzip\n")
+
+
+def _create_bz2_archive(path) -> None:
+    with bz2.open(path, "wb") as f:
+        f.write(b"hello from bz2\n")
 
 
 @pytest.mark.parametrize(
@@ -55,6 +67,37 @@ def test_archive_extract_service_extracts_supported_formats(
     assert (destination_path / "notes.txt").read_text(encoding="utf-8") == "notes\n"
     assert result.destination_path == str(destination_path)
     assert result.extracted_entries == 2
+
+
+@pytest.mark.parametrize(
+    ("archive_name", "builder", "expected_entry_name", "expected_content"),
+    (
+        ("sample.log.gz", _create_gz_archive, "sample.log", "hello from gzip\n"),
+        ("sample.log.bz2", _create_bz2_archive, "sample.log", "hello from bz2\n"),
+    ),
+)
+def test_archive_extract_service_extracts_single_file_compressed(
+    tmp_path,
+    archive_name,
+    builder,
+    expected_entry_name,
+    expected_content,
+) -> None:
+    archive_path = tmp_path / archive_name
+    builder(archive_path)
+    destination_path = tmp_path / "output"
+
+    service = LiveArchiveExtractService()
+    result = service.execute(
+        ExtractArchiveRequest(
+            source_path=str(archive_path),
+            destination_path=str(destination_path),
+        )
+    )
+
+    extracted_file = destination_path / expected_entry_name
+    assert extracted_file.read_text(encoding="utf-8") == expected_content
+    assert result.extracted_entries == 1
 
 
 def test_archive_extract_service_prepare_detects_conflicts(tmp_path) -> None:

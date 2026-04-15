@@ -1,3 +1,5 @@
+import bz2
+import gzip
 import tarfile
 import zipfile
 from io import BytesIO
@@ -28,6 +30,16 @@ def _create_tar_archive(path, mode: str) -> None:
             archive.addfile(info, BytesIO(body))
 
 
+def _create_gz_archive(path) -> None:
+    with gzip.open(path, "wb") as f:
+        f.write(b"hello from gzip\n")
+
+
+def _create_bz2_archive(path) -> None:
+    with bz2.open(path, "wb") as f:
+        f.write(b"hello from bz2\n")
+
+
 @pytest.mark.parametrize(
     ("archive_name", "builder"),
     (
@@ -54,6 +66,30 @@ def test_archive_list_service_lists_supported_formats(
     assert "notes.txt" in entry_names
     assert "executable.sh" in entry_names
     assert "src" in entry_names
+
+
+@pytest.mark.parametrize(
+    ("archive_name", "builder", "expected_entry_name"),
+    (
+        ("sample.log.gz", _create_gz_archive, "sample.log"),
+        ("sample.log.bz2", _create_bz2_archive, "sample.log"),
+    ),
+)
+def test_archive_list_service_lists_single_file_compressed_formats(
+    tmp_path,
+    archive_name,
+    builder,
+    expected_entry_name,
+) -> None:
+    archive_path = tmp_path / archive_name
+    builder(archive_path)
+
+    service = LiveArchiveListService()
+    entries = service.list_archive_entries(str(archive_path))
+
+    assert len(entries) == 1
+    assert entries[0].name == expected_entry_name
+    assert entries[0].kind == "file"
 
 
 def test_archive_list_service_sorts_directories_first(tmp_path) -> None:
@@ -172,3 +208,37 @@ def test_archive_list_service_creates_virtual_paths(tmp_path) -> None:
     assert internal_dir.kind == "dir"
     assert str(archive_path) in internal_dir.path
     assert "/internal" in internal_dir.path
+
+
+def test_archive_list_service_gz_shows_decompressed_size(tmp_path) -> None:
+    archive_path = tmp_path / "sample.log.gz"
+    _create_gz_archive(archive_path)
+
+    service = LiveArchiveListService()
+    entries = service.list_archive_entries(str(archive_path))
+
+    assert len(entries) == 1
+    assert entries[0].size_bytes == len(b"hello from gzip\n")
+
+
+def test_archive_list_service_bz2_shows_none_size(tmp_path) -> None:
+    archive_path = tmp_path / "sample.log.bz2"
+    _create_bz2_archive(archive_path)
+
+    service = LiveArchiveListService()
+    entries = service.list_archive_entries(str(archive_path))
+
+    assert len(entries) == 1
+    assert entries[0].size_bytes is None
+
+
+def test_archive_list_service_tar_gz_not_matched_as_gz(tmp_path) -> None:
+    """Verify .tar.gz is matched as tar.gz format, not plain gz."""
+    archive_path = tmp_path / "sample.tar.gz"
+    _create_tar_archive(archive_path, "w:gz")
+
+    service = LiveArchiveListService()
+    entries = service.list_archive_entries(str(archive_path))
+
+    # tar.gz should list multiple entries, not a single synthesized one
+    assert len(entries) == 4

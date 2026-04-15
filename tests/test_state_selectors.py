@@ -812,6 +812,35 @@ def test_select_shell_data_builds_child_preview_message_for_unavailable_file() -
     assert shell.child_pane.preview_message == "Preview unavailable for this file type"
 
 
+def test_select_shell_data_builds_child_preview_for_permission_denied_directory() -> None:
+    from zivo.services import PREVIEW_PERMISSION_DENIED_MESSAGE
+
+    initial_state = build_initial_app_state()
+    path = "/home/tadashi/develop/zivo/.Trash"
+    state = replace(
+        initial_state,
+        current_pane=replace(
+            initial_state.current_pane,
+            entries=initial_state.current_pane.entries
+            + (DirectoryEntryState(path, ".Trash", "dir"),),
+            cursor_path=path,
+        ),
+        child_pane=PaneState(
+            directory_path=path,
+            entries=(),
+            mode="preview",
+            preview_message=PREVIEW_PERMISSION_DENIED_MESSAGE,
+        ),
+    )
+
+    shell = select_shell_data(state)
+
+    assert shell.child_pane.is_preview is True
+    assert shell.child_pane.preview_path == path
+    assert shell.child_pane.preview_content is None
+    assert shell.child_pane.preview_message == PREVIEW_PERMISSION_DENIED_MESSAGE
+
+
 def test_select_shell_data_builds_grep_preview_for_palette_selection() -> None:
     initial_state = build_initial_app_state()
     path = "/home/tadashi/develop/zivo/README.md"

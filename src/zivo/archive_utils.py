@@ -3,13 +3,15 @@
 from pathlib import Path
 from typing import Literal
 
-ArchiveFormat = Literal["zip", "tar", "tar.gz", "tar.bz2"]
+ArchiveFormat = Literal["zip", "tar", "tar.gz", "tar.bz2", "gz", "bz2"]
 
 SUPPORTED_ARCHIVE_SUFFIXES: tuple[tuple[str, ArchiveFormat], ...] = (
     (".tar.gz", "tar.gz"),
     (".tar.bz2", "tar.bz2"),
     (".zip", "zip"),
     (".tar", "tar"),
+    (".gz", "gz"),
+    (".bz2", "bz2"),
 )
 
 
@@ -43,6 +45,9 @@ def default_extract_destination(source_path: str | Path) -> str:
     """Return the default destination path for an archive extraction."""
 
     source = Path(source_path).expanduser().resolve()
+    archive_format = detect_archive_format(source)
+    if archive_format in ("gz", "bz2"):
+        return str(source.parent)
     return str(source.parent / strip_archive_suffix(source.name))
 
 

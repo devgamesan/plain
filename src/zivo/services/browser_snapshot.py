@@ -281,8 +281,18 @@ class LiveBrowserSnapshotLoader:
 
         child_path = Path(cursor_path).expanduser().resolve()
         if child_path.is_dir():
-            child_entries = self._list_directory(str(child_path))
-            return PaneState(directory_path=str(child_path), entries=child_entries)
+            try:
+                child_entries = self._list_directory(str(child_path))
+                return PaneState(directory_path=str(child_path), entries=child_entries)
+            except OSError as error:
+                if _is_permission_denied_error(error):
+                    return PaneState(
+                        directory_path=str(child_path),
+                        entries=(),
+                        mode="preview",
+                        preview_message=PREVIEW_PERMISSION_DENIED_MESSAGE,
+                    )
+                raise
 
         if is_supported_archive_path(child_path):
             try:
@@ -384,6 +394,10 @@ class LiveBrowserSnapshotLoader:
             raise OSError(f"Not a directory: {path}") from error
         except OSError as error:
             raise OSError(str(error) or f"Failed to load directory: {path}") from error
+
+
+def _is_permission_denied_error(error: OSError) -> bool:
+	return str(error).startswith("Permission denied:")
 
 
 @dataclass(frozen=True)

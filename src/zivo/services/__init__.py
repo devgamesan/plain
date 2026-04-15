@@ -20,6 +20,7 @@ from .archive_list import (
     LiveArchiveListService,
 )
 from .browser_snapshot import (
+    PREVIEW_PERMISSION_DENIED_MESSAGE,
     BrowserSnapshotLoader,
     FakeBrowserSnapshotLoader,
     LiveBrowserSnapshotLoader,
@@ -135,6 +136,7 @@ __all__ = [
     "LiveDirectorySizeService",
     "LiveClipboardOperationService",
     "LiveBrowserSnapshotLoader",
+    "PREVIEW_PERMISSION_DENIED_MESSAGE",
     "LiveConfigSaveService",
     "LiveShellCommandService",
     "LiveSplitTerminalService",

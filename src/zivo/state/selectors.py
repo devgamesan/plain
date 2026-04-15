@@ -219,6 +219,11 @@ def _select_child_pane_for_cursor(
     is_archive = cursor_entry.kind == "file" and is_supported_archive_path(cursor_entry.path)
     if cursor_entry.kind == "dir" or is_archive:
         if (
+            state.child_pane.mode == "preview"
+            and state.child_pane.preview_message is not None
+        ):
+            pass
+        elif (
             state.child_pane.mode != "entries"
             or cursor_entry.path != state.child_pane.directory_path
         ):

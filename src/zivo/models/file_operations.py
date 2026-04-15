@@ -8,7 +8,7 @@ ConflictResolution = Literal["overwrite", "skip", "rename"]
 CreateKind = Literal["file", "dir"]
 DeleteMode = Literal["trash", "permanent"]
 MutationResultLevel = Literal["info", "warning", "error"]
-ArchiveFormat = Literal["zip", "tar", "tar.gz", "tar.bz2"]
+ArchiveFormat = Literal["zip", "tar", "tar.gz", "tar.bz2", "gz", "bz2"]
 FileMutationOperation = Literal["rename", "create", "delete"]
 UndoOperationKind = Literal["rename", "paste_copy", "paste_cut", "trash_delete"]
 

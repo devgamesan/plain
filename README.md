@@ -216,8 +216,8 @@ When a file is focused, press `e` to switch into a terminal editor in the curren
 | `r` | Rename selected item |
 | `n` | Create new file |
 | `N` | Create new directory |
-| `Delete` | Move selected items to trash |
-| `Shift+Delete` | Permanently delete selected items |
+| `Delete` | Move selected items to trash (fn + Delete on macOS) |
+| `Shift+Delete` | Permanently delete selected items (fn + Shift + Delete on macOS) |
 | `i` | Show file attributes |
 | `e` | Open file in terminal editor |
 | `!` | Execute shell command |

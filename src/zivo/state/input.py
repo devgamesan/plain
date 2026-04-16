@@ -146,7 +146,7 @@ BROWSING_KEYMAP = {
     "a": "select_all",
     "c": "copy_targets",
     "x": "cut_targets",
-    "p": "paste_clipboard",
+    "v": "paste_clipboard",
     "z": "undo_last_operation",
     "~": "go_to_home_directory",
     "H": "begin_history_search",

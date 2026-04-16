@@ -425,10 +425,10 @@ def test_browsing_x_dispatches_cut_targets() -> None:
     )
 
 
-def test_browsing_p_dispatches_paste_clipboard() -> None:
+def test_browsing_v_dispatches_paste_clipboard() -> None:
     state = build_initial_app_state()
 
-    actions = dispatch_key_input(state, key="p", character="p")
+    actions = dispatch_key_input(state, key="v", character="v")
 
     assert actions == (SetNotification(None), PasteClipboard())
 

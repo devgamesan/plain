@@ -209,7 +209,7 @@ When a file is focused, press `e` to switch into a terminal editor in the curren
 | `Esc` | Clear selection / Cancel filter |
 | `c` | Copy selected items |
 | `x` | Cut selected items |
-| `p` | Paste from clipboard |
+| `v` | Paste from clipboard |
 | `z` | Undo the last reversible file operation |
 | `C` | Copy paths to clipboard |
 | `r` | Rename selected item |

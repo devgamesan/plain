@@ -1,4 +1,7 @@
+from pathlib import Path
 from unittest.mock import MagicMock
+
+import pytest
 
 from zivo.models import TrashRestoreRecord
 from zivo.services.trash_operations import LinuxTrashService, MacOsTrashService
@@ -141,3 +144,131 @@ def test_macos_empty_trash_returns_error_on_osascript_failure(tmp_path, monkeypa
 
     assert count == 0
     assert "Full Disk Access" in error
+
+
+def test_macos_capture_restorable_trash_creates_record(tmp_path, monkeypatch) -> None:
+    trash_dir = tmp_path / ".Trash"
+    trash_dir.mkdir()
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+
+    original_path = tmp_path / "docs"
+    original_path.write_text("hello", encoding="utf-8")
+
+    def fake_send_to_trash() -> None:
+        original_path.rename(trash_dir / "docs")
+
+    service = MacOsTrashService()
+    record = service.capture_restorable_trash(str(original_path), fake_send_to_trash)
+
+    assert record is not None
+    assert record.original_path == str(original_path)
+    assert record.trashed_path == str(trash_dir / "docs")
+    assert Path(record.metadata_path).exists()
+    content = Path(record.metadata_path).read_text(encoding="utf-8")
+    assert "[Zivo Restore Info]" in content
+    assert f"OriginalPath={original_path}" in content
+
+
+def test_macos_capture_restorable_trash_handles_name_collision(tmp_path, monkeypatch) -> None:
+    trash_dir = tmp_path / ".Trash"
+    trash_dir.mkdir()
+    (trash_dir / "docs").write_text("existing", encoding="utf-8")
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+
+    original_path = tmp_path / "docs"
+    original_path.write_text("hello", encoding="utf-8")
+
+    def fake_send_to_trash() -> None:
+        original_path.rename(trash_dir / "docs 1")
+
+    service = MacOsTrashService()
+    record = service.capture_restorable_trash(str(original_path), fake_send_to_trash)
+
+    assert record is not None
+    assert record.trashed_path == str(trash_dir / "docs 1")
+
+
+def test_macos_restore_moves_file_back(tmp_path, monkeypatch) -> None:
+    trash_dir = tmp_path / ".Trash"
+    trash_dir.mkdir()
+    metadata_dir = trash_dir / ".zivo-restore"
+    metadata_dir.mkdir()
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+
+    trashed_path = trash_dir / "docs"
+    trashed_path.write_text("restored\n", encoding="utf-8")
+    metadata_path = metadata_dir / "20260416T120000_docs.restoreinfo"
+    metadata_path.write_text(
+        "[Zivo Restore Info]\nOriginalPath=/tmp/project/docs\n"
+        "TrashedPath=docs\nDeletionDate=2026-04-16T12:00:00\n",
+        encoding="utf-8",
+    )
+
+    destination = tmp_path / "restored" / "docs"
+    record = TrashRestoreRecord(
+        original_path=str(destination),
+        trashed_path=str(trashed_path),
+        metadata_path=str(metadata_path),
+    )
+
+    restored_path = MacOsTrashService().restore(record)
+
+    assert restored_path == str(destination)
+    assert destination.read_text(encoding="utf-8") == "restored\n"
+    assert not trashed_path.exists()
+    assert not metadata_path.exists()
+
+
+def test_macos_restore_raises_when_trashed_missing(tmp_path, monkeypatch) -> None:
+    trash_dir = tmp_path / ".Trash"
+    trash_dir.mkdir()
+    metadata_dir = trash_dir / ".zivo-restore"
+    metadata_dir.mkdir()
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+
+    record = TrashRestoreRecord(
+        original_path=str(tmp_path / "dest"),
+        trashed_path=str(trash_dir / "missing"),
+        metadata_path=str(metadata_dir / "meta.restoreinfo"),
+    )
+
+    with pytest.raises(OSError, match="Trashed entry not found"):
+        MacOsTrashService().restore(record)
+
+
+def test_macos_restore_raises_when_destination_exists(tmp_path, monkeypatch) -> None:
+    trash_dir = tmp_path / ".Trash"
+    trash_dir.mkdir()
+    metadata_dir = trash_dir / ".zivo-restore"
+    metadata_dir.mkdir()
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+
+    trashed_path = trash_dir / "docs"
+    trashed_path.write_text("data", encoding="utf-8")
+    destination = tmp_path / "docs"
+    destination.write_text("already here", encoding="utf-8")
+
+    record = TrashRestoreRecord(
+        original_path=str(destination),
+        trashed_path=str(trashed_path),
+        metadata_path=str(metadata_dir / "meta.restoreinfo"),
+    )
+
+    with pytest.raises(OSError, match="Restore destination already exists"):
+        MacOsTrashService().restore(record)
+
+
+def test_macos_capture_returns_none_when_no_new_entry(
+    tmp_path, monkeypatch,
+) -> None:
+    trash_dir = tmp_path / ".Trash"
+    trash_dir.mkdir()
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+
+    original_path = tmp_path / "docs"
+    original_path.write_text("hello", encoding="utf-8")
+
+    service = MacOsTrashService()
+    record = service.capture_restorable_trash(str(original_path), lambda: None)
+
+    assert record is None

@@ -6,6 +6,7 @@ import shutil
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -152,7 +153,8 @@ class MacOsTrashService:
         if not trash_dir.exists():
             return 0, ""
 
-        items = [item for item in trash_dir.iterdir() if item.name != ".DS_Store"]
+        _excluded = {".DS_Store", ".zivo-restore"}
+        items = [item for item in trash_dir.iterdir() if item.name not in _excluded]
         if not items:
             return 0, ""
 
@@ -174,11 +176,59 @@ class MacOsTrashService:
         path: str,
         send_to_trash: Callable[[], None],
     ) -> TrashRestoreRecord | None:
+        trash_dir = Path.home() / ".Trash"
+        resolved_original = str(Path(path).expanduser().resolve(strict=False))
+
+        before = _snapshot_trash_dir(trash_dir)
+
         send_to_trash()
-        return None
+
+        after = _snapshot_trash_dir(trash_dir)
+        new_names = sorted(after - before)
+
+        if not new_names:
+            return None
+
+        candidates = [
+            trash_dir / name for name in new_names if (trash_dir / name).exists()
+        ]
+        if not candidates:
+            return None
+
+        trashed_path = max(candidates, key=lambda p: p.stat().st_mtime)
+        metadata_dir = _metadata_dir()
+        metadata_path = _write_restore_metadata(
+            metadata_dir, resolved_original, str(trashed_path),
+        )
+
+        return TrashRestoreRecord(
+            original_path=resolved_original,
+            trashed_path=str(trashed_path),
+            metadata_path=str(metadata_path),
+        )
 
     def restore(self, record: TrashRestoreRecord) -> str:
-        raise OSError("Trash restore is not supported on this platform")
+        trashed_path = Path(record.trashed_path)
+        metadata_path = Path(record.metadata_path)
+        original_path = Path(record.original_path)
+
+        if not trashed_path.exists():
+            raise OSError(f"Trashed entry not found: {trashed_path.name}")
+        if original_path.exists():
+            raise OSError(f"Restore destination already exists: {original_path.name}")
+
+        original_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            shutil.move(str(trashed_path), str(original_path))
+        except OSError as error:
+            raise OSError(str(error) or f"Failed to restore {original_path.name}") from error
+
+        try:
+            if metadata_path.exists():
+                metadata_path.unlink()
+        except OSError as error:
+            raise OSError(str(error) or f"Failed to remove trash metadata for {original_path.name}")
+        return str(original_path)
 
 
 @dataclass(frozen=True)
@@ -222,6 +272,41 @@ def _parse_trashinfo_original_path(info_path: Path) -> str | None:
     if encoded_path is None:
         return None
     return str(Path(unquote(encoded_path)).expanduser().resolve(strict=False))
+
+
+def _snapshot_trash_dir(trash_dir: Path) -> set[str]:
+    """Return item names in the macOS trash directory, excluding system entries."""
+    if not trash_dir.exists():
+        return set()
+    excluded = {".DS_Store", ".zivo-restore"}
+    return {item.name for item in trash_dir.iterdir() if item.name not in excluded}
+
+
+def _metadata_dir() -> Path:
+    """Return (and create if needed) the macOS restore metadata directory."""
+    metadata_dir = Path.home() / ".Trash" / ".zivo-restore"
+    metadata_dir.mkdir(parents=True, exist_ok=True)
+    return metadata_dir
+
+
+def _write_restore_metadata(
+    metadata_dir: Path,
+    original_path: str,
+    trashed_path: str,
+) -> Path:
+    """Write a restore metadata file and return its path."""
+    timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+    safe_name = original_path.replace("/", "_").lstrip("_")
+    metadata_path = metadata_dir / f"{timestamp}_{safe_name}.restoreinfo"
+
+    content = (
+        "[Zivo Restore Info]\n"
+        f"OriginalPath={original_path}\n"
+        f"TrashedPath={trashed_path}\n"
+        f"DeletionDate={datetime.now().isoformat()}\n"
+    )
+    metadata_path.write_text(content, encoding="utf-8")
+    return metadata_path
 
 
 def resolve_trash_service(

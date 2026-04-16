@@ -49,9 +49,6 @@ def build_body(shell: ThreePaneShellData, *, terminal_position: str = "bottom") 
             classes="pane side-pane",
         ),
     ]
-    body_children: list[Any] = [
-        Horizontal(*browser_row_children, id="browser-row"),
-    ]
     if terminal_position == "right":
         browser_row_children.append(
             SplitTerminalPane(
@@ -60,7 +57,10 @@ def build_body(shell: ThreePaneShellData, *, terminal_position: str = "bottom") 
                 classes="split-terminal-right",
             )
         )
-    else:
+    body_children: list[Any] = [
+        Horizontal(*browser_row_children, id="browser-row"),
+    ]
+    if terminal_position != "right":
         body_children.append(
             SplitTerminalPane(shell.split_terminal, id="split-terminal")
         )

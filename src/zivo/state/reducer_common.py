@@ -1,6 +1,7 @@
 """Shared helpers for reducer action handlers."""
 
 import os
+import platform as _platform_module
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
@@ -69,6 +70,9 @@ def finalize(next_state: AppState, *effects: Effect) -> ReduceResult:
     reducer.py (viewport adjustment, tab sync, transient delta clearing).
     """
     return ReduceResult(state=next_state, effects=effects)
+
+
+_is_macos = _platform_module.system() == "Darwin"
 
 
 def current_entry_paths(state: AppState) -> set[str]:
@@ -923,15 +927,24 @@ def validate_pending_input(state: AppState) -> str | None:
         return "'.' and '..' are not valid names"
     if "/" in name or "\\" in name:
         return "Names cannot include path separators"
+    if _is_macos and ":" in name:
+        return "Names cannot include colons"
 
     parent_path, current_target_path = pending_input_parent_and_target(state)
     if parent_path is None:
         return "Unable to resolve target directory"
 
-    candidate_path = str(Path(parent_path) / name)
     existing_paths = current_entry_paths(state)
-    if candidate_path in existing_paths and candidate_path != current_target_path:
-        return f"An entry named '{name}' already exists"
+    if _is_macos:
+        name_cf = name.casefold()
+        for existing_path in existing_paths:
+            existing_name_cf = Path(existing_path).name.casefold()
+            if existing_name_cf == name_cf and existing_path != current_target_path:
+                return f"An entry named '{name}' already exists"
+    else:
+        candidate_path = str(Path(parent_path) / name)
+        if candidate_path in existing_paths and candidate_path != current_target_path:
+            return f"An entry named '{name}' already exists"
     return None
 
 

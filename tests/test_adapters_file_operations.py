@@ -225,3 +225,39 @@ def test_local_file_operation_adapter_send_to_trash_converts_oserror(
 
     with pytest.raises(OSError, match="permission denied"):
         adapter.send_to_trash(str(target))
+
+
+def test_local_file_operation_adapter_paths_are_same_returns_false_for_nonexistent_paths() -> None:
+    adapter = LocalFileOperationAdapter()
+
+    assert adapter.paths_are_same("/nonexistent/a", "/nonexistent/b") is False
+
+
+def test_local_file_operation_adapter_paths_are_same_detects_same_file(tmp_path) -> None:
+    file_path = tmp_path / "README.md"
+    file_path.write_text("content\n", encoding="utf-8")
+
+    adapter = LocalFileOperationAdapter()
+
+    assert adapter.paths_are_same(str(file_path), str(file_path)) is True
+
+
+def test_local_file_operation_adapter_paths_are_same_detects_different_files(tmp_path) -> None:
+    file_a = tmp_path / "a.txt"
+    file_b = tmp_path / "b.txt"
+    file_a.write_text("a\n", encoding="utf-8")
+    file_b.write_text("b\n", encoding="utf-8")
+
+    adapter = LocalFileOperationAdapter()
+
+    assert adapter.paths_are_same(str(file_a), str(file_b)) is False
+
+
+def test_local_file_operation_adapter_copy_path_rejects_same_path_via_samefile(tmp_path) -> None:
+    source = tmp_path / "README.md"
+    source.write_text("plain\n", encoding="utf-8")
+
+    adapter = LocalFileOperationAdapter()
+
+    with pytest.raises(OSError, match="Source and destination are the same path"):
+        adapter.copy_path(str(source), str(source))

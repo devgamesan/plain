@@ -5973,3 +5973,115 @@ def test_confirm_empty_trash_shows_notification_on_success(monkeypatch) -> None:
     assert next_state.empty_trash_confirmation is None
     assert next_state.notification is not None
     assert next_state.notification.level == "info"
+
+
+def test_submit_pending_input_case_only_rename_emits_mutation() -> None:
+    """Case-only rename (docs -> Docs) should proceed, not show 'Name unchanged'."""
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="RENAME",
+        pending_input=PendingInputState(
+            prompt="Rename: ",
+            value="Docs",
+            target_path="/home/tadashi/develop/zivo/docs",
+        ),
+    )
+
+    result = reduce_app_state(state, SubmitPendingInput())
+
+    assert result.state.ui_mode == "BUSY"
+    assert result.effects == (
+        RunFileMutationEffect(
+            request_id=1,
+            request=RenameRequest(
+                source_path="/home/tadashi/develop/zivo/docs",
+                new_name="Docs",
+            ),
+        ),
+    )
+
+
+def test_submit_pending_input_case_insensitive_conflict_on_macos(monkeypatch) -> None:
+    """On macOS, renaming to a case-different existing name should conflict."""
+    import zivo.state.reducer_common as rc
+
+    monkeypatch.setattr(rc, "_is_macos", True)
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="RENAME",
+        pending_input=PendingInputState(
+            prompt="Rename: ",
+            value="Src",
+            target_path="/home/tadashi/develop/zivo/docs",
+        ),
+    )
+
+    result = reduce_app_state(state, SubmitPendingInput())
+
+    assert result.state.ui_mode == "CONFIRM"
+    assert result.state.name_conflict == NameConflictState(kind="rename", name="Src")
+
+
+def test_submit_pending_input_case_sensitive_no_conflict_on_linux(monkeypatch) -> None:
+    """On Linux, renaming to a case-different existing name should NOT conflict."""
+    import zivo.state.reducer_common as rc
+
+    monkeypatch.setattr(rc, "_is_macos", False)
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="RENAME",
+        pending_input=PendingInputState(
+            prompt="Rename: ",
+            value="Src",
+            target_path="/home/tadashi/develop/zivo/docs",
+        ),
+    )
+
+    result = reduce_app_state(state, SubmitPendingInput())
+
+    assert result.state.ui_mode == "BUSY"
+    assert result.effects != ()
+
+
+def test_submit_pending_input_rejects_colon_in_name_on_macos(monkeypatch) -> None:
+    """On macOS, names containing ':' should be rejected."""
+    import zivo.state.reducer_common as rc
+
+    monkeypatch.setattr(rc, "_is_macos", True)
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CREATE",
+        pending_input=PendingInputState(
+            prompt="New file: ",
+            value="file:name.txt",
+            create_kind="file",
+        ),
+    )
+
+    next_state = _reduce_state(state, SubmitPendingInput())
+
+    assert next_state.notification is not None
+    assert next_state.notification.level == "error"
+    assert "colons" in next_state.notification.message
+
+
+def test_submit_pending_input_allows_colon_in_name_on_linux(monkeypatch) -> None:
+    """On Linux, names containing ':' should not be rejected."""
+    import zivo.state.reducer_common as rc
+
+    monkeypatch.setattr(rc, "_is_macos", False)
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CREATE",
+        pending_input=PendingInputState(
+            prompt="New file: ",
+            value="file:name.txt",
+            create_kind="file",
+        ),
+    )
+
+    result = reduce_app_state(state, SubmitPendingInput())
+
+    # Should proceed to emit a create effect (not blocked by colon validation)
+    assert result.state.ui_mode == "BUSY"
+    assert result.effects != ()

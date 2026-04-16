@@ -39,7 +39,14 @@ class LocalFileOperationAdapter:
         return os.path.lexists(self._entry_path(path))
 
     def paths_are_same(self, source: str, destination: str) -> bool:
-        return self._entry_path(source) == self._entry_path(destination)
+        source_path = self._entry_path(source)
+        destination_path = self._entry_path(destination)
+        if source_path == destination_path:
+            return True
+        try:
+            return os.path.samefile(str(source_path), str(destination_path))
+        except OSError:
+            return False
 
     def remove_path(self, path: str) -> None:
         target = self._entry_path(path)
@@ -53,6 +60,9 @@ class LocalFileOperationAdapter:
         destination_path = self._entry_path(destination)
         if source_path == destination_path:
             raise OSError("Source and destination are the same path")
+        if source_path.exists() and destination_path.exists():
+            if os.path.samefile(str(source_path), str(destination_path)):
+                raise OSError("Source and destination are the same path")
         if source_path.is_symlink():
             destination_path.symlink_to(os.readlink(source_path))
             return

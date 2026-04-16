@@ -2487,7 +2487,7 @@ async def test_app_displays_browsing_help_bar() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
-        "enter open | e edit | i info | space select | c copy | x cut | p paste | "
+        "enter open | e edit | i info | space select | c copy | x cut | v paste | "
         "r rename | z undo\n"
         "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to\n"
         "n new-file | N new-dir | H history | b bookmarks | t term | : palette | q quit"
@@ -4969,7 +4969,7 @@ async def test_app_paste_conflict_dialog_round_trip() -> None:
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press("c")
-        await pilot.press("p")
+        await pilot.press("v")
         await asyncio.sleep(0.05)
 
         help_bar = app.query_one("#help-bar", HelpBar)
@@ -5209,7 +5209,7 @@ async def test_app_main_flow_round_trip_on_live_filesystem(tmp_path) -> None:
         await _wait_for_path(app, str(docs_dir))
         await _wait_for_row_count(app, 1)
 
-        await pilot.press("p")
+        await pilot.press("v")
         await _wait_for_row_count(app, 2, timeout=2.0)
 
         status_bar = await _wait_for_status_bar(app)

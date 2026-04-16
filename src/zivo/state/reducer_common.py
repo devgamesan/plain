@@ -58,6 +58,7 @@ CONFIG_PREVIEW_SYNTAX_THEMES = SUPPORTED_PREVIEW_SYNTAX_THEMES
 CONFIG_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 CONFIG_PASTE_ACTIONS = ("prompt", "overwrite", "skip", "rename")
 CONFIG_EDITOR_COMMANDS = (None, "nvim", "vim", "nano", "hx", "micro", "emacs -nw")
+CONFIG_SPLIT_TERMINAL_POSITIONS = ("bottom", "right")
 REGEX_FILE_SEARCH_PREFIX = "re:"
 REGEX_GREP_SEARCH_PREFIX = "re:"
 
@@ -753,6 +754,18 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
                 ),
             ),
         )
+    if field_id == "display.split_terminal_position":
+        return replace(
+            config,
+            display=replace(
+                config.display,
+                split_terminal_position=cycle_choice(
+                    CONFIG_SPLIT_TERMINAL_POSITIONS,
+                    config.display.split_terminal_position,
+                    delta,
+                ),
+            ),
+        )
     if field_id == "behavior.confirm_delete":
         return replace(
             config,
@@ -812,6 +825,7 @@ def config_editor_field_ids() -> tuple[str, ...]:
         "display.default_sort_descending",
         "display.directories_first",
         "display.grep_preview_context_lines",
+        "display.split_terminal_position",
         "behavior.confirm_delete",
         "behavior.paste_conflict_action",
         "logging.level",
@@ -831,6 +845,7 @@ def config_editor_labels() -> tuple[str, ...]:
         "Default sort descending",
         "Directories first",
         "Grep preview context lines",
+        "Split terminal position",
         "Confirm delete",
         "Paste conflict action",
         "Log level",
@@ -839,10 +854,10 @@ def config_editor_labels() -> tuple[str, ...]:
 
 CONFIG_EDITOR_CATEGORIES: tuple[tuple[str, tuple[int, ...]], ...] = (
     ("External", (0,)),
-    ("Display", (2, 5, 1, 3, 4, 6, 10)),
+    ("Display", (2, 5, 1, 3, 4, 6, 10, 11)),
     ("Sorting", (7, 8, 9)),
-    ("Behavior", (11, 12)),
-    ("Logging", (13,)),
+    ("Behavior", (12, 13)),
+    ("Logging", (14,)),
 )
 
 

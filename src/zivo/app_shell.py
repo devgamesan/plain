@@ -25,35 +25,46 @@ from zivo.ui import (
 )
 
 
-def build_body(shell: ThreePaneShellData) -> Vertical:
-    return Vertical(
-        Horizontal(
-            SidePane(
-                "Parent Directory",
-                shell.parent_entries,
-                id="parent-pane",
-                classes="pane side-pane",
-            ),
-            MainPane(
-                "Current Directory",
-                shell.current_entries or (),
-                summary=shell.current_summary,
-                cursor_index=shell.current_cursor_index,
-                cursor_visible=shell.current_cursor_visible,
-                context_input=shell.current_context_input,
-                id="current-pane",
-                classes="pane main-pane",
-            ),
-            ChildPane(
-                shell.child_pane,
-                id="child-pane",
-                classes="pane side-pane",
-            ),
-            id="browser-row",
+def build_body(shell: ThreePaneShellData, *, terminal_position: str = "bottom") -> Vertical:
+    browser_row_children: list[Any] = [
+        SidePane(
+            "Parent Directory",
+            shell.parent_entries,
+            id="parent-pane",
+            classes="pane side-pane",
         ),
-        SplitTerminalPane(shell.split_terminal, id="split-terminal"),
-        id="body",
-    )
+        MainPane(
+            "Current Directory",
+            shell.current_entries or (),
+            summary=shell.current_summary,
+            cursor_index=shell.current_cursor_index,
+            cursor_visible=shell.current_cursor_visible,
+            context_input=shell.current_context_input,
+            id="current-pane",
+            classes="pane main-pane",
+        ),
+        ChildPane(
+            shell.child_pane,
+            id="child-pane",
+            classes="pane side-pane",
+        ),
+    ]
+    body_children: list[Any] = [
+        Horizontal(*browser_row_children, id="browser-row"),
+    ]
+    if terminal_position == "right":
+        browser_row_children.append(
+            SplitTerminalPane(
+                shell.split_terminal,
+                id="split-terminal",
+                classes="split-terminal-right",
+            )
+        )
+    else:
+        body_children.append(
+            SplitTerminalPane(shell.split_terminal, id="split-terminal")
+        )
+    return Vertical(*body_children, id="body")
 
 
 async def refresh_shell(
@@ -109,7 +120,8 @@ async def refresh_shell(
                 pass
         await app.mount(TabBar(shell.tab_bar, id="tab-bar"))
         await app.mount(CurrentPathBar(shell.current_path, id="current-path-bar"))
-        await app.mount(build_body(shell))
+        terminal_position = app_state.config.display.split_terminal_position
+        await app.mount(build_body(shell, terminal_position=terminal_position))
         await app.mount(
             Container(
                 CommandPalette(shell.command_palette, id="command-palette"),
@@ -166,6 +178,9 @@ async def refresh_shell(
     current_pane.set_context_input(shell.current_context_input)
     await parent_pane.set_entries(shell.parent_entries)
     await child_pane.set_state(shell.child_pane)
+    terminal_position = app_state.config.display.split_terminal_position
+    if terminal_position == "right":
+        child_pane.display = not app_state.split_terminal.visible
     if theme_changed:
         def _refresh_themed_panes() -> None:
             parent_pane.refresh_styles()

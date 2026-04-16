@@ -242,14 +242,23 @@ class zivoApp(App[None]):
         except NoMatches:
             return
 
+        is_right_and_terminal_visible = (
+            self._app_state.config.display.split_terminal_position == "right"
+            and self._app_state.split_terminal.visible
+        )
+
         if width >= self._PANE_VISIBILITY_MEDIUM_THRESHOLD:
             parent_pane.display = True
-            child_pane.display = True
         elif width >= self._PANE_VISIBILITY_NARROW_THRESHOLD:
             parent_pane.display = False
-            child_pane.display = True
         else:
             parent_pane.display = False
+
+        if is_right_and_terminal_visible:
+            child_pane.display = False
+        elif width >= self._PANE_VISIBILITY_NARROW_THRESHOLD:
+            child_pane.display = True
+        else:
             child_pane.display = False
 
     def _update_command_palette_geometry(self) -> None:
@@ -328,7 +337,10 @@ class zivoApp(App[None]):
         await self._dispatch_key_press(key)
 
     def _build_body(self, shell: ThreePaneShellData) -> Vertical:
-        return build_body(shell)
+        return build_body(
+            shell,
+            terminal_position=self._app_state.config.display.split_terminal_position,
+        )
 
     async def _dispatch_key_press(
         self,
@@ -355,11 +367,20 @@ class zivoApp(App[None]):
         sync_runtime_state(self, previous_state, self._app_state)
         next_theme = _active_app_theme(self._app_state)
         theme_changed = previous_theme != next_theme
+        layout_changed = (
+            previous_state.config.display.split_terminal_position
+            != self._app_state.config.display.split_terminal_position
+        )
         if theme_changed:
             self.theme = next_theme
         if previous_state.config != self._app_state.config:
             self._sync_external_launch_service()
-        if changed or theme_changed:
+        if layout_changed:
+            try:
+                await self.query_one("#body").remove()
+            except NoMatches:
+                pass
+        if changed or theme_changed or layout_changed:
             await self._refresh_shell(theme_changed=theme_changed)
         schedule_effects(self, effects)
 

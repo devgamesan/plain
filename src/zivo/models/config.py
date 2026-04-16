@@ -6,6 +6,7 @@ from typing import Literal
 from zivo.theme_support import AUTO_PREVIEW_SYNTAX_THEME, DEFAULT_APP_THEME
 
 ConfigSortField = Literal["name", "modified", "size"]
+SplitTerminalPosition = Literal["bottom", "right"]
 ConfigTheme = str
 PreviewSyntaxTheme = str
 ConfigLogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -42,6 +43,7 @@ class DisplayConfig:
     default_sort_descending: bool = False
     directories_first: bool = True
     grep_preview_context_lines: int = 3
+    split_terminal_position: SplitTerminalPosition = "bottom"
 
 
 @dataclass(frozen=True)

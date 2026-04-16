@@ -58,6 +58,7 @@ ConfigFieldId = Literal[
     "display.default_sort_field",
     "display.default_sort_descending",
     "display.directories_first",
+    "display.split_terminal_position",
     "behavior.confirm_delete",
     "behavior.paste_conflict_action",
     "logging.level",

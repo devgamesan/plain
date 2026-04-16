@@ -1409,7 +1409,7 @@ def test_move_config_editor_cursor_clamps_to_visible_settings() -> None:
     next_state = _reduce_state(state, MoveConfigEditorCursor(delta=99))
 
     assert next_state.config_editor is not None
-    assert next_state.config_editor.cursor_index == 13
+    assert next_state.config_editor.cursor_index == 14
 
 
 def test_cycle_config_editor_editor_command_updates_draft_and_dirty_state() -> None:
@@ -1445,6 +1445,25 @@ def test_cycle_config_editor_value_updates_draft_and_dirty_state() -> None:
 
     assert next_state.config_editor is not None
     assert next_state.config_editor.draft.display.show_hidden_files is True
+    assert next_state.config_editor.dirty is True
+
+
+def test_cycle_config_editor_split_terminal_position_updates_draft() -> None:
+    original_state = build_initial_app_state(config_path="/tmp/zivo/config.toml")
+    state = replace(
+        original_state,
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/zivo/config.toml",
+            draft=original_state.config,
+            cursor_index=11,
+        ),
+    )
+
+    next_state = _reduce_state(state, CycleConfigEditorValue(delta=1))
+
+    assert next_state.config_editor is not None
+    assert next_state.config_editor.draft.display.split_terminal_position == "right"
     assert next_state.config_editor.dirty is True
 
 

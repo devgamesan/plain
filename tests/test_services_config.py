@@ -98,6 +98,7 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
     assert result.config.display.default_sort_descending is True
     assert result.config.display.directories_first is False
     assert result.config.display.grep_preview_context_lines == 5
+    assert result.config.display.split_terminal_position == "bottom"
     assert result.config.behavior.confirm_delete is False
     assert result.config.behavior.paste_conflict_action == "rename"
     assert result.config.logging.enabled is False
@@ -227,6 +228,7 @@ def test_config_save_service_writes_normalized_config_file(tmp_path) -> None:
     assert 'path = "/tmp/zivo-errors.log"' in written
     assert 'paths = ["/tmp/project", "/tmp/docs"]' in written
     assert "grep_preview_context_lines = 7" in written
+    assert 'split_terminal_position = "bottom"' in written
 
 
 def test_loader_accepts_all_supported_builtin_themes(tmp_path) -> None:
@@ -314,3 +316,36 @@ def test_loader_accepts_zero_grep_preview_context_lines(tmp_path) -> None:
 
     assert result.warnings == ()
     assert result.config.display.grep_preview_context_lines == 0
+
+
+def test_loader_reads_split_terminal_position(tmp_path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+        [display]
+        split_terminal_position = "right"
+        """,
+        encoding="utf-8",
+    )
+
+    result = AppConfigLoader(config_path_resolver=lambda: config_path).load()
+
+    assert result.warnings == ()
+    assert result.config.display.split_terminal_position == "right"
+
+
+def test_loader_rejects_invalid_split_terminal_position(tmp_path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+        [display]
+        split_terminal_position = "top"
+        """,
+        encoding="utf-8",
+    )
+
+    result = AppConfigLoader(config_path_resolver=lambda: config_path).load()
+
+    assert len(result.warnings) == 1
+    assert "split_terminal_position" in result.warnings[0]
+    assert result.config.display.split_terminal_position == "bottom"

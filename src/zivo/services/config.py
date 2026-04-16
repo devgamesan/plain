@@ -44,6 +44,7 @@ _VALID_THEMES = frozenset(SUPPORTED_APP_THEMES)
 _VALID_PREVIEW_SYNTAX_THEMES = frozenset(SUPPORTED_PREVIEW_SYNTAX_THEMES)
 _VALID_LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 _VALID_PASTE_ACTIONS = frozenset({"overwrite", "skip", "rename", "prompt"})
+_VALID_SPLIT_TERMINAL_POSITIONS = frozenset({"bottom", "right"})
 _VALID_TERMINAL_EDITOR_NAMES = frozenset(
     {"emacs", "helix", "hx", "kak", "micro", "nano", "nvim", "vi", "vim"}
 )
@@ -258,6 +259,15 @@ def _load_display_config(section: object, warnings: list[str]) -> DisplayConfig:
             default=config.default_sort_field,
             valid_values=_VALID_SORT_FIELDS,
             valid_display="name, modified, size",
+            section_name="display",
+            warnings=warnings,
+        ),
+        split_terminal_position=_read_enum(
+            validated,
+            key="split_terminal_position",
+            default=config.split_terminal_position,
+            valid_values=_VALID_SPLIT_TERMINAL_POSITIONS,
+            valid_display="bottom, right",
             section_name="display",
             warnings=warnings,
         ),
@@ -578,7 +588,8 @@ def _render_display_section(config: AppConfig) -> str:
         f'default_sort_field = "{config.display.default_sort_field}"\n'
         f"default_sort_descending = {_render_bool(config.display.default_sort_descending)}\n"
         f"directories_first = {_render_bool(config.display.directories_first)}\n"
-        f"grep_preview_context_lines = {config.display.grep_preview_context_lines}"
+        f"grep_preview_context_lines = {config.display.grep_preview_context_lines}\n"
+        f'split_terminal_position = "{config.display.split_terminal_position}"'
     )
 
 

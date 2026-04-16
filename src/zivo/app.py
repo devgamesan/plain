@@ -258,16 +258,21 @@ class zivoApp(App[None]):
         try:
             command_palette_layer = self.query_one("#command-palette-layer", Container)
             current_pane = self.query_one("#current-pane", MainPane)
+            browser_row = self.query_one("#browser-row")
         except NoMatches:
             return
 
-        region = current_pane.region
-        if region.width <= 0 or region.height <= 0:
+        pane_region = current_pane.region
+        row_region = browser_row.region
+        if pane_region.width <= 0 or pane_region.height <= 0:
             return
 
-        command_palette_layer.styles.width = region.width
-        command_palette_layer.styles.height = region.height
-        command_palette_layer.styles.offset = (region.x, max(0, region.y - 1))
+        command_palette_layer.styles.width = pane_region.width
+        command_palette_layer.styles.height = pane_region.height
+        command_palette_layer.styles.offset = (
+            pane_region.x,
+            max(0, row_region.y - 1),
+        )
 
     def _update_config_dialog_geometry(self) -> None:
         """Constrain the config dialog overlay to the current pane."""
@@ -275,16 +280,21 @@ class zivoApp(App[None]):
         try:
             config_dialog_layer = self.query_one("#config-dialog-layer", Container)
             current_pane = self.query_one("#current-pane", MainPane)
+            browser_row = self.query_one("#browser-row")
         except NoMatches:
             return
 
-        region = current_pane.region
-        if region.width <= 0 or region.height <= 0:
+        pane_region = current_pane.region
+        row_region = browser_row.region
+        if pane_region.width <= 0 or pane_region.height <= 0:
             return
 
-        config_dialog_layer.styles.width = region.width
-        config_dialog_layer.styles.height = region.height
-        config_dialog_layer.styles.offset = (region.x, max(0, region.y - 1))
+        config_dialog_layer.styles.width = pane_region.width
+        config_dialog_layer.styles.height = pane_region.height
+        config_dialog_layer.styles.offset = (
+            pane_region.x,
+            max(0, row_region.y - 1),
+        )
 
     async def on_mount(self) -> None:
         """Load the initial directory snapshot after the UI mounts."""

@@ -481,7 +481,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     return HelpBarState(
         (
             "enter open | e edit | i info | space select | c copy | x cut | v paste | "
-            "r rename | z undo",
+            "d delete | r rename | z undo",
             "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to",
             "n new-file | N new-dir | H history | b bookmarks | t term | : palette | q quit",
         )

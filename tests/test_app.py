@@ -2506,7 +2506,7 @@ async def test_app_displays_browsing_help_bar() -> None:
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
         "enter open | e edit | i info | space select | c copy | x cut | v paste | "
-        "r rename | z undo\n"
+        "d delete | r rename | z undo\n"
         "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to\n"
         "n new-file | N new-dir | H history | b bookmarks | t term | : palette | q quit"
     )
@@ -4640,13 +4640,18 @@ async def test_app_sort_shortcuts_keep_side_panes_fixed_and_update_status_bar() 
         ),
     )
     loader = FakeBrowserSnapshotLoader(snapshots={path: snapshot})
-    app = create_app(snapshot_loader=loader, initial_path=path)
+    app = create_app(
+        snapshot_loader=loader,
+        initial_path=path,
+        app_config=AppConfig(
+            display=DisplayConfig(directories_first=False),
+        ),
+    )
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 3)
 
-        await pilot.press("d")
         await pilot.press("s")
         await asyncio.sleep(0.05)
 
@@ -5264,11 +5269,10 @@ async def test_app_main_flow_round_trip_on_live_filesystem(tmp_path) -> None:
         assert app.app_state.filter.active is False
 
         await pilot.press("s")
-        await pilot.press("d")
         await asyncio.sleep(0.05)
 
         summary_bar = await _wait_for_summary_bar(app)
-        assert str(summary_bar.renderable) == ("4 items | 0 selected | sort: name desc dirs:off")
+        assert str(summary_bar.renderable) == ("4 items | 0 selected | sort: name desc dirs:on")
 
 
 @pytest.mark.asyncio

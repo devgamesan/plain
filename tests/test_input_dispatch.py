@@ -1103,14 +1103,28 @@ def test_browsing_s_cycles_from_name_desc_to_modified_desc() -> None:
     )
 
 
-def test_browsing_d_toggles_directories_first() -> None:
+def test_browsing_d_dispatches_delete_targets() -> None:
     state = build_initial_app_state()
 
     actions = dispatch_key_input(state, key="d", character="d")
 
     assert actions == (
         SetNotification(None),
-        SetSort(field="name", descending=False, directories_first=False),
+        BeginDeleteTargets(("/home/tadashi/develop/zivo/docs",)),
+    )
+
+
+def test_browsing_d_warns_when_no_target_exists() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        current_pane=replace(state.current_pane, entries=(), cursor_path=None),
+    )
+
+    actions = dispatch_key_input(state, key="d", character="d")
+
+    assert actions == (
+        SetNotification(NotificationState(level="warning", message="Nothing to delete")),
     )
 
 
@@ -1147,6 +1161,33 @@ def test_browsing_shift_delete_dispatches_permanent_delete_targets() -> None:
     assert actions == (
         SetNotification(None),
         BeginDeleteTargets(("/home/tadashi/develop/zivo/docs",), mode="permanent"),
+    )
+
+
+def test_browsing_uppercase_D_dispatches_permanent_delete_targets() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="D", character="D")
+
+    assert actions == (
+        SetNotification(None),
+        BeginDeleteTargets(("/home/tadashi/develop/zivo/docs",), mode="permanent"),
+    )
+
+
+def test_browsing_uppercase_D_warns_when_no_target_exists() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        current_pane=replace(state.current_pane, entries=(), cursor_path=None),
+    )
+
+    actions = dispatch_key_input(state, key="D", character="D")
+
+    assert actions == (
+        SetNotification(
+            NotificationState(level="warning", message="Nothing to permanently delete")
+        ),
     )
 
 

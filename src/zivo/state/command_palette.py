@@ -294,7 +294,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="delete_targets",
                 label="Move to trash",
-                shortcut="Del",
+                shortcut="d",
                 enabled=True,
             )
         )

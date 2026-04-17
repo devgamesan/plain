@@ -132,7 +132,8 @@ BROWSING_KEYMAP = {
     "!": "begin_shell_command",
     ":": "begin_command_palette",
     "s": "cycle_sort",
-    "d": "toggle_directories_first",
+    "d": "delete_targets",
+    "D": "permanent_delete_targets",
     "delete": "delete_targets",
     "shift+delete": "permanent_delete_targets",
     "e": "open_in_editor",
@@ -889,18 +890,6 @@ def _handle_cycle_sort(state: AppState, _ctx: _BrowsingCtx) -> DispatchedActions
     return _supported(_next_sort_action(state))
 
 
-def _handle_toggle_directories_first(
-    state: AppState, _ctx: _BrowsingCtx
-) -> DispatchedActions:
-    return _supported(
-        SetSort(
-            field=state.sort.field,
-            descending=state.sort.descending,
-            directories_first=not state.sort.directories_first,
-        )
-    )
-
-
 def _handle_delete_targets(_state: AppState, ctx: _BrowsingCtx) -> DispatchedActions:
     if not ctx.target_paths:
         return _warn("Nothing to delete")
@@ -982,7 +971,6 @@ _BROWSING_COMPLEX_DISPATCH: dict[str, _BrowsingHandler] = {
     "toggle_bookmark": _handle_toggle_bookmark,
     "begin_rename": _handle_begin_rename,
     "cycle_sort": _handle_cycle_sort,
-    "toggle_directories_first": _handle_toggle_directories_first,
     "delete_targets": _handle_delete_targets,
     "permanent_delete_targets": _handle_permanent_delete_targets,
     "open_in_editor": _handle_open_in_editor,

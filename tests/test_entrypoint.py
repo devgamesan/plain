@@ -4,7 +4,7 @@ from zivo.__main__ import main
 
 
 def test_main_runs_app() -> None:
-    with patch("zivo.__main__.create_app") as create_app:
+    with patch("zivo.app.create_app") as create_app:
         app = create_app.return_value
 
         main([])

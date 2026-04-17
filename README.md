@@ -438,6 +438,10 @@ The accepted `display.preview_syntax_theme` values are `auto` plus the Pygments 
 - On WSL, zivo prefers Windows-side bridges such as `wslview`, `explorer.exe`, and `clip.exe` when available, while keeping Linux-side fallbacks for WSLg and desktop Linux environments.
 - Behavior and keybindings may change in future revisions.
 - File mutations operate on the selected directory entry. If the selected item is a symlink, zivo mutates the symlink itself instead of silently following and mutating the link target.
+- The embedded split terminal uses [pyte](https://pyte.readthedocs.io/) for terminal emulation, which has the following limitations:
+  - TUI applications that use an alternate screen buffer (e.g. lazygit, htop, vim) generally do not work correctly.
+  - Certain escape sequences (DCS, OSC, and private SGR) are stripped during output sanitization, so features relying on them are unavailable.
+  - Mouse events are not forwarded, so mouse-driven applications cannot be used.
 
 ## Related Documents
 

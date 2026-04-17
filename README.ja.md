@@ -217,6 +217,8 @@ zivo-cd
 | `r` | 選択項目をリネーム |
 | `n` | 新規ファイル作成 |
 | `N` | 新規ディレクトリ作成 |
+| `d` | 選択項目をゴミ箱へ移動 |
+| `D` | 選択項目を完全に削除 |
 | `Delete` | 選択項目をゴミ箱へ移動（macOS では fn + Delete） |
 | `Shift+Delete` | 選択項目を完全に削除（macOS では fn + Shift + Delete） |
 | `i` | ファイル属性を表示 |
@@ -232,7 +234,6 @@ zivo-cd
 | `~` | ホームディレクトリに移動 |
 | `.` | 隠しファイル表示を切り替え |
 | `s` | ソート順を循環切り替え |
-| `d` | ディレクトリ優先表示を切り替え |
 | `R` | ディレクトリを再読み込み |
 | `t` | 分割ターミナルを切り替え |
 | `T` | 現在のディレクトリでターミナルを開く |
@@ -381,7 +382,7 @@ zivo は起動時にユーザー設定用の `config.toml` を読み込みます
 | `display` | `default_sort_field` | `name` / `modified` / `size` | 中央ペインの初期ソート項目です。 |
 | `display` | `default_sort_descending` | `true` / `false` | `true` のとき、起動時のソートを降順にします。 |
 | `display` | `directories_first` | `true` / `false` | 中央ペインでディレクトリをファイルより先にまとめて表示します。 |
-| `behavior` | `confirm_delete` | `true` / `false` | ゴミ箱削除の前に確認ダイアログを表示します。`Shift+Delete` による完全削除は常に確認します。 |
+| `behavior` | `confirm_delete` | `true` / `false` | ゴミ箱削除の前に確認ダイアログを表示します。`D` / `Shift+Delete` による完全削除は常に確認します。 |
 | `behavior` | `paste_conflict_action` | `prompt` / `overwrite` / `skip` / `rename` | 貼り付け競合時の既定動作です。`prompt` の場合は競合ダイアログを維持します。 |
 | `logging` | `enabled` | `true` / `false` | 起動失敗や未処理例外をログファイルへ出力するかどうかを切り替えます。 |
 | `logging` | `level` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` | ログファイルへ出力するログレベルです。既定値は `ERROR` です。設定の反映にはアプリの再起動が必要です。 |

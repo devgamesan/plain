@@ -216,6 +216,8 @@ When a file is focused, press `e` to switch into a terminal editor in the curren
 | `r` | Rename selected item |
 | `n` | Create new file |
 | `N` | Create new directory |
+| `d` | Move selected items to trash |
+| `D` | Permanently delete selected items |
 | `Delete` | Move selected items to trash (fn + Delete on macOS) |
 | `Shift+Delete` | Permanently delete selected items (fn + Shift + Delete on macOS) |
 | `i` | Show file attributes |
@@ -231,7 +233,6 @@ When a file is focused, press `e` to switch into a terminal editor in the curren
 | `~` | Go to home directory |
 | `.` | Toggle hidden files |
 | `s` | Cycle sort |
-| `d` | Toggle directories-first |
 | `R` | Reload directory |
 | `t` | Toggle split terminal |
 | `T` | Open terminal at current directory |
@@ -381,7 +382,7 @@ The supported settings are:
 | `display` | `default_sort_field` | `name` / `modified` / `size` | Default sort field for the main pane. |
 | `display` | `default_sort_descending` | `true` / `false` | Starts the main-pane sort in descending order when enabled. |
 | `display` | `directories_first` | `true` / `false` | Keeps directories grouped before files in the main pane. |
-| `behavior` | `confirm_delete` | `true` / `false` | Shows a confirmation dialog before moving items to trash. Permanent delete via `Shift+Delete` always asks for confirmation. |
+| `behavior` | `confirm_delete` | `true` / `false` | Shows a confirmation dialog before moving items to trash. Permanent delete via `D` / `Shift+Delete` always asks for confirmation. |
 | `behavior` | `paste_conflict_action` | `prompt` / `overwrite` / `skip` / `rename` | Chooses the default paste-conflict behavior. `prompt` keeps the conflict dialog enabled. |
 | `logging` | `enabled` | `true` / `false` | Enables file output for startup failures and unhandled exceptions. |
 | `logging` | `level` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` | Log level for file output. Defaults to `ERROR`. Requires app restart to take effect. |

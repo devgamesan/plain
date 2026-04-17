@@ -53,8 +53,6 @@ from zivo.state import (
     GrepSearchFailed,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
-    NotificationState,
-    PasteFromClipboardEffect,
     RunArchiveExtractEffect,
     RunArchivePreparationEffect,
     RunClipboardPasteEffect,
@@ -68,7 +66,6 @@ from zivo.state import (
     RunUndoEffect,
     RunZipCompressEffect,
     RunZipCompressPreparationEffect,
-    SetNotification,
     ShellCommandCompleted,
     ShellCommandFailed,
     SplitTerminalStarted,
@@ -652,22 +649,6 @@ def write_split_terminal_input(app: Any, effect: WriteSplitTerminalInputEffect) 
         )
 
 
-def paste_from_clipboard(app: Any, effect: PasteFromClipboardEffect) -> None:
-    if app._app_state.split_terminal.session_id != effect.session_id:
-        return
-    if app._split_terminal_session is None:
-        return
-    try:
-        clipboard_text = app._external_launch_service.get_from_clipboard()
-        app._split_terminal_session.write(clipboard_text)
-    except OSError as error:
-        message = str(error) or "Failed to read clipboard"
-        app.call_next(
-            app.dispatch_actions,
-            (SetNotification(NotificationState(level="warning", message=message)),),
-        )
-
-
 def close_split_terminal(app: Any) -> None:
     if app._split_terminal_session is None:
         return
@@ -852,7 +833,6 @@ _EFFECT_SCHEDULERS = (
     (RunGrepSearchEffect, schedule_grep_search),
     (StartSplitTerminalEffect, start_split_terminal),
     (WriteSplitTerminalInputEffect, write_split_terminal_input),
-    (PasteFromClipboardEffect, paste_from_clipboard),
     (CloseSplitTerminalEffect, _close_split_terminal_effect),
 )
 

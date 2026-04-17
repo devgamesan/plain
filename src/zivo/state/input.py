@@ -64,7 +64,6 @@ from .actions import (
     OpenPathWithDefaultApp,
     OpenTerminalAtPath,
     PasteClipboard,
-    PasteFromClipboardToTerminal,
     ReloadDirectory,
     RemoveBookmark,
     ResetHelpBarConfig,
@@ -180,7 +179,6 @@ CONFLICT_KEYMAP = {
 TERMINAL_KEYMAP = {
     # Actions handled explicitly in _dispatch_split_terminal_input
     "tab": "terminal_tab",
-    "ctrl+v": "paste_from_clipboard",
     "ctrl+q": "close_terminal",
     # Keys handled via _TERMINAL_KEY_SEQUENCES (kept here for binding registration)
     "enter": "terminal_enter",
@@ -417,9 +415,6 @@ def _dispatch_split_terminal_input(
     if command == "close_terminal":
         return _supported(ToggleSplitTerminal())
 
-    if command == "paste_from_clipboard":
-        return _supported(PasteFromClipboardToTerminal())
-
     # Look up escape sequence for special keys (escape, arrows, F-keys, etc.)
     sequence = _TERMINAL_KEY_SEQUENCES.get(key)
     if sequence is not None:
@@ -442,7 +437,7 @@ def _dispatch_split_terminal_input(
 
 
 def _terminal_control_character(key: str) -> str | None:
-    if not key.startswith("ctrl+") or key in {"ctrl+v", "ctrl+q"}:
+    if not key.startswith("ctrl+") or key == "ctrl+q":
         return None
 
     suffix = key[5:]

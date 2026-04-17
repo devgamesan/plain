@@ -250,7 +250,7 @@ When a file is focused, press `e` to switch into a terminal editor in the curren
 | Key | Action |
 | --- | ------ |
 | Any printable character | Send to terminal |
-| `Ctrl+v` | Paste from clipboard |
+| `Cmd+v` (macOS) / `Ctrl+shift+v` (Linux) | Paste from clipboard |
 | `Esc` | Close split terminal |
 
 ### Input Dialogs

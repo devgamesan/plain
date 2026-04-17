@@ -374,17 +374,32 @@ class zivoApp(App[None]):
             event.prevent_default()
 
     async def on_paste(self, event: events.Paste) -> None:
-        """Handle clipboard paste in input dialog modes."""
+        """Handle clipboard paste in input dialog and split terminal modes."""
 
-        if self._app_state.ui_mode not in {"RENAME", "CREATE", "EXTRACT", "ZIP"}:
-            return
-        if self._app_state.pending_input is None:
-            return
-        from zivo.state import PasteIntoPendingInput
+        if self._app_state.ui_mode in {"RENAME", "CREATE", "EXTRACT", "ZIP"}:
+            if self._app_state.pending_input is not None:
+                from zivo.state import PasteIntoPendingInput
 
-        await self.dispatch_actions((PasteIntoPendingInput(text=event.text),))
-        event.stop()
-        event.prevent_default()
+                await self.dispatch_actions(
+                    (PasteIntoPendingInput(text=event.text),)
+                )
+                event.stop()
+                event.prevent_default()
+            return
+
+        st = self._app_state.split_terminal
+        if (
+            st.visible
+            and st.status == "running"
+            and st.focus_target == "terminal"
+        ):
+            from zivo.state import SendSplitTerminalInput
+
+            await self.dispatch_actions(
+                (SendSplitTerminalInput(event.text),)
+            )
+            event.stop()
+            event.prevent_default()
 
     async def action_dispatch_bound_key(self, key: str) -> None:
         """Handle priority key bindings through the central dispatcher."""

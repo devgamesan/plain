@@ -150,13 +150,6 @@ class WriteSplitTerminalInputEffect:
 
 
 @dataclass(frozen=True)
-class PasteFromClipboardEffect:
-    """Paste clipboard contents into the active split-terminal session."""
-
-    session_id: int
-
-
-@dataclass(frozen=True)
 class CloseSplitTerminalEffect:
     """Close the active embedded split-terminal session."""
 
@@ -197,7 +190,6 @@ Effect = (
     | RunGrepSearchEffect
     | StartSplitTerminalEffect
     | WriteSplitTerminalInputEffect
-    | PasteFromClipboardEffect
     | CloseSplitTerminalEffect
     | RunConfigSaveEffect
     | RunShellCommandEffect

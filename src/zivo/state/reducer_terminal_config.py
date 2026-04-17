@@ -23,7 +23,6 @@ from .actions import (
     OpenPathInEditor,
     OpenPathWithDefaultApp,
     OpenTerminalAtPath,
-    PasteFromClipboardToTerminal,
     RemoveBookmark,
     ResetHelpBarConfig,
     SaveConfigEditor,
@@ -41,7 +40,6 @@ from .actions import (
 )
 from .effects import (
     CloseSplitTerminalEffect,
-    PasteFromClipboardEffect,
     ReduceResult,
     RunConfigSaveEffect,
     RunShellCommandEffect,
@@ -502,24 +500,6 @@ def _handle_send_split_terminal_input(
     )
 
 
-def _handle_paste_from_clipboard_to_terminal(
-    state: AppState,
-    action: PasteFromClipboardToTerminal,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    session_id = state.split_terminal.session_id
-    if (
-        not state.split_terminal.visible
-        or state.split_terminal.status != "running"
-        or session_id is None
-    ):
-        return finalize(state)
-    return finalize(
-        state,
-        PasteFromClipboardEffect(session_id=session_id),
-    )
-
-
 def _handle_external_launch_completed(
     state: AppState,
     action: ExternalLaunchCompleted,
@@ -728,7 +708,6 @@ _TERMINAL_CONFIG_HANDLERS: dict[type[Action], _TerminalConfigHandler] = {
     ToggleSplitTerminal: _handle_toggle_split_terminal,
     FocusSplitTerminal: _handle_focus_split_terminal,
     SendSplitTerminalInput: _handle_send_split_terminal_input,
-    PasteFromClipboardToTerminal: _handle_paste_from_clipboard_to_terminal,
     ExternalLaunchCompleted: _handle_external_launch_completed,
     ExternalLaunchFailed: _handle_external_launch_failed,
     ShellCommandCompleted: _handle_shell_command_completed,

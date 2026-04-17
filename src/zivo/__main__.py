@@ -8,11 +8,10 @@ import sys
 from collections.abc import Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import IO, Iterator
+from typing import IO, TYPE_CHECKING, Iterator
 
-from .app import create_app
-from .services import configure_file_logging, load_app_config
-from .state import NotificationState
+if TYPE_CHECKING:
+    from .state import NotificationState
 
 
 @dataclass(frozen=True)
@@ -65,6 +64,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stdout.write(render_shell_init(args.shell))
         return 0
 
+    from .app import create_app
+    from .services import configure_file_logging, load_app_config
+
     config_result = load_app_config()
     logging_result = configure_file_logging(
         config=config_result.config.logging,
@@ -99,6 +101,8 @@ def _startup_notification(
     config_warnings: tuple[str, ...],
     logging_warning: str = "",
 ) -> NotificationState | None:
+    from .state import NotificationState
+
     messages = list(config_warnings)
     if logging_warning:
         messages.append(logging_warning)

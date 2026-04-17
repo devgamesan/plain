@@ -45,13 +45,15 @@ def test_render_shell_init_outputs_zivo_cd_function() -> None:
 
 def test_main_print_last_dir_outputs_return_value(capsys, monkeypatch) -> None:
     app = DummyApp(return_value="/tmp/zivo-last-dir")
-    monkeypatch.setattr(cli, "load_app_config", lambda: ConfigLoadResult(config=AppConfig()))
     monkeypatch.setattr(
-        cli,
-        "configure_file_logging",
+        "zivo.services.load_app_config",
+        lambda: ConfigLoadResult(config=AppConfig()),
+    )
+    monkeypatch.setattr(
+        "zivo.services.configure_file_logging",
         lambda **_kwargs: LoggingSetupResult(enabled=True, path="/tmp/zivo.log"),
     )
-    monkeypatch.setattr(cli, "create_app", lambda **_kwargs: app)
+    monkeypatch.setattr("zivo.app.create_app", lambda **_kwargs: app)
 
     return_code = cli.main(["--print-last-dir"])
 
@@ -62,13 +64,15 @@ def test_main_print_last_dir_outputs_return_value(capsys, monkeypatch) -> None:
 
 def test_main_print_last_dir_falls_back_to_current_path(capsys, monkeypatch) -> None:
     app = DummyApp(return_value=None, current_path="/tmp/zivo-fallback")
-    monkeypatch.setattr(cli, "load_app_config", lambda: ConfigLoadResult(config=AppConfig()))
     monkeypatch.setattr(
-        cli,
-        "configure_file_logging",
+        "zivo.services.load_app_config",
+        lambda: ConfigLoadResult(config=AppConfig()),
+    )
+    monkeypatch.setattr(
+        "zivo.services.configure_file_logging",
         lambda **_kwargs: LoggingSetupResult(enabled=True, path="/tmp/zivo.log"),
     )
-    monkeypatch.setattr(cli, "create_app", lambda **_kwargs: app)
+    monkeypatch.setattr("zivo.app.create_app", lambda **_kwargs: app)
 
     return_code = cli.main(["--print-last-dir"])
 
@@ -168,13 +172,15 @@ def test_main_print_last_dir_runs_app_with_tty_streams_when_stdout_is_captured(
     monkeypatch.setattr(sys, "__stdin__", original_stdin, raising=False)
     monkeypatch.setattr(sys, "__stdout__", original_stdout, raising=False)
     monkeypatch.setattr(sys, "__stderr__", original_stderr, raising=False)
-    monkeypatch.setattr(cli, "load_app_config", lambda: ConfigLoadResult(config=AppConfig()))
     monkeypatch.setattr(
-        cli,
-        "configure_file_logging",
+        "zivo.services.load_app_config",
+        lambda: ConfigLoadResult(config=AppConfig()),
+    )
+    monkeypatch.setattr(
+        "zivo.services.configure_file_logging",
         lambda **_kwargs: LoggingSetupResult(enabled=True, path="/tmp/zivo.log"),
     )
-    monkeypatch.setattr(cli, "create_app", lambda **_kwargs: app)
+    monkeypatch.setattr("zivo.app.create_app", lambda **_kwargs: app)
     monkeypatch.setattr(
         cli,
         "_open_tty_streams",
@@ -204,8 +210,7 @@ def test_main_passes_loaded_config_and_warnings_to_create_app(monkeypatch) -> No
     captured_logging_kwargs: dict[str, object] = {}
 
     monkeypatch.setattr(
-        cli,
-        "load_app_config",
+        "zivo.services.load_app_config",
         lambda: ConfigLoadResult(
             config=loaded_config,
             warnings=("using test config",),
@@ -216,13 +221,16 @@ def test_main_passes_loaded_config_and_warnings_to_create_app(monkeypatch) -> No
         captured_logging_kwargs.update(kwargs)
         return LoggingSetupResult(enabled=True, path="/tmp/custom-zivo.log")
 
-    monkeypatch.setattr(cli, "configure_file_logging", fake_configure_file_logging)
+    monkeypatch.setattr(
+        "zivo.services.configure_file_logging",
+        fake_configure_file_logging,
+    )
 
     def fake_create_app(**kwargs):
         captured_kwargs.update(kwargs)
         return app
 
-    monkeypatch.setattr(cli, "create_app", fake_create_app)
+    monkeypatch.setattr("zivo.app.create_app", fake_create_app)
 
     return_code = cli.main([])
 
@@ -252,13 +260,15 @@ def test_main_logs_and_reraises_runtime_exception(monkeypatch) -> None:
         raise RuntimeError("boom")
 
     app.run = lambda **_kwargs: raise_in_run()  # type: ignore[method-assign]
-    monkeypatch.setattr(cli, "load_app_config", lambda: ConfigLoadResult(config=AppConfig()))
     monkeypatch.setattr(
-        cli,
-        "configure_file_logging",
+        "zivo.services.load_app_config",
+        lambda: ConfigLoadResult(config=AppConfig()),
+    )
+    monkeypatch.setattr(
+        "zivo.services.configure_file_logging",
         lambda **_kwargs: LoggingSetupResult(enabled=True, path="/tmp/zivo.log"),
     )
-    monkeypatch.setattr(cli, "create_app", lambda **_kwargs: app)
+    monkeypatch.setattr("zivo.app.create_app", lambda **_kwargs: app)
 
     captured: list[str] = []
 

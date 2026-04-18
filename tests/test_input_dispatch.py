@@ -34,6 +34,7 @@ from zivo.state import (
     CopyTargets,
     CutTargets,
     CycleConfigEditorValue,
+    CycleFindReplaceField,
     CycleGrepSearchField,
     DeleteConfirmationState,
     DismissAttributeDialog,
@@ -68,6 +69,7 @@ from zivo.state import (
     SendSplitTerminalInput,
     SetCommandPaletteQuery,
     SetFilterQuery,
+    SetFindReplaceField,
     SetGrepSearchField,
     SetNotification,
     SetPendingInputValue,
@@ -1981,3 +1983,93 @@ def test_split_terminal_iter_bound_keys_includes_new_keys() -> None:
     assert "ctrl+up" in keys
     assert "shift+left" in keys
     assert "ctrl+shift+right" in keys
+
+
+# ---------------------------------------------------------------------------
+# Find-and-replace (replace_in_found_files) input tests
+# ---------------------------------------------------------------------------
+
+
+def test_palette_tab_cycles_rff_fields() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(source="replace_in_found_files"),
+    )
+
+    actions = dispatch_key_input(state, key="tab")
+
+    assert actions == (
+        SetNotification(None),
+        CycleFindReplaceField(delta=1),
+    )
+
+
+def test_palette_shift_tab_cycles_rff_fields_reverse() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(source="replace_in_found_files"),
+    )
+
+    actions = dispatch_key_input(state, key="shift+tab")
+
+    assert actions == (
+        SetNotification(None),
+        CycleFindReplaceField(delta=-1),
+    )
+
+
+def test_palette_printable_key_updates_rff_filename_field() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="replace_in_found_files",
+            rff_active_field="filename",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="r", character="r")
+
+    assert actions == (
+        SetNotification(None),
+        SetFindReplaceField(field="filename", value="r"),
+    )
+
+
+def test_palette_printable_key_updates_rff_find_field() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="replace_in_found_files",
+            rff_active_field="find",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="t", character="t")
+
+    assert actions == (
+        SetNotification(None),
+        SetFindReplaceField(field="find", value="t"),
+    )
+
+
+def test_palette_backspace_updates_rff_field() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="replace_in_found_files",
+            rff_active_field="find",
+            rff_find_text="todo",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="backspace")
+
+    assert actions == (
+        SetNotification(None),
+        SetFindReplaceField(field="find", value="tod"),
+    )

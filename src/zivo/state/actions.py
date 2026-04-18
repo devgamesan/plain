@@ -29,6 +29,7 @@ from .models import (
     AppState,
     BrowserSnapshot,
     FileSearchResultState,
+    FindReplaceFieldId,
     GrepSearchFieldId,
     GrepSearchResultState,
     NotificationState,
@@ -138,6 +139,11 @@ class BeginTextReplace:
 
 
 @dataclass(frozen=True)
+class BeginFindAndReplace:
+    """Open the command palette in find-and-replace mode."""
+
+
+@dataclass(frozen=True)
 class BeginCommandPalette:
     """Open the command palette."""
 
@@ -212,6 +218,21 @@ class SetReplaceField:
 @dataclass(frozen=True)
 class CycleReplaceField:
     """Move focus between text-replace input fields."""
+
+    delta: int
+
+
+@dataclass(frozen=True)
+class SetFindReplaceField:
+    """Update one find-and-replace input field."""
+
+    field: FindReplaceFieldId
+    value: str
+
+
+@dataclass(frozen=True)
+class CycleFindReplaceField:
+    """Move focus between find-and-replace input fields."""
 
     delta: int
 
@@ -1015,6 +1036,7 @@ Action = (
     | BeginHistorySearch
     | BeginBookmarkSearch
     | BeginTextReplace
+    | BeginFindAndReplace
     | BeginCommandPalette
     | OpenNewTab
     | ActivateNextTab
@@ -1028,6 +1050,8 @@ Action = (
     | SetReplaceField
     | CycleGrepSearchField
     | CycleReplaceField
+    | SetFindReplaceField
+    | CycleFindReplaceField
     | SubmitCommandPalette
     | DismissConfigEditor
     | MoveConfigEditorCursor

@@ -42,6 +42,7 @@ from .actions import (
     CopyTargets,
     CutTargets,
     CycleConfigEditorValue,
+    CycleFindReplaceField,
     CycleGrepSearchField,
     CycleReplaceField,
     DeletePendingInputForward,
@@ -77,6 +78,7 @@ from .actions import (
     SendSplitTerminalInput,
     SetCommandPaletteQuery,
     SetFilterQuery,
+    SetFindReplaceField,
     SetGrepSearchField,
     SetNotification,
     SetPendingInputCursor,
@@ -98,6 +100,7 @@ from .command_palette import normalize_command_palette_cursor
 from .models import (
     AppState,
     DirectoryEntryState,
+    FindReplaceFieldId,
     GrepSearchFieldId,
     NotificationState,
     ReplaceFieldId,
@@ -506,6 +509,25 @@ def _active_replace_field_value(state: AppState) -> str:
     return state.command_palette.replace_replacement_text
 
 
+def _active_find_replace_field_value(state: AppState) -> str:
+    if state.command_palette is None:
+        return ""
+    field = state.command_palette.rff_active_field
+    if field == "filename":
+        return state.command_palette.rff_filename_query
+    if field == "find":
+        return state.command_palette.rff_find_text
+    return state.command_palette.rff_replacement_text
+
+
+def _palette_extra_rows(palette_source: str | None) -> int:
+    if palette_source == "replace_in_found_files":
+        return 3
+    if palette_source in {"grep_search", "replace_text"}:
+        return 2
+    return 0
+
+
 def _dispatch_command_palette_input(
     state: AppState,
     *,
@@ -552,6 +574,12 @@ def _dispatch_command_palette_input(
     if key == "shift+tab" and palette_source == "replace_text":
         return _supported(CycleReplaceField(delta=-1))
 
+    if key == "tab" and palette_source == "replace_in_found_files":
+        return _supported(CycleFindReplaceField(delta=1))
+
+    if key == "shift+tab" and palette_source == "replace_in_found_files":
+        return _supported(CycleFindReplaceField(delta=-1))
+
     if key == "up" or (key == "k" and not search_palette):
         return _supported(MoveCommandPaletteCursor(delta=-1))
 
@@ -565,12 +593,12 @@ def _dispatch_command_palette_input(
         return _supported(MoveCommandPaletteCursor(delta=-1))
 
     if key == "pageup":
-        extra_rows = 2 if palette_source in {"grep_search", "replace_text"} else 0
+        extra_rows = _palette_extra_rows(palette_source)
         visible = compute_search_visible_window(state.terminal_height, extra_rows=extra_rows)
         return _supported(MoveCommandPaletteCursor(delta=-visible))
 
     if key == "pagedown":
-        extra_rows = 2 if palette_source in {"grep_search", "replace_text"} else 0
+        extra_rows = _palette_extra_rows(palette_source)
         visible = compute_search_visible_window(state.terminal_height, extra_rows=extra_rows)
         return _supported(MoveCommandPaletteCursor(delta=visible))
 
@@ -596,6 +624,13 @@ def _dispatch_command_palette_input(
                 SetReplaceField(
                     field=state.command_palette.replace_active_field,
                     value=_active_replace_field_value(state)[:-1],
+                )
+            )
+        if palette_source == "replace_in_found_files":
+            return _supported(
+                SetFindReplaceField(
+                    field=state.command_palette.rff_active_field,
+                    value=_active_find_replace_field_value(state)[:-1],
                 )
             )
         current_query = state.command_palette.query if state.command_palette is not None else ""
@@ -624,6 +659,14 @@ def _dispatch_command_palette_input(
                     value=f"{_active_replace_field_value(state)}{character}",
                 )
             )
+        if palette_source == "replace_in_found_files":
+            active_field_rff: FindReplaceFieldId = state.command_palette.rff_active_field
+            return _supported(
+                SetFindReplaceField(
+                    field=active_field_rff,
+                    value=f"{_active_find_replace_field_value(state)}{character}",
+                )
+            )
         current_query = state.command_palette.query if state.command_palette is not None else ""
         return _supported(SetCommandPaletteQuery(f"{current_query}{character}"))
 
@@ -633,6 +676,9 @@ def _dispatch_command_palette_input(
         return _warn("Use arrows, type to filter, Enter, Ctrl+e for editor, or Esc")
 
     if palette_source == "replace_text":
+        return _warn("Use Tab/Shift+Tab, type, arrows or Ctrl+n/p, Enter to apply, or Esc")
+
+    if palette_source == "replace_in_found_files":
         return _warn("Use Tab/Shift+Tab, type, arrows or Ctrl+n/p, Enter to apply, or Esc")
 
     return _warn("Use arrows, type to filter, Enter to run, or Esc to cancel")

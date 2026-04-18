@@ -367,14 +367,21 @@ def _select_replace_preview_pane(
 ) -> ChildPaneViewState:
     if not state.config.display.show_preview:
         return _build_child_entries_view((), syntax_theme)
+    results = state.command_palette.replace_preview_results
+    if not results:
+        return _build_child_entries_view((), syntax_theme)
+    selected_result = results[
+        normalize_command_palette_cursor(state, state.command_palette.cursor_index)
+    ]
     if (
         state.child_pane.mode != "preview"
         or state.child_pane.preview_title != "Replace Preview"
+        or state.child_pane.preview_path != selected_result.path
     ):
         return _build_child_entries_view((), syntax_theme)
     return _build_child_preview_view(
         state.child_pane.preview_title,
-        state.child_pane.preview_path or state.current_path,
+        state.child_pane.preview_path or selected_result.path,
         state.child_pane.preview_content,
         state.child_pane.preview_message,
         state.child_pane.preview_truncated,
@@ -630,13 +637,28 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             has_more_items=len(state.command_palette.grep_search_results) > len(visible_results),
         )
     if state.command_palette.source == "replace_text":
+        visible_results, title = _select_replace_preview_window(
+            state,
+            state.command_palette.replace_preview_results,
+            cursor_index,
+        )
         return CommandPaletteViewState(
-            title="Replace Text",
+            title=title,
             query=state.command_palette.replace_find_text,
-            items=(),
+            items=tuple(
+                CommandPaletteItemViewState(
+                    label=result.display_label,
+                    shortcut=None,
+                    enabled=True,
+                    selected=index == cursor_index,
+                )
+                for index, result in visible_results
+            ),
             empty_message=_replace_text_empty_message(state),
             input_fields=_build_replace_input_fields(state.command_palette),
-            has_more_items=False,
+            has_more_items=(
+                len(state.command_palette.replace_preview_results) > len(visible_results)
+            ),
         )
     if state.command_palette.source == "history":
         return _build_command_palette_items_view(
@@ -1521,12 +1543,18 @@ def _select_replace_preview_window(
 
 
 def _select_search_window(
-    results: tuple[FileSearchResultState | GrepSearchResultState, ...],
+    results: tuple[FileSearchResultState | GrepSearchResultState | ReplacePreviewResultState, ...],
     cursor_index: int,
     *,
     title: str,
     visible_window: int,
-) -> tuple[tuple[tuple[int, FileSearchResultState | GrepSearchResultState], ...], str]:
+) -> tuple[
+    tuple[
+        tuple[int, FileSearchResultState | GrepSearchResultState | ReplacePreviewResultState],
+        ...,
+    ],
+    str,
+]:
     total = len(results)
     if total == 0:
         return (), title

@@ -985,6 +985,40 @@ def test_palette_ctrl_p_moves_cursor_up_in_file_search_palette() -> None:
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=-1))
 
 
+def test_palette_ctrl_n_moves_cursor_down_in_replace_palette() -> None:
+    from zivo.state.models import CommandPaletteState
+
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="replace_text",
+            replace_find_text="todo",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="ctrl+n")
+
+    assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=1))
+
+
+def test_palette_ctrl_p_moves_cursor_up_in_replace_palette() -> None:
+    from zivo.state.models import CommandPaletteState
+
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="replace_text",
+            replace_find_text="todo",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="ctrl+p")
+
+    assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=-1))
+
+
 def test_palette_printable_key_updates_query() -> None:
     state = replace(build_initial_app_state(), ui_mode="PALETTE")
 

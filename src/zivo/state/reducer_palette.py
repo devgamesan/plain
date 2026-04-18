@@ -297,6 +297,8 @@ def _handle_move_palette_cursor(
         return _sync_file_search_preview(next_state)
     if state.command_palette.source == "grep_search":
         return _sync_grep_preview(next_state)
+    if state.command_palette.source == "replace_text":
+        return _sync_replace_preview(next_state)
     return finalize(next_state)
 
 
@@ -1354,6 +1356,7 @@ def _handle_text_replace_preview_completed(
             display_path=str(Path(entry.path).name)
             if Path(entry.path).parent == Path(state.current_path)
             else str(Path(entry.path).relative_to(state.current_path)),
+            diff_text=entry.diff_text,
             match_count=entry.match_count,
             first_match_line_number=entry.first_match_line_number,
             first_match_before=entry.first_match_before,
@@ -1364,33 +1367,19 @@ def _handle_text_replace_preview_completed(
     status_message = None
     if action.result.skipped_paths:
         status_message = f"Skipped {len(action.result.skipped_paths)} unreadable file(s)"
-    return finalize(
-        replace(
-            state,
-            command_palette=replace(
-                state.command_palette,
-                replace_preview_results=preview_results,
-                replace_error_message=None,
-                replace_status_message=status_message,
-                replace_total_match_count=action.result.total_match_count,
-                cursor_index=0,
-            ),
-            child_pane=PaneState(
-                directory_path=state.current_path,
-                entries=(),
-                mode="preview",
-                preview_path=state.current_path,
-                preview_title="Replace Preview",
-                preview_content=action.result.diff_text,
-                preview_message=(
-                    "No matching files"
-                    if not action.result.diff_text and status_message is None
-                    else status_message
-                ),
-            ),
-            pending_replace_preview_request_id=None,
-        )
+    next_state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            replace_preview_results=preview_results,
+            replace_error_message=None,
+            replace_status_message=status_message,
+            replace_total_match_count=action.result.total_match_count,
+            cursor_index=0,
+        ),
+        pending_replace_preview_request_id=None,
     )
+    return _sync_replace_preview(next_state)
 
 
 def _handle_text_replace_preview_failed(
@@ -1565,6 +1554,71 @@ def _sync_grep_preview(state: AppState) -> ReduceResult:
             grep_result=selected_result,
             grep_context_lines=state.config.display.grep_preview_context_lines,
         ),
+    )
+
+
+def _matches_replace_preview(
+    state: AppState,
+    result: ReplacePreviewResultState,
+) -> bool:
+    return (
+        state.child_pane.mode == "preview"
+        and state.child_pane.preview_title == "Replace Preview"
+        and state.child_pane.preview_path == result.path
+        and state.child_pane.preview_content == result.diff_text
+    )
+
+
+def _selected_replace_preview_result(state: AppState) -> ReplacePreviewResultState | None:
+    if state.command_palette is None or state.command_palette.source != "replace_text":
+        return None
+    results = state.command_palette.replace_preview_results
+    if not results:
+        return None
+    return results[normalize_command_palette_cursor(state, state.command_palette.cursor_index)]
+
+
+def _sync_replace_preview(state: AppState) -> ReduceResult:
+    selected_result = _selected_replace_preview_result(state)
+    if selected_result is None:
+        preview_message = "No matching files"
+        if state.command_palette is not None and state.command_palette.source == "replace_text":
+            preview_message = state.command_palette.replace_status_message or preview_message
+        return finalize(
+            replace(
+                state,
+                child_pane=PaneState(
+                    directory_path=state.current_path,
+                    entries=(),
+                    mode="preview",
+                    preview_path=state.current_path,
+                    preview_title="Replace Preview",
+                    preview_content="",
+                    preview_message=preview_message,
+                ),
+            )
+        )
+
+    if _matches_replace_preview(state, selected_result):
+        return finalize(state)
+
+    return finalize(
+        replace(
+            state,
+            child_pane=PaneState(
+                directory_path=state.current_path,
+                entries=(),
+                mode="preview",
+                preview_path=selected_result.path,
+                preview_title="Replace Preview",
+                preview_content=selected_result.diff_text,
+                preview_message=(
+                    state.command_palette.replace_status_message
+                    if state.command_palette is not None
+                    else None
+                ),
+            ),
+        )
     )
 
 

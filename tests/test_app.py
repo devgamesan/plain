@@ -3511,39 +3511,44 @@ async def test_app_command_palette_show_attributes_opens_read_only_dialog() -> N
 async def test_app_command_palette_replace_text_previews_and_applies_selected_files() -> None:
     path = str(Path("/tmp/zivo-command-palette-replace").resolve())
     target_path = f"{path}/README.md"
-    loader = FakeBrowserSnapshotLoader(
-        snapshots={
-            path: _build_snapshot(
-                path,
-                (
-                    DirectoryEntryState(target_path, "README.md", "file"),
-                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
-                ),
-            )
-        }
+    second_target_path = f"{path}/docs.md"
+    current_entries = (
+        DirectoryEntryState(target_path, "README.md", "file"),
+        DirectoryEntryState(second_target_path, "docs.md", "file"),
+        DirectoryEntryState(f"{path}/docs", "docs", "dir"),
     )
-    text_replace_service = FakeTextReplaceService(
-        preview_results={
-            TextReplaceRequest(
-                paths=(target_path,),
-                find_text="todo",
-                replace_text="done",
-            ): TextReplacePreviewResult(
-                request=TextReplaceRequest(
-                    paths=(target_path,),
-                    find_text="todo",
-                    replace_text="done",
-                ),
-                changed_entries=(
-                    TextReplacePreviewEntry(
-                        path=target_path,
-                        match_count=2,
-                        first_match_line_number=4,
-                        first_match_before="todo item",
-                        first_match_after="done item",
-                    ),
-                ),
-                total_match_count=2,
+    snapshot = _build_snapshot(path, current_entries)
+    preview_request_variants = (
+        TextReplaceRequest(
+            paths=(target_path,),
+            find_text="todo",
+            replace_text="done",
+        ),
+        TextReplaceRequest(
+            paths=(second_target_path,),
+            find_text="todo",
+            replace_text="done",
+        ),
+        TextReplaceRequest(
+            paths=(target_path, second_target_path),
+            find_text="todo",
+            replace_text="done",
+        ),
+        TextReplaceRequest(
+            paths=(second_target_path, target_path),
+            find_text="todo",
+            replace_text="done",
+        ),
+    )
+    preview_result = TextReplacePreviewResult(
+        request=TextReplaceRequest(
+            paths=(target_path, second_target_path),
+            find_text="todo",
+            replace_text="done",
+        ),
+        changed_entries=(
+            TextReplacePreviewEntry(
+                path=target_path,
                 diff_text=(
                     f"--- {target_path}\n"
                     f"+++ {target_path} (replaced)\n"
@@ -3551,24 +3556,64 @@ async def test_app_command_palette_replace_text_previews_and_applies_selected_fi
                     "-todo item\n"
                     "+done item\n"
                 ),
+                match_count=2,
+                first_match_line_number=4,
+                first_match_before="todo item",
+                first_match_after="done item",
             ),
-        },
-        apply_results={
-            TextReplaceRequest(
-                paths=(target_path,),
-                find_text="todo",
-                replace_text="done",
-            ): TextReplaceResult(
-                request=TextReplaceRequest(
-                    paths=(target_path,),
-                    find_text="todo",
-                    replace_text="done",
+            TextReplacePreviewEntry(
+                path=second_target_path,
+                diff_text=(
+                    f"--- {second_target_path}\n"
+                    f"+++ {second_target_path} (replaced)\n"
+                    "@@ -1,1 +1,1 @@\n"
+                    "-todo second\n"
+                    "+done second\n"
                 ),
-                changed_paths=(target_path,),
-                total_match_count=2,
-                message="Replaced 2 match(es) in 1 file(s)",
+                match_count=1,
+                first_match_line_number=2,
+                first_match_before="todo second",
+                first_match_after="done second",
             ),
+        ),
+        total_match_count=3,
+        diff_text=(
+            f"--- {target_path}\n"
+            f"+++ {target_path} (replaced)\n"
+            "@@ -1,1 +1,1 @@\n"
+            "-todo item\n"
+            "+done item\n"
+            f"--- {second_target_path}\n"
+            f"+++ {second_target_path} (replaced)\n"
+            "@@ -1,1 +1,1 @@\n"
+            "-todo second\n"
+            "+done second\n"
+        ),
+    )
+    apply_result = TextReplaceResult(
+        request=TextReplaceRequest(
+            paths=(target_path, second_target_path),
+            find_text="todo",
+            replace_text="done",
+        ),
+        changed_paths=(target_path, second_target_path),
+        total_match_count=3,
+        message="Replaced 3 match(es) in 2 file(s)",
+    )
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: replace(
+                snapshot,
+                current_pane=replace(
+                    snapshot.current_pane,
+                    selected_paths=frozenset({target_path, second_target_path}),
+                ),
+            )
         },
+    )
+    text_replace_service = FakeTextReplaceService(
+        preview_results={request: preview_result for request in preview_request_variants},
+        apply_results={request: apply_result for request in preview_request_variants},
     )
     app = create_app(
         snapshot_loader=loader,
@@ -3578,7 +3623,6 @@ async def test_app_command_palette_replace_text_previews_and_applies_selected_fi
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("space")
         await pilot.press(":")
         await pilot.press("r", "e", "p", "l", "a", "c", "e")
         await pilot.press("enter")
@@ -3594,7 +3638,7 @@ async def test_app_command_palette_replace_text_previews_and_applies_selected_fi
         await _wait_for_predicate(
             lambda: (
                 app.app_state.command_palette is not None
-                and len(app.app_state.command_palette.replace_preview_results) == 1
+                and len(app.app_state.command_palette.replace_preview_results) == 2
             ),
             timeout=0.5,
             message="replace preview results did not appear",
@@ -3602,7 +3646,10 @@ async def test_app_command_palette_replace_text_previews_and_applies_selected_fi
 
         palette_state = select_command_palette_state(app.app_state)
         assert palette_state is not None
-        assert palette_state.items == ()
+        assert [item.label for item in palette_state.items] == [
+            "README.md (2): 4: todo item -> done item",
+            "docs.md (1): 2: todo second -> done second",
+        ]
 
         child_pane = select_shell_data(app.app_state).child_pane
         assert child_pane.preview_title == "Replace Preview"
@@ -3611,6 +3658,20 @@ async def test_app_command_palette_replace_text_previews_and_applies_selected_fi
         assert "+++ " in child_pane.preview_content
         assert "-todo item" in child_pane.preview_content
         assert "+done item" in child_pane.preview_content
+        assert second_target_path not in child_pane.preview_content
+
+        await pilot.press("ctrl+n")
+
+        await _wait_for_predicate(
+            lambda: select_shell_data(app.app_state).child_pane.preview_path == second_target_path,
+            timeout=0.5,
+            message="replace preview did not move to second file",
+        )
+
+        second_child_pane = select_shell_data(app.app_state).child_pane
+        assert second_child_pane.preview_content is not None
+        assert "-todo second" in second_child_pane.preview_content
+        assert "+done second" in second_child_pane.preview_content
 
         await pilot.press("enter")
 
@@ -3622,7 +3683,7 @@ async def test_app_command_palette_replace_text_previews_and_applies_selected_fi
         await _wait_for_predicate(
             lambda: (
                 app.app_state.notification is not None
-                and app.app_state.notification.message == "Replaced 2 match(es) in 1 file(s)"
+                and app.app_state.notification.message == "Replaced 3 match(es) in 2 file(s)"
             ),
             timeout=0.5,
             message="replacement completion notification did not appear",

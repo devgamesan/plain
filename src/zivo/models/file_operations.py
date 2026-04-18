@@ -135,6 +135,7 @@ class TextReplacePreviewEntry:
     """Preview details for a single file that would be changed."""
 
     path: str
+    diff_text: str
     match_count: int
     first_match_line_number: int
     first_match_before: str

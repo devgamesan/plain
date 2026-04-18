@@ -1526,6 +1526,7 @@ def test_select_command_palette_state_for_text_replace_includes_input_fields() -
                 ReplacePreviewResultState(
                     path="/home/tadashi/develop/zivo/README.md",
                     display_path="README.md",
+                    diff_text="--- before\n+++ after\n@@\n-todo item\n+done item\n",
                     match_count=2,
                     first_match_line_number=8,
                     first_match_before="todo item",
@@ -1540,11 +1541,13 @@ def test_select_command_palette_state_for_text_replace_includes_input_fields() -
     palette_state = select_command_palette_state(state)
 
     assert palette_state is not None
-    assert palette_state.title == "Replace Text"
+    assert palette_state.title == "Replace Text (1 file(s), 2 match(es)) (1-1 / 1)"
     assert [field.label for field in palette_state.input_fields] == ["Find", "Replace"]
     assert [field.value for field in palette_state.input_fields] == ["todo", "done"]
     assert [field.active for field in palette_state.input_fields] == [False, True]
-    assert palette_state.items == ()
+    assert [item.label for item in palette_state.items] == [
+        "README.md (2): 8: todo item -> done item"
+    ]
     assert palette_state.empty_message == "Preview shown in right pane. Press Enter to apply."
 
 

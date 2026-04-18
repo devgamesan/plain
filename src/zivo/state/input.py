@@ -625,7 +625,7 @@ def _dispatch_command_palette_input(
         return _warn("Use arrows, type to filter, Enter, Ctrl+e for editor, or Esc")
 
     if palette_source == "replace_text":
-        return _warn("Use Tab/Shift+Tab, type, arrows, Enter to apply, or Esc")
+        return _warn("Use Tab/Shift+Tab, type, arrows or Ctrl+n/p, Enter to apply, or Esc")
 
     return _warn("Use arrows, type to filter, Enter to run, or Esc to cancel")
 

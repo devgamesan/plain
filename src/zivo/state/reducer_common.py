@@ -420,12 +420,13 @@ def restore_ui_mode_after_pending_input(state: AppState) -> str:
 
 def browser_snapshot_invalidation_paths(
     path: str,
-    cursor_path: str | None = None,
+    *extra_paths: str | None,
 ) -> tuple[str, ...]:
     resolved_path = str(Path(path).expanduser().resolve())
     paths = [resolved_path, str(Path(resolved_path).parent)]
-    if cursor_path is not None:
-        paths.append(str(Path(cursor_path).expanduser().resolve()))
+    for extra_path in extra_paths:
+        if extra_path is not None:
+            paths.append(str(Path(extra_path).expanduser().resolve()))
     return tuple(dict.fromkeys(paths))
 
 

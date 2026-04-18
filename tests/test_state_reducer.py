@@ -2672,6 +2672,7 @@ def test_text_replace_preview_completed_updates_palette_results() -> None:
                 changed_entries=(
                     TextReplacePreviewEntry(
                         path="/home/tadashi/develop/zivo/README.md",
+                        diff_text="--- before\n+++ after\n@@\n-todo item\n+done item\n",
                         match_count=2,
                         first_match_line_number=12,
                         first_match_before="todo item",
@@ -2687,11 +2688,71 @@ def test_text_replace_preview_completed_updates_palette_results() -> None:
     assert next_state.command_palette is not None
     assert next_state.command_palette.replace_total_match_count == 2
     assert next_state.command_palette.replace_preview_results[0].display_path == "README.md"
+    assert next_state.command_palette.replace_preview_results[0].diff_text == (
+        "--- before\n+++ after\n@@\n-todo item\n+done item\n"
+    )
     assert next_state.child_pane.preview_title == "Replace Preview"
     assert next_state.child_pane.preview_content == (
         "--- before\n+++ after\n@@\n-todo item\n+done item\n"
     )
+    assert next_state.child_pane.preview_path == "/home/tadashi/develop/zivo/README.md"
     assert next_state.pending_replace_preview_request_id is None
+
+
+def test_move_palette_cursor_updates_replace_preview_diff() -> None:
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginTextReplace(
+            target_paths=(
+                "/home/tadashi/develop/zivo/README.md",
+                "/home/tadashi/develop/zivo/docs/notes.md",
+            )
+        ),
+    )
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            replace_preview_results=(
+                ReplacePreviewResultState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    display_path="README.md",
+                    diff_text="--- README\n+++ README\n@@\n-todo\n+done\n",
+                    match_count=1,
+                    first_match_line_number=1,
+                    first_match_before="todo",
+                    first_match_after="done",
+                ),
+                ReplacePreviewResultState(
+                    path="/home/tadashi/develop/zivo/docs/notes.md",
+                    display_path="docs/notes.md",
+                    diff_text="--- notes\n+++ notes\n@@\n-todo\n+done\n",
+                    match_count=1,
+                    first_match_line_number=2,
+                    first_match_before="todo",
+                    first_match_after="done",
+                ),
+            ),
+            replace_total_match_count=2,
+        ),
+        child_pane=PaneState(
+            directory_path=state.current_path,
+            entries=(),
+            mode="preview",
+            preview_path="/home/tadashi/develop/zivo/README.md",
+            preview_title="Replace Preview",
+            preview_content="--- README\n+++ README\n@@\n-todo\n+done\n",
+        ),
+    )
+
+    result = reduce_app_state(state, MoveCommandPaletteCursor(delta=1))
+
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.cursor_index == 1
+    assert result.state.child_pane.preview_path == "/home/tadashi/develop/zivo/docs/notes.md"
+    assert result.state.child_pane.preview_content == (
+        "--- notes\n+++ notes\n@@\n-todo\n+done\n"
+    )
 
 
 def test_text_replace_preview_failed_sets_inline_error_for_invalid_regex() -> None:
@@ -2731,6 +2792,7 @@ def test_submit_command_palette_applies_replace_when_preview_exists() -> None:
                 ReplacePreviewResultState(
                     path="/home/tadashi/develop/zivo/README.md",
                     display_path="README.md",
+                    diff_text="--- before\n+++ after\n@@\n-todo item\n+done item\n",
                     match_count=2,
                     first_match_line_number=12,
                     first_match_before="todo item",

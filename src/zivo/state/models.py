@@ -321,6 +321,7 @@ class ReplacePreviewResultState:
 
     path: str
     display_path: str
+    diff_text: str
     match_count: int
     first_match_line_number: int
     first_match_before: str

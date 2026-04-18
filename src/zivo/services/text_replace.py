@@ -59,13 +59,7 @@ class LiveTextReplaceService:
                 continue
 
             changed_entries.append(preview_entry)
-            diff_chunks.append(
-                _build_unified_diff(
-                    path,
-                    original,
-                    replaced,
-                )
-            )
+            diff_chunks.append(preview_entry.diff_text)
             total_match_count += match_count
 
         changed_entries.sort(key=lambda entry: entry.path.casefold())
@@ -181,6 +175,7 @@ def _build_preview_entry(
     replaced: str,
     match_count: int,
 ) -> TextReplacePreviewEntry | None:
+    diff_text = _build_unified_diff(path, original, replaced)
     original_lines = original.splitlines()
     replaced_lines = replaced.splitlines()
     line_count = min(len(original_lines), len(replaced_lines))
@@ -189,6 +184,7 @@ def _build_preview_entry(
             continue
         return TextReplacePreviewEntry(
             path=str(path),
+            diff_text=diff_text,
             match_count=match_count,
             first_match_line_number=index + 1,
             first_match_before=original_lines[index],

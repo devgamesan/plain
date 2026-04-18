@@ -492,7 +492,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             return HelpBarState(
                 (
                     "type text / tab fields / ↑↓ or Ctrl+n/p preview | "
-                    "enter apply | esc cancel",
+                    "[/] scroll preview | enter apply | esc cancel",
                 )
             )
         if state.command_palette is not None and state.command_palette.source == "history":

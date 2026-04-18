@@ -105,10 +105,8 @@ def _active_app_theme(state: AppState) -> str:
 
 
 _PREVIEW_SCROLL_KEYS: dict[str, int] = {
-    "ctrl+up": -1,
-    "ctrl+down": 1,
-    "ctrl+pageup": -20,
-    "ctrl+pagedown": 20,
+    "[": -20,
+    "]": 20,
 }
 
 

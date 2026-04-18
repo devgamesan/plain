@@ -1,5 +1,6 @@
 """Help widget shown above the status bar."""
 
+from rich.text import Text
 from textual.widgets import Static
 
 from zivo.models import HelpBarState
@@ -15,7 +16,7 @@ class HelpBar(Static):
         id: str | None = None,
         classes: str | None = None,
     ) -> None:
-        super().__init__(state.text, id=id, classes=classes)
+        super().__init__(Text(state.text), id=id, classes=classes)
         self.state = state
 
     def set_state(self, state: HelpBarState) -> None:
@@ -24,4 +25,4 @@ class HelpBar(Static):
         if state == self.state:
             return
         self.state = state
-        self.update(state.text)
+        self.update(Text(state.text))

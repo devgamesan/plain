@@ -82,6 +82,7 @@ from zivo.state import (
 )
 from zivo.ui import (
     AttributeDialog,
+    ChildPane,
     CommandPalette,
     ConfigDialog,
     ConflictDialog,
@@ -101,6 +102,22 @@ def _active_app_theme(state: AppState) -> str:
     if state.ui_mode == "CONFIG" and state.config_editor is not None:
         return state.config_editor.draft.display.theme
     return state.config.display.theme
+
+
+_PREVIEW_SCROLL_KEYS: dict[str, int] = {
+    "shift+up": -20,
+    "shift+down": 20,
+}
+
+
+def _preview_scroll_delta(state: AppState, key: str) -> int | None:
+    """Return scroll delta for preview key bindings, or None if not applicable."""
+
+    if state.ui_mode != "PALETTE" or state.command_palette is None:
+        return None
+    if state.command_palette.source != "replace_text":
+        return None
+    return _PREVIEW_SCROLL_KEYS.get(key)
 
 
 class zivoApp(App[None]):
@@ -404,6 +421,17 @@ class zivoApp(App[None]):
             event.prevent_default()
             return
 
+        scroll_delta = _preview_scroll_delta(self._app_state, event.key)
+        if scroll_delta is not None:
+            try:
+                child_pane = self.query_one("#child-pane", ChildPane)
+            except NoMatches:
+                return
+            child_pane.scroll_preview(scroll_delta)
+            event.stop()
+            event.prevent_default()
+            return
+
         handled = await self._dispatch_key_press(event.key, character=event.character)
         if handled:
             event.stop()
@@ -439,6 +467,15 @@ class zivoApp(App[None]):
 
     async def action_dispatch_bound_key(self, key: str) -> None:
         """Handle priority key bindings through the central dispatcher."""
+
+        scroll_delta = _preview_scroll_delta(self._app_state, key)
+        if scroll_delta is not None:
+            try:
+                child_pane = self.query_one("#child-pane", ChildPane)
+            except NoMatches:
+                return
+            child_pane.scroll_preview(scroll_delta)
+            return
 
         await self._dispatch_key_press(key)
 

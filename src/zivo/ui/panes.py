@@ -9,7 +9,7 @@ from rich.syntax import Syntax
 from rich.text import Text
 from textual import events
 from textual.app import ComposeResult
-from textual.containers import Vertical
+from textual.containers import Vertical, VerticalScroll
 from textual.widgets import DataTable, Label, Static
 
 from zivo.models.shell_data import (
@@ -382,6 +382,10 @@ class ChildPane(Vertical):
         return f"{self.id}-preview" if self.id else None
 
     @property
+    def preview_scroll_id(self) -> str | None:
+        return f"{self.id}-preview-scroll" if self.id else None
+
+    @property
     def permissions_id(self) -> str | None:
         return f"{self.id}-permissions" if self.id else None
 
@@ -405,10 +409,16 @@ class ChildPane(Vertical):
             classes="pane-preview",
         )
         preview_content.can_focus = False
-        preview_content.display = self._state.is_preview
+        preview_scroll = VerticalScroll(
+            preview_content,
+            id=self.preview_scroll_id,
+            classes="pane-preview-scroll",
+        )
+        preview_scroll.can_focus = False
+        preview_scroll.display = self._state.is_preview
         list_content.display = not self._state.is_preview
         yield list_content
-        yield preview_content
+        yield preview_scroll
         permissions = Static(
             self._state.permissions_label,
             id=self.permissions_id,
@@ -428,16 +438,25 @@ class ChildPane(Vertical):
         if state == self._state:
             return
 
+        content_changed = (
+            state.is_preview
+            and self._state.is_preview
+            and state.preview_content != self._state.preview_content
+        )
+
         self._state = state
         self.query_one(Label).update(state.title)
         list_widget = self._list_widget()
-        preview_widget = self._preview_widget()
+        scroll_widget = self._preview_scroll_widget()
         list_widget.display = not state.is_preview
-        preview_widget.display = state.is_preview
+        scroll_widget.display = state.is_preview
         self._permissions_widget().update(state.permissions_label)
         self._last_render_width = 0
         self._refresh_rendered_content()
         self.call_after_refresh(self._refresh_rendered_content)
+
+        if content_changed:
+            self.call_after_refresh(lambda: scroll_widget.scroll_home(animate=False))
 
     def _refresh_rendered_content(self) -> None:
         if self._state.is_preview:
@@ -469,6 +488,9 @@ class ChildPane(Vertical):
 
     def _preview_widget(self) -> Static:
         return self.query_one(f"#{self.preview_id}", Static)
+
+    def _preview_scroll_widget(self) -> VerticalScroll:
+        return self.query_one(f"#{self.preview_scroll_id}", VerticalScroll)
 
     def _permissions_widget(self) -> Static:
         return self.query_one(f"#{self.permissions_id}", Static)
@@ -509,6 +531,16 @@ class ChildPane(Vertical):
         self._ft_styles = _resolve_component_styles(self)
         self._last_render_width = 0
         self._refresh_rendered_content()
+
+    def scroll_preview(self, delta: int) -> None:
+        """Scroll the preview content by *delta* lines (negative = up)."""
+        if not self._state.is_preview:
+            return
+        try:
+            scroll = self._preview_scroll_widget()
+        except Exception:
+            return
+        scroll.scroll_relative(y=delta, animate=False)
 
 
 class MainPane(Vertical):

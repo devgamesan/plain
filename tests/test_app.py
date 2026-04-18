@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from rich.style import Style
 from rich.text import Text
+from textual.containers import VerticalScroll
 from textual.css.query import NoMatches
 from textual.widgets import DataTable, Label, Static
 
@@ -1000,10 +1001,10 @@ async def test_app_renders_text_preview_in_child_pane_for_file_cursor() -> None:
         await _wait_for_child_preview(app, "Preview: README.md", "# Title")
 
         child_list = app.query_one("#child-pane-list", Static)
-        child_preview = app.query_one("#child-pane-preview", Static)
+        child_preview_scroll = app.query_one("#child-pane-preview-scroll", VerticalScroll)
 
         assert child_list.display is False
-        assert child_preview.display is True
+        assert child_preview_scroll.display is True
 
 
 @pytest.mark.asyncio
@@ -1048,10 +1049,10 @@ async def test_app_hides_text_preview_in_child_pane_when_preview_disabled() -> N
         await _wait_for_row_count(app, 1)
 
         child_list = app.query_one("#child-pane-list", Static)
-        child_preview = app.query_one("#child-pane-preview", Static)
+        child_preview_scroll = app.query_one("#child-pane-preview-scroll", VerticalScroll)
 
         assert child_list.display is True
-        assert child_preview.display is False
+        assert child_preview_scroll.display is False
 
 
 @pytest.mark.asyncio

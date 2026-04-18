@@ -105,8 +105,8 @@ def _active_app_theme(state: AppState) -> str:
 
 
 _PREVIEW_SCROLL_KEYS: dict[str, int] = {
-    "{": -20,
-    "}": 20,
+    "shift+up": -20,
+    "shift+down": 20,
 }
 
 

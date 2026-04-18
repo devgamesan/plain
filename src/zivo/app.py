@@ -82,6 +82,7 @@ from zivo.state import (
 )
 from zivo.ui import (
     AttributeDialog,
+    ChildPane,
     CommandPalette,
     ConfigDialog,
     ConflictDialog,
@@ -101,6 +102,24 @@ def _active_app_theme(state: AppState) -> str:
     if state.ui_mode == "CONFIG" and state.config_editor is not None:
         return state.config_editor.draft.display.theme
     return state.config.display.theme
+
+
+_PREVIEW_SCROLL_KEYS: dict[str, int] = {
+    "ctrl+up": -1,
+    "ctrl+down": 1,
+    "ctrl+pageup": -20,
+    "ctrl+pagedown": 20,
+}
+
+
+def _preview_scroll_delta(state: AppState, key: str) -> int | None:
+    """Return scroll delta for preview key bindings, or None if not applicable."""
+
+    if state.ui_mode != "PALETTE" or state.command_palette is None:
+        return None
+    if state.command_palette.source != "replace_text":
+        return None
+    return _PREVIEW_SCROLL_KEYS.get(key)
 
 
 class zivoApp(App[None]):
@@ -400,6 +419,17 @@ class zivoApp(App[None]):
                 from zivo.state import PasteIntoPendingInput
 
                 await self.dispatch_actions((PasteIntoPendingInput(text=text),))
+            event.stop()
+            event.prevent_default()
+            return
+
+        scroll_delta = _preview_scroll_delta(self._app_state, event.key)
+        if scroll_delta is not None:
+            try:
+                child_pane = self.query_one("#child-pane", ChildPane)
+            except NoMatches:
+                return
+            child_pane.scroll_preview(scroll_delta)
             event.stop()
             event.prevent_default()
             return

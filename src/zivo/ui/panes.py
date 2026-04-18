@@ -414,7 +414,7 @@ class ChildPane(Vertical):
             id=self.preview_scroll_id,
             classes="pane-preview-scroll",
         )
-        preview_scroll.can_focus = False
+        preview_scroll.can_focus = True
         preview_scroll.display = self._state.is_preview
         list_content.display = not self._state.is_preview
         yield list_content
@@ -531,6 +531,16 @@ class ChildPane(Vertical):
         self._ft_styles = _resolve_component_styles(self)
         self._last_render_width = 0
         self._refresh_rendered_content()
+
+    def scroll_preview(self, delta: int) -> None:
+        """Scroll the preview content by *delta* lines (negative = up)."""
+        if not self._state.is_preview:
+            return
+        try:
+            scroll = self._preview_scroll_widget()
+        except Exception:
+            return
+        scroll.scroll_relative(y=delta, animate=False)
 
 
 class MainPane(Vertical):

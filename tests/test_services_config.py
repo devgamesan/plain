@@ -334,6 +334,22 @@ def test_loader_reads_split_terminal_position(tmp_path) -> None:
     assert result.config.display.split_terminal_position == "right"
 
 
+def test_loader_reads_overlay_split_terminal_position(tmp_path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+        [display]
+        split_terminal_position = "overlay"
+        """,
+        encoding="utf-8",
+    )
+
+    result = AppConfigLoader(config_path_resolver=lambda: config_path).load()
+
+    assert result.warnings == ()
+    assert result.config.display.split_terminal_position == "overlay"
+
+
 def test_loader_rejects_invalid_split_terminal_position(tmp_path) -> None:
     config_path = tmp_path / "config.toml"
     config_path.write_text(

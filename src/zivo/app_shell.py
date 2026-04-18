@@ -26,6 +26,27 @@ from zivo.ui import (
 )
 
 
+def build_split_terminal_layer(
+    shell: ThreePaneShellData,
+    *,
+    terminal_position: str = "bottom",
+) -> Container:
+    children: tuple[Any, ...] = ()
+    if terminal_position == "overlay":
+        children = (
+            SplitTerminalPane(
+                shell.split_terminal,
+                id="split-terminal",
+                classes="split-terminal-overlay",
+            ),
+        )
+    return Container(
+        *children,
+        id="split-terminal-layer",
+        classes="overlay-layer split-terminal-overlay-layer",
+    )
+
+
 def build_body(shell: ThreePaneShellData, *, terminal_position: str = "bottom") -> Vertical:
     browser_row_children: list[Any] = [
         SidePane(
@@ -61,7 +82,7 @@ def build_body(shell: ThreePaneShellData, *, terminal_position: str = "bottom") 
     body_children: list[Any] = [
         Horizontal(*browser_row_children, id="browser-row"),
     ]
-    if terminal_position != "right":
+    if terminal_position not in {"right", "overlay"}:
         body_children.append(
             SplitTerminalPane(shell.split_terminal, id="split-terminal")
         )
@@ -86,6 +107,7 @@ async def refresh_shell(
         command_palette = app.query_one("#command-palette", CommandPalette)
         help_bar = app.query_one("#help-bar", HelpBar)
         status_bar = app.query_one("#status-bar", StatusBar)
+        split_terminal_layer = app.query_one("#split-terminal-layer", Container)
         command_palette_layer = app.query_one("#command-palette-layer", Container)
         conflict_dialog_layer = app.query_one("#conflict-dialog-layer", Container)
         attribute_dialog_layer = app.query_one("#attribute-dialog-layer", Container)
@@ -102,6 +124,7 @@ async def refresh_shell(
             "#current-path-bar",
             "#tab-bar",
             "#body",
+            "#split-terminal-layer",
             "#command-palette",
             "#command-palette-layer",
             "#split-terminal",
@@ -127,6 +150,12 @@ async def refresh_shell(
         await app.mount(CurrentPathBar(shell.current_path, id="current-path-bar"))
         terminal_position = app_state.config.display.split_terminal_position
         await app.mount(build_body(shell, terminal_position=terminal_position))
+        await app.mount(
+            build_split_terminal_layer(
+                shell,
+                terminal_position=terminal_position,
+            )
+        )
         await app.mount(
             Container(
                 CommandPalette(shell.command_palette, id="command-palette"),
@@ -193,6 +222,9 @@ async def refresh_shell(
     terminal_position = app_state.config.display.split_terminal_position
     if terminal_position == "right":
         child_pane.display = not app_state.split_terminal.visible
+    split_terminal_layer.display = (
+        terminal_position == "overlay" and shell.split_terminal.visible
+    )
     if theme_changed:
         def _refresh_themed_panes() -> None:
             parent_pane.refresh_styles()

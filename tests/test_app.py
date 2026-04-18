@@ -4208,6 +4208,52 @@ async def test_app_split_terminal_uses_half_of_body_height_when_visible() -> Non
 
 
 @pytest.mark.asyncio
+async def test_app_overlay_split_terminal_keeps_help_and_status_visible() -> None:
+    path = str(Path("/tmp/zivo-split-terminal-overlay").resolve())
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    split_terminal_service = FakeSplitTerminalService()
+    app = create_app(
+        snapshot_loader=loader,
+        split_terminal_service=split_terminal_service,
+        app_config=AppConfig(
+            display=DisplayConfig(split_terminal_position="overlay"),
+        ),
+        initial_path=path,
+    )
+
+    async with app.run_test(size=(100, 30)) as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        child_pane = app.query_one("#child-pane", ChildPane)
+        body = app.query_one("#body")
+        help_bar = app.query_one("#help-bar", HelpBar)
+        status_bar = app.query_one("#status-bar", StatusBar)
+
+        await pilot.press("t")
+        await asyncio.sleep(0.05)
+
+        split_terminal = await _wait_for_split_terminal(app)
+        split_terminal_layer = app.query_one("#split-terminal-layer")
+
+        assert split_terminal.display is True
+        assert split_terminal_layer.display is True
+        assert child_pane.display is True
+        assert split_terminal.region.y > body.region.y
+        assert split_terminal.region.bottom < help_bar.region.y
+        assert help_bar.region.bottom <= status_bar.region.y
+
+
+@pytest.mark.asyncio
 async def test_app_split_terminal_focus_routes_input_to_session() -> None:
     path = str(Path("/tmp/zivo-split-terminal-input").resolve())
     loader = FakeBrowserSnapshotLoader(
@@ -4912,13 +4958,15 @@ async def test_app_rename_round_trip_updates_status_bar(tmp_path) -> None:
         for _ in range(4):
             await pilot.press("backspace")
         await pilot.press("m", "a", "n", "u", "a", "l", "s", "enter")
-        await asyncio.sleep(0.1)
-
-        status_bar = await _wait_for_status_bar(app)
+        await _wait_for_predicate(
+            lambda: app.app_state.ui_mode == "BROWSING",
+            timeout=1.0,
+            message="rename did not return to browsing mode",
+        )
+        await _wait_for_status_message(app, "info: Renamed to manuals", timeout=1.0)
 
         assert (tmp_path / "manuals").is_dir()
         assert app.app_state.ui_mode == "BROWSING"
-        assert str(status_bar.renderable) == "info: Renamed to manuals"
 
 
 @pytest.mark.asyncio

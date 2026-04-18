@@ -6,7 +6,7 @@ from typing import Literal
 from zivo.theme_support import AUTO_PREVIEW_SYNTAX_THEME, DEFAULT_APP_THEME
 
 ConfigSortField = Literal["name", "modified", "size"]
-SplitTerminalPosition = Literal["bottom", "right"]
+SplitTerminalPosition = Literal["bottom", "right", "overlay"]
 ConfigTheme = str
 PreviewSyntaxTheme = str
 ConfigLogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]

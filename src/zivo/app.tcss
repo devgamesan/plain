@@ -161,6 +161,10 @@ Screen {
     align-horizontal: center;
 }
 
+.split-terminal-overlay-layer {
+    align: center middle;
+}
+
 .dialog-layer {
     align: center middle;
 }
@@ -329,6 +333,25 @@ Screen {
 }
 
 #split-terminal.split-terminal-right.-focused {
+    background: $boost;
+}
+
+#split-terminal.split-terminal-overlay {
+    display: none;
+    width: 1fr;
+    height: 1fr;
+    min-width: 20;
+    min-height: 6;
+    margin: 1 2;
+    border: round $surface;
+    background: $surface;
+}
+
+#split-terminal.split-terminal-overlay.-visible {
+    display: block;
+}
+
+#split-terminal.split-terminal-overlay.-focused {
     background: $boost;
 }
 

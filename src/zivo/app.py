@@ -21,7 +21,12 @@ from zivo.app_runtime import (
     schedule_effects,
     sync_runtime_state,
 )
-from zivo.app_shell import build_body, refresh_shell, resize_split_terminal_session
+from zivo.app_shell import (
+    build_body,
+    build_split_terminal_layer,
+    refresh_shell,
+    resize_split_terminal_session,
+)
 from zivo.models import (
     AppConfig,
     ThreePaneShellData,
@@ -204,6 +209,10 @@ class zivoApp(App[None]):
         shell = select_shell_data(self._app_state)
         yield CurrentPathBar(shell.current_path, id="current-path-bar")
         yield self._build_body(shell)
+        yield build_split_terminal_layer(
+            shell,
+            terminal_position=self._app_state.config.display.split_terminal_position,
+        )
         yield Container(
             CommandPalette(shell.command_palette, id="command-palette"),
             id="command-palette-layer",
@@ -333,6 +342,29 @@ class zivoApp(App[None]):
             row_region.y,
         )
 
+    def _update_split_terminal_overlay_geometry(self) -> None:
+        """Constrain the overlay terminal above the help and status bars."""
+
+        try:
+            split_terminal_layer = self.query_one("#split-terminal-layer", Container)
+            body = self.query_one("#body")
+            help_bar = self.query_one("#help-bar", HelpBar)
+        except NoMatches:
+            return
+
+        body_region = body.region
+        help_bar_region = help_bar.region
+        overlay_height = help_bar_region.y - body_region.y
+        if body_region.width <= 0 or overlay_height <= 0:
+            return
+
+        split_terminal_layer.styles.width = body_region.width
+        split_terminal_layer.styles.height = overlay_height
+        split_terminal_layer.styles.offset = (
+            body_region.x,
+            body_region.y,
+        )
+
     async def on_mount(self) -> None:
         """Load the initial directory snapshot after the UI mounts."""
 
@@ -450,6 +482,10 @@ class zivoApp(App[None]):
                 await self.query_one("#body").remove()
             except NoMatches:
                 pass
+            try:
+                await self.query_one("#split-terminal-layer").remove()
+            except NoMatches:
+                pass
         if changed or theme_changed or layout_changed:
             await self._refresh_shell(theme_changed=theme_changed)
         schedule_effects(self, effects)
@@ -549,6 +585,7 @@ class zivoApp(App[None]):
         self._update_command_palette_geometry()
         self._update_config_dialog_geometry()
         self._update_input_dialog_geometry()
+        self._update_split_terminal_overlay_geometry()
 
     def _resize_split_terminal_session(self) -> None:
         resize_split_terminal_session(

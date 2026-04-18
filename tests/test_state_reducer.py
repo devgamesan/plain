@@ -49,6 +49,7 @@ from zivo.state import (
     BeginExtractArchiveInput,
     BeginFileSearch,
     BeginFilterInput,
+    BeginFindAndReplace,
     BeginGoToPath,
     BeginGrepSearch,
     BeginHistorySearch,
@@ -88,6 +89,7 @@ from zivo.state import (
     CurrentPaneDeltaState,
     CutTargets,
     CycleConfigEditorValue,
+    CycleFindReplaceField,
     CycleReplaceField,
     DeleteConfirmationState,
     DirectoryEntryState,
@@ -163,6 +165,7 @@ from zivo.state import (
     SetCommandPaletteQuery,
     SetCursorPath,
     SetFilterQuery,
+    SetFindReplaceField,
     SetGrepSearchField,
     SetNotification,
     SetPendingInputValue,
@@ -6510,3 +6513,278 @@ def test_submit_pending_input_allows_colon_in_name_on_linux(monkeypatch) -> None
     # Should proceed to emit a create effect (not blocked by colon validation)
     assert result.state.ui_mode == "BUSY"
     assert result.effects != ()
+
+
+# ---------------------------------------------------------------------------
+# Find-and-replace (replace_in_found_files) tests
+# ---------------------------------------------------------------------------
+
+
+def test_begin_find_and_replace_enters_rff_mode() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFindAndReplace())
+
+    assert state.ui_mode == "PALETTE"
+    assert state.command_palette is not None
+    assert state.command_palette.source == "replace_in_found_files"
+    assert state.command_palette.rff_active_field == "filename"
+
+
+def test_set_rff_filename_field_starts_file_search() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFindAndReplace())
+
+    result = reduce_app_state(state, SetFindReplaceField(field="filename", value="readme"))
+
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.rff_filename_query == "readme"
+    assert result.state.pending_file_search_request_id == 1
+    assert result.effects == (
+        RunFileSearchEffect(
+            request_id=1,
+            root_path="/home/tadashi/develop/zivo",
+            query="readme",
+            show_hidden=False,
+        ),
+    )
+
+
+def test_set_rff_filename_clear_triggers_no_search() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFindAndReplace())
+
+    result = reduce_app_state(
+        state,
+        SetFindReplaceField(field="filename", value=""),
+    )
+
+    assert result.state.command_palette is not None
+    assert result.state.pending_file_search_request_id is None
+    assert result.effects == ()
+
+
+def test_set_rff_find_field_with_file_results_starts_preview() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFindAndReplace())
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            rff_filename_query="readme",
+            rff_file_results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    display_path="README.md",
+                ),
+            ),
+        ),
+    )
+
+    result = reduce_app_state(state, SetFindReplaceField(field="find", value="todo"))
+
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.rff_find_text == "todo"
+    assert result.state.pending_replace_preview_request_id == 1
+    assert result.effects == (
+        RunTextReplacePreviewEffect(
+            request_id=1,
+            request=TextReplaceRequest(
+                paths=("/home/tadashi/develop/zivo/README.md",),
+                find_text="todo",
+                replace_text="",
+            ),
+        ),
+    )
+
+
+def test_set_rff_find_field_without_file_results_no_preview() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFindAndReplace())
+
+    result = reduce_app_state(state, SetFindReplaceField(field="find", value="todo"))
+
+    assert result.state.command_palette is not None
+    assert result.state.pending_replace_preview_request_id is None
+    assert result.effects == ()
+
+
+def test_cycle_find_replace_field_cycles_through_three_fields() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFindAndReplace())
+
+    assert state.command_palette is not None
+    assert state.command_palette.rff_active_field == "filename"
+
+    state = _reduce_state(state, CycleFindReplaceField(delta=1))
+    assert state.command_palette is not None
+    assert state.command_palette.rff_active_field == "find"
+
+    state = _reduce_state(state, CycleFindReplaceField(delta=1))
+    assert state.command_palette is not None
+    assert state.command_palette.rff_active_field == "replace"
+
+    state = _reduce_state(state, CycleFindReplaceField(delta=1))
+    assert state.command_palette is not None
+    assert state.command_palette.rff_active_field == "filename"
+
+
+def test_cycle_find_replace_field_reverse() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFindAndReplace())
+
+    state = _reduce_state(state, CycleFindReplaceField(delta=-1))
+    assert state.command_palette is not None
+    assert state.command_palette.rff_active_field == "replace"
+
+
+def test_rff_file_search_completed_stores_results() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFindAndReplace())
+    state = replace(
+        state,
+        pending_file_search_request_id=3,
+        command_palette=replace(
+            state.command_palette,
+            rff_filename_query="readme",
+        ),
+    )
+
+    next_state = _reduce_state(
+        state,
+        FileSearchCompleted(
+            request_id=3,
+            query="readme",
+            results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    display_path="README.md",
+                ),
+            ),
+        ),
+    )
+
+    assert next_state.command_palette is not None
+    assert next_state.command_palette.rff_file_results == (
+        FileSearchResultState(
+            path="/home/tadashi/develop/zivo/README.md",
+            display_path="README.md",
+        ),
+    )
+    assert next_state.pending_file_search_request_id is None
+
+
+def test_rff_file_search_completed_auto_triggers_preview_when_find_text_present() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFindAndReplace())
+    state = replace(
+        state,
+        pending_file_search_request_id=3,
+        command_palette=replace(
+            state.command_palette,
+            rff_filename_query="readme",
+            rff_find_text="todo",
+        ),
+    )
+
+    result = reduce_app_state(
+        state,
+        FileSearchCompleted(
+            request_id=3,
+            query="readme",
+            results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    display_path="README.md",
+                ),
+            ),
+        ),
+    )
+
+    assert result.state.pending_replace_preview_request_id is not None
+    assert len(result.effects) == 1
+    assert isinstance(result.effects[0], RunTextReplacePreviewEffect)
+
+
+def test_rff_preview_completed_stores_results() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFindAndReplace())
+    state = replace(
+        state,
+        pending_replace_preview_request_id=4,
+        command_palette=replace(
+            state.command_palette,
+            rff_find_text="todo",
+            rff_replacement_text="done",
+            rff_file_results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    display_path="README.md",
+                ),
+            ),
+        ),
+    )
+
+    next_state = _reduce_state(
+        state,
+        TextReplacePreviewCompleted(
+            request_id=4,
+            result=TextReplacePreviewResult(
+                request=TextReplaceRequest(
+                    paths=("/home/tadashi/develop/zivo/README.md",),
+                    find_text="todo",
+                    replace_text="done",
+                ),
+                changed_entries=(
+                    TextReplacePreviewEntry(
+                        path="/home/tadashi/develop/zivo/README.md",
+                        diff_text="-todo\n+done",
+                        match_count=1,
+                        first_match_line_number=5,
+                        first_match_before="todo",
+                        first_match_after="done",
+                    ),
+                ),
+                total_match_count=1,
+                diff_text="-todo\n+done",
+            ),
+        ),
+    )
+
+    assert next_state.command_palette is not None
+    assert next_state.command_palette.rff_total_match_count == 1
+    assert len(next_state.command_palette.rff_preview_results) == 1
+    assert next_state.command_palette.rff_preview_results[0].display_path == "README.md"
+    assert next_state.child_pane.preview_title == "Replace Preview"
+    assert next_state.pending_replace_preview_request_id is None
+
+
+def test_submit_rff_palette_warns_when_no_find_text() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFindAndReplace())
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.notification == NotificationState(
+        level="warning",
+        message="Find text is required",
+    )
+
+
+def test_submit_rff_palette_warns_when_no_preview_results() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFindAndReplace())
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            rff_find_text="todo",
+            rff_file_results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    display_path="README.md",
+                ),
+            ),
+        ),
+    )
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.notification is not None
+    assert result.state.notification.level == "warning"
+
+
+def test_cancel_rff_returns_to_browsing() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFindAndReplace())
+    assert state.ui_mode == "PALETTE"
+
+    state = _reduce_state(state, CancelCommandPalette())
+    assert state.ui_mode == "BROWSING"
+    assert state.command_palette is None

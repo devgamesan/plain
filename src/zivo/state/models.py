@@ -43,9 +43,11 @@ CommandPaletteSource = Literal[
     "bookmarks",
     "go_to_path",
     "replace_text",
+    "replace_in_found_files",
 ]
 GrepSearchFieldId = Literal["keyword", "include", "exclude"]
 ReplaceFieldId = Literal["find", "replace"]
+FindReplaceFieldId = Literal["filename", "find", "replace"]
 SplitTerminalStatus = Literal["closed", "starting", "running"]
 SplitTerminalFocusTarget = Literal["browser", "terminal"]
 DirectorySizeStatus = Literal["pending", "ready", "failed"]
@@ -368,6 +370,16 @@ class CommandPaletteState:
     history_results: tuple[str, ...] = ()
     go_to_path_candidates: tuple[str, ...] = ()
     go_to_path_selection_active: bool = True
+    rff_filename_query: str = ""
+    rff_active_field: FindReplaceFieldId = "filename"
+    rff_find_text: str = ""
+    rff_replacement_text: str = ""
+    rff_file_results: tuple[FileSearchResultState, ...] = ()
+    rff_file_error_message: str | None = None
+    rff_preview_results: tuple[ReplacePreviewResultState, ...] = ()
+    rff_error_message: str | None = None
+    rff_status_message: str | None = None
+    rff_total_match_count: int = 0
 
 
 @dataclass(frozen=True)

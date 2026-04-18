@@ -540,7 +540,7 @@ class ChildPane(Vertical):
             scroll = self._preview_scroll_widget()
         except Exception:
             return
-        scroll.scroll_relative(y=delta, animate=False, force=True)
+        scroll.scroll_relative(y=delta, animate=False)
 
 
 class MainPane(Vertical):

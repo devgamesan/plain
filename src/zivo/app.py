@@ -468,6 +468,15 @@ class zivoApp(App[None]):
     async def action_dispatch_bound_key(self, key: str) -> None:
         """Handle priority key bindings through the central dispatcher."""
 
+        scroll_delta = _preview_scroll_delta(self._app_state, key)
+        if scroll_delta is not None:
+            try:
+                child_pane = self.query_one("#child-pane", ChildPane)
+            except NoMatches:
+                return
+            child_pane.scroll_preview(scroll_delta)
+            return
+
         await self._dispatch_key_press(key)
 
     def _build_body(self, shell: ThreePaneShellData) -> Vertical:

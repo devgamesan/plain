@@ -56,7 +56,7 @@ Screen {
 
 .pane-preview-scroll {
     height: 1fr;
-    scrollbar-size: 0 0;
+    scrollbar-size: 1 1;
 }
 
 .pane-entry {

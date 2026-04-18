@@ -524,6 +524,20 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
 def select_input_bar_state(state: AppState) -> InputBarState | None:
     """Return contextual input state for the filter mode."""
 
+    if state.pending_key_sequence is not None:
+        keys = " ".join(state.pending_key_sequence.keys)
+        next_keys = state.pending_key_sequence.possible_next_keys
+        hint = "await next key | esc cancel"
+        if next_keys:
+            hint = f"await {'/'.join(next_keys)} | esc cancel"
+        return InputBarState(
+            mode_label="KEYS",
+            prompt="Prefix: ",
+            value=keys,
+            cursor_pos=len(keys),
+            hint=hint,
+        )
+
     if state.ui_mode == "FILTER" or (state.filter.active and state.filter.query):
         hint = "esc clear"
         if state.ui_mode == "FILTER":

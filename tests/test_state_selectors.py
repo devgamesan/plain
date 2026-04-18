@@ -38,6 +38,7 @@ from zivo.state import (
     PaneState,
     PasteConflictState,
     PendingInputState,
+    PendingKeySequenceState,
     ReplacePreviewResultState,
     SetCursorPath,
     SetFilterQuery,
@@ -2152,6 +2153,25 @@ def test_select_input_bar_state_keeps_active_filter_visible_after_confirm() -> N
     assert input_bar.prompt == "Filter: "
     assert input_bar.value == "spec"
     assert input_bar.hint == "esc clear"
+
+
+def test_select_input_bar_state_for_pending_key_sequence() -> None:
+    state = replace(
+        build_initial_app_state(),
+        pending_key_sequence=PendingKeySequenceState(
+            keys=("y",),
+            possible_next_keys=("y",),
+        ),
+        filter=replace(build_initial_app_state().filter, query="spec", active=True),
+    )
+
+    input_bar = select_input_bar_state(state)
+
+    assert input_bar is not None
+    assert input_bar.mode_label == "KEYS"
+    assert input_bar.prompt == "Prefix: "
+    assert input_bar.value == "y"
+    assert input_bar.hint == "await y | esc cancel"
 
 
 def test_select_help_bar_state_for_filter_mode() -> None:

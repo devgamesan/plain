@@ -5,14 +5,16 @@ from dataclasses import replace
 
 from .actions import (
     Action,
+    ClearPendingKeySequence,
     DirectorySizesFailed,
     DirectorySizesLoaded,
     InitializeState,
     SetNotification,
+    SetPendingKeySequence,
     SetUiMode,
 )
 from .effects import ReduceResult
-from .models import AppState, sync_active_browser_tab
+from .models import AppState, PendingKeySequenceState, sync_active_browser_tab
 from .reducer_common import finalize
 from .reducer_mutations import handle_mutation_action
 from .reducer_navigation import handle_navigation_action
@@ -39,6 +41,28 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
             finalize(replace(state, notification=action.notification)),
         )
 
+    if isinstance(action, SetPendingKeySequence):
+        return _finalize_reduce_result(
+            state,
+            action,
+            finalize(
+                replace(
+                    state,
+                    pending_key_sequence=PendingKeySequenceState(
+                        keys=action.keys,
+                        possible_next_keys=action.possible_next_keys,
+                    ),
+                )
+            ),
+        )
+
+    if isinstance(action, ClearPendingKeySequence):
+        return _finalize_reduce_result(
+            state,
+            action,
+            finalize(replace(state, pending_key_sequence=None)),
+        )
+
     for handler in (
         handle_navigation_action,
         handle_mutation_action,
@@ -57,6 +81,7 @@ def _finalize_reduce_result(
     action: Action,
     result: ReduceResult,
 ) -> ReduceResult:
+    result = _finalize_pending_key_sequence(result)
     result = _finalize_current_pane_window(previous_state, result)
     result = _finalize_current_pane_delta(previous_state, result)
     result = ReduceResult(
@@ -69,6 +94,15 @@ def _finalize_reduce_result(
         return result
     return ReduceResult(
         state=_clear_transient_deltas(result.state),
+        effects=result.effects,
+    )
+
+
+def _finalize_pending_key_sequence(result: ReduceResult) -> ReduceResult:
+    if result.state.pending_key_sequence is None or result.state.ui_mode == "BROWSING":
+        return result
+    return ReduceResult(
+        state=replace(result.state, pending_key_sequence=None),
         effects=result.effects,
     )
 

@@ -356,6 +356,19 @@ class SetShellCommandValue:
 
 
 @dataclass(frozen=True)
+class SetPendingKeySequence:
+    """Store the currently active multi-key prefix."""
+
+    keys: tuple[str, ...]
+    possible_next_keys: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ClearPendingKeySequence:
+    """Clear the currently active multi-key prefix."""
+
+
+@dataclass(frozen=True)
 class SubmitPendingInput:
     """Submit the active rename/create text input."""
 
@@ -1034,6 +1047,8 @@ Action = (
     | SetPendingInputCursor
     | DeletePendingInputForward
     | SetShellCommandValue
+    | SetPendingKeySequence
+    | ClearPendingKeySequence
     | SubmitPendingInput
     | SubmitShellCommand
     | CancelPendingInput

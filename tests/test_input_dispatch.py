@@ -1,5 +1,6 @@
 from dataclasses import replace
 
+import zivo.state.input as input_module
 from zivo.models import AppConfig, BookmarkConfig, CreateZipArchiveRequest
 from zivo.state import (
     ActivateNextTab,
@@ -21,6 +22,7 @@ from zivo.state import (
     CancelPasteConflict,
     CancelPendingInput,
     CancelZipCompressConfirmation,
+    ClearPendingKeySequence,
     ClearSelection,
     CloseCurrentTab,
     CommandPaletteState,
@@ -57,6 +59,7 @@ from zivo.state import (
     OpenPathWithDefaultApp,
     PasteClipboard,
     PendingInputState,
+    PendingKeySequenceState,
     ReloadDirectory,
     RemoveBookmark,
     ResolvePasteConflict,
@@ -68,6 +71,7 @@ from zivo.state import (
     SetGrepSearchField,
     SetNotification,
     SetPendingInputValue,
+    SetPendingKeySequence,
     SetSort,
     ShowAttributes,
     SubmitCommandPalette,
@@ -189,6 +193,108 @@ def test_browsing_k_dispatches_move_cursor() -> None:
             "/home/tadashi/develop/zivo/pyproject.toml",
             "/home/tadashi/develop/zivo/README.md",
         ),
+    )
+
+
+def test_browsing_prefix_key_starts_multi_key_sequence(monkeypatch) -> None:
+    monkeypatch.setattr(
+        input_module,
+        "_MULTI_KEY_COMMAND_DISPATCH",
+        {
+            ("y", "y"): lambda _state, ctx: (
+                SetNotification(None),
+                CopyTargets(ctx.target_paths),
+            )
+        },
+    )
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="y", character="y")
+
+    assert actions == (
+        SetNotification(None),
+        SetPendingKeySequence(keys=("y",), possible_next_keys=("y",)),
+    )
+
+
+def test_browsing_prefix_key_completion_dispatches_handler(monkeypatch) -> None:
+    monkeypatch.setattr(
+        input_module,
+        "_MULTI_KEY_COMMAND_DISPATCH",
+        {
+            ("y", "y"): lambda _state, ctx: (
+                SetNotification(None),
+                CopyTargets(ctx.target_paths),
+            )
+        },
+    )
+    state = replace(
+        build_initial_app_state(),
+        pending_key_sequence=PendingKeySequenceState(
+            keys=("y",),
+            possible_next_keys=("y",),
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="y", character="y")
+
+    assert actions == (
+        SetNotification(None),
+        ClearPendingKeySequence(),
+        CopyTargets(("/home/tadashi/develop/zivo/docs",)),
+    )
+
+
+def test_browsing_prefix_key_escape_clears_sequence(monkeypatch) -> None:
+    monkeypatch.setattr(
+        input_module,
+        "_MULTI_KEY_COMMAND_DISPATCH",
+        {
+            ("y", "y"): lambda _state, ctx: (
+                SetNotification(None),
+                CopyTargets(ctx.target_paths),
+            )
+        },
+    )
+    state = replace(
+        build_initial_app_state(),
+        pending_key_sequence=PendingKeySequenceState(
+            keys=("y",),
+            possible_next_keys=("y",),
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="escape")
+
+    assert actions == (SetNotification(None), ClearPendingKeySequence())
+
+
+def test_browsing_prefix_key_invalid_followup_warns_and_clears(monkeypatch) -> None:
+    monkeypatch.setattr(
+        input_module,
+        "_MULTI_KEY_COMMAND_DISPATCH",
+        {
+            ("y", "y"): lambda _state, ctx: (
+                SetNotification(None),
+                CopyTargets(ctx.target_paths),
+            )
+        },
+    )
+    state = replace(
+        build_initial_app_state(),
+        pending_key_sequence=PendingKeySequenceState(
+            keys=("y",),
+            possible_next_keys=("y",),
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="x", character="x")
+
+    assert actions == (
+        SetNotification(
+            NotificationState(level="warning", message="No multi-key command matches 'yx'")
+        ),
+        ClearPendingKeySequence(),
     )
 
 

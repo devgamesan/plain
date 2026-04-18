@@ -136,6 +136,7 @@ from zivo.state import (
     PasteClipboard,
     PasteConflictState,
     PendingInputState,
+    PendingKeySequenceState,
     ReloadDirectory,
     RemoveBookmark,
     ReplacePreviewResultState,
@@ -165,6 +166,7 @@ from zivo.state import (
     SetGrepSearchField,
     SetNotification,
     SetPendingInputValue,
+    SetPendingKeySequence,
     SetReplaceField,
     SetSort,
     SetTerminalHeight,
@@ -6266,6 +6268,35 @@ def test_cancel_empty_trash_confirmation_returns_to_browsing() -> None:
     assert next_state.ui_mode == "BROWSING"
     assert next_state.empty_trash_confirmation is None
     assert next_state.notification is None
+
+
+def test_set_pending_key_sequence_updates_state() -> None:
+    state = build_initial_app_state()
+
+    next_state = _reduce_state(
+        state,
+        SetPendingKeySequence(keys=("y",), possible_next_keys=("y",)),
+    )
+
+    assert next_state.pending_key_sequence == PendingKeySequenceState(
+        keys=("y",),
+        possible_next_keys=("y",),
+    )
+
+
+def test_begin_command_palette_clears_pending_key_sequence() -> None:
+    state = replace(
+        build_initial_app_state(),
+        pending_key_sequence=PendingKeySequenceState(
+            keys=("y",),
+            possible_next_keys=("y",),
+        ),
+    )
+
+    next_state = _reduce_state(state, BeginCommandPalette())
+
+    assert next_state.ui_mode == "PALETTE"
+    assert next_state.pending_key_sequence is None
 
 
 def test_confirm_empty_trash_shows_notification_on_success(monkeypatch) -> None:

@@ -30,6 +30,7 @@ from .actions import (
     CancelPendingInput,
     CancelShellCommandInput,
     CancelZipCompressConfirmation,
+    ClearPendingKeySequence,
     ClearSelection,
     CloseCurrentTab,
     ConfirmArchiveExtract,
@@ -80,6 +81,7 @@ from .actions import (
     SetNotification,
     SetPendingInputCursor,
     SetPendingInputValue,
+    SetPendingKeySequence,
     SetReplaceField,
     SetShellCommandValue,
     SetSort,
@@ -317,6 +319,7 @@ _TERMINAL_KEY_SEQUENCES: dict[str, str] = {
 
 PRINTABLE_BINDING_KEYS = tuple((*string.ascii_letters, *string.digits))
 PALETTE_EXTRA_KEYS = ("shift+tab",)
+_MULTI_KEY_COMMAND_DISPATCH: dict[tuple[str, ...], _BrowsingHandler] = {}
 
 
 def iter_bound_keys() -> tuple[str, ...]:
@@ -330,6 +333,13 @@ def iter_bound_keys() -> tuple[str, ...]:
                 *TERMINAL_KEYMAP.keys(),
                 *PRINTABLE_BINDING_KEYS,
                 *PALETTE_EXTRA_KEYS,
+                *tuple(
+                    dict.fromkeys(
+                        key
+                        for sequence in _MULTI_KEY_COMMAND_DISPATCH
+                        for key in sequence
+                    )
+                ),
             )
         )
     )
@@ -396,6 +406,10 @@ def _dispatch_browsing_input(
         target_paths=select_target_paths(state),
         filter_is_active=state.filter.active and bool(state.filter.query),
     )
+
+    if state.pending_key_sequence is not None:
+        return _dispatch_pending_multi_key_input(state, ctx, key=key)
+
     command = BROWSING_KEYMAP.get(key)
 
     if command is not None:
@@ -409,6 +423,10 @@ def _dispatch_browsing_input(
             return _supported(EnterCursorDirectory())
         if ctx.cursor_entry is not None and ctx.cursor_entry.kind == "file":
             return _supported(OpenPathWithDefaultApp(ctx.cursor_entry.path))
+
+    pending = _start_multi_key_sequence_if_supported(key)
+    if pending is not None:
+        return pending
 
     return ()
 
@@ -828,6 +846,81 @@ def _simple(action_cls: type[Action]) -> _BrowsingHandler:
 
 def _warn(message: str) -> DispatchedActions:
     return (SetNotification(NotificationState(level="warning", message=message)),)
+
+
+def _matching_multi_key_sequences(prefix: tuple[str, ...]) -> tuple[tuple[str, ...], ...]:
+    return tuple(
+        sequence
+        for sequence in _MULTI_KEY_COMMAND_DISPATCH
+        if len(sequence) >= len(prefix) and sequence[: len(prefix)] == prefix
+    )
+
+
+def _next_multi_key_steps(prefix: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(
+        sorted(
+            {
+                sequence[len(prefix)]
+                for sequence in _matching_multi_key_sequences(prefix)
+                if len(sequence) > len(prefix)
+            }
+        )
+    )
+
+
+def _start_multi_key_sequence_if_supported(key: str) -> DispatchedActions | None:
+    possible_next_keys = _next_multi_key_steps((key,))
+    if not possible_next_keys:
+        return None
+    return _supported(
+        SetPendingKeySequence(
+            keys=(key,),
+            possible_next_keys=possible_next_keys,
+        )
+    )
+
+
+def _insert_clear_pending_key_sequence(actions: DispatchedActions) -> DispatchedActions:
+    if not actions:
+        return (ClearPendingKeySequence(),)
+    if isinstance(actions[0], SetNotification):
+        return (actions[0], ClearPendingKeySequence(), *actions[1:])
+    return (ClearPendingKeySequence(), *actions)
+
+
+def _dispatch_pending_multi_key_input(
+    state: AppState,
+    ctx: _BrowsingCtx,
+    *,
+    key: str,
+) -> DispatchedActions:
+    prefix = state.pending_key_sequence.keys
+    if key == "escape":
+        return _supported(ClearPendingKeySequence())
+
+    next_prefix = (*prefix, key)
+    handler = _MULTI_KEY_COMMAND_DISPATCH.get(next_prefix)
+    if handler is not None:
+        return _insert_clear_pending_key_sequence(handler(state, ctx))
+
+    possible_next_keys = _next_multi_key_steps(next_prefix)
+    if possible_next_keys:
+        return _supported(
+            SetPendingKeySequence(
+                keys=next_prefix,
+                possible_next_keys=possible_next_keys,
+            )
+        )
+
+    return (
+        SetNotification(
+            NotificationState(
+                level="warning",
+                message=f"No multi-key command matches {''.join(next_prefix)!r}",
+            )
+        ),
+        ClearPendingKeySequence(),
+    )
 
 
 # ---------------------------------------------------------------------------

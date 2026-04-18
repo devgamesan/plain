@@ -258,6 +258,14 @@ class PendingInputState:
 
 
 @dataclass(frozen=True)
+class PendingKeySequenceState:
+    """Transient multi-key prefix state used while browsing."""
+
+    keys: tuple[str, ...]
+    possible_next_keys: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class DirectorySizeCacheEntry:
     """Cached recursive directory size for a visible path."""
 
@@ -422,6 +430,7 @@ class AppState:
     ui_mode: UiMode = "BROWSING"
     notification: NotificationState | None = None
     pending_input: PendingInputState | None = None
+    pending_key_sequence: PendingKeySequenceState | None = None
     command_palette: CommandPaletteState | None = None
     split_terminal: SplitTerminalState = SplitTerminalState()
     paste_conflict: PasteConflictState | None = None

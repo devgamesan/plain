@@ -34,6 +34,7 @@ from zivo.state import (
     SubmitCommandPalette,
     build_initial_app_state,
     reduce_app_state,
+    select_command_palette_state,
 )
 
 
@@ -608,6 +609,38 @@ def test_show_attributes_warns_without_single_target() -> None:
         message="Show attributes requires a single target",
     )
 
+
+def test_select_command_palette_disables_replace_text_for_hidden_selected_file() -> None:
+    hidden_path = "/home/tadashi/develop/zivo/.env"
+    visible_path = "/home/tadashi/develop/zivo/README.md"
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(
+                DirectoryEntryState(hidden_path, ".env", "file", hidden=True),
+                DirectoryEntryState(visible_path, "README.md", "file"),
+            ),
+            cursor_path=visible_path,
+            selected_paths=frozenset({hidden_path}),
+        ),
+    )
+
+    palette_state = select_command_palette_state(
+        replace(
+            _reduce_state(state, BeginCommandPalette()),
+            command_palette=replace(CommandPaletteState(), query="replace text"),
+        )
+    )
+
+    assert palette_state is not None
+    assert [item.label for item in palette_state.items] == [
+        "Replace text in selected files",
+        "Replace text in found files",
+        "Replace text in grep results",
+    ]
+    assert palette_state.items[0].enabled is False
+
 def test_submit_command_palette_removes_current_directory_bookmark() -> None:
     state = _reduce_state(
         build_initial_app_state(
@@ -803,4 +836,3 @@ def test_begin_command_palette_clears_pending_key_sequence() -> None:
 
     assert next_state.ui_mode == "PALETTE"
     assert next_state.pending_key_sequence is None
-

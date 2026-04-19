@@ -743,6 +743,46 @@ def test_select_target_paths_returns_empty_tuple_for_empty_directory() -> None:
     assert select_target_paths(state) == ()
 
 
+def test_select_current_entry_for_path_returns_none_for_filtered_entry() -> None:
+    hidden_path = "/home/tadashi/develop/zivo/README.md"
+    visible_path = "/home/tadashi/develop/zivo/docs"
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(
+                DirectoryEntryState(hidden_path, "README.md", "file"),
+                DirectoryEntryState(visible_path, "docs", "dir"),
+            ),
+            cursor_path=visible_path,
+        ),
+        filter=replace(build_initial_app_state().filter, query="docs", active=True),
+    )
+
+    assert selectors_module.select_current_entry_for_path(state, hidden_path) is None
+    assert selectors_module.select_current_entry_for_path(state, visible_path) is not None
+
+
+def test_select_target_file_paths_ignores_hidden_selected_entries_when_hidden_files_are_off(
+) -> None:
+    hidden_path = "/home/tadashi/develop/zivo/.env"
+    visible_path = "/home/tadashi/develop/zivo/README.md"
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(
+                DirectoryEntryState(hidden_path, ".env", "file", hidden=True),
+                DirectoryEntryState(visible_path, "README.md", "file"),
+            ),
+            cursor_path=visible_path,
+            selected_paths=frozenset({hidden_path}),
+        ),
+    )
+
+    assert selectors_module.select_target_file_paths(state) == ()
+
+
 def test_select_current_entries_marks_selected_rows() -> None:
     state = build_initial_app_state()
     state = _reduce_state(state, ToggleSelection("/home/tadashi/develop/zivo/README.md"))

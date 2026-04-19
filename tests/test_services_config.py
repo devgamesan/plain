@@ -6,10 +6,16 @@ from zivo.models import (
     BookmarkConfig,
     DisplayConfig,
     EditorConfig,
+    HelpBarConfig,
     LoggingConfig,
     TerminalConfig,
 )
-from zivo.services.config import AppConfigLoader, LiveConfigSaveService, resolve_config_path
+from zivo.services.config import (
+    AppConfigLoader,
+    LiveConfigSaveService,
+    render_app_config,
+    resolve_config_path,
+)
 from zivo.theme_support import SUPPORTED_APP_THEMES, SUPPORTED_PREVIEW_SYNTAX_THEMES
 
 
@@ -404,3 +410,61 @@ def test_loader_rejects_invalid_split_terminal_position(tmp_path) -> None:
     assert len(result.warnings) == 1
     assert "split_terminal_position" in result.warnings[0]
     assert result.config.display.split_terminal_position == "bottom"
+
+
+def test_render_app_config_round_trips_full_config(tmp_path) -> None:
+    config_path = tmp_path / "config.toml"
+    config = AppConfig(
+        terminal=TerminalConfig(
+            linux=("konsole --working-directory {path}",),
+            macos=("open -a Terminal {path}",),
+        ),
+        editor=EditorConfig(command="nvim -u NONE"),
+        display=DisplayConfig(
+            show_hidden_files=True,
+            show_directory_sizes=False,
+            show_preview=False,
+            theme="tokyo-night",
+            preview_syntax_theme="one-dark",
+            preview_max_kib=512,
+            default_sort_field="size",
+            default_sort_descending=True,
+            directories_first=False,
+            grep_preview_context_lines=6,
+            split_terminal_position="right",
+        ),
+        behavior=BehaviorConfig(
+            confirm_delete=False,
+            paste_conflict_action="rename",
+        ),
+        logging=LoggingConfig(
+            enabled=False,
+            path="~/logs/zivo.log",
+            level="WARNING",
+        ),
+        bookmarks=BookmarkConfig(paths=("/tmp/project", "/tmp/docs")),
+        help_bar=HelpBarConfig(
+            browsing=("j/k: move", "enter: open"),
+            shell=("ctrl+t: terminal",),
+            split_terminal=("esc: close",),
+        ),
+    )
+    config_path.write_text(render_app_config(config), encoding="utf-8")
+
+    result = AppConfigLoader(config_path_resolver=lambda: config_path).load()
+
+    assert result.warnings == ()
+    assert result.config == config
+
+
+def test_loader_created_default_config_round_trips_without_warnings(tmp_path) -> None:
+    config_path = tmp_path / "config.toml"
+    loader = AppConfigLoader(config_path_resolver=lambda: config_path)
+
+    created = loader.load()
+    reloaded = loader.load()
+
+    assert created.created is True
+    assert reloaded.created is False
+    assert reloaded.warnings == ()
+    assert reloaded.config == AppConfig()

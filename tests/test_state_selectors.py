@@ -20,6 +20,7 @@ from zivo.state import (
     BeginCommandPalette,
     BeginCreateInput,
     BeginFilterInput,
+    BeginSelectedFilesGrep,
     CommandPaletteState,
     ConfigEditorState,
     ConfirmFilterInput,
@@ -2713,12 +2714,6 @@ def test_command_palette_enables_undo_item_when_stack_is_present() -> None:
     assert palette_state is not None
     items = {item.label: item for item in palette_state.items}
     assert items["Undo last file operation"].enabled is True
-
-
-from zivo.state import (
-    BeginSelectedFilesGrep,
-    ToggleSelection,
-)
 
 
 def test_selected_files_grep_item_enabled_with_selection() -> None:

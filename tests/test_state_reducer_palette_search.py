@@ -8,8 +8,10 @@ from zivo.state import (
     BeginCommandPalette,
     BeginFileSearch,
     BeginGrepSearch,
+    BeginSelectedFilesGrep,
     CancelCommandPalette,
     CommandPaletteState,
+    CycleSelectedFilesGrepField,
     DirectoryEntryState,
     FileSearchCompleted,
     FileSearchFailed,
@@ -27,6 +29,7 @@ from zivo.state import (
     RunExternalLaunchEffect,
     RunFileSearchEffect,
     RunGrepSearchEffect,
+    SelectedFilesGrepKeywordChanged,
     SetCommandPaletteQuery,
     SetGrepSearchField,
     SubmitCommandPalette,
@@ -859,13 +862,6 @@ def test_cancel_grep_command_palette_restores_current_cursor_preview() -> None:
 
 
 
-from zivo.state import (
-    BeginSelectedFilesGrep,
-    CycleSelectedFilesGrepField,
-    SelectedFilesGrepKeywordChanged,
-)
-
-
 def test_begin_selected_files_grep_with_multiple_selection() -> None:
     """Test opening selected-files-grep with multiple files selected."""
     state = _reduce_state(
@@ -919,7 +915,11 @@ def test_begin_selected_files_grep_with_empty_selection() -> None:
 
 def test_sfg_keyword_triggers_search() -> None:
     """Test that keyword change triggers grep search."""
-    state = _reduce_state(build_initial_app_state(), BeginSelectedFilesGrep(target_paths=("/path/to/file.py",)))
+    target_paths = ("/path/to/file.py",)
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginSelectedFilesGrep(target_paths=target_paths)
+    )
     state = replace(
         state,
         current_pane=replace(
@@ -951,7 +951,11 @@ def test_sfg_keyword_triggers_search() -> None:
 
 def test_sfg_empty_keyword_clears_results() -> None:
     """Test that empty keyword clears results."""
-    state = _reduce_state(build_initial_app_state(), BeginSelectedFilesGrep(target_paths=("/path/to/file.py",)))
+    target_paths = ("/path/to/file.py",)
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginSelectedFilesGrep(target_paths=target_paths)
+    )
     state = replace(
         state,
         command_palette=replace(
@@ -982,14 +986,13 @@ def test_sfg_empty_keyword_clears_results() -> None:
 
 def test_sfg_filters_results_by_target_paths() -> None:
     """Test that search results are filtered by target paths."""
+    target_paths = (
+        "/home/tadashi/develop/zivo/src/main.py",
+        "/home/tadashi/develop/zivo/src/utils.py",
+    )
     state = _reduce_state(
         build_initial_app_state(),
-        BeginSelectedFilesGrep(
-            target_paths=(
-                "/home/tadashi/develop/zivo/src/main.py",
-                "/home/tadashi/develop/zivo/src/utils.py",
-            )
-        ),
+        BeginSelectedFilesGrep(target_paths=target_paths),
     )
     state = replace(state, pending_grep_search_request_id=1)
 
@@ -1042,7 +1045,11 @@ def test_sfg_filters_results_by_target_paths() -> None:
 
 def test_sfg_grep_search_failed_with_invalid_query() -> None:
     """Test that invalid query shows error message."""
-    state = _reduce_state(build_initial_app_state(), BeginSelectedFilesGrep(target_paths=("/path/to/file.py",)))
+    target_paths = ("/path/to/file.py",)
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginSelectedFilesGrep(target_paths=target_paths)
+    )
     state = replace(state, pending_grep_search_request_id=1)
 
     result = reduce_app_state(
@@ -1062,9 +1069,10 @@ def test_sfg_grep_search_failed_with_invalid_query() -> None:
 
 def test_sfg_cycle_field_is_noop() -> None:
     """Test that cycling fields is a no-op since only keyword field exists."""
+    target_paths = ("/path/to/file.py",)
     state = _reduce_state(
         build_initial_app_state(),
-        BeginSelectedFilesGrep(target_paths=("/path/to/file.py",)),
+        BeginSelectedFilesGrep(target_paths=target_paths)
     )
 
     result = reduce_app_state(state, CycleSelectedFilesGrepField(delta=1))

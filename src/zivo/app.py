@@ -114,6 +114,15 @@ _REPLACE_PREVIEW_SCROLL_KEYS: dict[str, int] = {
     "shift+down": 20,
 }
 
+_REPLACE_PREVIEW_SCROLL_SOURCES = frozenset(
+    {
+        "replace_text",
+        "replace_in_found_files",
+        "replace_in_grep_files",
+        "grep_replace_selected",
+    }
+)
+
 
 def _preview_scroll_delta(state: AppState, key: str) -> int | None:
     """Return scroll delta for preview key bindings, or None if not applicable."""
@@ -121,7 +130,7 @@ def _preview_scroll_delta(state: AppState, key: str) -> int | None:
     if state.ui_mode == "BROWSING" and state.child_pane.mode == "preview":
         return _BROWSING_PREVIEW_SCROLL_KEYS.get(key)
     if state.ui_mode == "PALETTE" and state.command_palette is not None:
-        if state.command_palette.source == "replace_text":
+        if state.command_palette.source in _REPLACE_PREVIEW_SCROLL_SOURCES:
             return _REPLACE_PREVIEW_SCROLL_KEYS.get(key)
     return None
 

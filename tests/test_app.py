@@ -13,6 +13,7 @@ from textual.css.query import NoMatches
 from textual.widgets import DataTable, Label, Static
 
 from zivo import create_app
+from zivo.app import _preview_scroll_delta
 from zivo.models import (
     AppConfig,
     BehaviorConfig,
@@ -52,6 +53,7 @@ from zivo.services import (
 )
 from zivo.state import (
     BrowserSnapshot,
+    CommandPaletteState,
     ConfigSaveCompleted,
     DirectoryEntryState,
     FileSearchResultState,
@@ -60,6 +62,7 @@ from zivo.state import (
     MoveCursor,
     PaneState,
     SetTerminalHeight,
+    build_initial_app_state,
 )
 from zivo.state.selectors import (
     compute_current_pane_visible_window,
@@ -3784,6 +3787,26 @@ async def test_app_command_palette_replace_text_previews_and_applies_selected_fi
             message="replacement completion notification did not appear",
         )
         assert app.app_state.ui_mode == "BROWSING"
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        "replace_text",
+        "replace_in_found_files",
+        "replace_in_grep_files",
+        "grep_replace_selected",
+    ),
+)
+def test_preview_scroll_delta_accepts_replace_preview_palette_sources(source: str) -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(source=source),
+    )
+
+    assert _preview_scroll_delta(state, "shift+up") == -20
+    assert _preview_scroll_delta(state, "shift+down") == 20
 
 
 @pytest.mark.asyncio

@@ -351,6 +351,9 @@ zivo-cd
 | `Toggle split terminal` | 常に表示 | 埋め込み split terminal を開閉します。 |
 | `Select all` | 現在ディレクトリに表示中の項目が 1 件以上あるとき | 現在ディレクトリで表示中の項目をすべて選択します。 |
 | `Replace text in selected files` | ファイルがフォーカス中、または現在ディレクトリで 1 件以上のファイルが選択中のとき | 選択中のファイル、または未選択時はフォーカス中のファイルを対象に 2 フィールドの置換パレットを開きます。一致したファイル一覧がパレットに表示され、`↑↓` と `Ctrl+n` / `Ctrl+p` で移動すると右ペインに選択中ファイルの diff を表示します。`Enter` で一括置換を実行します。`Shift+↑` / `Shift+↓` で diff preview をスクロールします。 |
+| `Replace text in found files` | 常に表示 | 3 フィールドの置換パレット（filename、find、replace）を開きます。ファイル名パターンでファイルを検索し、find/replace テキストで置換をプレビューします。`Tab` / `Shift+Tab` でフィールドを切り替えます。右ペインに diff preview を表示し、`Enter` で置換を適用します。 |
+| `Replace text in grep results` | 常に表示 | 5 フィールドの置換パレット（keyword、replace、filename filter、include extensions、exclude extensions）を開きます。keyword は grep 検索語と置換対象テキストを兼ねます。keyword を入力して grep 検索し、replacement を入力して変更をプレビューします。filename/include/exclude フィルターで対象ファイルを絞り込めます。`Tab` / `Shift+Tab` でフィールドを切り替えます。右ペインに diff preview を表示し、`Enter` で置換を適用します。 |
+| `Grep and replace in selected files` | ファイルがフォーカス中、または現在ディレクトリで 1 件以上のファイルが選択中のとき | 選択中のファイル、または未選択時はフォーカス中のファイルを対象に 2 フィールドの置換パレット（keyword、replace）を開きます。keyword で grep 検索し、一致した行がパレットに表示されます。`Tab` / `Shift+Tab` でフィールドを切り替え、右ペインに diff preview を表示し、`Enter` で置換を適用します。 |
 | `Show attributes` | 単一対象が選択中またはフォーカス中のとき | 読み取り専用の属性ダイアログを開きます。`i` でも実行できます。 |
 | `Rename` | 単一対象が選択中またはフォーカス中のとき | 単一対象のリネーム入力を開始します。 |
 | `Compress as zip` | 対象が 1 件以上あるとき | 選択中の項目、または未選択時はフォーカス中の項目を zip 圧縮します。 |

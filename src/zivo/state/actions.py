@@ -31,6 +31,7 @@ from .models import (
     FileSearchResultState,
     FindReplaceFieldId,
     GrepReplaceFieldId,
+    GrepReplaceSelectedFieldId,
     GrepSearchFieldId,
     GrepSearchResultState,
     NotificationState,
@@ -150,6 +151,13 @@ class BeginGrepReplace:
 
 
 @dataclass(frozen=True)
+class BeginGrepReplaceSelected:
+    """Open the command palette in grep-and-replace-selected mode."""
+
+    target_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class BeginCommandPalette:
     """Open the command palette."""
 
@@ -254,6 +262,21 @@ class SetGrepReplaceField:
 @dataclass(frozen=True)
 class CycleGrepReplaceField:
     """Move focus between grep-and-replace input fields."""
+
+    delta: int
+
+
+@dataclass(frozen=True)
+class SetGrepReplaceSelectedField:
+    """Update one grep-replace-selected input field."""
+
+    field: GrepReplaceSelectedFieldId
+    value: str
+
+
+@dataclass(frozen=True)
+class CycleGrepReplaceSelectedField:
+    """Move focus between grep-replace-selected input fields."""
 
     delta: int
 
@@ -1076,6 +1099,8 @@ Action = (
     | CycleFindReplaceField
     | SetGrepReplaceField
     | CycleGrepReplaceField
+    | SetGrepReplaceSelectedField
+    | CycleGrepReplaceSelectedField
     | SubmitCommandPalette
     | DismissConfigEditor
     | MoveConfigEditorCursor

@@ -5,7 +5,14 @@ from pathlib import Path
 
 from zivo.models.external_launch import ExternalLaunchRequest
 
-from .actions import FileSearchCompleted, FileSearchFailed, GrepSearchCompleted, GrepSearchFailed
+from .actions import (
+    CycleSelectedFilesGrepField,
+    FileSearchCompleted,
+    FileSearchFailed,
+    GrepSearchCompleted,
+    GrepSearchFailed,
+    SelectedFilesGrepKeywordChanged,
+)
 from .command_palette import normalize_command_palette_cursor
 from .effects import (
     LoadChildPaneSnapshotEffect,
@@ -206,8 +213,13 @@ def handle_submit_grep_search_palette(
     state: AppState,
     reduce_state,
 ) -> ReduceResult:
-    results = state.command_palette.grep_search_results
-    message = state.command_palette.grep_search_error_message or "No matching lines"
+    if state.command_palette.source == "selected_files_grep":
+        results = state.command_palette.sfg_results
+        message = state.command_palette.sfg_error_message or "No matching lines"
+    else:
+        results = state.command_palette.grep_search_results
+        message = state.command_palette.grep_search_error_message or "No matching lines"
+
     if not results:
         return notify(state, level="warning", message=message)
 
@@ -227,8 +239,13 @@ def handle_open_grep_result_in_editor(
     reduce_state,
 ) -> ReduceResult:
     del reduce_state
-    results = state.command_palette.grep_search_results
-    message = state.command_palette.grep_search_error_message or "No matching lines"
+    if state.command_palette.source == "selected_files_grep":
+        results = state.command_palette.sfg_results
+        message = state.command_palette.sfg_error_message or "No matching lines"
+    else:
+        results = state.command_palette.grep_search_results
+        message = state.command_palette.grep_search_error_message or "No matching lines"
+
     if not results:
         return notify(state, level="warning", message=message)
 
@@ -381,6 +398,12 @@ def handle_grep_search_completed(
     ):
         return handle_grs_grep_search_completed(state, action)
 
+    if (
+        state.command_palette is not None
+        and state.command_palette.source == "selected_files_grep"
+    ):
+        return handle_sfg_grep_search_completed(state, action)
+
     if state.command_palette is None or state.command_palette.source != "grep_search":
         return finalize(state)
 
@@ -458,6 +481,12 @@ def handle_grep_search_failed(
             message=action.message,
         )
 
+    if (
+        state.command_palette is not None
+        and state.command_palette.source == "selected_files_grep"
+    ):
+        return handle_sfg_grep_search_failed(state, action)
+
     if state.command_palette is not None and action.invalid_query:
         return sync_grep_preview(
             replace(
@@ -486,7 +515,10 @@ def selected_file_search_result(state: AppState) -> FileSearchResultState | None
     results = state.command_palette.file_search_results
     if not results:
         return None
-    return results[normalize_command_palette_cursor(state, state.command_palette.cursor_index)]
+    cursor_index = normalize_command_palette_cursor(state, state.command_palette.cursor_index)
+    if cursor_index >= len(results):
+        return None
+    return results[cursor_index]
 
 
 def selected_grep_result(state: AppState) -> GrepSearchResultState | None:
@@ -495,7 +527,10 @@ def selected_grep_result(state: AppState) -> GrepSearchResultState | None:
     results = state.command_palette.grep_search_results
     if not results:
         return None
-    return results[normalize_command_palette_cursor(state, state.command_palette.cursor_index)]
+    cursor_index = normalize_command_palette_cursor(state, state.command_palette.cursor_index)
+    if cursor_index >= len(results):
+        return None
+    return results[cursor_index]
 
 
 def matches_file_search_preview(
@@ -555,6 +590,184 @@ def sync_grep_preview(state: AppState) -> ReduceResult:
         return finalize(replace(state, pending_child_pane_request_id=None))
 
     if state.pending_child_pane_request_id is None and matches_grep_preview(state, selected_result):
+        return finalize(state)
+
+    request_id = state.next_request_id
+    return finalize(
+        replace(
+            state,
+            pending_child_pane_request_id=request_id,
+            next_request_id=request_id + 1,
+        ),
+        LoadChildPaneSnapshotEffect(
+            request_id=request_id,
+            current_path=state.current_path,
+            cursor_path=selected_result.path,
+            preview_max_bytes=state.config.display.preview_max_kib * 1024,
+            grep_result=selected_result,
+            grep_context_lines=state.config.display.grep_preview_context_lines,
+        ),
+    )
+
+
+def handle_sfg_keyword_changed(
+    state: AppState,
+    action: SelectedFilesGrepKeywordChanged,
+) -> ReduceResult:
+    """Handle keyword changes for selected-files-grep."""
+    if state.command_palette is None or state.command_palette.source != "selected_files_grep":
+        return finalize(state)
+
+    next_palette = replace(
+        state.command_palette,
+        sfg_keyword=action.keyword,
+        sfg_error_message=None,
+        cursor_index=0,
+    )
+    stripped_query = action.keyword.strip()
+
+    if not stripped_query:
+        return sync_sfg_preview(
+            replace(
+                state,
+                command_palette=replace(
+                    next_palette,
+                    sfg_results=(),
+                    sfg_error_message=None,
+                ),
+                pending_grep_search_request_id=None,
+                pending_child_pane_request_id=None,
+            )
+        )
+
+    request_id = state.next_request_id
+    next_state = replace(
+        state,
+        command_palette=next_palette,
+        pending_grep_search_request_id=request_id,
+        next_request_id=request_id + 1,
+    )
+    return finalize(
+        next_state,
+        RunGrepSearchEffect(
+            request_id=request_id,
+            root_path=state.current_path,
+            query=stripped_query,
+            show_hidden=state.show_hidden,
+            include_globs=(),  # No extension filtering for selected-files-grep
+            exclude_globs=(),  # No extension filtering for selected-files-grep
+        ),
+    )
+
+
+def handle_sfg_grep_search_completed(
+    state: AppState,
+    action: GrepSearchCompleted,
+) -> ReduceResult:
+    """Handle grep search completion for selected-files-grep."""
+    if action.request_id != state.pending_grep_search_request_id:
+        return finalize(state)
+
+    if state.command_palette is None or state.command_palette.source != "selected_files_grep":
+        return finalize(state)
+
+    target_set = frozenset(state.command_palette.sfg_target_paths)
+    filtered_results = tuple(
+        r for r in action.results
+        if r.path in target_set
+    )
+
+    return sync_sfg_preview(
+        replace(
+            state,
+            command_palette=replace(
+                state.command_palette,
+                sfg_results=filtered_results,
+                sfg_error_message=None,
+                cursor_index=0,
+            ),
+            pending_grep_search_request_id=None,
+        )
+    )
+
+
+def handle_sfg_grep_search_failed(
+    state: AppState,
+    action: GrepSearchFailed,
+) -> ReduceResult:
+    """Handle grep search failure for selected-files-grep."""
+    if action.request_id != state.pending_grep_search_request_id:
+        return finalize(state)
+
+    if state.command_palette is None or state.command_palette.source != "selected_files_grep":
+        return finalize(state)
+
+    if action.invalid_query:
+        return sync_sfg_preview(
+            replace(
+                state,
+                command_palette=replace(
+                    state.command_palette,
+                    sfg_results=(),
+                    sfg_error_message=action.message,
+                    cursor_index=0,
+                ),
+                pending_grep_search_request_id=None,
+                pending_child_pane_request_id=None,
+            )
+        )
+
+    return notify(
+        replace(state, pending_grep_search_request_id=None),
+        level="error",
+        message=action.message,
+    )
+
+
+def handle_cycle_sfg_field(
+    state: AppState,
+    action: CycleSelectedFilesGrepField,
+) -> ReduceResult:
+    """Handle field cycling for selected-files-grep (no-op since only keyword field exists)."""
+    if state.command_palette is None or state.command_palette.source != "selected_files_grep":
+        return finalize(state)
+
+    # Only one field (keyword), so cycling is a no-op
+    return finalize(state)
+
+
+def selected_sfg_result(state: AppState) -> GrepSearchResultState | None:
+    """Return the selected result for selected-files-grep."""
+    if state.command_palette is None or state.command_palette.source != "selected_files_grep":
+        return None
+    results = state.command_palette.sfg_results
+    if not results:
+        return None
+    cursor_index = normalize_command_palette_cursor(state, state.command_palette.cursor_index)
+    if cursor_index >= len(results):
+        return None
+    return results[cursor_index]
+
+
+def matches_sfg_preview(
+    state: AppState,
+    result: GrepSearchResultState,
+) -> bool:
+    """Check if the current preview matches the selected result for selected-files-grep."""
+    return (
+        state.child_pane.mode == "preview"
+        and state.child_pane.preview_path == result.path
+        and state.child_pane.preview_highlight_line == result.line_number
+    )
+
+
+def sync_sfg_preview(state: AppState) -> ReduceResult:
+    """Sync the preview pane for selected-files-grep."""
+    selected_result = selected_sfg_result(state)
+    if selected_result is None or not state.config.display.show_preview:
+        return finalize(replace(state, pending_child_pane_request_id=None))
+
+    if state.pending_child_pane_request_id is None and matches_sfg_preview(state, selected_result):
         return finalize(state)
 
     request_id = state.next_request_id

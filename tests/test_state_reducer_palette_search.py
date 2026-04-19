@@ -8,8 +8,10 @@ from zivo.state import (
     BeginCommandPalette,
     BeginFileSearch,
     BeginGrepSearch,
+    BeginSelectedFilesGrep,
     CancelCommandPalette,
     CommandPaletteState,
+    CycleSelectedFilesGrepField,
     DirectoryEntryState,
     FileSearchCompleted,
     FileSearchFailed,
@@ -27,6 +29,7 @@ from zivo.state import (
     RunExternalLaunchEffect,
     RunFileSearchEffect,
     RunGrepSearchEffect,
+    SelectedFilesGrepKeywordChanged,
     SetCommandPaletteQuery,
     SetGrepSearchField,
     SubmitCommandPalette,
@@ -857,3 +860,223 @@ def test_cancel_grep_command_palette_restores_current_cursor_preview() -> None:
         ),
     )
 
+
+
+def test_begin_selected_files_grep_with_multiple_selection() -> None:
+    """Test opening selected-files-grep with multiple files selected."""
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginSelectedFilesGrep(
+            target_paths=(
+                "/home/tadashi/develop/zivo/src/main.py",
+                "/home/tadashi/develop/zivo/src/utils.py",
+            )
+        ),
+    )
+
+    assert state.ui_mode == "PALETTE"
+    assert state.command_palette is not None
+    assert state.command_palette.source == "selected_files_grep"
+    assert state.command_palette.sfg_target_paths == (
+        "/home/tadashi/develop/zivo/src/main.py",
+        "/home/tadashi/develop/zivo/src/utils.py",
+    )
+    assert state.command_palette.sfg_keyword == ""
+    assert state.command_palette.sfg_results == ()
+
+
+def test_begin_selected_files_grep_with_single_file() -> None:
+    """Test opening selected-files-grep with a single file selected."""
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginSelectedFilesGrep(
+            target_paths=("/home/tadashi/develop/zivo/README.md",)
+        ),
+    )
+
+    assert state.ui_mode == "PALETTE"
+    assert state.command_palette is not None
+    assert state.command_palette.source == "selected_files_grep"
+    assert state.command_palette.sfg_target_paths == ("/home/tadashi/develop/zivo/README.md",)
+
+
+def test_begin_selected_files_grep_with_empty_selection() -> None:
+    """Test opening selected-files-grep with no files selected."""
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginSelectedFilesGrep(target_paths=()),
+    )
+
+    assert state.ui_mode == "PALETTE"
+    assert state.command_palette is not None
+    assert state.command_palette.source == "selected_files_grep"
+    assert state.command_palette.sfg_target_paths == ()
+
+
+def test_sfg_keyword_triggers_search() -> None:
+    """Test that keyword change triggers grep search."""
+    target_paths = ("/path/to/file.py",)
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginSelectedFilesGrep(target_paths=target_paths)
+    )
+    state = replace(
+        state,
+        current_pane=replace(
+            state.current_pane,
+            entries=(
+                DirectoryEntryState(
+                    "/path/to/file.py",
+                    "file.py",
+                    "file",
+                ),
+            ),
+        ),
+    )
+
+    result = reduce_app_state(
+        state,
+        SelectedFilesGrepKeywordChanged(keyword="test"),
+    )
+
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.sfg_keyword == "test"
+    assert result.state.pending_grep_search_request_id == 1
+    assert len(result.effects) == 1
+    effect = result.effects[0]
+    assert isinstance(effect, RunGrepSearchEffect)
+    assert effect.query == "test"
+    assert effect.root_path == state.current_path
+
+
+def test_sfg_empty_keyword_clears_results() -> None:
+    """Test that empty keyword clears results."""
+    target_paths = ("/path/to/file.py",)
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginSelectedFilesGrep(target_paths=target_paths)
+    )
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            sfg_keyword="test",
+            sfg_results=(
+                GrepSearchResultState(
+                    path="/path/to/file.py",
+                    display_path="file.py",
+                    line_number=1,
+                    line_text="test line",
+                ),
+            ),
+        ),
+        pending_grep_search_request_id=1,
+    )
+
+    result = reduce_app_state(
+        state,
+        SelectedFilesGrepKeywordChanged(keyword=""),
+    )
+
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.sfg_keyword == ""
+    assert result.state.command_palette.sfg_results == ()
+    assert result.state.pending_grep_search_request_id is None
+
+
+def test_sfg_filters_results_by_target_paths() -> None:
+    """Test that search results are filtered by target paths."""
+    target_paths = (
+        "/home/tadashi/develop/zivo/src/main.py",
+        "/home/tadashi/develop/zivo/src/utils.py",
+    )
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginSelectedFilesGrep(target_paths=target_paths),
+    )
+    state = replace(state, pending_grep_search_request_id=1)
+
+    result = reduce_app_state(
+        state,
+        GrepSearchCompleted(
+            query="test",
+            request_id=1,
+            results=(
+                GrepSearchResultState(
+                    path="/home/tadashi/develop/zivo/src/main.py",
+                    display_path="src/main.py",
+                    line_number=10,
+                    line_text="def main():",
+                ),
+                GrepSearchResultState(
+                    path="/home/tadashi/develop/zivo/src/other.py",
+                    display_path="src/other.py",
+                    line_number=5,
+                    line_text="def other():",
+                ),
+                GrepSearchResultState(
+                    path="/home/tadashi/develop/zivo/src/utils.py",
+                    display_path="src/utils.py",
+                    line_number=20,
+                    line_text="def utils():",
+                ),
+            ),
+        ),
+    )
+
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.sfg_results == (
+        GrepSearchResultState(
+            path="/home/tadashi/develop/zivo/src/main.py",
+            display_path="src/main.py",
+            line_number=10,
+            line_text="def main():",
+        ),
+        GrepSearchResultState(
+            path="/home/tadashi/develop/zivo/src/utils.py",
+            display_path="src/utils.py",
+            line_number=20,
+            line_text="def utils():",
+        ),
+    )
+    # other.py should be filtered out as it's not in target_paths
+    assert len(result.state.command_palette.sfg_results) == 2
+
+
+def test_sfg_grep_search_failed_with_invalid_query() -> None:
+    """Test that invalid query shows error message."""
+    target_paths = ("/path/to/file.py",)
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginSelectedFilesGrep(target_paths=target_paths)
+    )
+    state = replace(state, pending_grep_search_request_id=1)
+
+    result = reduce_app_state(
+        state,
+        GrepSearchFailed(
+            query="test",
+            request_id=1,
+            message="Invalid regex pattern",
+            invalid_query=True,
+        ),
+    )
+
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.sfg_error_message == "Invalid regex pattern"
+    assert result.state.command_palette.sfg_results == ()
+
+
+def test_sfg_cycle_field_is_noop() -> None:
+    """Test that cycling fields is a no-op since only keyword field exists."""
+    target_paths = ("/path/to/file.py",)
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginSelectedFilesGrep(target_paths=target_paths)
+    )
+
+    result = reduce_app_state(state, CycleSelectedFilesGrepField(delta=1))
+
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.sfg_active_field == "keyword"
+    assert result.state == state  # No changes expected

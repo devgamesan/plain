@@ -20,6 +20,7 @@ from zivo.state import (
     BeginCommandPalette,
     BeginCreateInput,
     BeginFilterInput,
+    BeginSelectedFilesGrep,
     CommandPaletteState,
     ConfigEditorState,
     ConfirmFilterInput,
@@ -2713,3 +2714,76 @@ def test_command_palette_enables_undo_item_when_stack_is_present() -> None:
     assert palette_state is not None
     items = {item.label: item for item in palette_state.items}
     assert items["Undo last file operation"].enabled is True
+
+
+def test_selected_files_grep_item_enabled_with_selection() -> None:
+    """Test that selected-files-grep item is enabled when files are selected."""
+    state = reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = replace(
+        state,
+        current_pane=replace(
+            state.current_pane,
+            entries=(
+                DirectoryEntryState(
+                    "/home/tadashi/develop/zivo/src/main.py",
+                    "main.py",
+                    "file",
+                ),
+                DirectoryEntryState(
+                    "/home/tadashi/develop/zivo/src/utils.py",
+                    "utils.py",
+                    "file",
+                ),
+            ),
+            selected_paths=frozenset({
+                "/home/tadashi/develop/zivo/src/main.py",
+                "/home/tadashi/develop/zivo/src/utils.py",
+            }),
+        ),
+    )
+
+    items = selectors_module.get_command_palette_items(state)
+    selected_files_grep_items = [item for item in items if item.id == "selected_files_grep"]
+
+    assert len(selected_files_grep_items) == 1
+    assert selected_files_grep_items[0].enabled is True
+
+
+def test_selected_files_grep_item_disabled_without_selection() -> None:
+    """Test that selected-files-grep item is disabled when no files are selected."""
+    state = reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = replace(
+        state,
+        current_pane=replace(
+            state.current_pane,
+            entries=(
+                DirectoryEntryState(
+                    "/home/tadashi/develop/zivo/src/main.py",
+                    "main.py",
+                    "file",
+                ),
+            ),
+            selected_paths=frozenset(),
+        ),
+    )
+
+    items = selectors_module.get_command_palette_items(state)
+    selected_files_grep_items = [item for item in items if item.id == "selected_files_grep"]
+
+    assert len(selected_files_grep_items) == 1
+    assert selected_files_grep_items[0].enabled is False
+
+
+def test_selected_files_grep_command_opens_palette() -> None:
+    """Test that selected-files-grep command opens the command palette."""
+    state = reduce_state(
+        build_initial_app_state(),
+        BeginSelectedFilesGrep(
+            target_paths=("/home/tadashi/develop/zivo/src/main.py",)
+        ),
+    )
+
+    assert state.ui_mode == "PALETTE"
+    assert state.command_palette is not None
+    assert state.command_palette.source == "selected_files_grep"
+    assert state.command_palette.sfg_target_paths == ("/home/tadashi/develop/zivo/src/main.py",)

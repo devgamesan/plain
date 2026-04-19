@@ -9,9 +9,11 @@ from .actions import (
     CycleGrepReplaceSelectedField,
     CycleGrepSearchField,
     CycleReplaceField,
+    CycleSelectedFilesGrepField,
     MoveCommandPaletteCursor,
     OpenFindResultInEditor,
     OpenGrepResultInEditor,
+    SelectedFilesGrepKeywordChanged,
     SetCommandPaletteQuery,
     SetFindReplaceField,
     SetGrepReplaceField,
@@ -98,6 +100,8 @@ def palette_extra_rows(palette_source: str | None) -> int:
         return 5
     if palette_source == "grep_replace_selected":
         return 2
+    if palette_source == "selected_files_grep":
+        return 1
     if palette_source in {"grep_search", "replace_text"}:
         return 2
     return 0
@@ -110,7 +114,7 @@ def dispatch_command_palette_input(
     character: str | None,
 ) -> DispatchedActions:
     palette_source = state.command_palette.source if state.command_palette is not None else None
-    search_palette = palette_source in {"file_search", "grep_search"}
+    search_palette = palette_source in {"file_search", "grep_search", "selected_files_grep"}
 
     if (
         key == "tab"
@@ -166,6 +170,12 @@ def dispatch_command_palette_input(
 
     if key == "shift+tab" and palette_source == "grep_replace_selected":
         return supported(CycleGrepReplaceSelectedField(delta=-1))
+
+    if key == "tab" and palette_source == "selected_files_grep":
+        return supported(CycleSelectedFilesGrepField(delta=1))
+
+    if key == "shift+tab" and palette_source == "selected_files_grep":
+        return supported(CycleSelectedFilesGrepField(delta=-1))
 
     if key == "up" or (key == "k" and not search_palette):
         return supported(MoveCommandPaletteCursor(delta=-1))
@@ -234,11 +244,19 @@ def dispatch_command_palette_input(
                     value=active_grep_replace_selected_field_value(state)[:-1],
                 )
             )
+        if palette_source == "selected_files_grep":
+            if state.command_palette is not None:
+                current_value = state.command_palette.sfg_keyword
+            else:
+                current_value = ""
+            return supported(
+                SelectedFilesGrepKeywordChanged(keyword=current_value[:-1])
+            )
         current_query = state.command_palette.query if state.command_palette is not None else ""
         return supported(SetCommandPaletteQuery(current_query[:-1]))
 
     if key == "ctrl+e" and state.command_palette is not None:
-        if state.command_palette.source == "grep_search":
+        if state.command_palette.source in {"grep_search", "selected_files_grep"}:
             return supported(OpenGrepResultInEditor())
         if state.command_palette.source == "file_search":
             return supported(OpenFindResultInEditor())
@@ -284,13 +302,26 @@ def dispatch_command_palette_input(
                     value=f"{active_grep_replace_selected_field_value(state)}{character}",
                 )
             )
+        if palette_source == "selected_files_grep":
+            if state.command_palette is not None:
+                current_value = state.command_palette.sfg_keyword
+            else:
+                current_value = ""
+            return supported(
+                SelectedFilesGrepKeywordChanged(keyword=f"{current_value}{character}")
+            )
         current_query = state.command_palette.query if state.command_palette is not None else ""
         return supported(SetCommandPaletteQuery(f"{current_query}{character}"))
 
     if search_palette:
         if state.command_palette is not None and state.command_palette.source == "grep_search":
             return warn("Use Tab/Shift+Tab, type, arrows, Enter, Ctrl+e, or Esc")
-        return warn("Use arrows, type to filter, Enter, Ctrl+e for editor, or Esc")
+        if (
+            state.command_palette is not None
+            and state.command_palette.source == "selected_files_grep"
+        ):
+            return warn("Use arrows, type to search, Enter, Ctrl+e for editor, or Esc")
+        return warn("Use arrows, type to search, Enter, Ctrl+e for editor, or Esc")
 
     if palette_source == "replace_text":
         return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+n/p, Enter to apply, or Esc")

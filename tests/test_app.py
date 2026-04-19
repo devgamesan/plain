@@ -3425,14 +3425,22 @@ async def test_app_grep_search_passes_include_and_exclude_extensions(tmp_path) -
         await pilot.press("tab", "tab", "m", "d")
         await pilot.press("tab", "l", "o", "g")
 
-        await _wait_for_request_count(grep_search_service, 1, timeout=1.0)
-        assert grep_search_service.executed_requests[-1] == (
+        expected_request = (
             path,
             "todo",
             ("*.md",),
             ("*.log",),
             False,
         )
+        deadline = asyncio.get_running_loop().time() + 1.0
+        while True:
+            if expected_request in grep_search_service.executed_requests:
+                break
+            if asyncio.get_running_loop().time() >= deadline:
+                raise AssertionError(
+                    "grep request with include/exclude filters was not executed"
+                )
+            await asyncio.sleep(0.01)
 
 
 @pytest.mark.asyncio

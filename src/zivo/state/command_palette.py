@@ -6,7 +6,14 @@ from dataclasses import dataclass
 
 from zivo.archive_utils import is_supported_archive_path
 
-from .models import AppState, DirectoryEntryState
+from .models import AppState
+from .selectors import (
+    select_current_entry_for_path,
+    select_has_visible_current_entries,
+    select_single_target_entry,
+    select_target_file_paths,
+    select_target_paths,
+)
 
 
 @dataclass(frozen=True)
@@ -154,14 +161,14 @@ def normalize_command_palette_cursor(state: AppState, cursor_index: int) -> int:
 
 
 def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]:
-    target_paths = _select_target_paths(state)
-    replace_target_paths = _replace_target_file_paths(state)
+    target_paths = select_target_paths(state)
+    replace_target_paths = select_target_file_paths(state)
     selected_files_grep_target_paths = _selected_files_grep_target_paths(state)
-    single_target_entry = _single_target_entry(state, target_paths)
+    single_target_entry = select_single_target_entry(state)
     has_target = bool(target_paths)
     has_single_target = single_target_entry is not None
     current_path_is_bookmarked = state.current_path in state.config.bookmarks.paths
-    has_visible_entries = _has_visible_current_entries(state)
+    has_visible_entries = select_has_visible_current_entries(state)
     tab_count = len(state.browser_tabs) or 1
 
     items = [
@@ -453,85 +460,22 @@ def _hidden_files_label(state: AppState) -> str:
     return "Hide hidden files" if state.show_hidden else "Show hidden files"
 
 
-def _select_target_paths(state: AppState) -> tuple[str, ...]:
-    selected_paths = tuple(
-        entry.path
-        for entry in _active_current_entries(state)
-        if entry.path in state.current_pane.selected_paths
-    )
-    if selected_paths:
-        return selected_paths
-
-    cursor_entry = _current_entry(state)
-    if cursor_entry is None:
-        return ()
-    return (cursor_entry.path,)
-
-
-def _single_target_entry(
-    state: AppState,
-    target_paths: tuple[str, ...],
-) -> DirectoryEntryState | None:
-    if len(target_paths) != 1:
-        return None
-    return _entry_for_path(state, target_paths[0])
-
-
-def _current_entry(state: AppState) -> DirectoryEntryState | None:
-    return _entry_for_path(state, state.current_pane.cursor_path)
-
-
-def _entry_for_path(state: AppState, path: str | None) -> DirectoryEntryState | None:
-    if path is None:
-        return None
-    for entry in _active_current_entries(state):
-        if entry.path == path:
-            return entry
-    return None
-
-
-def _active_current_entries(state: AppState) -> tuple[DirectoryEntryState, ...]:
-    return state.current_pane.entries
-
-
-def _has_visible_current_entries(state: AppState) -> bool:
-    query = state.filter.query.casefold()
-    filter_is_active = state.filter.active and bool(state.filter.query)
-    for entry in _active_current_entries(state):
-        if entry.hidden and not state.show_hidden:
-            continue
-        if filter_is_active and query not in entry.name.casefold():
-            continue
-        return True
-    return False
-
-
 def _replace_target_file_paths(state: AppState) -> tuple[str, ...]:
-    selected_paths = tuple(
-        entry.path
-        for entry in _active_current_entries(state)
-        if entry.path in state.current_pane.selected_paths and entry.kind == "file"
-    )
-    if state.current_pane.selected_paths:
-        return selected_paths
-
-    cursor_entry = _current_entry(state)
-    if cursor_entry is None or cursor_entry.kind != "file":
-        return ()
-    return (cursor_entry.path,)
+    return select_target_file_paths(state)
 
 
 def _selected_files_grep_target_paths(state: AppState) -> tuple[str, ...]:
     """Return target file paths for selected-files-grep."""
-    selected_paths = tuple(
-        entry.path
-        for entry in _active_current_entries(state)
-        if entry.path in state.current_pane.selected_paths and entry.kind == "file"
-    )
+    target_paths = select_target_paths(state)
     if state.current_pane.selected_paths:
-        return selected_paths
+        return tuple(
+            path
+            for path in target_paths
+            if (entry := select_current_entry_for_path(state, path)) is not None
+            and entry.kind == "file"
+        )
 
-    cursor_entry = _current_entry(state)
+    cursor_entry = select_current_entry_for_path(state, state.current_pane.cursor_path)
     if cursor_entry is None or cursor_entry.kind != "file":
         return ()
     return (cursor_entry.path,)

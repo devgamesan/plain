@@ -5,6 +5,7 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 from stat import S_IMODE, filemode
+from typing import TYPE_CHECKING
 
 from zivo.archive_utils import is_supported_archive_path
 from zivo.models import (
@@ -32,11 +33,6 @@ from zivo.models import (
 )
 from zivo.theme_support import preview_syntax_theme_for_app_theme
 
-from .command_palette import (
-    CommandPaletteItem,
-    get_command_palette_items,
-    normalize_command_palette_cursor,
-)
 from .models import (
     AppState,
     CommandPaletteState,
@@ -48,6 +44,21 @@ from .models import (
     SortState,
     select_browser_tabs,
 )
+
+if TYPE_CHECKING:
+    from .command_palette import CommandPaletteItem
+
+
+def get_command_palette_items(state: AppState) -> tuple["CommandPaletteItem", ...]:
+    from .command_palette import get_command_palette_items
+
+    return get_command_palette_items(state)
+
+
+def normalize_command_palette_cursor(state: AppState, cursor_index: int) -> int:
+    from .command_palette import normalize_command_palette_cursor
+
+    return normalize_command_palette_cursor(state, cursor_index)
 
 SIDE_PANE_SORT = SortState(field="name", descending=False, directories_first=True)
 COMMAND_PALETTE_VISIBLE_WINDOW = 8
@@ -1215,6 +1226,53 @@ def select_target_paths(state: AppState) -> tuple[str, ...]:
     return (current_pane.cursor_entry.path,)
 
 
+def select_current_entry_for_path(
+    state: AppState,
+    path: str | None,
+) -> DirectoryEntryState | None:
+    """Return the visible current-pane entry for the given path."""
+
+    if path is None:
+        return None
+    for entry in select_visible_current_entry_states(state):
+        if entry.path == path:
+            return entry
+    return None
+
+
+def select_single_target_entry(state: AppState) -> DirectoryEntryState | None:
+    """Return the visible entry when exactly one target is active."""
+
+    target_paths = select_target_paths(state)
+    if len(target_paths) != 1:
+        return None
+    return select_current_entry_for_path(state, target_paths[0])
+
+
+def select_target_file_paths(state: AppState) -> tuple[str, ...]:
+    """Return visible file targets, preserving selection-before-cursor behavior."""
+
+    visible_entries = select_visible_current_entry_states(state)
+    selected_files = tuple(
+        entry.path
+        for entry in visible_entries
+        if entry.path in state.current_pane.selected_paths and entry.kind == "file"
+    )
+    if state.current_pane.selected_paths:
+        return selected_files
+
+    cursor_entry = select_current_entry_for_path(state, state.current_pane.cursor_path)
+    if cursor_entry is None or cursor_entry.kind != "file":
+        return ()
+    return (cursor_entry.path,)
+
+
+def select_has_visible_current_entries(state: AppState) -> bool:
+    """Return whether the current pane has at least one visible entry."""
+
+    return bool(select_visible_current_entry_states(state))
+
+
 def select_visible_current_entry_states(state: AppState) -> tuple[DirectoryEntryState, ...]:
     """Return filtered and sorted raw current-pane entries."""
 
@@ -1793,10 +1851,10 @@ def _select_search_window(
 
 
 def _select_command_palette_window(
-    items: tuple[CommandPaletteItem, ...],
+    items: tuple["CommandPaletteItem", ...],
     cursor_index: int,
     visible_window: int = COMMAND_PALETTE_VISIBLE_WINDOW,
-) -> tuple[tuple[tuple[int, CommandPaletteItem], ...], str]:
+) -> tuple[tuple[tuple[int, "CommandPaletteItem"], ...], str]:
     total = len(items)
     if total <= visible_window:
         return tuple(enumerate(items)), "Command Palette"

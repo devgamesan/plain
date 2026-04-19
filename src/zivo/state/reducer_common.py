@@ -48,7 +48,11 @@ from .models import (
     PaneState,
     SortState,
 )
-from .selectors import select_target_paths, select_visible_current_entry_states
+from .selectors import (
+    select_current_entry_for_path,
+    select_single_target_entry,
+    select_visible_current_entry_states,
+)
 
 ReducerFn = Callable[[AppState, Action], ReduceResult]
 
@@ -617,19 +621,11 @@ def current_entry_for_path(
     state: AppState,
     path: str | None,
 ) -> DirectoryEntryState | None:
-    if path is None:
-        return None
-    for entry in active_current_entries(state):
-        if entry.path == path:
-            return entry
-    return None
+    return select_current_entry_for_path(state, path)
 
 
 def single_target_entry(state: AppState) -> DirectoryEntryState | None:
-    target_paths = select_target_paths(state)
-    if len(target_paths) != 1:
-        return None
-    return current_entry_for_path(state, target_paths[0])
+    return select_single_target_entry(state)
 
 
 def single_target_path(state: AppState) -> str | None:

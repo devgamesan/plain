@@ -156,6 +156,7 @@ def normalize_command_palette_cursor(state: AppState, cursor_index: int) -> int:
 def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]:
     target_paths = _select_target_paths(state)
     replace_target_paths = _replace_target_file_paths(state)
+    selected_files_grep_target_paths = _selected_files_grep_target_paths(state)
     single_target_entry = _single_target_entry(state, target_paths)
     has_target = bool(target_paths)
     has_single_target = single_target_entry is not None
@@ -283,6 +284,12 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             label="Grep and replace in selected files",
             shortcut=None,
             enabled=bool(replace_target_paths),
+        ),
+        CommandPaletteItem(
+            id="selected_files_grep",
+            label="Grep in selected files",
+            shortcut=None,
+            enabled=bool(selected_files_grep_target_paths),
         ),
     ]
 
@@ -500,6 +507,22 @@ def _has_visible_current_entries(state: AppState) -> bool:
 
 
 def _replace_target_file_paths(state: AppState) -> tuple[str, ...]:
+    selected_paths = tuple(
+        entry.path
+        for entry in _active_current_entries(state)
+        if entry.path in state.current_pane.selected_paths and entry.kind == "file"
+    )
+    if state.current_pane.selected_paths:
+        return selected_paths
+
+    cursor_entry = _current_entry(state)
+    if cursor_entry is None or cursor_entry.kind != "file":
+        return ()
+    return (cursor_entry.path,)
+
+
+def _selected_files_grep_target_paths(state: AppState) -> tuple[str, ...]:
+    """Return target file paths for selected-files-grep."""
     selected_paths = tuple(
         entry.path
         for entry in _active_current_entries(state)

@@ -25,6 +25,7 @@ from .actions import (
     BeginGrepSearch,
     BeginHistorySearch,
     BeginRenameInput,
+    BeginSelectedFilesGrep,
     BeginShellCommandInput,
     BeginTextReplace,
     BeginZipCompressInput,
@@ -36,6 +37,7 @@ from .actions import (
     CycleGrepReplaceSelectedField,
     CycleGrepSearchField,
     CycleReplaceField,
+    CycleSelectedFilesGrepField,
     DismissAttributeDialog,
     FileSearchCompleted,
     FileSearchFailed,
@@ -54,6 +56,7 @@ from .actions import (
     ReloadDirectory,
     RemoveBookmark,
     SelectAllVisibleEntries,
+    SelectedFilesGrepKeywordChanged,
     SetCommandPaletteQuery,
     SetFindReplaceField,
     SetGrepReplaceField,
@@ -105,18 +108,21 @@ from .reducer_palette_replace import (
     sync_replace_preview,
 )
 from .reducer_palette_search import (
+    handle_cycle_sfg_field,
     handle_file_search_completed,
     handle_file_search_failed,
     handle_grep_search_completed,
     handle_grep_search_failed,
     handle_open_find_result_in_editor,
     handle_open_grep_result_in_editor,
+    handle_sfg_keyword_changed,
     handle_set_file_search_query,
     handle_set_grep_search_field,
     handle_submit_file_search_palette,
     handle_submit_grep_search_palette,
     sync_file_search_preview,
     sync_grep_preview,
+    sync_sfg_preview,
 )
 from .reducer_palette_shared import (
     GREP_SEARCH_FIELDS,
@@ -163,6 +169,8 @@ def _handle_move_palette_cursor(state: AppState, action: MoveCommandPaletteCurso
         return sync_grep_replace_preview(next_state)
     if state.command_palette.source == "grep_replace_selected":
         return sync_grep_replace_selected_preview(next_state)
+    if state.command_palette.source == "selected_files_grep":
+        return sync_sfg_preview(next_state)
     return finalize(next_state)
 
 
@@ -205,6 +213,8 @@ def _handle_set_palette_query(state: AppState, action: SetCommandPaletteQuery) -
         return handle_set_grep_replace_field(state, "keyword", action.query)
     if state.command_palette.source == "grep_replace_selected":
         return handle_set_grep_replace_selected_field(state, "keyword", action.query)
+    if state.command_palette.source == "selected_files_grep":
+        return handle_sfg_keyword_changed(state, SelectedFilesGrepKeywordChanged(keyword=action.query))
     return finalize(replace(state, command_palette=next_palette))
 
 
@@ -639,6 +649,8 @@ def _handle_submit_palette(state: AppState, reduce_state: ReducerFn) -> ReduceRe
         return handle_submit_grep_replace_palette(state)
     if state.command_palette.source == "grep_replace_selected":
         return handle_submit_grep_replace_selected_palette(state)
+    if state.command_palette.source == "selected_files_grep":
+        return handle_submit_grep_search_palette(state, reduce_state)
     if state.command_palette.source == "history":
         return _handle_submit_history_palette(state, reduce_state)
     if state.command_palette.source == "bookmarks":
@@ -729,6 +741,24 @@ def _handle_begin_grep_replace_selected(
     )
 
 
+def _handle_begin_selected_files_grep(
+    state: AppState,
+    action: BeginSelectedFilesGrep,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del reduce_state
+    next_state = enter_palette(state, source="selected_files_grep")
+    return finalize(
+        replace(
+            next_state,
+            command_palette=replace(
+                next_state.command_palette,
+                sfg_target_paths=action.target_paths,
+            ),
+        )
+    )
+
+
 def _dispatch_begin_history_search(
     state: AppState,
     action: BeginHistorySearch,
@@ -810,6 +840,7 @@ _PALETTE_HANDLERS: dict[type[Action], _PaletteHandler] = {
     BeginFindAndReplace: _handle_begin_find_and_replace,
     BeginGrepReplace: _handle_begin_grep_replace,
     BeginGrepReplaceSelected: _handle_begin_grep_replace_selected,
+    BeginSelectedFilesGrep: _handle_begin_selected_files_grep,
     BeginHistorySearch: _dispatch_begin_history_search,
     BeginBookmarkSearch: _dispatch_begin_bookmark_search,
     BeginGoToPath: _handle_begin_go_to_path,
@@ -830,8 +861,10 @@ _PALETTE_HANDLERS: dict[type[Action], _PaletteHandler] = {
         a.field,
         a.value,
     ),
+    SelectedFilesGrepKeywordChanged: lambda s, a, r: handle_sfg_keyword_changed(s, a),
     CycleGrepReplaceField: lambda s, a, r: handle_cycle_grep_replace_field(s, a),
     CycleGrepReplaceSelectedField: lambda s, a, r: handle_cycle_grep_replace_selected_field(s, a),
+    CycleSelectedFilesGrepField: lambda s, a, r: handle_cycle_sfg_field(s, a),
     SubmitCommandPalette: lambda s, a, r: _handle_submit_palette(s, r),
     FileSearchCompleted: lambda s, a, r: handle_file_search_completed(s, a),
     FileSearchFailed: lambda s, a, r: handle_file_search_failed(s, a),

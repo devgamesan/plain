@@ -46,12 +46,14 @@ CommandPaletteSource = Literal[
     "replace_in_found_files",
     "replace_in_grep_files",
     "grep_replace_selected",
+    "selected_files_grep",
 ]
 GrepSearchFieldId = Literal["keyword", "include", "exclude"]
 ReplaceFieldId = Literal["find", "replace"]
 FindReplaceFieldId = Literal["filename", "find", "replace"]
 GrepReplaceFieldId = Literal["keyword", "replace", "filename", "include", "exclude"]
 GrepReplaceSelectedFieldId = Literal["keyword", "replace"]
+SelectedFilesGrepFieldId = Literal["keyword"]
 SplitTerminalStatus = Literal["closed", "starting", "running"]
 SplitTerminalFocusTarget = Literal["browser", "terminal"]
 DirectorySizeStatus = Literal["pending", "ready", "failed"]
@@ -410,6 +412,11 @@ class CommandPaletteState:
     grs_status_message: str | None = None
     grs_total_match_count: int = 0
     grs_target_paths: tuple[str, ...] = ()
+    sfg_target_paths: tuple[str, ...] = ()
+    sfg_keyword: str = ""
+    sfg_active_field: SelectedFilesGrepFieldId = "keyword"
+    sfg_results: tuple[GrepSearchResultState, ...] = ()
+    sfg_error_message: str | None = None
 
 
 @dataclass(frozen=True)

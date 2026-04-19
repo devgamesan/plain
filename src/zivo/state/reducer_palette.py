@@ -534,6 +534,24 @@ def _run_grep_replace_selected_command(
     return reduce_state(next_state, BeginGrepReplaceSelected(target_paths=target_paths))
 
 
+def _run_selected_files_grep_command(
+    state: AppState,
+    next_state: AppState,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    target_paths = selected_current_file_paths(state)
+    if not target_paths:
+        return notify(
+            next_state,
+            level="warning",
+            message=(
+                "Grep in selected files requires a selected file or file selection "
+                "in the current directory"
+            ),
+        )
+    return reduce_state(next_state, BeginSelectedFilesGrep(target_paths=target_paths))
+
+
 def _run_palette_command_item(
     state: AppState,
     next_state: AppState,
@@ -580,6 +598,8 @@ def _run_palette_command_item(
         return _run_grep_replace_command(next_state, reduce_state)
     if item_id == "grep_replace_selected":
         return _run_grep_replace_selected_command(state, next_state, reduce_state)
+    if item_id == "selected_files_grep":
+        return _run_selected_files_grep_command(state, next_state, reduce_state)
     if item_id == "show_attributes":
         return reduce_state(next_state, ShowAttributes())
     if item_id == "copy_path":

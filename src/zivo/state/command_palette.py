@@ -280,16 +280,16 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             enabled=True,
         ),
         CommandPaletteItem(
-            id="grep_replace_selected",
-            label="Grep and replace in selected files",
-            shortcut=None,
-            enabled=bool(replace_target_paths),
-        ),
-        CommandPaletteItem(
             id="selected_files_grep",
             label="Grep in selected files",
             shortcut=None,
             enabled=bool(selected_files_grep_target_paths),
+        ),
+        CommandPaletteItem(
+            id="grep_replace_selected",
+            label="Grep and replace in selected files",
+            shortcut=None,
+            enabled=bool(replace_target_paths),
         ),
     ]
 

@@ -505,7 +505,10 @@ def selected_file_search_result(state: AppState) -> FileSearchResultState | None
     results = state.command_palette.file_search_results
     if not results:
         return None
-    return results[normalize_command_palette_cursor(state, state.command_palette.cursor_index)]
+    cursor_index = normalize_command_palette_cursor(state, state.command_palette.cursor_index)
+    if cursor_index >= len(results):
+        return None
+    return results[cursor_index]
 
 
 def selected_grep_result(state: AppState) -> GrepSearchResultState | None:
@@ -514,7 +517,10 @@ def selected_grep_result(state: AppState) -> GrepSearchResultState | None:
     results = state.command_palette.grep_search_results
     if not results:
         return None
-    return results[normalize_command_palette_cursor(state, state.command_palette.cursor_index)]
+    cursor_index = normalize_command_palette_cursor(state, state.command_palette.cursor_index)
+    if cursor_index >= len(results):
+        return None
+    return results[cursor_index]
 
 
 def matches_file_search_preview(
@@ -727,7 +733,10 @@ def selected_sfg_result(state: AppState) -> GrepSearchResultState | None:
     results = state.command_palette.sfg_results
     if not results:
         return None
-    return results[normalize_command_palette_cursor(state, state.command_palette.cursor_index)]
+    cursor_index = normalize_command_palette_cursor(state, state.command_palette.cursor_index)
+    if cursor_index >= len(results):
+        return None
+    return results[cursor_index]
 
 
 def matches_sfg_preview(

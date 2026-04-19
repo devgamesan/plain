@@ -316,6 +316,11 @@ def dispatch_command_palette_input(
     if search_palette:
         if state.command_palette is not None and state.command_palette.source == "grep_search":
             return warn("Use Tab/Shift+Tab, type, arrows, Enter, Ctrl+e, or Esc")
+        if (
+            state.command_palette is not None
+            and state.command_palette.source == "selected_files_grep"
+        ):
+            return warn("Use arrows, type to search, Enter, Ctrl+e for editor, or Esc")
         return warn("Use arrows, type to search, Enter, Ctrl+e for editor, or Esc")
 
     if palette_source == "replace_text":

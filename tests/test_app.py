@@ -2369,14 +2369,14 @@ async def test_app_default_viewport_projection_shifts_window_after_cursor_crosse
         for _ in range(visible_window):
             await pilot.press("down")
         await _wait_for_cursor_path(app, current_entries[visible_window].path, timeout=2.0)
-        await _wait_for_table_cell(app, "file_0001.txt", 0, 1, timeout=2.0)
+        await _wait_for_table_cell(app, "file_0002.txt", 0, 1, timeout=2.0)
 
         last_row = table.get_row_at(table.row_count - 1)
 
         assert table.row_count == visible_window
         assert isinstance(last_row[1], Text)
-        assert last_row[1].plain == f"file_{visible_window:04d}.txt"
-        assert app.app_state.current_pane_window_start == 1
+        assert last_row[1].plain == f"file_{visible_window + 1:04d}.txt"
+        assert app.app_state.current_pane_window_start == 2
 
 
 @pytest.mark.asyncio
@@ -2406,8 +2406,8 @@ async def test_app_default_viewport_projection_pages_and_jumps_without_losing_cu
             (MoveCursor(delta=visible_window, visible_paths=visible_paths),)
         )
         await _wait_for_cursor_path(app, current_entries[visible_window].path, timeout=2.0)
-        await _wait_for_table_cell(app, "file_0001.txt", 0, 1, timeout=2.0)
-        assert app.app_state.current_pane_window_start == 1
+        await _wait_for_table_cell(app, "file_0002.txt", 0, 1, timeout=2.0)
+        assert app.app_state.current_pane_window_start == 2
 
         await app.dispatch_actions(
             (MoveCursor(delta=-visible_window, visible_paths=visible_paths),)

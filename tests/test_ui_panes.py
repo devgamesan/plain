@@ -1,12 +1,15 @@
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 from rich.style import Style
 from textual.widgets import DataTable
 
-from zivo.models import CurrentSummaryState, PaneEntry
+from zivo.models import ChildPaneViewState, CurrentPaneRowUpdate, CurrentSummaryState, PaneEntry
 from zivo.ui.panes import (
+    ChildPane,
     MainPane,
     _ft_resolve_style,
+    _guess_preview_lexer,
     _render_file_label,
     _style_without_background,
     build_entry_label,
@@ -365,7 +368,7 @@ def test_should_rebuild_rows_with_same_paths() -> None:
 
 
 def test_should_rebuild_rows_with_path_changes() -> None:
-    """パス変更がある場合、全再構築すること"""
+    """パス変更があっても同じ行数なら差分更新だけ行うこと."""
     summary = CurrentSummaryState(item_count=3, selected_count=0, sort_label="Name")
     pane = MainPane(title="Test", entries=[], summary=summary)
     table = Mock(spec=DataTable)
@@ -385,11 +388,11 @@ def test_should_rebuild_rows_with_path_changes() -> None:
 
     result = pane._should_rebuild_rows(table, previous_entries, next_entries)
 
-    assert result is True, "パス変更がある場合は全再構築"
+    assert result is False, "同じ行数なら差分更新で十分"
 
 
 def test_should_rebuild_rows_with_sort() -> None:
-    """ソート時（同じパス集合でも順序が異なる）は全再構築が必要なこと"""
+    """ソートで順序が変わっても同じ行数なら差分更新だけ行うこと."""
     summary = CurrentSummaryState(item_count=3, selected_count=0, sort_label="Name")
     pane = MainPane(title="Test", entries=[], summary=summary)
     table = Mock(spec=DataTable)
@@ -409,7 +412,7 @@ def test_should_rebuild_rows_with_sort() -> None:
 
     result = pane._should_rebuild_rows(table, previous_entries, next_entries)
 
-    assert result is True, "ソート時は全再構築が必要"
+    assert result is False, "ソート時も差分更新で十分"
 
 
 def test_should_rebuild_rows_with_width_change() -> None:
@@ -456,3 +459,57 @@ def test_should_rebuild_rows_with_count_change() -> None:
 
     assert result is True, "エントリ数変更時は全再構築"
 
+
+def test_apply_row_updates_updates_slot_key_for_visible_row() -> None:
+    summary = CurrentSummaryState(item_count=2, selected_count=0, sort_label="Name")
+    entries = (
+        PaneEntry("a.txt", "file", path="/path/a.txt"),
+        PaneEntry("b.txt", "file", path="/path/b.txt"),
+    )
+    pane = MainPane(title="Test", entries=entries, summary=summary)
+    table = Mock(spec=DataTable)
+    table.size.width = 80
+    table.cell_padding = 1
+    pane.query_one = Mock(return_value=table)
+
+    pane.apply_row_updates(
+        (
+            CurrentPaneRowUpdate(
+                path="/path/b.txt",
+                entry=PaneEntry("renamed.txt", "file", path="/path/b.txt"),
+                row_index=1,
+            ),
+        )
+    )
+
+    assert pane._entries[1].name == "renamed.txt"
+    assert table.update_cell.call_count == 4
+    assert table.update_cell.call_args_list[0].args[0] == "__slot__:1"
+
+
+def test_child_pane_refresh_rendered_content_skips_duplicate_preview_render(
+    monkeypatch,
+) -> None:
+    pane = ChildPane(
+        ChildPaneViewState(
+            title="Preview",
+            preview_path="/tmp/example.py",
+            preview_content="print('zivo')\n",
+        ),
+        id="child-pane",
+    )
+    preview_widget = Mock()
+    preview_widget.size = SimpleNamespace(width=48)
+    preview_widget.update = Mock()
+    pane._preview_widget = lambda: preview_widget  # type: ignore[method-assign]
+
+    _guess_preview_lexer.cache_clear()
+    monkeypatch.setattr(
+        ChildPane,
+        "_render_preview",
+        staticmethod(lambda state, render_width: f"{state.preview_path}:{render_width}"),
+    )
+
+    assert pane._refresh_rendered_content() is True
+    assert pane._refresh_rendered_content() is True
+    assert preview_widget.update.call_count == 1

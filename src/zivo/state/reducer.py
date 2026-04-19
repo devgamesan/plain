@@ -196,13 +196,18 @@ def _select_current_pane_window_start(
     visible_window = compute_current_pane_visible_window(state.terminal_height)
     max_window_start = max(0, len(visible_entries) - visible_window)
     window_start = min(state.current_pane_window_start, max_window_start)
+    viewport_step = max(2, visible_window // 4)
     cursor_index = _find_current_cursor_index(visible_entries, state.current_pane.cursor_path)
     if cursor_index is None:
         return 0
     if cursor_index < window_start:
-        return cursor_index
+        return max(0, min(cursor_index - (viewport_step - 1), window_start - viewport_step))
     if cursor_index >= window_start + visible_window:
-        return cursor_index - visible_window + 1
+        minimum_visible_start = cursor_index - visible_window + 1
+        return min(
+            max_window_start,
+            max(minimum_visible_start, window_start + viewport_step),
+        )
     return window_start
 
 

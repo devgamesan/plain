@@ -583,15 +583,20 @@ def test_select_shell_data_emits_size_delta_updates_for_directory_size_changes()
     )
 
     shell = select_shell_data(state)
+    row_index = next(
+        index
+        for index, entry in enumerate(select_current_entries(state))
+        if entry.path == "/home/tadashi/develop/zivo/docs"
+    )
 
     assert shell.current_entries is None
     assert shell.current_pane_update.mode == "size_delta"
     assert shell.current_pane_update.revision == 3
     assert [
-        (update.path, update.size_label)
+        (update.path, update.size_label, update.row_index)
         for update in shell.current_pane_update.size_updates
     ] == [
-        ("/home/tadashi/develop/zivo/docs", "4.1KiB")
+        ("/home/tadashi/develop/zivo/docs", "4.1KiB", row_index)
     ]
 
 
@@ -610,15 +615,18 @@ def test_select_shell_data_emits_row_delta_updates_for_selection_changes() -> No
     )
 
     shell = select_shell_data(state)
+    row_index = next(
+        index for index, entry in enumerate(select_current_entries(state)) if entry.path == path
+    )
 
     assert shell.current_entries is None
     assert shell.current_pane_update.mode == "row_delta"
     assert shell.current_pane_update.revision == 2
     assert [
-        (update.path, update.entry.selected)
+        (update.path, update.entry.selected, update.row_index)
         for update in shell.current_pane_update.row_updates
     ] == [
-        (path, True)
+        (path, True, row_index)
     ]
 
 
@@ -634,15 +642,18 @@ def test_select_shell_data_emits_row_delta_updates_for_cut_changes() -> None:
     )
 
     shell = select_shell_data(state)
+    row_index = next(
+        index for index, entry in enumerate(select_current_entries(state)) if entry.path == path
+    )
 
     assert shell.current_entries is None
     assert shell.current_pane_update.mode == "row_delta"
     assert shell.current_pane_update.revision == 4
     assert [
-        (update.path, update.entry.cut)
+        (update.path, update.entry.cut, update.row_index)
         for update in shell.current_pane_update.row_updates
     ] == [
-        (path, True)
+        (path, True, row_index)
     ]
 
 
@@ -1071,13 +1082,13 @@ def test_select_shell_data_viewport_projection_shifts_window_after_cursor_crosse
 
     assert moved_shell.current_entries is not initial_shell.current_entries
     assert [entry.name for entry in moved_shell.current_entries] == [
-        "item_01",
         "item_02",
         "item_03",
         "item_04",
         "item_05",
+        "item_06",
     ]
-    assert moved_shell.current_cursor_index == 4
+    assert moved_shell.current_cursor_index == 3
 
 
 def test_select_shell_data_viewport_projection_skips_offscreen_row_delta_updates() -> None:

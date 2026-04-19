@@ -434,10 +434,10 @@ def test_schedule_child_pane_snapshot_replaces_existing_timer() -> None:
     )
 
     assert existing_timer.stopped is True
-    assert app.set_timer_calls == []
-    assert app._child_pane_timer is None
-    assert len(app.run_worker_calls) == 1
-    assert app.run_worker_calls[0]["name"] == "child-pane-snapshot:5"
+    assert len(app.set_timer_calls) == 1
+    assert app.set_timer_calls[0]["name"] == "child-pane-snapshot-debounce:5"
+    assert app._child_pane_timer is app.set_timer_calls[0]["timer"]
+    assert app.run_worker_calls == []
 
 
 def test_start_child_pane_snapshot_passes_preview_max_bytes_to_loader() -> None:

@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from dataclasses import replace
+from functools import lru_cache
 
 from rich.cells import cell_len
 from rich.style import Style
@@ -42,6 +43,14 @@ FILE_TYPE_COMPONENT_CLASSES = frozenset(
         "ft-symlink-sel",
     }
 )
+
+
+@lru_cache(maxsize=256)
+def _guess_preview_lexer(path: str) -> str:
+    try:
+        return Syntax.guess_lexer(path)
+    except Exception:
+        return "text"
 
 
 def build_entry_label(entry: PaneEntry) -> str:
@@ -372,6 +381,7 @@ class ChildPane(Vertical):
         self._state = state
         self._ft_styles: dict[str, Style] = {}
         self._last_render_width = 0
+        self._last_render_signature: object | None = None
 
     @property
     def list_view_id(self) -> str | None:
@@ -438,40 +448,59 @@ class ChildPane(Vertical):
         if state == self._state:
             return
 
-        content_changed = (
-            state.is_preview
-            and self._state.is_preview
-            and state.preview_content != self._state.preview_content
+        previous_state = self._state
+        preview_identity_changed = self._preview_identity(state) != self._preview_identity(
+            previous_state
         )
-
+        render_signature_changed = self._render_signature(state) != self._render_signature(
+            previous_state
+        )
+        mode_changed = state.is_preview != previous_state.is_preview
         self._state = state
-        self.query_one(Label).update(state.title)
+        if state.title != previous_state.title:
+            self.query_one(Label).update(state.title)
         list_widget = self._list_widget()
         scroll_widget = self._preview_scroll_widget()
-        list_widget.display = not state.is_preview
-        scroll_widget.display = state.is_preview
-        self._permissions_widget().update(state.permissions_label)
-        self._last_render_width = 0
-        self._refresh_rendered_content()
-        self.call_after_refresh(self._refresh_rendered_content)
-
-        if content_changed:
+        if mode_changed:
+            list_widget.display = not state.is_preview
+            scroll_widget.display = state.is_preview
+        if state.permissions_label != previous_state.permissions_label:
+            self._permissions_widget().update(state.permissions_label)
+        if render_signature_changed or mode_changed:
+            rendered = self._refresh_rendered_content(force=True)
+            if not rendered:
+                self.call_after_refresh(self._refresh_rendered_content)
+        if preview_identity_changed and state.is_preview:
             self.call_after_refresh(lambda: scroll_widget.scroll_home(animate=False))
 
-    def _refresh_rendered_content(self) -> None:
+    def _refresh_rendered_content(self, *, force: bool = False) -> bool:
+        render_signature = self._render_signature(self._state)
         if self._state.is_preview:
             widget = self._preview_widget()
             render_width = max(0, widget.size.width - self.PREVIEW_HORIZONTAL_PADDING)
-            if render_width <= 0 or render_width == self._last_render_width:
-                return
+            if render_width <= 0:
+                return False
+            if (
+                not force
+                and render_width == self._last_render_width
+                and render_signature == self._last_render_signature
+            ):
+                return True
             widget.update(self._render_preview(self._state, render_width))
             self._last_render_width = render_width
-            return
+            self._last_render_signature = render_signature
+            return True
 
         widget = self._list_widget()
         render_width = max(0, widget.size.width - SidePane.ENTRY_HORIZONTAL_PADDING)
-        if render_width <= 0 or render_width == self._last_render_width:
-            return
+        if render_width <= 0:
+            return False
+        if (
+            not force
+            and render_width == self._last_render_width
+            and render_signature == self._last_render_signature
+        ):
+            return True
         widget.update(
             _render_file_entries(
                 self._state.entries,
@@ -482,6 +511,8 @@ class ChildPane(Vertical):
             )
         )
         self._last_render_width = render_width
+        self._last_render_signature = render_signature
+        return True
 
     def _list_widget(self) -> Static:
         return self.query_one(f"#{self.list_view_id}", Static)
@@ -505,10 +536,7 @@ class ChildPane(Vertical):
 
         lexer = "text"
         if state.preview_path is not None:
-            try:
-                lexer = Syntax.guess_lexer(state.preview_path, code=state.preview_content)
-            except Exception:
-                lexer = "text"
+            lexer = _guess_preview_lexer(state.preview_path)
 
         return Syntax(
             state.preview_content,
@@ -530,7 +558,8 @@ class ChildPane(Vertical):
 
         self._ft_styles = _resolve_component_styles(self)
         self._last_render_width = 0
-        self._refresh_rendered_content()
+        self._last_render_signature = None
+        self._refresh_rendered_content(force=True)
 
     def scroll_preview(self, delta: int) -> None:
         """Scroll the preview content by *delta* lines (negative = up)."""
@@ -541,6 +570,34 @@ class ChildPane(Vertical):
         except Exception:
             return
         scroll.scroll_relative(y=delta, animate=False)
+
+    @staticmethod
+    def _preview_identity(state: ChildPaneViewState) -> tuple[object, ...] | None:
+        if not state.is_preview:
+            return None
+        return (
+            state.preview_path,
+            state.preview_title,
+            state.preview_content,
+            state.preview_message,
+            state.preview_start_line,
+            state.preview_highlight_line,
+        )
+
+    @staticmethod
+    def _render_signature(state: ChildPaneViewState) -> tuple[object, ...]:
+        if state.is_preview:
+            return (
+                "preview",
+                state.preview_path,
+                state.preview_title,
+                state.preview_content,
+                state.preview_message,
+                state.preview_start_line,
+                state.preview_highlight_line,
+                state.syntax_theme,
+            )
+        return ("list", state.entries)
 
 
 class MainPane(Vertical):
@@ -561,6 +618,7 @@ class MainPane(Vertical):
         "modified": 5,
     }
     FIXED_COLUMN_SHRINK_ORDER = ("modified", "size", "sel")
+    ROW_KEY_PREFIX = "__slot__:"
 
     def __init__(
         self,
@@ -668,7 +726,6 @@ class MainPane(Vertical):
         self._cursor_visible = cursor_visible
         table = self.query_one(DataTable)
         self._apply_cursor_state(table)
-        self.call_after_refresh(self._refresh_cursor_state)
 
     def _sync_cursor(self, table: DataTable) -> None:
         if not self._entries or self._cursor_index is None:
@@ -679,9 +736,6 @@ class MainPane(Vertical):
     def _apply_cursor_state(self, table: DataTable) -> None:
         table.show_cursor = self._cursor_visible
         self._sync_cursor(table)
-
-    def _refresh_cursor_state(self) -> None:
-        self._apply_cursor_state(self.query_one(DataTable))
 
     # -- Context input / summary ------------------------------------------------
 
@@ -711,17 +765,24 @@ class MainPane(Vertical):
         if not updates:
             return
 
-        update_by_path = {update.path: update.size_label for update in updates}
         changed_rows: list[tuple[str, PaneEntry]] = []
         next_entries: list[PaneEntry] = []
-        for entry in self._entries:
-            next_size_label = update_by_path.get(entry.path)
+        update_by_row = {
+            row_index: size_label
+            for row_index, size_label in (
+                (self._resolve_row_index(update.row_index, update.path), update.size_label)
+                for update in updates
+            )
+            if row_index is not None
+        }
+        for row_index, entry in enumerate(self._entries):
+            next_size_label = update_by_row.get(row_index)
             if next_size_label is None or next_size_label == entry.size_label:
                 next_entries.append(entry)
                 continue
             next_entry = replace(entry, size_label=next_size_label)
             next_entries.append(next_entry)
-            changed_rows.append((entry.path, next_entry))
+            changed_rows.append((self._slot_row_key(row_index), next_entry))
 
         if not changed_rows:
             return
@@ -740,16 +801,23 @@ class MainPane(Vertical):
         if not updates:
             return
 
-        update_by_path = {update.path: update.entry for update in updates}
         changed_rows: list[tuple[str, PaneEntry]] = []
         next_entries: list[PaneEntry] = []
-        for entry in self._entries:
-            next_entry = update_by_path.get(entry.path)
+        update_by_row = {
+            row_index: entry
+            for row_index, entry in (
+                (self._resolve_row_index(update.row_index, update.path), update.entry)
+                for update in updates
+            )
+            if row_index is not None
+        }
+        for row_index, entry in enumerate(self._entries):
+            next_entry = update_by_row.get(row_index)
             if next_entry is None or next_entry == entry:
                 next_entries.append(entry)
                 continue
             next_entries.append(next_entry)
-            changed_rows.append((entry.path, next_entry))
+            changed_rows.append((self._slot_row_key(row_index), next_entry))
 
         if not changed_rows:
             return
@@ -788,9 +856,7 @@ class MainPane(Vertical):
             return True
         if len(previous_entries) != len(next_entries):
             return True
-        previous_paths = tuple(entry.path for entry in previous_entries)
-        next_paths = tuple(entry.path for entry in next_entries)
-        return previous_paths != next_paths
+        return False
 
     def _update_changed_rows(
         self,
@@ -805,7 +871,7 @@ class MainPane(Vertical):
             if previous_entry == next_entry:
                 continue
             next_cells = self._build_row_cells(next_entry, column_widths)
-            row_key = self._row_key(next_entry, index)
+            row_key = self._slot_row_key(index)
             for column_key, next_cell in zip(
                 self.COLUMN_KEYS,
                 next_cells,
@@ -833,7 +899,7 @@ class MainPane(Vertical):
         for index, entry in enumerate(self._entries):
             table.add_row(
                 *self._build_row_cells(entry, column_widths),
-                key=self._row_key(entry, index),
+                key=self._slot_row_key(index),
             )
         self._last_table_width = table.size.width
 
@@ -841,11 +907,22 @@ class MainPane(Vertical):
 
     @classmethod
     def _entry_row_keys(cls, entries: Sequence[PaneEntry]) -> tuple[str, ...]:
-        return tuple(cls._row_key(entry, index) for index, entry in enumerate(entries))
+        return tuple(cls._slot_row_key(index) for index, _ in enumerate(entries))
 
     @staticmethod
-    def _row_key(entry: PaneEntry, index: int) -> str:
-        return entry.path or f"__row__:{index}"
+    def _slot_row_key(index: int) -> str:
+        return f"{MainPane.ROW_KEY_PREFIX}{index}"
+
+    def _resolve_row_index(self, row_index: int, path: str) -> int | None:
+        if 0 <= row_index < len(self._entries):
+            if not path or self._entries[row_index].path == path:
+                return row_index
+        if not path:
+            return None
+        for index, entry in enumerate(self._entries):
+            if entry.path == path:
+                return index
+        return None
 
     def _build_row_cells(
         self,

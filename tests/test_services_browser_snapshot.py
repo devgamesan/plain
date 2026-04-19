@@ -253,6 +253,59 @@ def test_live_browser_snapshot_loader_uses_configured_preview_limit(tmp_path) ->
     assert len(custom_pane.preview_content or "") == 128 * 1024
 
 
+def test_live_browser_snapshot_loader_caches_text_preview_reads(tmp_path, monkeypatch) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    readme = project / "README.md"
+    readme.write_text("cached preview\n", encoding="utf-8")
+
+    original_open = Path.open
+    open_calls: list[Path] = []
+
+    def _tracking_open(self: Path, *args, **kwargs):
+        if self == readme and args and args[0] == "rb":
+            open_calls.append(self)
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", _tracking_open)
+    loader = LiveBrowserSnapshotLoader()
+
+    first = loader.load_child_pane_snapshot(str(project), str(readme))
+    second = loader.load_child_pane_snapshot(str(project), str(readme))
+
+    assert first == second
+    assert open_calls == [readme]
+
+
+def test_live_browser_snapshot_loader_invalidates_preview_cache_when_file_changes(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    readme = project / "README.md"
+    readme.write_text("version one\n", encoding="utf-8")
+
+    original_open = Path.open
+    open_calls: list[Path] = []
+
+    def _tracking_open(self: Path, *args, **kwargs):
+        if self == readme and args and args[0] == "rb":
+            open_calls.append(self)
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", _tracking_open)
+    loader = LiveBrowserSnapshotLoader()
+
+    first = loader.load_child_pane_snapshot(str(project), str(readme))
+    readme.write_text("version two updated\n", encoding="utf-8")
+    second = loader.load_child_pane_snapshot(str(project), str(readme))
+
+    assert first.preview_content == "version one\n"
+    assert second.preview_content == "version two updated\n"
+    assert open_calls == [readme, readme]
+
+
 def test_live_browser_snapshot_loader_returns_empty_parent_pane_for_root_path() -> None:
     filesystem = StubFilesystemAdapter(
         entries_by_path={

@@ -43,6 +43,7 @@ class CurrentPaneSizeUpdate:
 
     path: str
     size_label: str
+    row_index: int = -1
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,7 @@ class CurrentPaneRowUpdate:
 
     path: str
     entry: PaneEntry
+    row_index: int = -1
 
 
 @dataclass(frozen=True)

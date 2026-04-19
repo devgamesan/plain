@@ -1285,8 +1285,9 @@ def _select_current_pane_row_updates(
                 selected=entry.path in selected_paths,
                 cut=entry.path in cut_paths,
             ),
+            row_index=row_index,
         )
-        for entry in visible_entries
+        for row_index, entry in enumerate(visible_entries)
         if entry.path in changed_path_set
     )
 
@@ -1307,8 +1308,9 @@ def _select_current_pane_size_updates(
                 directory_size_cache,
                 display_directory_sizes=display_directory_sizes,
             ),
+            row_index=row_index,
         )
-        for entry in visible_entries
+        for row_index, entry in enumerate(visible_entries)
         if entry.path in changed_path_set
     )
 

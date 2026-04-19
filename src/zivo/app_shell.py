@@ -213,7 +213,6 @@ async def refresh_shell(
     current_pane.set_cursor_state(
         shell.current_cursor_index,
         shell.current_cursor_visible,
-        force_sync=True,
     )
     current_pane.set_summary(shell.current_summary)
     current_pane.set_context_input(shell.current_context_input)

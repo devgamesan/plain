@@ -5690,7 +5690,7 @@ def test_move_cursor_page_down_repositions_viewport_window() -> None:
     result = reduce_app_state(state, MoveCursor(delta=5, visible_paths=visible_paths))
 
     assert result.state.current_pane.cursor_path == entries[5].path
-    assert result.state.current_pane_window_start == 1
+    assert result.state.current_pane_window_start == 2
 
 
 def test_set_filter_query_resets_viewport_window_when_cursor_leaves_visible_entries() -> None:

@@ -294,6 +294,8 @@ def _select_command_palette_preview_pane(
         return _select_replace_preview_pane(state, syntax_theme)
     if state.command_palette.source == "replace_in_grep_files":
         return _select_replace_preview_pane(state, syntax_theme)
+    if state.command_palette.source == "grep_replace_selected":
+        return _select_replace_preview_pane(state, syntax_theme)
     return None
 
 
@@ -375,6 +377,8 @@ def _select_replace_preview_pane(
         results = state.command_palette.rff_preview_results
     elif state.command_palette.source == "replace_in_grep_files":
         results = state.command_palette.grf_preview_results
+    elif state.command_palette.source == "grep_replace_selected":
+        results = state.command_palette.grs_preview_results
     else:
         results = state.command_palette.replace_preview_results
     if not results:
@@ -517,6 +521,16 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         if (
             state.command_palette is not None
             and state.command_palette.source == "replace_in_grep_files"
+        ):
+            return HelpBarState(
+                (
+                    "type text / tab fields / ↑↓ or Ctrl+n/p preview | "
+                    "Shift+↑↓ scroll preview | enter apply | esc cancel",
+                )
+            )
+        if (
+            state.command_palette is not None
+            and state.command_palette.source == "grep_replace_selected"
         ):
             return HelpBarState(
                 (
@@ -735,6 +749,30 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             input_fields=_build_grep_replace_input_fields(state.command_palette),
             has_more_items=(
                 len(state.command_palette.grf_preview_results) > len(visible_results)
+            ),
+        )
+    if state.command_palette.source == "grep_replace_selected":
+        visible_results, title = _select_find_replace_preview_window(
+            state,
+            state.command_palette.grs_preview_results,
+            cursor_index,
+        )
+        return CommandPaletteViewState(
+            title=title,
+            query=state.command_palette.grs_keyword,
+            items=tuple(
+                CommandPaletteItemViewState(
+                    label=result.display_label,
+                    shortcut=None,
+                    enabled=True,
+                    selected=index == cursor_index,
+                )
+                for index, result in visible_results
+            ),
+            empty_message=_grep_replace_selected_empty_message(state),
+            input_fields=_build_grep_replace_selected_input_fields(state.command_palette),
+            has_more_items=(
+                len(state.command_palette.grs_preview_results) > len(visible_results)
             ),
         )
     if state.command_palette.source == "history":
@@ -1823,6 +1861,50 @@ def _grep_replace_empty_message(state: AppState) -> str:
     if state.command_palette.grf_status_message is not None:
         return state.command_palette.grf_status_message
     if state.command_palette.grf_total_match_count > 0:
+        return "Preview shown in right pane. Press Enter to apply."
+    return "No matching files"
+
+
+def _build_grep_replace_selected_input_fields(
+    palette: CommandPaletteState,
+) -> tuple[CommandPaletteInputFieldViewState, ...]:
+    return (
+        CommandPaletteInputFieldViewState(
+            label="Keyword",
+            value=palette.grs_keyword or palette.query,
+            placeholder="text or re:pattern",
+            active=palette.grs_active_field == "keyword",
+        ),
+        CommandPaletteInputFieldViewState(
+            label="Replace",
+            value=palette.grs_replacement_text,
+            placeholder="replacement text",
+            active=palette.grs_active_field == "replace",
+        ),
+    )
+
+
+def _grep_replace_selected_empty_message(state: AppState) -> str:
+    if state.pending_grep_search_request_id is not None:
+        return "Searching..."
+    if state.command_palette is None or state.command_palette.source != "grep_replace_selected":
+        return ""
+    if state.command_palette.grs_grep_error_message is not None:
+        return state.command_palette.grs_grep_error_message
+    if not state.command_palette.grs_keyword.strip():
+        return "Type a search keyword"
+    if not state.command_palette.grs_replacement_text.strip():
+        file_count = len(state.command_palette.grs_grep_results)
+        if file_count == 0:
+            return "No matching lines in selected files"
+        return f"{file_count} result(s) found. Tab to Replace field."
+    if state.pending_replace_preview_request_id is not None:
+        return "Previewing diff in right pane..."
+    if state.command_palette.grs_error_message is not None:
+        return state.command_palette.grs_error_message
+    if state.command_palette.grs_status_message is not None:
+        return state.command_palette.grs_status_message
+    if state.command_palette.grs_total_match_count > 0:
         return "Preview shown in right pane. Press Enter to apply."
     return "No matching files"
 

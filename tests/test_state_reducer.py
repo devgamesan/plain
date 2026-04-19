@@ -52,6 +52,7 @@ from zivo.state import (
     BeginFindAndReplace,
     BeginGoToPath,
     BeginGrepReplace,
+    BeginGrepReplaceSelected,
     BeginGrepSearch,
     BeginHistorySearch,
     BeginRenameInput,
@@ -168,6 +169,7 @@ from zivo.state import (
     SetFilterQuery,
     SetFindReplaceField,
     SetGrepReplaceField,
+    SetGrepReplaceSelectedField,
     SetGrepSearchField,
     SetNotification,
     SetPendingInputValue,
@@ -7075,3 +7077,354 @@ def test_grf_grep_search_completed_deduplicates_file_paths() -> None:
     effects = [e for e in result.effects if isinstance(e, RunTextReplacePreviewEffect)]
     assert len(effects) == 1
     assert effects[0].request.paths == ("/home/tadashi/develop/zivo/README.md",)
+
+
+# ---------------------------------------------------------------------------
+# Grep replace selected (grs) tests
+# ---------------------------------------------------------------------------
+
+
+def test_begin_grep_replace_selected_enters_grs_mode() -> None:
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginGrepReplaceSelected(
+            target_paths=("/home/tadashi/develop/zivo/a.py", "/home/tadashi/develop/zivo/b.py")
+        ),
+    )
+    assert state.ui_mode == "PALETTE"
+    assert state.command_palette is not None
+    assert state.command_palette.source == "grep_replace_selected"
+    assert state.command_palette.grs_active_field == "keyword"
+    assert state.command_palette.grs_target_paths == (
+        "/home/tadashi/develop/zivo/a.py",
+        "/home/tadashi/develop/zivo/b.py",
+    )
+
+
+def test_set_grs_keyword_field_starts_grep_search() -> None:
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginGrepReplaceSelected(target_paths=("/home/tadashi/develop/zivo/a.py",)),
+    )
+    result = reduce_app_state(
+        state, SetGrepReplaceSelectedField(field="keyword", value="todo")
+    )
+
+    assert result.state.pending_grep_search_request_id is not None
+    assert result.state.command_palette.grs_keyword == "todo"
+    effects = [e for e in result.effects if isinstance(e, RunGrepSearchEffect)]
+    assert len(effects) == 1
+    assert effects[0].query == "todo"
+
+
+def test_set_grs_keyword_clear_triggers_no_search() -> None:
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginGrepReplaceSelected(target_paths=("/home/tadashi/develop/zivo/a.py",)),
+    )
+    state = _reduce_state(state, SetGrepReplaceSelectedField(field="keyword", value="todo"))
+    result = reduce_app_state(state, SetGrepReplaceSelectedField(field="keyword", value=""))
+
+    assert result.state.pending_grep_search_request_id is None
+    assert result.state.command_palette.grs_grep_results == ()
+
+
+def test_grs_grep_search_completed_filters_to_target_paths() -> None:
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginGrepReplaceSelected(
+            target_paths=("/home/tadashi/develop/zivo/a.py", "/home/tadashi/develop/zivo/c.py")
+        ),
+    )
+    state = replace(
+        state,
+        command_palette=replace(state.command_palette, grs_keyword="todo"),
+        pending_grep_search_request_id=10,
+        next_request_id=11,
+    )
+    all_results = (
+        GrepSearchResultState(
+            path="/home/tadashi/develop/zivo/a.py",
+            display_path="a.py",
+            line_number=1,
+            line_text="todo in a",
+        ),
+        GrepSearchResultState(
+            path="/home/tadashi/develop/zivo/b.py",
+            display_path="b.py",
+            line_number=3,
+            line_text="todo in b",
+        ),
+        GrepSearchResultState(
+            path="/home/tadashi/develop/zivo/c.py",
+            display_path="c.py",
+            line_number=5,
+            line_text="todo in c",
+        ),
+    )
+    result = reduce_app_state(
+        state, GrepSearchCompleted(request_id=10, query="todo", results=all_results)
+    )
+
+    assert len(result.state.command_palette.grs_grep_results) == 2
+    assert result.state.command_palette.grs_grep_results[0].path == "/home/tadashi/develop/zivo/a.py"
+    assert result.state.command_palette.grs_grep_results[1].path == "/home/tadashi/develop/zivo/c.py"
+    assert result.state.pending_grep_search_request_id is None
+
+
+def test_grs_grep_search_completed_auto_triggers_preview_when_replace_text_present() -> None:
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginGrepReplaceSelected(target_paths=("/home/tadashi/develop/zivo/a.py",)),
+    )
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            grs_keyword="todo",
+            grs_replacement_text="done",
+        ),
+        pending_grep_search_request_id=10,
+        next_request_id=11,
+    )
+    results = (
+        GrepSearchResultState(
+            path="/home/tadashi/develop/zivo/a.py",
+            display_path="a.py",
+            line_number=1,
+            line_text="todo item",
+        ),
+    )
+    result = reduce_app_state(
+        state, GrepSearchCompleted(request_id=10, query="todo", results=results)
+    )
+
+    assert result.state.command_palette.grs_grep_results == results
+    assert result.state.pending_replace_preview_request_id is not None
+    effects = [e for e in result.effects if isinstance(e, RunTextReplacePreviewEffect)]
+    assert len(effects) == 1
+    assert effects[0].request.paths == ("/home/tadashi/develop/zivo/a.py",)
+
+
+def test_set_grs_replace_field_with_grep_results_starts_preview() -> None:
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginGrepReplaceSelected(target_paths=("/home/tadashi/develop/zivo/a.py",)),
+    )
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            grs_keyword="todo",
+            grs_grep_results=(
+                GrepSearchResultState(
+                    path="/home/tadashi/develop/zivo/a.py",
+                    display_path="a.py",
+                    line_number=1,
+                    line_text="todo item",
+                ),
+            ),
+        ),
+    )
+    result = reduce_app_state(
+        state, SetGrepReplaceSelectedField(field="replace", value="done")
+    )
+
+    assert result.state.pending_replace_preview_request_id is not None
+    effects = [e for e in result.effects if isinstance(e, RunTextReplacePreviewEffect)]
+    assert len(effects) == 1
+    assert effects[0].request.paths == ("/home/tadashi/develop/zivo/a.py",)
+    assert effects[0].request.find_text == "todo"
+
+
+def test_set_grs_replace_field_without_grep_results_no_preview() -> None:
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginGrepReplaceSelected(target_paths=("/home/tadashi/develop/zivo/a.py",)),
+    )
+    result = reduce_app_state(
+        state, SetGrepReplaceSelectedField(field="replace", value="done")
+    )
+
+    assert result.state.pending_replace_preview_request_id is None
+    assert result.state.command_palette.grs_preview_results == ()
+
+
+def test_grs_preview_completed_stores_results() -> None:
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginGrepReplaceSelected(target_paths=("/home/tadashi/develop/zivo/a.py",)),
+    )
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            grs_keyword="todo",
+            grs_replacement_text="done",
+            grs_grep_results=(
+                GrepSearchResultState(
+                    path="/home/tadashi/develop/zivo/a.py",
+                    display_path="a.py",
+                    line_number=1,
+                    line_text="todo item",
+                ),
+            ),
+        ),
+        pending_replace_preview_request_id=10,
+        next_request_id=11,
+    )
+    preview_result = TextReplacePreviewResult(
+        request=TextReplaceRequest(
+            paths=("/home/tadashi/develop/zivo/a.py",),
+            find_text="todo",
+            replace_text="done",
+        ),
+        changed_entries=(
+            TextReplacePreviewEntry(
+                path="/home/tadashi/develop/zivo/a.py",
+                diff_text="- todo + done",
+                match_count=1,
+                first_match_line_number=1,
+                first_match_before="todo",
+                first_match_after="done",
+            ),
+        ),
+        total_match_count=1,
+        skipped_paths=(),
+    )
+    result = reduce_app_state(
+        state, TextReplacePreviewCompleted(request_id=10, result=preview_result)
+    )
+
+    assert len(result.state.command_palette.grs_preview_results) == 1
+    assert result.state.command_palette.grs_total_match_count == 1
+    assert result.state.pending_replace_preview_request_id is None
+
+
+def test_submit_grs_palette_applies_replacement() -> None:
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginGrepReplaceSelected(target_paths=("/home/tadashi/develop/zivo/a.py",)),
+    )
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            grs_keyword="todo",
+            grs_replacement_text="done",
+            grs_grep_results=(
+                GrepSearchResultState(
+                    path="/home/tadashi/develop/zivo/a.py",
+                    display_path="a.py",
+                    line_number=1,
+                    line_text="todo item",
+                ),
+            ),
+            grs_preview_results=(
+                ReplacePreviewResultState(
+                    path="/home/tadashi/develop/zivo/a.py",
+                    display_path="a.py",
+                    diff_text="- todo + done",
+                    match_count=1,
+                    first_match_line_number=1,
+                    first_match_before="todo",
+                    first_match_after="done",
+                ),
+            ),
+            grs_total_match_count=1,
+        ),
+    )
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    effects = [e for e in result.effects if isinstance(e, RunTextReplaceApplyEffect)]
+    assert len(effects) == 1
+    assert effects[0].request.paths == ("/home/tadashi/develop/zivo/a.py",)
+    assert effects[0].request.find_text == "todo"
+    assert effects[0].request.replace_text == "done"
+    assert result.state.command_palette is None
+
+
+def test_submit_grs_palette_warns_when_no_keyword() -> None:
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginGrepReplaceSelected(target_paths=("/home/tadashi/develop/zivo/a.py",)),
+    )
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.notification is not None
+    assert result.state.notification.level == "warning"
+
+
+def test_submit_grs_palette_warns_when_no_preview_results() -> None:
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginGrepReplaceSelected(target_paths=("/home/tadashi/develop/zivo/a.py",)),
+    )
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            grs_keyword="todo",
+            grs_replacement_text="done",
+            grs_grep_results=(
+                GrepSearchResultState(
+                    path="/home/tadashi/develop/zivo/a.py",
+                    display_path="a.py",
+                    line_number=1,
+                    line_text="todo item",
+                ),
+            ),
+        ),
+    )
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.notification is not None
+    assert result.state.notification.level == "warning"
+
+
+def test_cancel_grs_returns_to_browsing() -> None:
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginGrepReplaceSelected(target_paths=("/home/tadashi/develop/zivo/a.py",)),
+    )
+    assert state.ui_mode == "PALETTE"
+
+    state = _reduce_state(state, CancelCommandPalette())
+    assert state.ui_mode == "BROWSING"
+    assert state.command_palette is None
+
+
+def test_grs_grep_search_completed_filters_non_target_results() -> None:
+    """Verify that grep results not in target_paths are excluded."""
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginGrepReplaceSelected(target_paths=("/home/tadashi/develop/zivo/a.py",)),
+    )
+    state = replace(
+        state,
+        command_palette=replace(state.command_palette, grs_keyword="todo"),
+        pending_grep_search_request_id=10,
+        next_request_id=11,
+    )
+    all_results = (
+        GrepSearchResultState(
+            path="/home/tadashi/develop/zivo/a.py",
+            display_path="a.py",
+            line_number=1,
+            line_text="todo in a",
+        ),
+        GrepSearchResultState(
+            path="/home/tadashi/develop/zivo/b.py",
+            display_path="b.py",
+            line_number=3,
+            line_text="todo in b",
+        ),
+    )
+    result = reduce_app_state(
+        state, GrepSearchCompleted(request_id=10, query="todo", results=all_results)
+    )
+
+    assert len(result.state.command_palette.grs_grep_results) == 1
+    assert result.state.command_palette.grs_grep_results[0].path == "/home/tadashi/develop/zivo/a.py"
+    # Preview is triggered even with empty replace text to show find matches
+    assert result.state.pending_replace_preview_request_id is not None

@@ -108,6 +108,18 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
             for index, result in enumerate(state.command_palette.grf_preview_results)
         )
 
+    if state.command_palette.source == "grep_replace_selected":
+        return tuple(
+            CommandPaletteItem(
+                id=f"grs_preview_result:{index}",
+                label=result.display_label,
+                shortcut=None,
+                enabled=True,
+                path=result.path,
+            )
+            for index, result in enumerate(state.command_palette.grs_preview_results)
+        )
+
     query = state.command_palette.query
 
     return tuple(
@@ -130,6 +142,8 @@ def normalize_command_palette_cursor(state: AppState, cursor_index: int) -> int:
         item_count = len(state.command_palette.rff_preview_results)
     elif state.command_palette.source == "replace_in_grep_files":
         item_count = len(state.command_palette.grf_preview_results)
+    elif state.command_palette.source == "grep_replace_selected":
+        item_count = len(state.command_palette.grs_preview_results)
     elif state.command_palette.source == "history":
         item_count = len(get_command_palette_items(state))
     else:
@@ -263,6 +277,12 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             label="Replace text in grep results",
             shortcut=None,
             enabled=True,
+        ),
+        CommandPaletteItem(
+            id="grep_replace_selected",
+            label="Grep and replace in selected files",
+            shortcut=None,
+            enabled=bool(replace_target_paths),
         ),
     ]
 

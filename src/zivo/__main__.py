@@ -43,11 +43,11 @@ def render_shell_init(shell: str) -> str:
         raise ValueError(f"Unsupported shell: {shell}")
     return (
         "zivo-cd() {\n"
-        "  local target status\n"
+        "  local target _status\n"
         '  target="$(command zivo --print-last-dir "$@")"\n'
-        "  status=$?\n"
-        "  if [ $status -ne 0 ]; then\n"
-        "    return $status\n"
+        "  _status=$?\n"
+        "  if [ $_status -ne 0 ]; then\n"
+        "    return $_status\n"
         "  fi\n"
         '  if [ -n "$target" ]; then\n'
         '    builtin cd -- "$target"\n'

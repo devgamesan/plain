@@ -33,7 +33,7 @@ flowchart LR
         Actions["actions.py\nAction 定義"]
         Reducer["reducer.py\nハンドラ振り分け"]
         NavReducer["reducer_navigation.py\n移動 / snapshot / directory size"]
-        MutationReducer["reducer_mutations.py\ncopy / cut / paste / rename / create / delete / extract"]
+        MutationReducer["reducer_mutations.py\nmutation dispatcher + lifecycle modules"]
         PaletteReducer["reducer_palette.py\npalette / history / bookmarks / go-to-path"]
         TerminalReducer["reducer_terminal_config.py\nterminal / config / external launch"]
         Effects["effects.py\nEffect 定義"]
@@ -181,8 +181,9 @@ sequenceDiagram
 
 ### `src/zivo/state/reducer_mutations.py`
 
-- 選択、copy / cut / paste、undo、rename、create、trash delete、archive extract の state 遷移を担当する
-- paste conflict、name conflict、archive extract confirm、進捗表示の各状態を管理する
+- `handle_mutation_action()` を公開入口として維持し、mutation 系 action を責務別ハンドラへ振り分ける
+- `reducer_mutations_input.py`、`reducer_mutations_selection.py`、`reducer_mutations_delete.py`、`reducer_mutations_archive.py`、`reducer_mutations_undo.py` が pending input、clipboard、delete/trash、archive/zip、undo/完了処理を分担する
+- `reducer_mutations_common.py` が platform 判定と undo entry 構築などの共有 helper を持つ
 
 ### `src/zivo/state/reducer_palette.py`
 

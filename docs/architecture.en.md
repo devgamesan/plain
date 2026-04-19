@@ -33,7 +33,7 @@ flowchart LR
         Actions["actions.py\nAction definitions"]
         Reducer["reducer.py\ndispatch entrypoint"]
         NavReducer["reducer_navigation.py\nnavigation / snapshots / directory size"]
-        MutationReducer["reducer_mutations.py\ncopy / cut / paste / rename / create / delete / extract"]
+        MutationReducer["reducer_mutations.py\nmutation dispatcher + lifecycle modules"]
         PaletteReducer["reducer_palette.py\npalette / history / bookmarks / go-to-path"]
         TerminalReducer["reducer_terminal_config.py\nterminal / config / external launch"]
         Effects["effects.py\nEffect definitions"]
@@ -181,8 +181,9 @@ sequenceDiagram
 
 ### `src/zivo/state/reducer_mutations.py`
 
-- Handles selection, copy / cut / paste, undo, rename, create, trash delete, and archive-extract transitions
-- Owns paste-conflict, name-conflict, archive-confirmation, and extraction-progress state
+- Keeps `handle_mutation_action()` as the public entrypoint and dispatches mutation actions to responsibility-specific handlers
+- `reducer_mutations_input.py`, `reducer_mutations_selection.py`, `reducer_mutations_delete.py`, `reducer_mutations_archive.py`, and `reducer_mutations_undo.py` split pending input, clipboard, delete/trash, archive/zip, and undo/completion flows
+- `reducer_mutations_common.py` contains shared helpers such as platform detection and undo-entry construction
 
 ### `src/zivo/state/reducer_palette.py`
 

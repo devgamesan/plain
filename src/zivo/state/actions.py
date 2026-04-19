@@ -158,6 +158,27 @@ class BeginGrepReplaceSelected:
 
 
 @dataclass(frozen=True)
+class BeginSelectedFilesGrep:
+    """Open the command palette in selected-files-grep mode."""
+
+    target_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class SelectedFilesGrepKeywordChanged:
+    """Update the keyword for selected-files-grep."""
+
+    keyword: str
+
+
+@dataclass(frozen=True)
+class CycleSelectedFilesGrepField:
+    """Cycle between fields in selected-files-grep."""
+
+    delta: int
+
+
+@dataclass(frozen=True)
 class BeginCommandPalette:
     """Open the command palette."""
 

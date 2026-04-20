@@ -6,6 +6,12 @@ from functools import lru_cache
 from .models import AppState, DirectoryEntryState, DirectorySizeCacheEntry, SortState
 
 
+@lru_cache(maxsize=256)
+def _build_entry_index(entries: tuple[DirectoryEntryState, ...]) -> dict[str, int]:
+    """Build a path-to-index mapping for entry lookup."""
+    return {entry.path: index for index, entry in enumerate(entries)}
+
+
 def visible_current_entry_states(state: AppState) -> tuple[DirectoryEntryState, ...]:
     """Return filtered and sorted raw current-pane entries."""
 
@@ -45,10 +51,11 @@ def current_entry_for_path(
 
     if path is None:
         return None
-    for entry in visible_current_entry_states(state):
-        if entry.path == path:
-            return entry
-    return None
+    visible_entries = visible_current_entry_states(state)
+    index = _build_entry_index(visible_entries).get(path)
+    if index is None:
+        return None
+    return visible_entries[index]
 
 
 def single_target_entry(state: AppState) -> DirectoryEntryState | None:

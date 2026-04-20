@@ -26,8 +26,10 @@ def test_local_filesystem_adapter_lists_entries_with_lightweight_directory_metad
 
     assert docs_entry.kind == "dir"
     assert docs_entry.size_bytes is None
-    assert docs_entry.modified_at is None
-    assert docs_entry.permissions_mode is None
+    assert docs_entry.modified_at is not None
+    assert docs_entry.permissions_mode is not None
+    assert docs_entry.owner is None
+    assert docs_entry.group is None
 
     assert hidden_entry.hidden is True
     assert hidden_entry.kind == "file"

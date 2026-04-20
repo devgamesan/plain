@@ -73,7 +73,7 @@ def _build_directory_entry_summary(entry: os.DirEntry[str]) -> DirectoryEntrySta
     is_symlink = entry.is_symlink()
     hidden = entry.name.startswith(".")
     try:
-        is_dir = entry.is_dir(follow_symlinks=False)
+        kind = "dir" if entry.is_dir(follow_symlinks=False) else "file"
     except FileNotFoundError:
         if is_symlink:
             return DirectoryEntryState(
@@ -85,25 +85,10 @@ def _build_directory_entry_summary(entry: os.DirEntry[str]) -> DirectoryEntrySta
             )
         return None
 
-    if is_dir:
-        return DirectoryEntryState(
-            path=entry.path,
-            name=entry.name,
-            kind="dir",
-            hidden=hidden,
-            symlink=is_symlink,
-        )
-
-    if is_symlink:
+    if kind == "file" and is_symlink:
         try:
             if entry.is_dir():
-                return DirectoryEntryState(
-                    path=entry.path,
-                    name=entry.name,
-                    kind="dir",
-                    hidden=hidden,
-                    symlink=True,
-                )
+                kind = "dir"
         except FileNotFoundError:
             return DirectoryEntryState(
                 path=entry.path,
@@ -128,8 +113,8 @@ def _build_directory_entry_summary(entry: os.DirEntry[str]) -> DirectoryEntrySta
     return DirectoryEntryState(
         path=entry.path,
         name=entry.name,
-        kind="file",
-        size_bytes=stat_result.st_size,
+        kind=kind,
+        size_bytes=None if kind == "dir" else stat_result.st_size,
         modified_at=datetime.fromtimestamp(stat_result.st_mtime),
         hidden=hidden,
         permissions_mode=stat_result.st_mode,

@@ -5,6 +5,19 @@ from dataclasses import replace
 import zivo.state.input as input_module
 from zivo.models import AppConfig, BookmarkConfig, CreateZipArchiveRequest
 from zivo.state import (
+    CommandPaletteState,
+    ConfigEditorState,
+    DeleteConfirmationState,
+    NameConflictState,
+    NotificationState,
+    PendingInputState,
+    PendingKeySequenceState,
+    ZipCompressConfirmationState,
+    build_initial_app_state,
+    dispatch_key_input,
+    iter_bound_keys,
+)
+from zivo.state.actions import (
     ActivateNextTab,
     ActivatePreviousTab,
     AddBookmark,
@@ -27,8 +40,6 @@ from zivo.state import (
     ClearPendingKeySequence,
     ClearSelection,
     CloseCurrentTab,
-    CommandPaletteState,
-    ConfigEditorState,
     ConfirmDeleteTargets,
     ConfirmFilterInput,
     ConfirmZipCompress,
@@ -38,7 +49,6 @@ from zivo.state import (
     CycleConfigEditorValue,
     CycleFindReplaceField,
     CycleGrepSearchField,
-    DeleteConfirmationState,
     DismissAttributeDialog,
     DismissConfigEditor,
     DismissNameConflict,
@@ -53,16 +63,12 @@ from zivo.state import (
     MoveCursor,
     MoveCursorAndSelectRange,
     MovePendingInputCursor,
-    NameConflictState,
-    NotificationState,
     OpenFindResultInEditor,
     OpenGrepResultInEditor,
     OpenNewTab,
     OpenPathInEditor,
     OpenPathWithDefaultApp,
     PasteClipboard,
-    PendingInputState,
-    PendingKeySequenceState,
     ReloadDirectory,
     RemoveBookmark,
     ResolvePasteConflict,
@@ -84,10 +90,6 @@ from zivo.state import (
     ToggleSelectionAndAdvance,
     ToggleSplitTerminal,
     UndoLastOperation,
-    ZipCompressConfirmationState,
-    build_initial_app_state,
-    dispatch_key_input,
-    iter_bound_keys,
 )
 
 

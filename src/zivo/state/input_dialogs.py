@@ -7,12 +7,14 @@ from .actions import (
     CancelFilterInput,
     CancelPasteConflict,
     CancelPendingInput,
+    CancelReplaceConfirmation,
     CancelShellCommandInput,
     CancelZipCompressConfirmation,
     ConfirmArchiveExtract,
     ConfirmDeleteTargets,
     ConfirmEmptyTrash,
     ConfirmFilterInput,
+    ConfirmReplaceTargets,
     ConfirmZipCompress,
     CycleConfigEditorValue,
     DeletePendingInputForward,
@@ -88,6 +90,13 @@ def dispatch_confirm_input(
         if key == "enter":
             return supported(ConfirmZipCompress())
         return warn("Use Enter to overwrite the zip or Esc to return")
+
+    if state.replace_confirmation is not None:
+        if key == "escape":
+            return supported(CancelReplaceConfirmation())
+        if key == "enter":
+            return supported(ConfirmReplaceTargets())
+        return warn("Use Enter to confirm replace or Esc to cancel")
 
     if state.name_conflict is not None:
         if key in {"enter", "escape"}:

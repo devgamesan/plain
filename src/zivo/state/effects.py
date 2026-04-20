@@ -15,7 +15,7 @@ from zivo.models import (
     UndoEntry,
 )
 
-from .models import AppState, GrepSearchResultState
+from .models import AppState, GrepSearchResultState, PaneState
 
 
 @dataclass(frozen=True)
@@ -42,11 +42,39 @@ class LoadChildPaneSnapshotEffect:
 
 
 @dataclass(frozen=True)
+class LoadCurrentPaneEffect:
+    """Request current pane load (Phase 1 of progressive loading)."""
+
+    request_id: int
+    path: str
+    cursor_path: str | None
+    invalidate_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class LoadParentChildEffect:
+    """Request parent/child panes load (Phase 2 of progressive loading)."""
+
+    request_id: int
+    path: str
+    cursor_path: str | None
+    current_pane: PaneState
+
+
+@dataclass(frozen=True)
 class RunDirectorySizeEffect:
     """Execute recursive size calculation outside the reducer."""
 
     request_id: int
     paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class RunAttributeInspectionEffect:
+    """Load detailed metadata for the attribute dialog outside the reducer."""
+
+    request_id: int
+    path: str
 
 
 @dataclass(frozen=True)
@@ -195,7 +223,10 @@ class RunShellCommandEffect:
 Effect = (
     LoadBrowserSnapshotEffect
     | LoadChildPaneSnapshotEffect
+    | LoadCurrentPaneEffect
+    | LoadParentChildEffect
     | RunDirectorySizeEffect
+    | RunAttributeInspectionEffect
     | RunClipboardPasteEffect
     | RunFileMutationEffect
     | RunUndoEffect

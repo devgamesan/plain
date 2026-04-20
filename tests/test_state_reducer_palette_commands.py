@@ -9,31 +9,36 @@ from zivo.models import (
 )
 from zivo.state import (
     AttributeInspectionState,
+    CommandPaletteState,
+    ConfigEditorState,
+    DirectoryEntryState,
+    HistoryState,
+    LoadBrowserSnapshotEffect,
+    NotificationState,
+    PaneState,
+    PendingInputState,
+    PendingKeySequenceState,
+    RunAttributeInspectionEffect,
+    RunConfigSaveEffect,
+    RunExternalLaunchEffect,
+    StartSplitTerminalEffect,
+    build_initial_app_state,
+    reduce_app_state,
+    select_command_palette_state,
+)
+from zivo.state.actions import (
+    AttributeInspectionLoaded,
     BeginBookmarkSearch,
     BeginCommandPalette,
     BeginGoToPath,
     BeginHistorySearch,
     CancelCommandPalette,
-    CommandPaletteState,
-    ConfigEditorState,
-    DirectoryEntryState,
     DismissAttributeDialog,
-    HistoryState,
-    LoadBrowserSnapshotEffect,
     MoveCommandPaletteCursor,
-    NotificationState,
-    PaneState,
-    PendingInputState,
-    PendingKeySequenceState,
-    RunConfigSaveEffect,
-    RunExternalLaunchEffect,
     SetCommandPaletteQuery,
     SetCursorPath,
     ShowAttributes,
-    StartSplitTerminalEffect,
     SubmitCommandPalette,
-    build_initial_app_state,
-    reduce_app_state,
 )
 
 
@@ -440,15 +445,21 @@ def test_submit_command_palette_opens_attribute_dialog_for_single_target() -> No
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
     state = _reduce_state(state, SetCommandPaletteQuery("attr"))
 
-    next_state = _reduce_state(state, SubmitCommandPalette())
+    result = reduce_app_state(state, SubmitCommandPalette())
 
-    assert next_state.ui_mode == "DETAIL"
-    assert next_state.command_palette is None
-    assert next_state.attribute_inspection is not None
-    assert next_state.attribute_inspection.name == "docs"
-    assert next_state.attribute_inspection.kind == "dir"
-    assert next_state.attribute_inspection.path == "/home/tadashi/develop/zivo/docs"
-    assert next_state.attribute_inspection.permissions_mode is None
+    assert result.state.ui_mode == "DETAIL"
+    assert result.state.command_palette is None
+    assert result.state.attribute_inspection is not None
+    assert result.state.attribute_inspection.name == "docs"
+    assert result.state.attribute_inspection.kind == "dir"
+    assert result.state.attribute_inspection.path == "/home/tadashi/develop/zivo/docs"
+    assert result.state.pending_attribute_inspection_request_id == 1
+    assert result.effects == (
+        RunAttributeInspectionEffect(
+            request_id=1,
+            path="/home/tadashi/develop/zivo/docs",
+        ),
+    )
 
 def test_dismiss_attribute_dialog_returns_to_browsing() -> None:
     initial_state = build_initial_app_state()
@@ -466,6 +477,7 @@ def test_dismiss_attribute_dialog_returns_to_browsing() -> None:
 
     assert next_state.ui_mode == "BROWSING"
     assert next_state.attribute_inspection is None
+    assert next_state.pending_attribute_inspection_request_id is None
 
 def test_submit_command_palette_opens_current_directory_in_file_manager() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
@@ -577,6 +589,7 @@ def test_show_attributes_enters_detail_mode_for_single_target() -> None:
     result = reduce_app_state(state, ShowAttributes())
 
     assert result.state.ui_mode == "DETAIL"
+    assert result.state.pending_attribute_inspection_request_id == 1
     assert result.state.attribute_inspection == AttributeInspectionState(
         name="docs",
         kind="dir",
@@ -585,6 +598,43 @@ def test_show_attributes_enters_detail_mode_for_single_target() -> None:
         modified_at=state.current_pane.entries[0].modified_at,
         hidden=False,
         permissions_mode=state.current_pane.entries[0].permissions_mode,
+    )
+    assert result.effects == (
+        RunAttributeInspectionEffect(
+            request_id=1,
+            path="/home/tadashi/develop/zivo/docs",
+        ),
+    )
+
+
+def test_attribute_inspection_loaded_replaces_placeholder_dialog_state() -> None:
+    state = reduce_app_state(build_initial_app_state(), ShowAttributes()).state
+
+    next_state = reduce_app_state(
+        state,
+        AttributeInspectionLoaded(
+            request_id=1,
+            inspection=AttributeInspectionState(
+                name="docs",
+                kind="dir",
+                path="/home/tadashi/develop/zivo/docs",
+                modified_at=state.current_pane.entries[0].modified_at,
+                permissions_mode=0o40755,
+                owner="tadashi",
+                group="staff",
+            ),
+        ),
+    ).state
+
+    assert next_state.pending_attribute_inspection_request_id is None
+    assert next_state.attribute_inspection == AttributeInspectionState(
+        name="docs",
+        kind="dir",
+        path="/home/tadashi/develop/zivo/docs",
+        modified_at=state.current_pane.entries[0].modified_at,
+        permissions_mode=0o40755,
+        owner="tadashi",
+        group="staff",
     )
 
 def test_show_attributes_warns_without_single_target() -> None:
@@ -607,6 +657,38 @@ def test_show_attributes_warns_without_single_target() -> None:
         level="warning",
         message="Show attributes requires a single target",
     )
+
+
+def test_select_command_palette_disables_replace_text_for_hidden_selected_file() -> None:
+    hidden_path = "/home/tadashi/develop/zivo/.env"
+    visible_path = "/home/tadashi/develop/zivo/README.md"
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(
+                DirectoryEntryState(hidden_path, ".env", "file", hidden=True),
+                DirectoryEntryState(visible_path, "README.md", "file"),
+            ),
+            cursor_path=visible_path,
+            selected_paths=frozenset({hidden_path}),
+        ),
+    )
+
+    palette_state = select_command_palette_state(
+        replace(
+            _reduce_state(state, BeginCommandPalette()),
+            command_palette=replace(CommandPaletteState(), query="replace text"),
+        )
+    )
+
+    assert palette_state is not None
+    assert [item.label for item in palette_state.items] == [
+        "Replace text in selected files",
+        "Replace text in found files",
+        "Replace text in grep results",
+    ]
+    assert palette_state.items[0].enabled is False
 
 def test_submit_command_palette_removes_current_directory_bookmark() -> None:
     state = _reduce_state(
@@ -803,4 +885,3 @@ def test_begin_command_palette_clears_pending_key_sequence() -> None:
 
     assert next_state.ui_mode == "PALETTE"
     assert next_state.pending_key_sequence is None
-

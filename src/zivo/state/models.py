@@ -218,6 +218,24 @@ class AttributeInspectionState:
     modified_at: datetime | None = None
     hidden: bool = False
     permissions_mode: int | None = None
+    owner: str | None = None
+    group: str | None = None
+
+
+@dataclass(frozen=True)
+class ReplaceConfirmationState:
+    """Pending confirmation dialog state for text replacement operations."""
+
+    mode: Literal[
+        "replace_text",
+        "replace_in_found_files",
+        "replace_in_grep_files",
+        "grep_replace_selected",
+    ]
+    find_text: str
+    replacement_text: str
+    target_paths: tuple[str, ...]
+    total_match_count: int
 
 
 @dataclass(frozen=True)
@@ -345,7 +363,7 @@ class ReplacePreviewResultState:
         return (
             f"{self.display_path} ({self.match_count}): "
             f"{self.first_match_line_number}: "
-            f"{self.first_match_before} -> {self.first_match_after}"
+            f"{self.first_match_before}"
         )
 
 
@@ -455,6 +473,8 @@ class BrowserTabState:
     current_pane_delta: CurrentPaneDeltaState = CurrentPaneDeltaState()
     pending_browser_snapshot_request_id: int | None = None
     pending_child_pane_request_id: int | None = None
+    parent_pane_loading: bool = False  # Track parent pane loading in progressive mode
+    child_pane_loading: bool = False  # Track child pane loading in progressive mode
 
 
 @dataclass(frozen=True)
@@ -491,6 +511,7 @@ class AppState:
     archive_extract_progress: ArchiveExtractProgressState | None = None
     zip_compress_confirmation: ZipCompressConfirmationState | None = None
     zip_compress_progress: ZipCompressProgressState | None = None
+    replace_confirmation: ReplaceConfirmationState | None = None
     attribute_inspection: AttributeInspectionState | None = None
     config_editor: ConfigEditorState | None = None
     shell_command: ShellCommandState | None = None
@@ -511,6 +532,7 @@ class AppState:
     pending_replace_preview_request_id: int | None = None
     pending_replace_apply_request_id: int | None = None
     pending_directory_size_request_id: int | None = None
+    pending_attribute_inspection_request_id: int | None = None
     pending_config_save_request_id: int | None = None
     pending_shell_command_request_id: int | None = None
     undo_stack: tuple[UndoEntry, ...] = ()

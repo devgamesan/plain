@@ -1,1120 +1,257 @@
 """Reducer actions for app state transitions."""
 
-from dataclasses import dataclass
-from typing import Literal
-
-from zivo.models import (
-    AppConfig,
-    ConflictResolution,
-    CreateKind,
-    CreateZipArchiveRequest,
-    CreateZipArchiveResult,
-    DeleteMode,
-    ExternalLaunchRequest,
-    ExtractArchiveRequest,
-    ExtractArchiveResult,
-    FileMutationResult,
-    PasteAppliedChange,
-    PasteConflict,
-    PasteRequest,
-    PasteSummary,
-    ShellCommandResult,
-    TextReplacePreviewResult,
-    TextReplaceResult,
-    UndoEntry,
-    UndoResult,
+from .actions_input import (
+    BeginCreateInput,
+    BeginExtractArchiveInput,
+    BeginFilterInput,
+    BeginRenameInput,
+    BeginShellCommandInput,
+    BeginZipCompressInput,
+    CancelFilterInput,
+    CancelPendingInput,
+    CancelShellCommandInput,
+    ConfirmFilterInput,
+    CycleConfigEditorValue,
+    DeletePendingInputForward,
+    DismissAttributeDialog,
+    DismissConfigEditor,
+    DismissNameConflict,
+    MoveConfigEditorCursor,
+    MovePendingInputCursor,
+    PasteIntoPendingInput,
+    ResetHelpBarConfig,
+    SaveConfigEditor,
+    SetFilterQuery,
+    SetPendingInputCursor,
+    SetPendingInputValue,
+    SetShellCommandValue,
+    SubmitPendingInput,
+    SubmitShellCommand,
+)
+from .actions_mutations import (
+    BeginDeleteTargets,
+    BeginEmptyTrash,
+    CancelArchiveExtractConfirmation,
+    CancelDeleteConfirmation,
+    CancelEmptyTrashConfirmation,
+    CancelPasteConflict,
+    CancelReplaceConfirmation,
+    CancelZipCompressConfirmation,
+    ClearSelection,
+    ConfirmArchiveExtract,
+    ConfirmDeleteTargets,
+    ConfirmEmptyTrash,
+    ConfirmReplaceTargets,
+    ConfirmZipCompress,
+    CopyTargets,
+    CutTargets,
+    PasteClipboard,
+    ResolvePasteConflict,
+    SelectAllVisibleEntries,
+    ToggleSelection,
+    ToggleSelectionAndAdvance,
+    UndoLastOperation,
 )
 
-from .models import (
-    AppState,
-    BrowserSnapshot,
-    FileSearchResultState,
-    FindReplaceFieldId,
-    GrepReplaceFieldId,
-    GrepReplaceSelectedFieldId,
-    GrepSearchFieldId,
-    GrepSearchResultState,
-    NotificationState,
-    PaneState,
-    ReplaceFieldId,
-    SortField,
-    SplitTerminalFocusTarget,
-    UiMode,
+__all__ = [
+    # Input actions
+    "BeginCreateInput",
+    "BeginExtractArchiveInput",
+    "BeginFilterInput",
+    "BeginRenameInput",
+    "BeginShellCommandInput",
+    "BeginZipCompressInput",
+    "CancelFilterInput",
+    "CancelPendingInput",
+    "CancelShellCommandInput",
+    "ConfirmFilterInput",
+    "CycleConfigEditorValue",
+    "DeletePendingInputForward",
+    "DismissAttributeDialog",
+    "DismissConfigEditor",
+    "DismissNameConflict",
+    "MoveConfigEditorCursor",
+    "MovePendingInputCursor",
+    "PasteIntoPendingInput",
+    "ResetHelpBarConfig",
+    "SaveConfigEditor",
+    "SetFilterQuery",
+    "SetPendingInputCursor",
+    "SetPendingInputValue",
+    "SetShellCommandValue",
+    "SubmitPendingInput",
+    "SubmitShellCommand",
+    # Mutation actions
+    "BeginDeleteTargets",
+    "BeginEmptyTrash",
+    "CancelArchiveExtractConfirmation",
+    "CancelDeleteConfirmation",
+    "CancelEmptyTrashConfirmation",
+    "CancelPasteConflict",
+    "CancelReplaceConfirmation",
+    "CancelZipCompressConfirmation",
+    "ClearSelection",
+    "ConfirmArchiveExtract",
+    "ConfirmDeleteTargets",
+    "ConfirmEmptyTrash",
+    "ConfirmReplaceTargets",
+    "ConfirmZipCompress",
+    "CopyTargets",
+    "CutTargets",
+    "PasteClipboard",
+    "ResolvePasteConflict",
+    "SelectAllVisibleEntries",
+    "ToggleSelection",
+    "ToggleSelectionAndAdvance",
+    "UndoLastOperation",
+]
+
+from .actions_navigation import (
+    ActivateNextTab,
+    ActivatePreviousTab,
+    AddBookmark,
+    CloseCurrentTab,
+    CopyPathsToClipboard,
+    EnterCursorDirectory,
+    ExitCurrentPath,
+    FocusSplitTerminal,
+    GoBack,
+    GoForward,
+    GoToHomeDirectory,
+    GoToParentDirectory,
+    JumpCursor,
+    MoveCursor,
+    MoveCursorAndSelectRange,
+    MoveCursorByPage,
+    OpenNewTab,
+    OpenPathInEditor,
+    OpenPathWithDefaultApp,
+    OpenTerminalAtPath,
+    ReloadDirectory,
+    RemoveBookmark,
+    SendSplitTerminalInput,
+    SetCursorPath,
+    SetSort,
+    ShowAttributes,
+    ToggleHiddenFiles,
+    ToggleSplitTerminal,
 )
-
-
-@dataclass(frozen=True)
-class InitializeState:
-    """Replace the entire app state."""
-
-    state: AppState
-
-
-@dataclass(frozen=True)
-class SetUiMode:
-    """Change the current UI mode."""
-
-    mode: UiMode
-
-
-@dataclass(frozen=True)
-class BeginFilterInput:
-    """Enter filter input mode."""
-
-
-@dataclass(frozen=True)
-class ConfirmFilterInput:
-    """Commit the current filter query and return to browsing mode."""
-
-
-@dataclass(frozen=True)
-class CancelFilterInput:
-    """Discard the current filter input and return to browsing mode."""
-
-
-@dataclass(frozen=True)
-class BeginRenameInput:
-    """Enter rename input mode for a single path."""
-
-    path: str
-
-
-@dataclass(frozen=True)
-class BeginDeleteTargets:
-    """Begin deleting the supplied target paths."""
-
-    paths: tuple[str, ...]
-    mode: DeleteMode = "trash"
-
-
-@dataclass(frozen=True)
-class BeginCreateInput:
-    """Enter create input mode for a new file or directory."""
-
-    kind: CreateKind
-
-
-@dataclass(frozen=True)
-class BeginExtractArchiveInput:
-    """Enter extract input mode for a supported archive."""
-
-    source_path: str
-
-
-@dataclass(frozen=True)
-class BeginZipCompressInput:
-    """Enter zip-compression input mode for one or more paths."""
-
-    source_paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class BeginFileSearch:
-    """Open the command palette in file search mode."""
-
-
-@dataclass(frozen=True)
-class BeginGrepSearch:
-    """Open the command palette in grep search mode."""
-
-
-@dataclass(frozen=True)
-class BeginHistorySearch:
-    """Open the command palette in directory history mode."""
-
-
-@dataclass(frozen=True)
-class BeginBookmarkSearch:
-    """Open the command palette in bookmark-list mode."""
-
-
-@dataclass(frozen=True)
-class BeginGoToPath:
-    """Open the command palette in go-to-path mode."""
-
-
-@dataclass(frozen=True)
-class BeginTextReplace:
-    """Open the command palette in text-replace mode for selected files."""
-
-    target_paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class BeginFindAndReplace:
-    """Open the command palette in find-and-replace mode."""
-
-
-@dataclass(frozen=True)
-class BeginGrepReplace:
-    """Open the command palette in grep-and-replace mode."""
-
-
-@dataclass(frozen=True)
-class BeginGrepReplaceSelected:
-    """Open the command palette in grep-and-replace-selected mode."""
-
-    target_paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class BeginSelectedFilesGrep:
-    """Open the command palette in selected-files-grep mode."""
-
-    target_paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class SelectedFilesGrepKeywordChanged:
-    """Update the keyword for selected-files-grep."""
-
-    keyword: str
-
-
-@dataclass(frozen=True)
-class CycleSelectedFilesGrepField:
-    """Cycle between fields in selected-files-grep."""
-
-    delta: int
-
-
-@dataclass(frozen=True)
-class BeginCommandPalette:
-    """Open the command palette."""
-
-
-@dataclass(frozen=True)
-class OpenNewTab:
-    """Create and activate a new browser tab."""
-
-
-@dataclass(frozen=True)
-class ActivateNextTab:
-    """Activate the next browser tab."""
-
-
-@dataclass(frozen=True)
-class ActivatePreviousTab:
-    """Activate the previous browser tab."""
-
-
-@dataclass(frozen=True)
-class CloseCurrentTab:
-    """Close the currently active browser tab."""
-
-
-@dataclass(frozen=True)
-class BeginShellCommandInput:
-    """Open the shell command input dialog."""
-
-
-@dataclass(frozen=True)
-class CancelCommandPalette:
-    """Close the command palette without running a command."""
-
-
-@dataclass(frozen=True)
-class MoveCommandPaletteCursor:
-    """Move the command palette cursor by the provided delta."""
-
-    delta: int
-
-
-@dataclass(frozen=True)
-class SetCommandPaletteQuery:
-    """Update the command palette query."""
-
-    query: str
-
-
-@dataclass(frozen=True)
-class SetGrepSearchField:
-    """Update one grep-search input field."""
-
-    field: GrepSearchFieldId
-    value: str
-
-
-@dataclass(frozen=True)
-class CycleGrepSearchField:
-    """Move focus between grep-search input fields."""
-
-    delta: int
-
-
-@dataclass(frozen=True)
-class SetReplaceField:
-    """Update one text-replace input field."""
-
-    field: ReplaceFieldId
-    value: str
-
-
-@dataclass(frozen=True)
-class CycleReplaceField:
-    """Move focus between text-replace input fields."""
-
-    delta: int
-
-
-@dataclass(frozen=True)
-class SetFindReplaceField:
-    """Update one find-and-replace input field."""
-
-    field: FindReplaceFieldId
-    value: str
-
-
-@dataclass(frozen=True)
-class CycleFindReplaceField:
-    """Move focus between find-and-replace input fields."""
-
-    delta: int
-
-
-@dataclass(frozen=True)
-class SetGrepReplaceField:
-    """Update one grep-and-replace input field."""
-
-    field: GrepReplaceFieldId
-    value: str
-
-
-@dataclass(frozen=True)
-class CycleGrepReplaceField:
-    """Move focus between grep-and-replace input fields."""
-
-    delta: int
-
-
-@dataclass(frozen=True)
-class SetGrepReplaceSelectedField:
-    """Update one grep-replace-selected input field."""
-
-    field: GrepReplaceSelectedFieldId
-    value: str
-
-
-@dataclass(frozen=True)
-class CycleGrepReplaceSelectedField:
-    """Move focus between grep-replace-selected input fields."""
-
-    delta: int
-
-
-@dataclass(frozen=True)
-class SubmitCommandPalette:
-    """Run the currently selected command palette command."""
-
-
-@dataclass(frozen=True)
-class DismissConfigEditor:
-    """Close the config editor without saving pending changes."""
-
-
-@dataclass(frozen=True)
-class MoveConfigEditorCursor:
-    """Move the config editor cursor by the provided delta."""
-
-    delta: int
-
-
-@dataclass(frozen=True)
-class CycleConfigEditorValue:
-    """Advance or reverse the selected config editor value."""
-
-    delta: int
-
-
-@dataclass(frozen=True)
-class SaveConfigEditor:
-    """Persist the current config editor draft to config.toml."""
-
-
-@dataclass(frozen=True)
-class ResetHelpBarConfig:
-    """Reset help bar configuration to defaults."""
-
-
-@dataclass(frozen=True)
-class FileSearchCompleted:
-    """Apply completed file-search results to the command palette."""
-
-    request_id: int
-    query: str
-    results: tuple[FileSearchResultState, ...]
-
-
-@dataclass(frozen=True)
-class FileSearchFailed:
-    """Apply a terminal file-search failure."""
-
-    request_id: int
-    query: str
-    message: str
-    invalid_query: bool = False
-
-
-@dataclass(frozen=True)
-class GrepSearchCompleted:
-    """Apply completed grep-search results to the command palette."""
-
-    request_id: int
-    query: str
-    results: tuple[GrepSearchResultState, ...]
-
-
-@dataclass(frozen=True)
-class GrepSearchFailed:
-    """Apply a terminal grep-search failure."""
-
-    request_id: int
-    query: str
-    message: str
-    invalid_query: bool = False
-
-
-@dataclass(frozen=True)
-class TextReplacePreviewCompleted:
-    """Apply completed text-replace preview results to the command palette."""
-
-    request_id: int
-    result: TextReplacePreviewResult
-
-
-@dataclass(frozen=True)
-class TextReplacePreviewFailed:
-    """Apply a terminal text-replace preview failure."""
-
-    request_id: int
-    message: str
-    invalid_query: bool = False
-
-
-@dataclass(frozen=True)
-class TextReplaceApplied:
-    """Apply a completed text replacement."""
-
-    request_id: int
-    result: TextReplaceResult
-
-
-@dataclass(frozen=True)
-class TextReplaceApplyFailed:
-    """Apply a terminal text-replace execution failure."""
-
-    request_id: int
-    message: str
-
-
-@dataclass(frozen=True)
-class SetPendingInputValue:
-    """Update the rename/create text input value and cursor position."""
-
-    value: str
-    cursor_pos: int
-
-
-@dataclass(frozen=True)
-class MovePendingInputCursor:
-    """Move the pending input cursor by a relative delta."""
-
-    delta: int
-
-
-@dataclass(frozen=True)
-class SetPendingInputCursor:
-    """Set the pending input cursor to an absolute position."""
-
-    cursor_pos: int
-
-
-@dataclass(frozen=True)
-class DeletePendingInputForward:
-    """Delete the character at the cursor position (forward delete)."""
-
-
-@dataclass(frozen=True)
-class SetShellCommandValue:
-    """Update the pending shell command input."""
-
-    command: str
-
-
-@dataclass(frozen=True)
-class SetPendingKeySequence:
-    """Store the currently active multi-key prefix."""
-
-    keys: tuple[str, ...]
-    possible_next_keys: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class ClearPendingKeySequence:
-    """Clear the currently active multi-key prefix."""
-
-
-@dataclass(frozen=True)
-class SubmitPendingInput:
-    """Submit the active rename/create text input."""
-
-
-@dataclass(frozen=True)
-class CancelPendingInput:
-    """Cancel the active rename/create text input."""
-
-
-@dataclass(frozen=True)
-class SubmitShellCommand:
-    """Submit the active shell command input."""
-
-
-@dataclass(frozen=True)
-class CancelShellCommandInput:
-    """Cancel the active shell command input."""
-
-
-@dataclass(frozen=True)
-class MoveCursor:
-    """Move the cursor within a caller-provided visible path list."""
-
-    delta: int
-    visible_paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class JumpCursor:
-    """Jump cursor to the start or end of the visible path list."""
-
-    position: Literal["start", "end"]
-    visible_paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class MoveCursorByPage:
-    """Move cursor by page (page up or page down)."""
-
-    direction: Literal["up", "down"]
-    page_size: int
-    visible_paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class MoveCursorAndSelectRange:
-    """Move the cursor and replace the current selection with an anchored range."""
-
-    delta: int
-    visible_paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class SetCursorPath:
-    """Set the current pane cursor to a specific absolute path."""
-
-    path: str | None
-
-
-@dataclass(frozen=True)
-class EnterCursorDirectory:
-    """Navigate into the directory currently under the cursor."""
-
-
-@dataclass(frozen=True)
-class GoToParentDirectory:
-    """Navigate to the parent directory of the current path."""
-
-
-@dataclass(frozen=True)
-class GoToHomeDirectory:
-    """Navigate to the user's home directory."""
-
-
-@dataclass(frozen=True)
-class ReloadDirectory:
-    """Reload the current directory snapshot."""
-
-
-@dataclass(frozen=True)
-class GoBack:
-    """Navigate to the previous directory in the history stack."""
-
-
-@dataclass(frozen=True)
-class GoForward:
-    """Navigate to the next directory in the history forward stack."""
-
-
-@dataclass(frozen=True)
-class ExitCurrentPath:
-    """Exit the application and return the current path."""
-
-    return_code: int = 0
-
-
-@dataclass(frozen=True)
-class OpenPathWithDefaultApp:
-    """Open a filesystem path with the OS default application."""
-
-    path: str
-
-
-@dataclass(frozen=True)
-class OpenPathInEditor:
-    """Open a file path with the configured editor."""
-
-    path: str
-    line_number: int | None = None
-
-
-@dataclass(frozen=True)
-class OpenGrepResultInEditor:
-    """Open the selected grep search result in editor at the specific line."""
-
-
-@dataclass(frozen=True)
-class OpenFindResultInEditor:
-    """Open the selected file search result in editor."""
-
-
-@dataclass(frozen=True)
-class OpenTerminalAtPath:
-    """Open a new terminal rooted at the supplied directory path."""
-
-    path: str
-
-
-@dataclass(frozen=True)
-class ShowAttributes:
-    """Open the attribute dialog for the current single target."""
-
-
-@dataclass(frozen=True)
-class CopyPathsToClipboard:
-    """Copy the current target path list to the system clipboard."""
-
-
-@dataclass(frozen=True)
-class AddBookmark:
-    """Persist the supplied directory path as a bookmark."""
-
-    path: str
-
-
-@dataclass(frozen=True)
-class RemoveBookmark:
-    """Remove the supplied directory path from bookmarks."""
-
-    path: str
-
-
-@dataclass(frozen=True)
-class ToggleSplitTerminal:
-    """Open or close the embedded split terminal."""
-
-
-@dataclass(frozen=True)
-class FocusSplitTerminal:
-    """Move input focus between the browser and split terminal."""
-
-    target: SplitTerminalFocusTarget
-
-
-@dataclass(frozen=True)
-class SendSplitTerminalInput:
-    """Write input bytes into the active split terminal session."""
-
-    data: str
-
-
-@dataclass(frozen=True)
-class ToggleSelection:
-    """Toggle selection for an entry in the current pane."""
-
-    path: str
-
-
-@dataclass(frozen=True)
-class ToggleSelectionAndAdvance:
-    """Toggle selection and advance the cursor within the visible path list."""
-
-    path: str
-    visible_paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class ClearSelection:
-    """Clear all selections in the current pane."""
-
-
-@dataclass(frozen=True)
-class SelectAllVisibleEntries:
-    """Select every currently visible entry in the current pane."""
-
-    paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class CopyTargets:
-    """Copy the current selection or cursor target into the clipboard."""
-
-    paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class CutTargets:
-    """Mark the current selection or cursor target for move."""
-
-    paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class PasteClipboard:
-    """Paste the current clipboard into the current directory."""
-
-
-@dataclass(frozen=True)
-class UndoLastOperation:
-    """Undo the most recent reversible file operation."""
-
-
-@dataclass(frozen=True)
-class ResolvePasteConflict:
-    """Continue the pending paste with the chosen conflict resolution."""
-
-    resolution: ConflictResolution
-
-
-@dataclass(frozen=True)
-class CancelPasteConflict:
-    """Dismiss the pending paste conflict dialog."""
-
-
-@dataclass(frozen=True)
-class ConfirmDeleteTargets:
-    """Confirm the pending delete request."""
-
-
-@dataclass(frozen=True)
-class CancelDeleteConfirmation:
-    """Dismiss the pending delete confirmation dialog."""
-
-
-@dataclass(frozen=True)
-class BeginEmptyTrash:
-    """Begin the empty trash operation with confirmation."""
-
-
-@dataclass(frozen=True)
-class ConfirmEmptyTrash:
-    """Confirm the empty trash request."""
-
-
-@dataclass(frozen=True)
-class CancelEmptyTrashConfirmation:
-    """Dismiss the pending empty trash confirmation dialog."""
-
-
-@dataclass(frozen=True)
-class ConfirmArchiveExtract:
-    """Confirm the pending archive extraction request."""
-
-
-@dataclass(frozen=True)
-class CancelArchiveExtractConfirmation:
-    """Return from archive extraction confirmation to input editing."""
-
-
-@dataclass(frozen=True)
-class ConfirmZipCompress:
-    """Confirm the pending zip compression request."""
-
-
-@dataclass(frozen=True)
-class CancelZipCompressConfirmation:
-    """Return from zip-compression confirmation to input editing."""
-
-
-@dataclass(frozen=True)
-class DismissNameConflict:
-    """Dismiss the pending rename/create conflict dialog."""
-
-
-@dataclass(frozen=True)
-class DismissAttributeDialog:
-    """Dismiss the pending read-only attribute dialog."""
-
-
-@dataclass(frozen=True)
-class SetFilterQuery:
-    """Update the active filter query."""
-
-    query: str
-    active: bool | None = None
-
-
-@dataclass(frozen=True)
-class ToggleHiddenFiles:
-    """Toggle hidden file visibility across the shell."""
-
-
-@dataclass(frozen=True)
-class SetSort:
-    """Update sort settings."""
-
-    field: SortField
-    descending: bool
-    directories_first: bool | None = None
-
-
-@dataclass(frozen=True)
-class SetNotification:
-    """Update the transient notification rendered in the shell."""
-
-    notification: NotificationState | None
-
-
-@dataclass(frozen=True)
-class RequestBrowserSnapshot:
-    """Request asynchronous pane data for a directory path."""
-
-    path: str
-    cursor_path: str | None = None
-    blocking: bool = False
-    invalidate_paths: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class RequestDirectorySizes:
-    """Request asynchronous recursive sizes for visible directories."""
-
-    paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class BrowserSnapshotLoaded:
-    """Apply a loaded browser snapshot to reducer state."""
-
-    request_id: int
-    snapshot: BrowserSnapshot
-    blocking: bool = False
-
-
-@dataclass(frozen=True)
-class BrowserSnapshotFailed:
-    """Apply an error raised while loading a browser snapshot."""
-
-    request_id: int
-    message: str
-    blocking: bool = False
-
-
-@dataclass(frozen=True)
-class ChildPaneSnapshotLoaded:
-    """Apply a loaded child-pane snapshot to reducer state."""
-
-    request_id: int
-    pane: PaneState
-
-
-@dataclass(frozen=True)
-class ChildPaneSnapshotFailed:
-    """Apply an error raised while loading the child pane."""
-
-    request_id: int
-    message: str
-
-
-@dataclass(frozen=True)
-class DirectorySizesLoaded:
-    """Apply completed recursive directory sizes."""
-
-    request_id: int
-    sizes: tuple[tuple[str, int], ...]
-    failures: tuple[tuple[str, str], ...] = ()
-
-
-@dataclass(frozen=True)
-class DirectorySizesFailed:
-    """Apply a terminal recursive size failure."""
-
-    request_id: int
-    paths: tuple[str, ...]
-    message: str
-
-
-@dataclass(frozen=True)
-class ClipboardPasteNeedsResolution:
-    """Store the pending paste request and its conflicts."""
-
-    request_id: int
-    request: PasteRequest
-    conflicts: tuple[PasteConflict, ...]
-
-
-@dataclass(frozen=True)
-class ClipboardPasteCompleted:
-    """Apply the completed paste result."""
-
-    request_id: int
-    summary: PasteSummary
-    applied_changes: tuple[PasteAppliedChange, ...] = ()
-
-
-@dataclass(frozen=True)
-class ClipboardPasteFailed:
-    """Apply a terminal clipboard-operation failure."""
-
-    request_id: int
-    message: str
-
-
-@dataclass(frozen=True)
-class ArchivePreparationCompleted:
-    """Apply preflight archive scan details before extraction begins."""
-
-    request_id: int
-    request: ExtractArchiveRequest
-    total_entries: int
-    conflict_count: int = 0
-    first_conflict_path: str | None = None
-
-
-@dataclass(frozen=True)
-class ArchivePreparationFailed:
-    """Apply a terminal archive preparation failure."""
-
-    request_id: int
-    message: str
-
-
-@dataclass(frozen=True)
-class ArchiveExtractProgress:
-    """Apply archive extraction progress updates."""
-
-    request_id: int
-    completed_entries: int
-    total_entries: int
-    current_path: str | None = None
-
-
-@dataclass(frozen=True)
-class ArchiveExtractCompleted:
-    """Apply the completed archive extraction result."""
-
-    request_id: int
-    result: ExtractArchiveResult
-
-
-@dataclass(frozen=True)
-class ArchiveExtractFailed:
-    """Apply a terminal archive extraction failure."""
-
-    request_id: int
-    message: str
-
-
-@dataclass(frozen=True)
-class ZipCompressPreparationCompleted:
-    """Apply preflight zip-compression details before execution begins."""
-
-    request_id: int
-    request: CreateZipArchiveRequest
-    total_entries: int
-    destination_exists: bool = False
-
-
-@dataclass(frozen=True)
-class ZipCompressPreparationFailed:
-    """Apply a terminal zip-compression preparation failure."""
-
-    request_id: int
-    message: str
-
-
-@dataclass(frozen=True)
-class ZipCompressProgress:
-    """Apply zip-compression progress updates."""
-
-    request_id: int
-    completed_entries: int
-    total_entries: int
-    current_path: str | None = None
-
-
-@dataclass(frozen=True)
-class ZipCompressCompleted:
-    """Apply the completed zip-compression result."""
-
-    request_id: int
-    result: CreateZipArchiveResult
-
-
-@dataclass(frozen=True)
-class ZipCompressFailed:
-    """Apply a terminal zip-compression failure."""
-
-    request_id: int
-    message: str
-
-
-@dataclass(frozen=True)
-class FileMutationCompleted:
-    """Apply a completed rename/create operation."""
-
-    request_id: int
-    result: FileMutationResult
-
-
-@dataclass(frozen=True)
-class FileMutationFailed:
-    """Apply a terminal rename/create operation failure."""
-
-    request_id: int
-    message: str
-
-
-@dataclass(frozen=True)
-class UndoCompleted:
-    """Apply a completed undo operation."""
-
-    request_id: int
-    entry: UndoEntry
-    result: UndoResult
-
-
-@dataclass(frozen=True)
-class UndoFailed:
-    """Apply a terminal undo operation failure."""
-
-    request_id: int
-    message: str
-
-
-@dataclass(frozen=True)
-class ExternalLaunchCompleted:
-    """Apply a completed external launch operation."""
-
-    request_id: int
-    request: ExternalLaunchRequest
-
-
-@dataclass(frozen=True)
-class ExternalLaunchFailed:
-    """Apply a terminal external launch failure."""
-
-    request_id: int
-    request: ExternalLaunchRequest
-    message: str
-
-
-@dataclass(frozen=True)
-class ShellCommandCompleted:
-    """Apply a completed shell command execution."""
-
-    request_id: int
-    result: ShellCommandResult
-
-
-@dataclass(frozen=True)
-class ShellCommandFailed:
-    """Apply a shell command worker failure."""
-
-    request_id: int
-    message: str
-
-
-@dataclass(frozen=True)
-class SplitTerminalStarted:
-    """Mark the split terminal session as ready."""
-
-    session_id: int
-    cwd: str
-
-
-@dataclass(frozen=True)
-class SplitTerminalStartFailed:
-    """Apply an embedded split-terminal startup error."""
-
-    session_id: int
-    message: str
-
-
-@dataclass(frozen=True)
-class SplitTerminalOutputReceived:
-    """Append output from the active split terminal session."""
-
-    session_id: int
-    data: str
-
-
-@dataclass(frozen=True)
-class SplitTerminalExited:
-    """Apply embedded split-terminal process exit."""
-
-    session_id: int
-    exit_code: int | None
-
-
-@dataclass(frozen=True)
-class ConfigSaveCompleted:
-    """Apply a successful config save."""
-
-    request_id: int
-    path: str
-    config: AppConfig
-
-
-@dataclass(frozen=True)
-class ConfigSaveFailed:
-    """Apply a failed config save."""
-
-    request_id: int
-    message: str
-
-
-@dataclass(frozen=True)
-class SetTerminalHeight:
-    """Update the stored terminal height."""
-
-    height: int
-
-
-@dataclass(frozen=True)
-class PasteIntoPendingInput:
-    """Paste clipboard text into the pending input value."""
-
-    text: str
-
+from .actions_palette import (
+    BeginBookmarkSearch,
+    BeginCommandPalette,
+    BeginFileSearch,
+    BeginFindAndReplace,
+    BeginGoToPath,
+    BeginGrepReplace,
+    BeginGrepReplaceSelected,
+    BeginGrepSearch,
+    BeginHistorySearch,
+    BeginSelectedFilesGrep,
+    BeginTextReplace,
+    CancelCommandPalette,
+    CycleFindReplaceField,
+    CycleGrepReplaceField,
+    CycleGrepReplaceSelectedField,
+    CycleGrepSearchField,
+    CycleReplaceField,
+    CycleSelectedFilesGrepField,
+    FileSearchCompleted,
+    FileSearchFailed,
+    GrepSearchCompleted,
+    GrepSearchFailed,
+    MoveCommandPaletteCursor,
+    OpenFindResultInEditor,
+    OpenGrepResultInEditor,
+    SelectedFilesGrepKeywordChanged,
+    SetCommandPaletteQuery,
+    SetFindReplaceField,
+    SetGrepReplaceField,
+    SetGrepReplaceSelectedField,
+    SetGrepSearchField,
+    SetReplaceField,
+    SubmitCommandPalette,
+    TextReplaceApplied,
+    TextReplaceApplyFailed,
+    TextReplacePreviewCompleted,
+    TextReplacePreviewFailed,
+)
+from .actions_runtime import (
+    ArchiveExtractCompleted,
+    ArchiveExtractFailed,
+    ArchiveExtractProgress,
+    ArchivePreparationCompleted,
+    ArchivePreparationFailed,
+    AttributeInspectionFailed,
+    AttributeInspectionLoaded,
+    BrowserSnapshotFailed,
+    BrowserSnapshotLoaded,
+    ChildPaneSnapshotFailed,
+    ChildPaneSnapshotLoaded,
+    ClipboardPasteCompleted,
+    ClipboardPasteFailed,
+    ClipboardPasteNeedsResolution,
+    ConfigSaveCompleted,
+    ConfigSaveFailed,
+    CurrentPaneSnapshotLoaded,
+    DirectorySizesFailed,
+    DirectorySizesLoaded,
+    ExternalLaunchCompleted,
+    ExternalLaunchFailed,
+    FileMutationCompleted,
+    FileMutationFailed,
+    ParentChildSnapshotFailed,
+    ParentChildSnapshotLoaded,
+    RequestBrowserSnapshot,
+    RequestDirectorySizes,
+    ShellCommandCompleted,
+    ShellCommandFailed,
+    SplitTerminalExited,
+    SplitTerminalOutputReceived,
+    SplitTerminalStarted,
+    SplitTerminalStartFailed,
+    UndoCompleted,
+    UndoFailed,
+    ZipCompressCompleted,
+    ZipCompressFailed,
+    ZipCompressPreparationCompleted,
+    ZipCompressPreparationFailed,
+    ZipCompressProgress,
+)
+from .actions_ui import (
+    ClearPendingKeySequence,
+    InitializeState,
+    SetNotification,
+    SetPendingKeySequence,
+    SetTerminalHeight,
+    SetUiMode,
+)
 
 Action = (
     InitializeState
     | SetUiMode
-    | BeginFilterInput
-    | ConfirmFilterInput
-    | CancelFilterInput
-    | BeginRenameInput
-    | BeginCreateInput
-    | BeginExtractArchiveInput
-    | BeginZipCompressInput
+    | SetPendingKeySequence
+    | ClearPendingKeySequence
+    | SetNotification
+    | SetTerminalHeight
     | BeginFileSearch
     | BeginGrepSearch
     | BeginHistorySearch
     | BeginBookmarkSearch
+    | BeginGoToPath
     | BeginTextReplace
     | BeginFindAndReplace
     | BeginGrepReplace
+    | BeginGrepReplaceSelected
+    | BeginSelectedFilesGrep
+    | SelectedFilesGrepKeywordChanged
+    | CycleSelectedFilesGrepField
     | BeginCommandPalette
-    | OpenNewTab
-    | ActivateNextTab
-    | ActivatePreviousTab
-    | CloseCurrentTab
-    | BeginShellCommandInput
     | CancelCommandPalette
     | MoveCommandPaletteCursor
     | SetCommandPaletteQuery
     | SetGrepSearchField
-    | SetReplaceField
     | CycleGrepSearchField
+    | SetReplaceField
     | CycleReplaceField
     | SetFindReplaceField
     | CycleFindReplaceField
@@ -1123,11 +260,6 @@ Action = (
     | SetGrepReplaceSelectedField
     | CycleGrepReplaceSelectedField
     | SubmitCommandPalette
-    | DismissConfigEditor
-    | MoveConfigEditorCursor
-    | CycleConfigEditorValue
-    | SaveConfigEditor
-    | ResetHelpBarConfig
     | FileSearchCompleted
     | FileSearchFailed
     | GrepSearchCompleted
@@ -1136,32 +268,52 @@ Action = (
     | TextReplacePreviewFailed
     | TextReplaceApplied
     | TextReplaceApplyFailed
+    | OpenGrepResultInEditor
+    | OpenFindResultInEditor
+    | BeginFilterInput
+    | ConfirmFilterInput
+    | CancelFilterInput
+    | BeginRenameInput
+    | BeginCreateInput
+    | BeginExtractArchiveInput
+    | BeginZipCompressInput
+    | BeginShellCommandInput
+    | DismissConfigEditor
+    | MoveConfigEditorCursor
+    | CycleConfigEditorValue
+    | SaveConfigEditor
+    | ResetHelpBarConfig
     | SetPendingInputValue
     | MovePendingInputCursor
     | SetPendingInputCursor
     | DeletePendingInputForward
     | SetShellCommandValue
-    | SetPendingKeySequence
-    | ClearPendingKeySequence
     | SubmitPendingInput
-    | SubmitShellCommand
     | CancelPendingInput
+    | SubmitShellCommand
     | CancelShellCommandInput
+    | DismissNameConflict
+    | DismissAttributeDialog
+    | SetFilterQuery
+    | PasteIntoPendingInput
+    | OpenNewTab
+    | ActivateNextTab
+    | ActivatePreviousTab
+    | CloseCurrentTab
     | MoveCursor
-    | MoveCursorAndSelectRange
     | JumpCursor
+    | MoveCursorByPage
+    | MoveCursorAndSelectRange
     | SetCursorPath
     | EnterCursorDirectory
     | GoToParentDirectory
     | GoToHomeDirectory
+    | ReloadDirectory
     | GoBack
     | GoForward
-    | ReloadDirectory
     | ExitCurrentPath
     | OpenPathWithDefaultApp
     | OpenPathInEditor
-    | OpenGrepResultInEditor
-    | OpenFindResultInEditor
     | OpenTerminalAtPath
     | ShowAttributes
     | CopyPathsToClipboard
@@ -1170,6 +322,9 @@ Action = (
     | ToggleSplitTerminal
     | FocusSplitTerminal
     | SendSplitTerminalInput
+    | ToggleHiddenFiles
+    | SetSort
+    | BeginDeleteTargets
     | ToggleSelection
     | ToggleSelectionAndAdvance
     | ClearSelection
@@ -1189,18 +344,17 @@ Action = (
     | CancelArchiveExtractConfirmation
     | ConfirmZipCompress
     | CancelZipCompressConfirmation
-    | DismissNameConflict
-    | DismissAttributeDialog
-    | SetFilterQuery
-    | ToggleHiddenFiles
-    | SetSort
-    | SetNotification
     | RequestBrowserSnapshot
     | RequestDirectorySizes
+    | AttributeInspectionLoaded
+    | AttributeInspectionFailed
     | BrowserSnapshotLoaded
     | BrowserSnapshotFailed
     | ChildPaneSnapshotLoaded
     | ChildPaneSnapshotFailed
+    | CurrentPaneSnapshotLoaded
+    | ParentChildSnapshotLoaded
+    | ParentChildSnapshotFailed
     | DirectorySizesLoaded
     | DirectorySizesFailed
     | ClipboardPasteNeedsResolution
@@ -1230,6 +384,4 @@ Action = (
     | SplitTerminalExited
     | ConfigSaveCompleted
     | ConfigSaveFailed
-    | SetTerminalHeight
-    | PasteIntoPendingInput
 )

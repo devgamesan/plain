@@ -11,6 +11,8 @@ from .actions import (
     ActivateNextTab,
     ActivatePreviousTab,
     AddBookmark,
+    AttributeInspectionFailed,
+    AttributeInspectionLoaded,
     BeginBookmarkSearch,
     BeginCommandPalette,
     BeginCreateInput,
@@ -74,8 +76,8 @@ from .actions import (
     UndoLastOperation,
 )
 from .command_palette import get_command_palette_items, normalize_command_palette_cursor
-from .effects import ReduceResult
-from .models import AppState, AttributeInspectionState, ConfigEditorState
+from .effects import ReduceResult, RunAttributeInspectionEffect
+from .models import AppState, AttributeInspectionState, ConfigEditorState, NotificationState
 from .reducer_common import (
     ReducerFn,
     expand_and_validate_path,
@@ -368,6 +370,7 @@ def _run_show_attributes_command(state: AppState) -> ReduceResult:
     entry = single_target_entry(state)
     if entry is None:
         return notify(state, level="warning", message="Show attributes requires a single target")
+    request_id = state.next_request_id
     return finalize(
         replace(
             state,
@@ -376,6 +379,8 @@ def _run_show_attributes_command(state: AppState) -> ReduceResult:
             command_palette=None,
             pending_file_search_request_id=None,
             pending_grep_search_request_id=None,
+            pending_attribute_inspection_request_id=request_id,
+            next_request_id=request_id + 1,
             attribute_inspection=AttributeInspectionState(
                 name=entry.name,
                 kind=entry.kind,
@@ -384,8 +389,11 @@ def _run_show_attributes_command(state: AppState) -> ReduceResult:
                 modified_at=entry.modified_at,
                 hidden=entry.hidden,
                 permissions_mode=entry.permissions_mode,
+                owner=entry.owner,
+                group=entry.group,
             ),
-        )
+        ),
+        RunAttributeInspectionEffect(request_id=request_id, path=entry.path),
     )
 
 
@@ -840,6 +848,7 @@ def _handle_dismiss_attribute_dialog(
             ui_mode="BROWSING",
             notification=None,
             attribute_inspection=None,
+            pending_attribute_inspection_request_id=None,
         )
     )
 
@@ -853,9 +862,50 @@ def _handle_show_attributes(
     return _run_show_attributes_command(state)
 
 
+def _handle_attribute_inspection_loaded(
+    state: AppState,
+    action: AttributeInspectionLoaded,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del reduce_state
+    if action.request_id != state.pending_attribute_inspection_request_id:
+        return finalize(state)
+    return finalize(
+        replace(
+            state,
+            notification=None,
+            attribute_inspection=(
+                action.inspection
+                if state.attribute_inspection is not None
+                else None
+            ),
+            pending_attribute_inspection_request_id=None,
+        )
+    )
+
+
+def _handle_attribute_inspection_failed(
+    state: AppState,
+    action: AttributeInspectionFailed,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del reduce_state
+    if action.request_id != state.pending_attribute_inspection_request_id:
+        return finalize(state)
+    return finalize(
+        replace(
+            state,
+            notification=NotificationState(level="error", message=action.message),
+            pending_attribute_inspection_request_id=None,
+        )
+    )
+
+
 _PaletteHandler = Callable[[AppState, Action, ReducerFn], ReduceResult]
 
 _PALETTE_HANDLERS: dict[type[Action], _PaletteHandler] = {
+    AttributeInspectionLoaded: _handle_attribute_inspection_loaded,
+    AttributeInspectionFailed: _handle_attribute_inspection_failed,
     BeginCommandPalette: _handle_begin_command_palette,
     BeginFileSearch: _handle_begin_file_search,
     BeginGrepSearch: _handle_begin_grep_search,

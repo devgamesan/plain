@@ -150,6 +150,21 @@ def handle_set_grep_search_field(
             )
         )
 
+    # If filename filter is changed and we have existing results, re-apply filtering
+    if field == "filename" and state.command_palette.grep_search_results:
+        return sync_grep_preview(
+            replace(
+                state,
+                command_palette=replace(
+                    next_palette,
+                    grep_search_results=filter_grep_results_by_filename(
+                        state.command_palette.grep_search_results,
+                        value,
+                    ),
+                ),
+            )
+        )
+
     try:
         include_globs, exclude_globs = validate_grep_search_filters(
             next_palette.grep_search_include_extensions,

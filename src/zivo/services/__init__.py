@@ -19,6 +19,11 @@ from .archive_list import (
     FakeArchiveListService,
     LiveArchiveListService,
 )
+from .attribute_inspection import (
+    AttributeInspectionService,
+    FakeAttributeInspectionService,
+    LiveAttributeInspectionService,
+)
 from .browser_snapshot import (
     PREVIEW_PERMISSION_DENIED_MESSAGE,
     BrowserSnapshotLoader,
@@ -110,6 +115,7 @@ __all__ = [
     "AppConfigLoader",
     "ArchiveExtractService",
     "ArchiveListService",
+    "AttributeInspectionService",
     "BrowserSnapshotLoader",
     "ClipboardOperationService",
     "ConfigSaveService",
@@ -121,6 +127,7 @@ __all__ = [
     "GrepSearchService",
     "FakeArchiveExtractService",
     "FakeArchiveListService",
+    "FakeAttributeInspectionService",
     "FakeFileMutationService",
     "FakeFileSearchService",
     "FakeGrepSearchService",
@@ -135,6 +142,7 @@ __all__ = [
     "LoggingSetupResult",
     "LiveArchiveExtractService",
     "LiveArchiveListService",
+    "LiveAttributeInspectionService",
     "LiveExternalLaunchService",
     "LiveFileSearchService",
     "LiveGrepSearchService",

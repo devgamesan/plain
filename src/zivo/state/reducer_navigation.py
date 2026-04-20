@@ -16,6 +16,7 @@ from .actions import (
     ChildPaneSnapshotLoaded,
     CloseCurrentTab,
     ConfirmFilterInput,
+    CurrentPaneSnapshotLoaded,
     DirectorySizesFailed,
     DirectorySizesLoaded,
     EnterCursorDirectory,
@@ -28,6 +29,8 @@ from .actions import (
     MoveCursorAndSelectRange,
     MoveCursorByPage,
     OpenNewTab,
+    ParentChildSnapshotFailed,
+    ParentChildSnapshotLoaded,
     ReloadDirectory,
     RequestBrowserSnapshot,
     RequestDirectorySizes,
@@ -36,7 +39,13 @@ from .actions import (
     SetSort,
     ToggleHiddenFiles,
 )
-from .effects import LoadBrowserSnapshotEffect, ReduceResult, RunDirectorySizeEffect
+from .effects import (
+    LoadBrowserSnapshotEffect,
+    LoadCurrentPaneEffect,
+    LoadParentChildEffect,
+    ReduceResult,
+    RunDirectorySizeEffect,
+)
 from .models import (
     AppState,
     BrowserTabState,
@@ -714,6 +723,20 @@ def _handle_request_browser_snapshot(
         next_request_id=request_id + 1,
         ui_mode="BUSY" if action.blocking else state.ui_mode,
     )
+
+    # Use progressive loading if enabled and not blocking
+    if getattr(action, "progressive", True) and not action.blocking:
+        return finalize(
+            next_state,
+            LoadCurrentPaneEffect(
+                request_id=request_id,
+                path=action.path,
+                cursor_path=action.cursor_path,
+                invalidate_paths=action.invalidate_paths,
+            ),
+        )
+
+    # Use legacy synchronous loading for blocking mode
     return finalize(
         next_state,
         LoadBrowserSnapshotEffect(
@@ -776,6 +799,110 @@ def _handle_browser_snapshot_loaded(
         ui_mode="BROWSING" if action.blocking else state.ui_mode,
     )
     return maybe_request_directory_sizes(next_state, reduce_state)
+
+
+def _handle_current_pane_loaded(
+    state: AppState,
+    action: CurrentPaneSnapshotLoaded,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    """Handle Phase 1 of progressive loading: current pane loaded."""
+    tab_index = _find_browser_snapshot_tab_index(state, action.request_id)
+    if tab_index is None:
+        return finalize(state)
+
+    tab = select_browser_tabs(state)[tab_index]
+    next_tab = replace(
+        tab,
+        current_path=action.current_path,
+        current_pane=action.current_pane,
+        parent_pane=action.parent_pane,
+        parent_pane_loading=True,
+        child_pane_loading=True,
+    )
+    next_state = _replace_browser_tab(state, tab_index, next_tab)
+
+    if tab_index == state.active_tab_index:
+        next_state = replace(
+            next_state,
+            notification=state.post_reload_notification,
+            post_reload_notification=None,
+        )
+
+    # Trigger Phase 2: load parent and child panes
+    return finalize(
+        next_state,
+        LoadParentChildEffect(
+            request_id=action.request_id,
+            path=action.current_path,
+            cursor_path=action.current_pane.cursor_path,
+            current_pane=action.current_pane,
+        ),
+    )
+
+
+def _handle_parent_child_loaded(
+    state: AppState,
+    action: ParentChildSnapshotLoaded,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    """Handle Phase 2 of progressive loading: parent and child panes loaded."""
+    tab_index = _find_browser_snapshot_tab_index(state, action.request_id)
+    if tab_index is None:
+        return finalize(state)
+
+    tab = select_browser_tabs(state)[tab_index]
+    next_tab = replace(
+        tab,
+        parent_pane=action.parent_pane,
+        child_pane=action.child_pane,
+        parent_pane_loading=False,
+        child_pane_loading=False,
+    )
+    next_state = _replace_browser_tab(state, tab_index, next_tab)
+
+    if tab_index != state.active_tab_index:
+        return finalize(replace(next_state, post_reload_notification=None))
+
+    next_state = replace(
+        next_state,
+        notification=state.post_reload_notification,
+        post_reload_notification=None,
+        pending_browser_snapshot_request_id=None,
+    )
+
+    # Request directory sizes for the new entries
+    return maybe_request_directory_sizes(next_state, reduce_state)
+
+
+def _handle_parent_child_failed(
+    state: AppState,
+    action: ParentChildSnapshotFailed,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    """Handle Phase 2 failure: clear loading flags and show error."""
+    tab_index = _find_browser_snapshot_tab_index(state, action.request_id)
+    if tab_index is None:
+        return finalize(state)
+
+    tab = replace(
+        select_browser_tabs(state)[tab_index],
+        parent_pane_loading=False,
+        child_pane_loading=False,
+    )
+    next_state = _replace_browser_tab(state, tab_index, tab)
+
+    if tab_index != state.active_tab_index:
+        return finalize(replace(next_state, post_reload_notification=None))
+
+    return finalize(
+        replace(
+            next_state,
+            notification=NotificationState(level="error", message=action.message),
+            post_reload_notification=None,
+            pending_browser_snapshot_request_id=None,
+        )
+    )
 
 
 def _handle_browser_snapshot_failed(
@@ -961,6 +1088,9 @@ _NAVIGATION_HANDLERS: dict[type[Action], _NavigationHandler] = {
     RequestDirectorySizes: _handle_request_directory_sizes,
     BrowserSnapshotLoaded: _handle_browser_snapshot_loaded,
     BrowserSnapshotFailed: _handle_browser_snapshot_failed,
+    CurrentPaneSnapshotLoaded: _handle_current_pane_loaded,
+    ParentChildSnapshotLoaded: _handle_parent_child_loaded,
+    ParentChildSnapshotFailed: _handle_parent_child_failed,
     ChildPaneSnapshotLoaded: _handle_child_pane_snapshot_loaded,
     ChildPaneSnapshotFailed: _handle_child_pane_snapshot_failed,
     DirectorySizesLoaded: _handle_directory_sizes_loaded,

@@ -8,6 +8,7 @@ from .reducer_mutations_archive import ARCHIVE_MUTATION_HANDLERS
 from .reducer_mutations_common import MutationHandler
 from .reducer_mutations_delete import DELETE_MUTATION_HANDLERS
 from .reducer_mutations_input import INPUT_MUTATION_HANDLERS
+from .reducer_mutations_replace import REPLACE_MUTATION_HANDLERS
 from .reducer_mutations_selection import SELECTION_MUTATION_HANDLERS
 from .reducer_mutations_undo import UNDO_MUTATION_HANDLERS
 
@@ -16,6 +17,7 @@ _MUTATION_HANDLERS: dict[type[Action], MutationHandler] = {
     **SELECTION_MUTATION_HANDLERS,
     **DELETE_MUTATION_HANDLERS,
     **ARCHIVE_MUTATION_HANDLERS,
+    **REPLACE_MUTATION_HANDLERS,
     **UNDO_MUTATION_HANDLERS,
 }
 

@@ -7,7 +7,7 @@ from textual.css.query import NoMatches
 
 from zivo.models import ThreePaneShellData
 from zivo.services import SplitTerminalSession
-from zivo.state import AppState
+from zivo.state.models import AppState
 from zivo.ui import (
     AttributeDialog,
     ChildPane,

@@ -17,15 +17,9 @@ from zivo.models import (
 from zivo.state import (
     ArchiveExtractConfirmationState,
     AttributeInspectionState,
-    BeginCommandPalette,
-    BeginCreateInput,
-    BeginFilterInput,
-    BeginSelectedFilesGrep,
     CommandPaletteState,
     ConfigEditorState,
-    ConfirmFilterInput,
     CurrentPaneDeltaState,
-    CutTargets,
     DeleteConfirmationState,
     DirectoryEntryState,
     DirectorySizeCacheEntry,
@@ -35,17 +29,11 @@ from zivo.state import (
     HistoryState,
     NameConflictState,
     NotificationState,
-    OpenNewTab,
     PaneState,
     PasteConflictState,
     PendingInputState,
     PendingKeySequenceState,
     ReplacePreviewResultState,
-    SetCursorPath,
-    SetFilterQuery,
-    SetNotification,
-    SetSort,
-    ToggleSelection,
     ZipCompressConfirmationState,
     build_initial_app_state,
     build_placeholder_app_state,
@@ -67,6 +55,20 @@ from zivo.state import (
     select_visible_current_entry_states,
 )
 from zivo.state import command_palette as command_palette_module
+from zivo.state.actions import (
+    BeginCommandPalette,
+    BeginCreateInput,
+    BeginFilterInput,
+    BeginSelectedFilesGrep,
+    ConfirmFilterInput,
+    CutTargets,
+    OpenNewTab,
+    SetCursorPath,
+    SetFilterQuery,
+    SetNotification,
+    SetSort,
+    ToggleSelection,
+)
 from zivo.state.command_palette import CommandPaletteItem
 from zivo.state.reducer_common import directory_size_target_paths
 from zivo.state.selectors import (
@@ -741,6 +743,46 @@ def test_select_target_paths_returns_empty_tuple_for_empty_directory() -> None:
     )
 
     assert select_target_paths(state) == ()
+
+
+def test_select_current_entry_for_path_returns_none_for_filtered_entry() -> None:
+    hidden_path = "/home/tadashi/develop/zivo/README.md"
+    visible_path = "/home/tadashi/develop/zivo/docs"
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(
+                DirectoryEntryState(hidden_path, "README.md", "file"),
+                DirectoryEntryState(visible_path, "docs", "dir"),
+            ),
+            cursor_path=visible_path,
+        ),
+        filter=replace(build_initial_app_state().filter, query="docs", active=True),
+    )
+
+    assert selectors_module.select_current_entry_for_path(state, hidden_path) is None
+    assert selectors_module.select_current_entry_for_path(state, visible_path) is not None
+
+
+def test_select_target_file_paths_ignores_hidden_selected_entries_when_hidden_files_are_off(
+) -> None:
+    hidden_path = "/home/tadashi/develop/zivo/.env"
+    visible_path = "/home/tadashi/develop/zivo/README.md"
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(
+                DirectoryEntryState(hidden_path, ".env", "file", hidden=True),
+                DirectoryEntryState(visible_path, "README.md", "file"),
+            ),
+            cursor_path=visible_path,
+            selected_paths=frozenset({hidden_path}),
+        ),
+    )
+
+    assert selectors_module.select_target_file_paths(state) == ()
 
 
 def test_select_current_entries_marks_selected_rows() -> None:
@@ -1560,7 +1602,7 @@ def test_select_command_palette_state_for_text_replace_includes_input_fields() -
     assert [field.value for field in palette_state.input_fields] == ["todo", "done"]
     assert [field.active for field in palette_state.input_fields] == [False, True]
     assert [item.label for item in palette_state.items] == [
-        "README.md (2): 8: todo item -> done item"
+        "README.md (2): 8: todo item"
     ]
     assert palette_state.empty_message == "Preview shown in right pane. Press Enter to apply."
 

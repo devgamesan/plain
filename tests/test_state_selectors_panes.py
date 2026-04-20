@@ -1,0 +1,169 @@
+from tests import state_selectors_cases as cases
+
+test_build_placeholder_app_state_keeps_parent_pane_empty_at_root = (
+    cases.test_build_placeholder_app_state_keeps_parent_pane_empty_at_root
+)
+test_command_palette_includes_tab_commands_with_lowercase_shortcuts = (
+    cases.test_command_palette_includes_tab_commands_with_lowercase_shortcuts
+)
+test_directory_size_target_paths_only_uses_current_pane_directories = (
+    cases.test_directory_size_target_paths_only_uses_current_pane_directories
+)
+test_directory_size_target_paths_respects_current_hidden_visibility = (
+    cases.test_directory_size_target_paths_respects_current_hidden_visibility
+)
+test_directory_size_target_paths_returns_empty_when_directory_sizes_are_disabled = (
+    cases.test_directory_size_target_paths_returns_empty_when_directory_sizes_are_disabled
+)
+test_directory_size_target_paths_uses_current_pane_for_size_sort = (
+    cases.test_directory_size_target_paths_uses_current_pane_for_size_sort
+)
+test_has_execute_permission_returns_false_for_no_permissions = (
+    cases.test_has_execute_permission_returns_false_for_no_permissions
+)
+test_has_execute_permission_returns_false_for_non_executable_files = (
+    cases.test_has_execute_permission_returns_false_for_non_executable_files
+)
+test_has_execute_permission_returns_false_for_none_permissions = (
+    cases.test_has_execute_permission_returns_false_for_none_permissions
+)
+test_has_execute_permission_returns_true_for_executable_files = (
+    cases.test_has_execute_permission_returns_true_for_executable_files
+)
+test_has_execute_permission_returns_true_for_execute_only_files = (
+    cases.test_has_execute_permission_returns_true_for_execute_only_files
+)
+test_select_child_entries_clears_stale_snapshot_while_request_is_pending = (
+    cases.test_select_child_entries_clears_stale_snapshot_while_request_is_pending
+)
+test_select_child_entries_is_empty_when_cursor_is_file = (
+    cases.test_select_child_entries_is_empty_when_cursor_is_file
+)
+test_select_child_syntax_theme_prefers_explicit_preview_style = (
+    cases.test_select_child_syntax_theme_prefers_explicit_preview_style
+)
+test_select_child_syntax_theme_tracks_builtin_theme_brightness = (
+    cases.test_select_child_syntax_theme_tracks_builtin_theme_brightness
+)
+test_select_current_entries_applies_filter_and_sort = (
+    cases.test_select_current_entries_applies_filter_and_sort
+)
+test_select_current_entries_hides_hidden_by_default = (
+    cases.test_select_current_entries_hides_hidden_by_default
+)
+test_select_current_entries_marks_cut_rows = cases.test_select_current_entries_marks_cut_rows
+test_select_current_entries_marks_selected_rows = (
+    cases.test_select_current_entries_marks_selected_rows
+)
+test_select_current_entry_for_path_returns_none_for_filtered_entry = (
+    cases.test_select_current_entry_for_path_returns_none_for_filtered_entry
+)
+test_select_current_summary_counts_selected_absolute_paths = (
+    cases.test_select_current_summary_counts_selected_absolute_paths
+)
+test_select_current_summary_state_keeps_summary_format = (
+    cases.test_select_current_summary_state_keeps_summary_format
+)
+test_select_pane_entries_show_directory_sizes_from_cache = (
+    cases.test_select_pane_entries_show_directory_sizes_from_cache
+)
+test_select_parent_and_child_entries_hide_hidden_unless_enabled = (
+    cases.test_select_parent_and_child_entries_hide_hidden_unless_enabled
+)
+test_select_parent_and_child_entries_keep_fixed_name_sort = (
+    cases.test_select_parent_and_child_entries_keep_fixed_name_sort
+)
+test_select_parent_entries_marks_current_directory_selected = (
+    cases.test_select_parent_entries_marks_current_directory_selected
+)
+test_select_shell_data_builds_child_preview_for_permission_denied_directory = (
+    cases.test_select_shell_data_builds_child_preview_for_permission_denied_directory
+)
+test_select_shell_data_builds_child_preview_for_text_file = (
+    cases.test_select_shell_data_builds_child_preview_for_text_file
+)
+test_select_shell_data_builds_child_preview_message_for_unavailable_file = (
+    cases.test_select_shell_data_builds_child_preview_message_for_unavailable_file
+)
+test_select_shell_data_builds_grep_preview_for_palette_selection = (
+    cases.test_select_shell_data_builds_grep_preview_for_palette_selection
+)
+test_select_shell_data_emits_row_delta_updates_for_cut_changes = (
+    cases.test_select_shell_data_emits_row_delta_updates_for_cut_changes
+)
+test_select_shell_data_emits_row_delta_updates_for_selection_changes = (
+    cases.test_select_shell_data_emits_row_delta_updates_for_selection_changes
+)
+test_select_shell_data_emits_size_delta_updates_for_directory_size_changes = (
+    cases.test_select_shell_data_emits_size_delta_updates_for_directory_size_changes
+)
+test_select_shell_data_exposes_visible_cursor_index = (
+    cases.test_select_shell_data_exposes_visible_cursor_index
+)
+test_select_shell_data_hides_cursor_while_filtering = (
+    cases.test_select_shell_data_hides_cursor_while_filtering
+)
+test_select_shell_data_hides_stale_preview_while_request_is_pending = (
+    cases.test_select_shell_data_hides_stale_preview_while_request_is_pending
+)
+test_select_shell_data_includes_selected_cut_and_contextual_models = (
+    cases.test_select_shell_data_includes_selected_cut_and_contextual_models
+)
+test_select_shell_data_keeps_cursor_visible_in_palette_mode = (
+    cases.test_select_shell_data_keeps_cursor_visible_in_palette_mode
+)
+test_select_shell_data_keeps_full_refresh_when_sorting_by_size = (
+    cases.test_select_shell_data_keeps_full_refresh_when_sorting_by_size
+)
+test_select_shell_data_rebuilds_only_current_entries_when_selection_changes = (
+    cases.test_select_shell_data_rebuilds_only_current_entries_when_selection_changes
+)
+test_select_shell_data_reuses_current_entries_when_only_cursor_changes = (
+    cases.test_select_shell_data_reuses_current_entries_when_only_cursor_changes
+)
+test_select_shell_data_reuses_current_visible_entries = (
+    cases.test_select_shell_data_reuses_current_visible_entries
+)
+test_select_shell_data_reuses_pane_entries_when_only_notification_changes = (
+    cases.test_select_shell_data_reuses_pane_entries_when_only_notification_changes
+)
+test_select_shell_data_viewport_projection_limits_rendered_entries = (
+    cases.test_select_shell_data_viewport_projection_limits_rendered_entries
+)
+test_select_shell_data_viewport_projection_reuses_window_for_cursor_move_inside_window = (
+    cases.test_select_shell_data_viewport_projection_reuses_window_for_cursor_move_inside_window
+)
+test_select_shell_data_viewport_projection_shifts_window_after_cursor_crosses_edge = (
+    cases.test_select_shell_data_viewport_projection_shifts_window_after_cursor_crosses_edge
+)
+test_select_shell_data_viewport_projection_skips_offscreen_row_delta_updates = (
+    cases.test_select_shell_data_viewport_projection_skips_offscreen_row_delta_updates
+)
+test_select_shell_data_viewport_projection_skips_offscreen_size_delta_updates = (
+    cases.test_select_shell_data_viewport_projection_skips_offscreen_size_delta_updates
+)
+test_select_tab_bar_state_marks_active_tab = cases.test_select_tab_bar_state_marks_active_tab
+test_select_target_file_paths_ignores_hidden_selected_entries_when_hidden_files_are_off = (
+    cases.test_select_target_file_paths_ignores_hidden_selected_entries_when_hidden_files_are_off
+)
+test_select_target_paths_falls_back_to_cursor = (
+    cases.test_select_target_paths_falls_back_to_cursor
+)
+test_select_target_paths_ignores_hidden_selected_entries_when_hidden_files_are_off = (
+    cases.test_select_target_paths_ignores_hidden_selected_entries_when_hidden_files_are_off
+)
+test_select_target_paths_prefers_selection_in_entry_order = (
+    cases.test_select_target_paths_prefers_selection_in_entry_order
+)
+test_select_target_paths_returns_empty_tuple_for_empty_directory = (
+    cases.test_select_target_paths_returns_empty_tuple_for_empty_directory
+)
+test_select_visible_current_entries_skip_size_overlay_when_not_sorting_by_size = (
+    cases.test_select_visible_current_entries_skip_size_overlay_when_not_sorting_by_size
+)
+test_select_visible_current_entries_sorts_by_modified_with_missing_values_last = (
+    cases.test_select_visible_current_entries_sorts_by_modified_with_missing_values_last
+)
+test_select_visible_current_entries_sorts_by_size_without_directories_first = (
+    cases.test_select_visible_current_entries_sorts_by_size_without_directories_first
+)

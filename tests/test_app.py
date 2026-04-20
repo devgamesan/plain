@@ -38,6 +38,7 @@ from zivo.models import (
     UndoResult,
 )
 from zivo.services import (
+    FakeAttributeInspectionService,
     FakeBrowserSnapshotLoader,
     FakeClipboardOperationService,
     FakeDirectorySizeService,
@@ -52,18 +53,16 @@ from zivo.services import (
     LiveExternalLaunchService,
 )
 from zivo.state import (
+    AttributeInspectionState,
     BrowserSnapshot,
     CommandPaletteState,
-    ConfigSaveCompleted,
     DirectoryEntryState,
     FileSearchResultState,
     GrepSearchResultState,
-    JumpCursor,
-    MoveCursor,
     PaneState,
-    SetTerminalHeight,
     build_initial_app_state,
 )
+from zivo.state.actions import ConfigSaveCompleted, JumpCursor, MoveCursor, SetTerminalHeight
 from zivo.state.selectors import (
     compute_current_pane_visible_window,
     select_command_palette_state,
@@ -3577,7 +3576,23 @@ async def test_app_command_palette_show_attributes_opens_read_only_dialog() -> N
             )
         }
     )
-    app = create_app(snapshot_loader=loader, initial_path=path)
+    attribute_service = FakeAttributeInspectionService(
+        inspections_by_path={
+            f"{path}/docs": AttributeInspectionState(
+                name="docs",
+                kind="dir",
+                path=f"{path}/docs",
+                permissions_mode=0o40755,
+                owner="tadashi",
+                group="staff",
+            )
+        }
+    )
+    app = create_app(
+        snapshot_loader=loader,
+        attribute_inspection_service=attribute_service,
+        initial_path=path,
+    )
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
@@ -3597,7 +3612,7 @@ async def test_app_command_palette_show_attributes_opens_read_only_dialog() -> N
         assert "Type: Directory" in str(lines.renderable)
         assert f"Path: {path}/docs" in str(lines.renderable)
         assert "Hidden: No" in str(lines.renderable)
-        assert "Permissions:" in str(lines.renderable)
+        assert "Permissions: drwxr-xr-x (755) tadashi staff" in str(lines.renderable)
 
         await pilot.press("enter")
         await asyncio.sleep(0.05)
@@ -3745,8 +3760,8 @@ async def test_app_command_palette_replace_text_previews_and_applies_selected_fi
         palette_state = select_command_palette_state(app.app_state)
         assert palette_state is not None
         assert [item.label for item in palette_state.items] == [
-            "README.md (2): 4: todo item -> done item",
-            "docs.md (1): 2: todo second -> done second",
+            "README.md (2): 4: todo item",
+            "docs.md (1): 2: todo second",
         ]
 
         child_pane = select_shell_data(app.app_state).child_pane
@@ -3771,6 +3786,20 @@ async def test_app_command_palette_replace_text_previews_and_applies_selected_fi
         assert "-todo second" in second_child_pane.preview_content
         assert "+done second" in second_child_pane.preview_content
 
+        await pilot.press("enter")
+
+        # Check that confirmation dialog is shown
+        await _wait_for_predicate(
+            lambda: app.app_state.ui_mode == "CONFIRM",
+            timeout=0.5,
+            message="confirmation dialog was not shown",
+        )
+        assert app.app_state.replace_confirmation is not None
+        assert app.app_state.replace_confirmation.find_text == "todo"
+        assert app.app_state.replace_confirmation.replacement_text == "done"
+        assert app.app_state.replace_confirmation.total_match_count == 3
+
+        # Confirm the replace operation
         await pilot.press("enter")
 
         await _wait_for_predicate(

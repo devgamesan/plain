@@ -2,7 +2,8 @@ from collections.abc import Iterable
 from dataclasses import replace
 from pathlib import Path
 
-from zivo.state import DirectoryEntryState, PaneState, reduce_app_state
+from zivo.state import reduce_app_state
+from zivo.state.models import DirectoryEntryState, PaneState
 
 
 def reduce_state(state, action):

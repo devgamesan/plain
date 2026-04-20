@@ -12,17 +12,19 @@ from zivo.models import (
     UndoResult,
 )
 from zivo.state import (
-    FileMutationCompleted,
-    FileMutationFailed,
     LoadBrowserSnapshotEffect,
     NotificationState,
     PendingInputState,
     RunUndoEffect,
+    build_initial_app_state,
+    reduce_app_state,
+)
+from zivo.state.actions import (
+    FileMutationCompleted,
+    FileMutationFailed,
     UndoCompleted,
     UndoFailed,
     UndoLastOperation,
-    build_initial_app_state,
-    reduce_app_state,
 )
 
 

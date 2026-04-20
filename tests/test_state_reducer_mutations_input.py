@@ -4,19 +4,22 @@ from pathlib import Path
 from tests.test_state_reducer import _reduce_state
 from zivo.models import CreatePathRequest, RenameRequest
 from zivo.state import (
-    BeginCreateInput,
-    BeginExtractArchiveInput,
-    BeginRenameInput,
-    BeginZipCompressInput,
-    DismissNameConflict,
     NameConflictState,
     NotificationState,
     PendingInputState,
     RunFileMutationEffect,
-    SetPendingInputValue,
-    SubmitPendingInput,
     build_initial_app_state,
     reduce_app_state,
+)
+from zivo.state.actions import (
+    BeginCreateInput,
+    BeginExtractArchiveInput,
+    BeginRenameInput,
+    BeginZipCompressInput,
+    CancelPendingInput,
+    DismissNameConflict,
+    SetPendingInputValue,
+    SubmitPendingInput,
 )
 
 
@@ -90,8 +93,6 @@ def test_begin_zip_compress_input_sets_default_destination() -> None:
 
 
 def test_cancel_pending_input_returns_to_browsing() -> None:
-    from zivo.state import CancelPendingInput
-
     state = replace(
         build_initial_app_state(),
         ui_mode="RENAME",

@@ -3,24 +3,26 @@ from dataclasses import replace
 from zivo.app_runtime import complete_worker_actions, failed_worker_actions
 from zivo.models import ShellCommandResult
 from zivo.state import (
-    BeginCommandPalette,
-    BeginShellCommandInput,
-    CancelShellCommandInput,
     NotificationState,
     RunShellCommandEffect,
-    SetCommandPaletteQuery,
-    SetNotification,
-    SetShellCommandValue,
-    ShellCommandCompleted,
-    ShellCommandFailed,
     ShellCommandState,
-    SubmitCommandPalette,
-    SubmitShellCommand,
     build_initial_app_state,
     dispatch_key_input,
     reduce_app_state,
     select_help_bar_state,
     select_shell_command_dialog_state,
+)
+from zivo.state.actions import (
+    BeginCommandPalette,
+    BeginShellCommandInput,
+    CancelShellCommandInput,
+    SetCommandPaletteQuery,
+    SetNotification,
+    SetShellCommandValue,
+    ShellCommandCompleted,
+    ShellCommandFailed,
+    SubmitCommandPalette,
+    SubmitShellCommand,
 )
 
 

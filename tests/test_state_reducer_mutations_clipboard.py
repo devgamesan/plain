@@ -12,12 +12,6 @@ from zivo.models import (
     UndoMovePathStep,
 )
 from zivo.state import (
-    CancelPasteConflict,
-    ClipboardPasteCompleted,
-    ClipboardPasteFailed,
-    ClipboardPasteNeedsResolution,
-    CopyTargets,
-    CutTargets,
     DeleteConfirmationState,
     DirectoryEntryState,
     LoadBrowserSnapshotEffect,
@@ -25,15 +19,23 @@ from zivo.state import (
     NameConflictState,
     NotificationState,
     PaneState,
-    PasteClipboard,
     PasteConflictState,
-    ResolvePasteConflict,
     RunClipboardPasteEffect,
     RunDirectorySizeEffect,
-    SelectAllVisibleEntries,
-    ToggleSelectionAndAdvance,
     build_initial_app_state,
     reduce_app_state,
+)
+from zivo.state.actions import (
+    CancelPasteConflict,
+    ClipboardPasteCompleted,
+    ClipboardPasteFailed,
+    ClipboardPasteNeedsResolution,
+    CopyTargets,
+    CutTargets,
+    PasteClipboard,
+    ResolvePasteConflict,
+    SelectAllVisibleEntries,
+    ToggleSelectionAndAdvance,
 )
 
 

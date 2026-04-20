@@ -16,6 +16,8 @@ from zivo.app_runtime_core import (
 from zivo.state import (
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
+    LoadCurrentPaneEffect,
+    LoadParentChildEffect,
     RunDirectorySizeEffect,
     RunFileSearchEffect,
     RunGrepSearchEffect,
@@ -127,6 +129,48 @@ def start_child_pane_snapshot(app: Any, effect: LoadChildPaneSnapshotEffect) -> 
             name=f"child-pane-snapshot:{effect.request_id}",
             group="child-pane-snapshot",
             description=effect.cursor_path,
+            exclusive=True,
+        ),
+    )
+
+
+def schedule_progressive_browser_snapshot(app: Any, effect: LoadCurrentPaneEffect) -> None:
+    """Schedule Phase 1 of progressive loading: current pane + minimal parent."""
+    if effect.invalidate_paths:
+        app._snapshot_loader.invalidate_directory_listing_cache(effect.invalidate_paths)
+
+    run_worker(
+        app,
+        effect,
+        partial(
+            app._snapshot_loader.load_current_pane_snapshot,
+            effect.path,
+            effect.cursor_path,
+        ),
+        WorkerSpec(
+            name=f"progressive-snapshot-phase1:{effect.request_id}",
+            group="browser-snapshot",
+            description=effect.path,
+            exclusive=True,
+        ),
+    )
+
+
+def schedule_parent_child_update(app: Any, effect: LoadParentChildEffect) -> None:
+    """Schedule Phase 2 of progressive loading: parent + child panes."""
+    run_worker(
+        app,
+        effect,
+        partial(
+            app._snapshot_loader.load_parent_child_panes,
+            effect.path,
+            effect.cursor_path,
+            effect.current_pane,
+        ),
+        WorkerSpec(
+            name=f"progressive-snapshot-phase2:{effect.request_id}",
+            group="browser-snapshot",
+            description=effect.path,
             exclusive=True,
         ),
     )

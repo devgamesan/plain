@@ -9,17 +9,8 @@ from zivo.models import (
     ExtractArchiveResult,
 )
 from zivo.state import (
-    ArchiveExtractCompleted,
     ArchiveExtractConfirmationState,
-    ArchiveExtractFailed,
-    ArchiveExtractProgress,
     ArchiveExtractProgressState,
-    ArchivePreparationCompleted,
-    ArchivePreparationFailed,
-    CancelArchiveExtractConfirmation,
-    CancelZipCompressConfirmation,
-    ConfirmArchiveExtract,
-    ConfirmZipCompress,
     LoadBrowserSnapshotEffect,
     NotificationState,
     PendingInputState,
@@ -27,21 +18,31 @@ from zivo.state import (
     RunArchivePreparationEffect,
     RunZipCompressEffect,
     RunZipCompressPreparationEffect,
-    ZipCompressCompleted,
     ZipCompressConfirmationState,
-    ZipCompressFailed,
-    ZipCompressPreparationCompleted,
-    ZipCompressProgress,
     ZipCompressProgressState,
     build_initial_app_state,
     reduce_app_state,
+)
+from zivo.state.actions import (
+    ArchiveExtractCompleted,
+    ArchiveExtractFailed,
+    ArchiveExtractProgress,
+    ArchivePreparationCompleted,
+    ArchivePreparationFailed,
+    CancelArchiveExtractConfirmation,
+    CancelZipCompressConfirmation,
+    ConfirmArchiveExtract,
+    ConfirmZipCompress,
+    SubmitPendingInput,
+    ZipCompressCompleted,
+    ZipCompressFailed,
+    ZipCompressPreparationCompleted,
+    ZipCompressProgress,
 )
 from zivo.state.reducer_common import browser_snapshot_invalidation_paths
 
 
 def test_submit_pending_extract_starts_archive_preparation() -> None:
-    from zivo.state import SubmitPendingInput
-
     source_path = "/home/tadashi/develop/zivo/archive.zip"
     dest_path = "/tmp/output/archive"
     state = replace(
@@ -70,8 +71,6 @@ def test_submit_pending_extract_starts_archive_preparation() -> None:
 
 
 def test_submit_pending_zip_compress_starts_preparation() -> None:
-    from zivo.state import SubmitPendingInput
-
     dest_path = "/tmp/output.zip"
     state = replace(
         build_initial_app_state(),
@@ -106,8 +105,6 @@ def test_submit_pending_zip_compress_starts_preparation() -> None:
 
 
 def test_submit_pending_extract_resolves_relative_destination_from_archive_parent() -> None:
-    from zivo.state import SubmitPendingInput
-
     source_path = "/home/tadashi/develop/zivo/docs/archive.tar.bz2"
     state = replace(
         build_initial_app_state(),

@@ -33,6 +33,7 @@ from zivo.models import (
 )
 from zivo.services import (
     ArchiveExtractService,
+    AttributeInspectionService,
     BrowserSnapshotLoader,
     ClipboardOperationService,
     ConfigSaveService,
@@ -42,6 +43,7 @@ from zivo.services import (
     FileSearchService,
     GrepSearchService,
     LiveArchiveExtractService,
+    LiveAttributeInspectionService,
     LiveBrowserSnapshotLoader,
     LiveClipboardOperationService,
     LiveConfigSaveService,
@@ -64,21 +66,23 @@ from zivo.services import (
     resolve_config_path,
 )
 from zivo.state import (
-    Action,
     AppState,
     Effect,
-    ExitCurrentPath,
     NotificationState,
     ReduceResult,
-    RequestBrowserSnapshot,
-    SetTerminalHeight,
     SortState,
-    SplitTerminalExited,
     build_placeholder_app_state,
     dispatch_key_input,
     iter_bound_keys,
     reduce_app_state,
     select_shell_data,
+)
+from zivo.state.actions import (
+    Action,
+    ExitCurrentPath,
+    RequestBrowserSnapshot,
+    SetTerminalHeight,
+    SplitTerminalExited,
 )
 from zivo.ui import (
     AttributeDialog,
@@ -168,6 +172,7 @@ class zivoApp(App[None]):
     def __init__(
         self,
         snapshot_loader: BrowserSnapshotLoader | None = None,
+        attribute_inspection_service: AttributeInspectionService | None = None,
         clipboard_service: ClipboardOperationService | None = None,
         config_save_service: ConfigSaveService | None = None,
         directory_size_service: DirectorySizeService | None = None,
@@ -205,6 +210,9 @@ class zivoApp(App[None]):
             current_pane_projection_mode=current_pane_projection_mode,
         )
         self._snapshot_loader = snapshot_loader or LiveBrowserSnapshotLoader()
+        self._attribute_inspection_service = (
+            attribute_inspection_service or LiveAttributeInspectionService()
+        )
         self._clipboard_service = clipboard_service or LiveClipboardOperationService()
         self._config_save_service = config_save_service or LiveConfigSaveService()
         self._directory_size_service = directory_size_service or LiveDirectorySizeService()
@@ -429,7 +437,7 @@ class zivoApp(App[None]):
         ):
             text = self._external_launch_service.get_from_clipboard()
             if text:
-                from zivo.state import PasteIntoPendingInput
+                from zivo.state.actions import PasteIntoPendingInput
 
                 await self.dispatch_actions((PasteIntoPendingInput(text=text),))
             event.stop()
@@ -457,7 +465,7 @@ class zivoApp(App[None]):
 
         if self._app_state.ui_mode in {"RENAME", "CREATE", "EXTRACT", "ZIP"}:
             if self._app_state.pending_input is not None:
-                from zivo.state import PasteIntoPendingInput
+                from zivo.state.actions import PasteIntoPendingInput
 
                 await self.dispatch_actions(
                     (PasteIntoPendingInput(text=event.text),)
@@ -472,7 +480,7 @@ class zivoApp(App[None]):
             and st.status == "running"
             and st.focus_target == "terminal"
         ):
-            from zivo.state import SendSplitTerminalInput
+            from zivo.state.actions import SendSplitTerminalInput
 
             await self.dispatch_actions(
                 (SendSplitTerminalInput(event.text),)
@@ -653,6 +661,7 @@ class zivoApp(App[None]):
 
 def create_app(
     snapshot_loader: BrowserSnapshotLoader | None = None,
+    attribute_inspection_service: AttributeInspectionService | None = None,
     clipboard_service: ClipboardOperationService | None = None,
     config_save_service: ConfigSaveService | None = None,
     directory_size_service: DirectorySizeService | None = None,
@@ -681,6 +690,7 @@ def create_app(
 
     return zivoApp(
         snapshot_loader=snapshot_loader,
+        attribute_inspection_service=attribute_inspection_service,
         clipboard_service=clipboard_service,
         config_save_service=config_save_service,
         directory_size_service=directory_size_service,

@@ -3,6 +3,7 @@
 from .external_launcher import ExternalLaunchAdapter, LocalExternalLaunchAdapter
 from .file_operations import FileOperationAdapter, LocalFileOperationAdapter
 from .filesystem import (
+    DirectoryAttributeReader,
     DirectoryReader,
     DirectorySizeCancelled,
     DirectorySizeReader,
@@ -10,6 +11,7 @@ from .filesystem import (
 )
 
 __all__ = [
+    "DirectoryAttributeReader",
     "DirectoryReader",
     "DirectorySizeCancelled",
     "DirectorySizeReader",

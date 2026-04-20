@@ -1,7 +1,12 @@
+import grp
+import pwd
+
 from zivo.adapters import LocalFilesystemAdapter
 
 
-def test_local_filesystem_adapter_lists_entries_with_metadata(tmp_path) -> None:
+def test_local_filesystem_adapter_lists_entries_with_lightweight_directory_metadata(
+    tmp_path,
+) -> None:
     docs = tmp_path / "docs"
     docs.mkdir()
     readme = tmp_path / "README.md"
@@ -23,6 +28,8 @@ def test_local_filesystem_adapter_lists_entries_with_metadata(tmp_path) -> None:
     assert docs_entry.size_bytes is None
     assert docs_entry.modified_at is not None
     assert docs_entry.permissions_mode is not None
+    assert docs_entry.owner is None
+    assert docs_entry.group is None
 
     assert hidden_entry.hidden is True
     assert hidden_entry.kind == "file"
@@ -31,6 +38,45 @@ def test_local_filesystem_adapter_lists_entries_with_metadata(tmp_path) -> None:
     assert readme_entry.kind == "file"
     assert readme_entry.size_bytes == len("plain\n")
     assert readme_entry.permissions_mode is not None
+
+
+def test_local_filesystem_adapter_list_directory_skips_owner_group_resolution(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "README.md").write_text("plain\n", encoding="utf-8")
+    adapter = LocalFilesystemAdapter()
+
+    def _unexpected_user_lookup(_uid: int) -> None:
+        raise AssertionError("pwd.getpwuid should not be called while listing directories")
+
+    def _unexpected_group_lookup(_gid: int) -> None:
+        raise AssertionError("grp.getgrgid should not be called while listing directories")
+
+    monkeypatch.setattr(pwd, "getpwuid", _unexpected_user_lookup)
+    monkeypatch.setattr(grp, "getgrgid", _unexpected_group_lookup)
+
+    entries = adapter.list_directory(str(tmp_path))
+
+    assert [entry.name for entry in entries] == ["docs", "README.md"]
+
+
+def test_local_filesystem_adapter_inspect_entry_loads_detailed_metadata(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("plain\n", encoding="utf-8")
+    adapter = LocalFilesystemAdapter()
+
+    entry = adapter.inspect_entry(str(readme))
+
+    assert entry is not None
+    stat_result = readme.stat()
+    assert entry.kind == "file"
+    assert entry.size_bytes == len("plain\n")
+    assert entry.permissions_mode == stat_result.st_mode
+    assert entry.modified_at is not None
+    assert entry.owner == pwd.getpwuid(stat_result.st_uid).pw_name
+    assert entry.group == grp.getgrgid(stat_result.st_gid).gr_name
 
 
 def test_local_filesystem_adapter_includes_broken_symlink_entries(tmp_path) -> None:

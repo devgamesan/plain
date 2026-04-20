@@ -9,7 +9,8 @@ from zivo.services import (
     FakeBrowserSnapshotLoader,
     LiveBrowserSnapshotLoader,
 )
-from zivo.state import BrowserSnapshot, DirectoryEntryState, GrepSearchResultState, PaneState
+from zivo.state import BrowserSnapshot, GrepSearchResultState
+from zivo.state.models import DirectoryEntryState, PaneState
 
 
 @dataclass

@@ -23,34 +23,14 @@ from zivo.services import (
     InvalidTextReplaceQueryError,
 )
 from zivo.state import (
-    ArchiveExtractCompleted,
-    ArchiveExtractFailed,
-    ArchivePreparationCompleted,
-    ArchivePreparationFailed,
-    BrowserSnapshotFailed,
-    BrowserSnapshotLoaded,
-    ChildPaneSnapshotFailed,
-    ChildPaneSnapshotLoaded,
-    ClipboardPasteCompleted,
-    ClipboardPasteFailed,
-    ClipboardPasteNeedsResolution,
-    ConfigSaveCompleted,
-    ConfigSaveFailed,
-    DirectorySizesFailed,
-    DirectorySizesLoaded,
     Effect,
-    ExternalLaunchCompleted,
-    ExternalLaunchFailed,
-    FileMutationCompleted,
-    FileMutationFailed,
-    FileSearchCompleted,
-    FileSearchFailed,
-    GrepSearchCompleted,
-    GrepSearchFailed,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
+    LoadCurrentPaneEffect,
+    LoadParentChildEffect,
     RunArchiveExtractEffect,
     RunArchivePreparationEffect,
+    RunAttributeInspectionEffect,
     RunClipboardPasteEffect,
     RunConfigSaveEffect,
     RunDirectorySizeEffect,
@@ -64,6 +44,36 @@ from zivo.state import (
     RunUndoEffect,
     RunZipCompressEffect,
     RunZipCompressPreparationEffect,
+)
+from zivo.state.actions import (
+    ArchiveExtractCompleted,
+    ArchiveExtractFailed,
+    ArchivePreparationCompleted,
+    ArchivePreparationFailed,
+    AttributeInspectionFailed,
+    AttributeInspectionLoaded,
+    BrowserSnapshotFailed,
+    BrowserSnapshotLoaded,
+    ChildPaneSnapshotFailed,
+    ChildPaneSnapshotLoaded,
+    ClipboardPasteCompleted,
+    ClipboardPasteFailed,
+    ClipboardPasteNeedsResolution,
+    ConfigSaveCompleted,
+    ConfigSaveFailed,
+    CurrentPaneSnapshotLoaded,
+    DirectorySizesFailed,
+    DirectorySizesLoaded,
+    ExternalLaunchCompleted,
+    ExternalLaunchFailed,
+    FileMutationCompleted,
+    FileMutationFailed,
+    FileSearchCompleted,
+    FileSearchFailed,
+    GrepSearchCompleted,
+    GrepSearchFailed,
+    ParentChildSnapshotFailed,
+    ParentChildSnapshotLoaded,
     ShellCommandCompleted,
     ShellCommandFailed,
     TextReplaceApplied,
@@ -100,6 +110,35 @@ def complete_child_pane_snapshot(
         ChildPaneSnapshotLoaded(
             request_id=effect.request_id,
             pane=result,
+        ),
+    )
+
+
+def complete_current_pane_snapshot(
+    effect: LoadCurrentPaneEffect,
+    result: object,
+) -> tuple[Any, ...]:
+    current_path, current_pane, parent_pane = result
+    return (
+        CurrentPaneSnapshotLoaded(
+            request_id=effect.request_id,
+            current_path=current_path,
+            current_pane=current_pane,
+            parent_pane=parent_pane,
+        ),
+    )
+
+
+def complete_parent_child_snapshot(
+    effect: LoadParentChildEffect,
+    result: object,
+) -> tuple[Any, ...]:
+    parent_pane, child_pane = result
+    return (
+        ParentChildSnapshotLoaded(
+            request_id=effect.request_id,
+            parent_pane=parent_pane,
+            child_pane=child_pane,
         ),
     )
 
@@ -229,6 +268,18 @@ def complete_directory_sizes(
     )
 
 
+def complete_attribute_inspection(
+    effect: RunAttributeInspectionEffect,
+    result: object,
+) -> tuple[Any, ...]:
+    return (
+        AttributeInspectionLoaded(
+            request_id=effect.request_id,
+            inspection=result,
+        ),
+    )
+
+
 def complete_external_launch(
     effect: RunExternalLaunchEffect,
     result: object,
@@ -321,6 +372,8 @@ failed_browser_snapshot = make_failed_handler(
     extra_field_builders={"blocking": lambda e, _err, _msg: e.blocking},
 )
 failed_child_pane_snapshot = make_failed_handler(ChildPaneSnapshotFailed)
+failed_current_pane_snapshot = make_failed_handler(CurrentPaneSnapshotLoaded)
+failed_parent_child_snapshot = make_failed_handler(ParentChildSnapshotFailed)
 failed_clipboard_paste = make_failed_handler(ClipboardPasteFailed)
 failed_file_mutation = make_failed_handler(FileMutationFailed)
 failed_archive_preparation = make_failed_handler(ArchivePreparationFailed)
@@ -332,6 +385,7 @@ failed_directory_sizes = make_failed_handler(
     DirectorySizesFailed,
     extra_field_builders={"paths": lambda e, _err, _msg: e.paths},
 )
+failed_attribute_inspection = make_failed_handler(AttributeInspectionFailed)
 failed_external_launch = make_failed_handler(
     ExternalLaunchFailed,
     extra_field_builders={"request": lambda e, _err, _msg: e.request},
@@ -374,8 +428,11 @@ RESULT_COMPLETE_HANDLERS: tuple[tuple[type[Any], CompleteActionHandler], ...] = 
 COMPLETE_ACTION_HANDLERS: tuple[tuple[type[Any], CompleteActionHandler], ...] = (
     (LoadBrowserSnapshotEffect, complete_browser_snapshot),
     (LoadChildPaneSnapshotEffect, complete_child_pane_snapshot),
+    (LoadCurrentPaneEffect, complete_current_pane_snapshot),
+    (LoadParentChildEffect, complete_parent_child_snapshot),
     (RunConfigSaveEffect, complete_config_save),
     (RunDirectorySizeEffect, complete_directory_sizes),
+    (RunAttributeInspectionEffect, complete_attribute_inspection),
     (RunExternalLaunchEffect, complete_external_launch),
     (RunShellCommandEffect, complete_shell_command),
     (RunFileSearchEffect, complete_file_search),
@@ -387,6 +444,8 @@ COMPLETE_ACTION_HANDLERS: tuple[tuple[type[Any], CompleteActionHandler], ...] = 
 FAILED_ACTION_HANDLERS: tuple[tuple[type[Any], FailureActionHandler], ...] = (
     (LoadBrowserSnapshotEffect, failed_browser_snapshot),
     (LoadChildPaneSnapshotEffect, failed_child_pane_snapshot),
+    (LoadCurrentPaneEffect, failed_current_pane_snapshot),
+    (LoadParentChildEffect, failed_parent_child_snapshot),
     (RunArchivePreparationEffect, failed_archive_preparation),
     (RunArchiveExtractEffect, failed_archive_extract),
     (RunZipCompressPreparationEffect, failed_zip_compress_preparation),
@@ -395,6 +454,7 @@ FAILED_ACTION_HANDLERS: tuple[tuple[type[Any], FailureActionHandler], ...] = (
     (RunFileMutationEffect, failed_file_mutation),
     (RunConfigSaveEffect, failed_config_save),
     (RunDirectorySizeEffect, failed_directory_sizes),
+    (RunAttributeInspectionEffect, failed_attribute_inspection),
     (RunExternalLaunchEffect, failed_external_launch),
     (RunShellCommandEffect, failed_shell_command),
     (RunUndoEffect, failed_undo),

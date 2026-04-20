@@ -207,6 +207,19 @@ class BrowserSnapshotLoader(Protocol):
         preview_max_bytes: int = TEXT_PREVIEW_MAX_BYTES,
     ) -> PaneState: ...
 
+    def load_current_pane_snapshot(
+        self,
+        path: str,
+        cursor_path: str | None,
+    ) -> tuple[str, PaneState, PaneState]: ...
+
+    def load_parent_child_panes(
+        self,
+        path: str,
+        cursor_path: str | None,
+        current_pane: PaneState,
+    ) -> tuple[PaneState, PaneState]: ...
+
     def load_grep_preview(
         self,
         current_path: str,
@@ -338,6 +351,85 @@ class LiveBrowserSnapshotLoader:
             )
 
         return PaneState(directory_path=current_path, entries=())
+
+    def load_current_pane_snapshot(
+        self,
+        path: str,
+        cursor_path: str | None,
+    ) -> tuple[str, PaneState, PaneState]:
+        """Load current pane + minimal parent (Phase 1 of progressive loading).
+
+        Returns:
+            (current_path, current_pane, parent_pane)
+        """
+        resolved_path, parent_path = resolve_parent_directory_path(path)
+        current_entries = self._list_directory(resolved_path)
+        resolved_cursor_path = _resolve_cursor_path(current_entries, cursor_path)
+
+        if parent_path is None:
+            parent_directory_path = resolved_path
+            parent_entries = ()
+            parent_cursor_path = None
+        else:
+            parent_directory_path = parent_path
+            # Try to load parent from cache for Phase 1
+            parent_entries = self._get_cached_directory_entries(parent_path)
+            if parent_entries is None:
+                # No cache available, use empty parent for now
+                parent_entries = ()
+            parent_cursor_path = (
+                resolved_path if _contains_path(parent_entries, resolved_path) else None
+            )
+
+        current_pane = PaneState(
+            directory_path=resolved_path,
+            entries=current_entries,
+            cursor_path=resolved_cursor_path,
+        )
+        parent_pane = PaneState(
+            directory_path=parent_directory_path,
+            entries=parent_entries,
+            cursor_path=parent_cursor_path,
+        )
+
+        return resolved_path, current_pane, parent_pane
+
+    def load_parent_child_panes(
+        self,
+        path: str,
+        cursor_path: str | None,
+        current_pane: PaneState,
+    ) -> tuple[PaneState, PaneState]:
+        """Load complete parent + child panes (Phase 2 of progressive loading).
+
+        Returns:
+            (parent_pane, child_pane)
+        """
+        resolved_path, parent_path = resolve_parent_directory_path(path)
+
+        # Load complete parent pane
+        if parent_path is None:
+            parent_directory_path = resolved_path
+            parent_entries = ()
+            parent_cursor_path = None
+        else:
+            parent_directory_path = parent_path
+            parent_entries = self._list_directory(parent_path)
+            parent_cursor_path = (
+                resolved_path if _contains_path(parent_entries, resolved_path) else None
+            )
+
+        parent_pane = PaneState(
+            directory_path=parent_directory_path,
+            entries=parent_entries,
+            cursor_path=parent_cursor_path,
+        )
+
+        # Load child pane using existing method
+        resolved_cursor_path = current_pane.cursor_path
+        child_pane = self.load_child_pane_snapshot(resolved_path, resolved_cursor_path)
+
+        return parent_pane, child_pane
 
     def load_grep_preview(
         self,
@@ -526,6 +618,25 @@ class FakeBrowserSnapshotLoader:
             return pane
 
         return PaneState(directory_path=current_path, entries=())
+
+    def load_current_pane_snapshot(
+        self,
+        path: str,
+        cursor_path: str | None,
+    ) -> tuple[str, PaneState, PaneState]:
+        """Load current pane + minimal parent (Phase 1 of progressive loading)."""
+        snapshot = self.load_browser_snapshot(path, cursor_path)
+        return snapshot.current_path, snapshot.current_pane, snapshot.parent_pane
+
+    def load_parent_child_panes(
+        self,
+        path: str,
+        cursor_path: str | None,
+        current_pane: PaneState,
+    ) -> tuple[PaneState, PaneState]:
+        """Load complete parent + child panes (Phase 2 of progressive loading)."""
+        snapshot = self.load_browser_snapshot(path, cursor_path)
+        return snapshot.parent_pane, snapshot.child_pane
 
     def load_grep_preview(
         self,

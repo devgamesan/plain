@@ -3,18 +3,20 @@ from dataclasses import replace
 from tests.test_state_reducer import _reduce_state
 from zivo.models import DeleteRequest
 from zivo.state import (
-    BeginDeleteTargets,
-    BeginEmptyTrash,
-    CancelDeleteConfirmation,
-    CancelEmptyTrashConfirmation,
-    ConfirmDeleteTargets,
-    ConfirmEmptyTrash,
     DeleteConfirmationState,
     EmptyTrashConfirmationState,
     NotificationState,
     RunFileMutationEffect,
     build_initial_app_state,
     reduce_app_state,
+)
+from zivo.state.actions import (
+    BeginDeleteTargets,
+    BeginEmptyTrash,
+    CancelDeleteConfirmation,
+    CancelEmptyTrashConfirmation,
+    ConfirmDeleteTargets,
+    ConfirmEmptyTrash,
 )
 
 

@@ -1,0 +1,99 @@
+from tests import state_selectors_cases as cases
+
+TestCommandPaletteDynamicWindow = cases.TestCommandPaletteDynamicWindow
+TestComputeSearchVisibleWindow = cases.TestComputeSearchVisibleWindow
+TestSelectCommandPaletteWindow = cases.TestSelectCommandPaletteWindow
+TestSelectSearchWindowWithDynamicSize = cases.TestSelectSearchWindowWithDynamicSize
+test_command_palette_enables_undo_item_when_stack_is_present = (
+    cases.test_command_palette_enables_undo_item_when_stack_is_present
+)
+test_command_palette_includes_undo_item_and_disables_when_empty = (
+    cases.test_command_palette_includes_undo_item_and_disables_when_empty
+)
+test_select_command_palette_state_disables_select_all_without_visible_entries = (
+    cases.test_select_command_palette_state_disables_select_all_without_visible_entries
+)
+test_select_command_palette_state_enables_history_navigation_items = (
+    cases.test_select_command_palette_state_enables_history_navigation_items
+)
+test_select_command_palette_state_enables_select_all_with_visible_entries = (
+    cases.test_select_command_palette_state_enables_select_all_with_visible_entries
+)
+test_select_command_palette_state_filters_query = (
+    cases.test_select_command_palette_state_filters_query
+)
+test_select_command_palette_state_for_file_search_results = (
+    cases.test_select_command_palette_state_for_file_search_results
+)
+test_select_command_palette_state_for_grep_search_includes_input_fields = (
+    cases.test_select_command_palette_state_for_grep_search_includes_input_fields
+)
+test_select_command_palette_state_for_grep_search_results = (
+    cases.test_select_command_palette_state_for_grep_search_results
+)
+test_select_command_palette_state_for_text_replace_includes_input_fields = (
+    cases.test_select_command_palette_state_for_text_replace_includes_input_fields
+)
+test_select_command_palette_state_go_to_path_can_show_candidates_without_selection = (
+    cases.test_select_command_palette_state_go_to_path_can_show_candidates_without_selection
+)
+test_select_command_palette_state_marks_selected_and_enabled_items = (
+    cases.test_select_command_palette_state_marks_selected_and_enabled_items
+)
+test_select_command_palette_state_shows_bookmark_items = (
+    cases.test_select_command_palette_state_shows_bookmark_items
+)
+test_select_command_palette_state_shows_compress_as_zip_for_multiple_targets = (
+    cases.test_select_command_palette_state_shows_compress_as_zip_for_multiple_targets
+)
+test_select_command_palette_state_shows_copy_path_shortcut = (
+    cases.test_select_command_palette_state_shows_copy_path_shortcut
+)
+test_select_command_palette_state_shows_extract_archive_for_supported_file = (
+    cases.test_select_command_palette_state_shows_extract_archive_for_supported_file
+)
+test_select_command_palette_state_shows_go_to_path_candidates = (
+    cases.test_select_command_palette_state_shows_go_to_path_candidates
+)
+test_select_command_palette_state_shows_grep_searching_message = (
+    cases.test_select_command_palette_state_shows_grep_searching_message
+)
+test_select_command_palette_state_shows_regex_error_message = (
+    cases.test_select_command_palette_state_shows_regex_error_message
+)
+test_select_command_palette_state_shows_replace_text_for_cursor_file = (
+    cases.test_select_command_palette_state_shows_replace_text_for_cursor_file
+)
+test_select_command_palette_state_shows_replace_text_for_selected_files = (
+    cases.test_select_command_palette_state_shows_replace_text_for_selected_files
+)
+test_select_command_palette_state_shows_searching_message_while_file_search_is_pending = (
+    cases.test_select_command_palette_state_shows_searching_message_while_file_search_is_pending
+)
+test_select_command_palette_state_shows_single_target_commands_when_filtered = (
+    cases.test_select_command_palette_state_shows_single_target_commands_when_filtered
+)
+test_select_command_palette_state_shows_single_target_shortcuts = (
+    cases.test_select_command_palette_state_shows_single_target_shortcuts
+)
+test_select_command_palette_state_switches_bookmark_command_label = (
+    cases.test_select_command_palette_state_switches_bookmark_command_label
+)
+test_select_command_palette_state_uses_hidden_toggle_label_from_state = (
+    cases.test_select_command_palette_state_uses_hidden_toggle_label_from_state
+)
+test_select_command_palette_state_windows_large_file_search_results = (
+    cases.test_select_command_palette_state_windows_large_file_search_results
+)
+test_select_command_palette_state_windows_large_grep_search_results = (
+    cases.test_select_command_palette_state_windows_large_grep_search_results
+)
+test_selected_files_grep_command_opens_palette = (
+    cases.test_selected_files_grep_command_opens_palette
+)
+test_selected_files_grep_item_disabled_without_selection = (
+    cases.test_selected_files_grep_item_disabled_without_selection
+)
+test_selected_files_grep_item_enabled_with_selection = (
+    cases.test_selected_files_grep_item_enabled_with_selection
+)

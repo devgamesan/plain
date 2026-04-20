@@ -6,6 +6,7 @@ import pwd
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
 
@@ -29,6 +30,12 @@ class DirectorySizeReader(Protocol):
     ) -> int: ...
 
 
+class DirectoryAttributeReader(Protocol):
+    """Boundary for reading detailed metadata for a single filesystem path."""
+
+    def inspect_entry(self, path: str) -> DirectoryEntryState | None: ...
+
+
 @dataclass(frozen=True)
 class LocalFilesystemAdapter:
     """Read and normalize directory contents from the local filesystem."""
@@ -38,11 +45,15 @@ class LocalFilesystemAdapter:
         entries: list[DirectoryEntryState] = []
         with os.scandir(directory) as iterator:
             for child in iterator:
-                entry = _build_directory_entry(child)
+                entry = _build_directory_entry_summary(child)
                 if entry is not None:
                     entries.append(entry)
         entries.sort(key=lambda entry: (entry.kind != "dir", entry.name.casefold()))
         return tuple(entries)
+
+    def inspect_entry(self, path: str) -> DirectoryEntryState | None:
+        entry_path = Path(path).expanduser()
+        return _build_directory_entry_details(entry_path)
 
     def calculate_directory_size(
         self,
@@ -58,8 +69,35 @@ class LocalFilesystemAdapter:
         return _calculate_directory_size(directory, is_cancelled=is_cancelled)
 
 
-def _build_directory_entry(entry: os.DirEntry[str]) -> DirectoryEntryState | None:
+def _build_directory_entry_summary(entry: os.DirEntry[str]) -> DirectoryEntryState | None:
     is_symlink = entry.is_symlink()
+    hidden = entry.name.startswith(".")
+    try:
+        kind = "dir" if entry.is_dir(follow_symlinks=False) else "file"
+    except FileNotFoundError:
+        if is_symlink:
+            return DirectoryEntryState(
+                path=entry.path,
+                name=entry.name,
+                kind="file",
+                hidden=hidden,
+                symlink=True,
+            )
+        return None
+
+    if kind == "file" and is_symlink:
+        try:
+            if entry.is_dir():
+                kind = "dir"
+        except FileNotFoundError:
+            return DirectoryEntryState(
+                path=entry.path,
+                name=entry.name,
+                kind="file",
+                hidden=hidden,
+                symlink=True,
+            )
+
     try:
         stat_result = entry.stat()
     except FileNotFoundError:
@@ -68,20 +106,46 @@ def _build_directory_entry(entry: os.DirEntry[str]) -> DirectoryEntryState | Non
                 path=entry.path,
                 name=entry.name,
                 kind="file",
-                hidden=entry.name.startswith("."),
+                hidden=hidden,
                 symlink=True,
             )
         return None
-    kind = "dir" if entry.is_dir() else "file"
-    owner = _resolve_user_name(stat_result.st_uid)
-    group = _resolve_group_name(stat_result.st_gid)
     return DirectoryEntryState(
         path=entry.path,
         name=entry.name,
         kind=kind,
         size_bytes=None if kind == "dir" else stat_result.st_size,
         modified_at=datetime.fromtimestamp(stat_result.st_mtime),
-        hidden=entry.name.startswith("."),
+        hidden=hidden,
+        permissions_mode=stat_result.st_mode,
+        symlink=is_symlink,
+    )
+
+
+def _build_directory_entry_details(path: Path) -> DirectoryEntryState | None:
+    is_symlink = path.is_symlink()
+    try:
+        stat_result = path.stat()
+    except FileNotFoundError:
+        if is_symlink:
+            return DirectoryEntryState(
+                path=str(path),
+                name=path.name,
+                kind="file",
+                hidden=path.name.startswith("."),
+                symlink=True,
+            )
+        return None
+    kind = "dir" if path.is_dir() else "file"
+    owner = _resolve_user_name(stat_result.st_uid)
+    group = _resolve_group_name(stat_result.st_gid)
+    return DirectoryEntryState(
+        path=str(path),
+        name=path.name,
+        kind=kind,
+        size_bytes=None if kind == "dir" else stat_result.st_size,
+        modified_at=datetime.fromtimestamp(stat_result.st_mtime),
+        hidden=path.name.startswith("."),
         permissions_mode=stat_result.st_mode,
         owner=owner,
         group=group,
@@ -124,6 +188,7 @@ class DirectorySizeCancelled(RuntimeError):
     """Raised internally to abort a recursive size walk."""
 
 
+@lru_cache(maxsize=256)
 def _resolve_user_name(uid: int) -> str | None:
     try:
         return pwd.getpwuid(uid).pw_name
@@ -131,6 +196,7 @@ def _resolve_user_name(uid: int) -> str | None:
         return None
 
 
+@lru_cache(maxsize=256)
 def _resolve_group_name(gid: int) -> str | None:
     try:
         return grp.getgrgid(gid).gr_name

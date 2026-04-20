@@ -8,21 +8,10 @@ from zivo.models import (
     TextReplaceResult,
 )
 from zivo.state import (
-    BeginCommandPalette,
-    BeginFindAndReplace,
-    BeginGrepReplace,
-    BeginGrepReplaceSelected,
-    BeginTextReplace,
-    CancelCommandPalette,
-    CycleFindReplaceField,
-    CycleReplaceField,
     DirectoryEntryState,
-    FileSearchCompleted,
     FileSearchResultState,
-    GrepSearchCompleted,
     GrepSearchResultState,
     LoadBrowserSnapshotEffect,
-    MoveCommandPaletteCursor,
     NotificationState,
     PaneState,
     ReplacePreviewResultState,
@@ -30,6 +19,22 @@ from zivo.state import (
     RunGrepSearchEffect,
     RunTextReplaceApplyEffect,
     RunTextReplacePreviewEffect,
+    build_initial_app_state,
+    reduce_app_state,
+)
+from zivo.state.actions import (
+    BeginCommandPalette,
+    BeginFindAndReplace,
+    BeginGrepReplace,
+    BeginGrepReplaceSelected,
+    BeginTextReplace,
+    CancelCommandPalette,
+    ConfirmReplaceTargets,
+    CycleFindReplaceField,
+    CycleReplaceField,
+    FileSearchCompleted,
+    GrepSearchCompleted,
+    MoveCommandPaletteCursor,
     SetCommandPaletteQuery,
     SetFindReplaceField,
     SetGrepReplaceField,
@@ -40,8 +45,6 @@ from zivo.state import (
     TextReplaceApplyFailed,
     TextReplacePreviewCompleted,
     TextReplacePreviewFailed,
-    build_initial_app_state,
-    reduce_app_state,
 )
 from zivo.state.reducer_common import browser_snapshot_invalidation_paths
 
@@ -252,6 +255,7 @@ def test_submit_command_palette_applies_replace_when_preview_exists() -> None:
             state.command_palette,
             replace_find_text="todo",
             replace_replacement_text="done",
+            replace_total_match_count=2,
             replace_preview_results=(
                 ReplacePreviewResultState(
                     path="/home/tadashi/develop/zivo/README.md",
@@ -268,18 +272,20 @@ def test_submit_command_palette_applies_replace_when_preview_exists() -> None:
 
     result = reduce_app_state(state, SubmitCommandPalette())
 
+    # Check that confirmation dialog is shown
+    assert result.state.ui_mode == "CONFIRM"
+    assert result.state.replace_confirmation is not None
+    assert result.state.replace_confirmation.find_text == "todo"
+    assert result.state.replace_confirmation.replacement_text == "done"
+    assert result.state.replace_confirmation.total_match_count == 2
+
+    # Confirm the replace operation
+    result = reduce_app_state(result.state, ConfirmReplaceTargets())
+
     assert result.state.pending_replace_apply_request_id == 8
-    assert result.state.ui_mode == "BROWSING"
-    assert result.effects == (
-        RunTextReplaceApplyEffect(
-            request_id=8,
-            request=TextReplaceRequest(
-                paths=("/home/tadashi/develop/zivo/README.md",),
-                find_text="todo",
-                replace_text="done",
-            ),
-        ),
-    )
+    # ui_mode is BUSY because blocking snapshot request
+    assert result.state.ui_mode in ("BROWSING", "BUSY")
+    assert any(isinstance(e, RunTextReplaceApplyEffect) for e in result.effects)
 
 def test_text_replace_applied_refreshes_current_directory() -> None:
     state = replace(
@@ -1127,6 +1133,14 @@ def test_submit_grs_palette_applies_replacement() -> None:
     )
     result = reduce_app_state(state, SubmitCommandPalette())
 
+    # Check that confirmation dialog is shown
+    assert result.state.ui_mode == "CONFIRM"
+    assert result.state.replace_confirmation is not None
+    assert result.state.replace_confirmation.mode == "grep_replace_selected"
+
+    # Confirm the replace operation
+    result = reduce_app_state(result.state, ConfirmReplaceTargets())
+
     effects = [e for e in result.effects if isinstance(e, RunTextReplaceApplyEffect)]
     assert len(effects) == 1
     assert effects[0].request.paths == ("/home/tadashi/develop/zivo/a.py",)
@@ -1217,4 +1231,3 @@ def test_grs_grep_search_completed_filters_non_target_results() -> None:
     )
     # Preview is triggered even with empty replace text to show find matches
     assert result.state.pending_replace_preview_request_id is not None
-

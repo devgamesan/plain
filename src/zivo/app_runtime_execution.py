@@ -10,12 +10,10 @@ from textual.app import SuspendNotSupported
 
 from zivo.app_runtime_core import WorkerSpec, run_worker
 from zivo.state import (
-    ArchiveExtractProgress,
     CloseSplitTerminalEffect,
-    ExternalLaunchCompleted,
-    ExternalLaunchFailed,
     RunArchiveExtractEffect,
     RunArchivePreparationEffect,
+    RunAttributeInspectionEffect,
     RunClipboardPasteEffect,
     RunConfigSaveEffect,
     RunExternalLaunchEffect,
@@ -24,10 +22,15 @@ from zivo.state import (
     RunUndoEffect,
     RunZipCompressEffect,
     RunZipCompressPreparationEffect,
-    SplitTerminalStarted,
-    SplitTerminalStartFailed,
     StartSplitTerminalEffect,
     WriteSplitTerminalInputEffect,
+)
+from zivo.state.actions import (
+    ArchiveExtractProgress,
+    ExternalLaunchCompleted,
+    ExternalLaunchFailed,
+    SplitTerminalStarted,
+    SplitTerminalStartFailed,
     ZipCompressProgress,
 )
 
@@ -77,6 +80,20 @@ def schedule_shell_command(app: Any, effect: RunShellCommandEffect) -> None:
             name=f"shell-command:{effect.request_id}",
             group="shell-command",
             description=effect.cwd,
+            exclusive=True,
+        ),
+    )
+
+
+def schedule_attribute_inspection(app: Any, effect: RunAttributeInspectionEffect) -> None:
+    run_worker(
+        app,
+        effect,
+        partial(app._attribute_inspection_service.inspect, effect.path),
+        WorkerSpec(
+            name=f"attribute-inspection:{effect.request_id}",
+            group="attribute-inspection",
+            description=effect.path,
             exclusive=True,
         ),
     )

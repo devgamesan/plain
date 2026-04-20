@@ -347,7 +347,7 @@ class ReplacePreviewResultState:
         return (
             f"{self.display_path} ({self.match_count}): "
             f"{self.first_match_line_number}: "
-            f"{self.first_match_before} -> {self.first_match_after}"
+            f"{self.first_match_before}"
         )
 
 

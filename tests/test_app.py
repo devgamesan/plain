@@ -3760,8 +3760,8 @@ async def test_app_command_palette_replace_text_previews_and_applies_selected_fi
         palette_state = select_command_palette_state(app.app_state)
         assert palette_state is not None
         assert [item.label for item in palette_state.items] == [
-            "README.md (2): 4: todo item -> done item",
-            "docs.md (1): 2: todo second -> done second",
+            "README.md (2): 4: todo item",
+            "docs.md (1): 2: todo second",
         ]
 
         child_pane = select_shell_data(app.app_state).child_pane

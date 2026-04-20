@@ -1602,7 +1602,7 @@ def test_select_command_palette_state_for_text_replace_includes_input_fields() -
     assert [field.value for field in palette_state.input_fields] == ["todo", "done"]
     assert [field.active for field in palette_state.input_fields] == [False, True]
     assert [item.label for item in palette_state.items] == [
-        "README.md (2): 8: todo item -> done item"
+        "README.md (2): 8: todo item"
     ]
     assert palette_state.empty_message == "Preview shown in right pane. Press Enter to apply."
 

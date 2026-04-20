@@ -95,6 +95,8 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             return HelpBarState(("enter continue extraction | esc return to input",))
         if state.zip_compress_confirmation is not None:
             return HelpBarState(("enter overwrite zip | esc return to input",))
+        if state.replace_confirmation is not None:
+            return HelpBarState(("enter confirm replace | esc cancel",))
         if state.name_conflict is not None:
             return HelpBarState(("enter return to input | esc return to input",))
         return HelpBarState(("resolve conflict in dialog",))
@@ -574,6 +576,21 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
                 f"Overwrite it and continue compressing {confirmation.total_entries} item(s)?"
             ),
             options=("enter overwrite", "esc return to input"),
+        )
+
+    if state.replace_confirmation is not None:
+        confirmation = state.replace_confirmation
+        file_count = len(confirmation.target_paths)
+        match_count = confirmation.total_match_count
+        message = (
+            f"Replace '{confirmation.find_text}' with '{confirmation.replacement_text}' "
+            f"in {file_count} file(s) ({match_count} match(es))?"
+        )
+        title = "Replace Text Confirmation"
+        return ConflictDialogState(
+            title=title,
+            message=message,
+            options=("enter confirm", "esc cancel"),
         )
 
     if state.name_conflict is not None:

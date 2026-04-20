@@ -223,6 +223,22 @@ class AttributeInspectionState:
 
 
 @dataclass(frozen=True)
+class ReplaceConfirmationState:
+    """Pending confirmation dialog state for text replacement operations."""
+
+    mode: Literal[
+        "replace_text",
+        "replace_in_found_files",
+        "replace_in_grep_files",
+        "grep_replace_selected",
+    ]
+    find_text: str
+    replacement_text: str
+    target_paths: tuple[str, ...]
+    total_match_count: int
+
+
+@dataclass(frozen=True)
 class ConfigEditorState:
     """Transient config editor state used by the config dialog."""
 
@@ -495,6 +511,7 @@ class AppState:
     archive_extract_progress: ArchiveExtractProgressState | None = None
     zip_compress_confirmation: ZipCompressConfirmationState | None = None
     zip_compress_progress: ZipCompressProgressState | None = None
+    replace_confirmation: ReplaceConfirmationState | None = None
     attribute_inspection: AttributeInspectionState | None = None
     config_editor: ConfigEditorState | None = None
     shell_command: ShellCommandState | None = None

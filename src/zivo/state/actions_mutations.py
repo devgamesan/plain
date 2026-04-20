@@ -119,3 +119,13 @@ class ConfirmZipCompress:
 @dataclass(frozen=True)
 class CancelZipCompressConfirmation:
     """Return from zip-compression confirmation to input editing."""
+
+
+@dataclass(frozen=True)
+class ConfirmReplaceTargets:
+    """Confirmed - proceed with the replace operation."""
+
+
+@dataclass(frozen=True)
+class CancelReplaceConfirmation:
+    """Cancelled - abort the replace operation."""

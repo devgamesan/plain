@@ -3788,6 +3788,20 @@ async def test_app_command_palette_replace_text_previews_and_applies_selected_fi
 
         await pilot.press("enter")
 
+        # Check that confirmation dialog is shown
+        await _wait_for_predicate(
+            lambda: app.app_state.ui_mode == "CONFIRM",
+            timeout=0.5,
+            message="confirmation dialog was not shown",
+        )
+        assert app.app_state.replace_confirmation is not None
+        assert app.app_state.replace_confirmation.find_text == "todo"
+        assert app.app_state.replace_confirmation.replacement_text == "done"
+        assert app.app_state.replace_confirmation.total_match_count == 3
+
+        # Confirm the replace operation
+        await pilot.press("enter")
+
         await _wait_for_predicate(
             lambda: len(text_replace_service.apply_requests) == 1,
             timeout=0.5,

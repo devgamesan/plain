@@ -20,7 +20,6 @@ from .command_palette import normalize_command_palette_cursor
 from .effects import (
     ReduceResult,
     RunGrepSearchEffect,
-    RunTextReplaceApplyEffect,
     RunTextReplacePreviewEffect,
 )
 from .models import (
@@ -31,6 +30,9 @@ from .models import (
     ReplacePreviewResultState,
 )
 from .reducer_common import browser_snapshot_invalidation_paths, finalize
+from .reducer_mutations_replace import (
+    _handle_begin_replace_confirmation,
+)
 from .reducer_palette_shared import (
     FIND_REPLACE_FIELDS,
     GREP_REPLACE_FIELDS,
@@ -43,7 +45,6 @@ from .reducer_palette_shared import (
     notify,
     replace_grf_field,
     replace_replace_field,
-    restore_browsing_from_palette,
 )
 
 
@@ -516,21 +517,14 @@ def handle_submit_replace_palette(state: AppState) -> ReduceResult:
         message = state.command_palette.replace_status_message or "No matching files"
         return notify(state, level="warning", message=message)
 
-    request_id = state.next_request_id
-    request = TextReplaceRequest(
-        paths=state.command_palette.replace_target_paths,
+    # Show confirmation dialog instead of directly applying replacement
+    return _handle_begin_replace_confirmation(
+        state,
+        mode="replace_text",
         find_text=state.command_palette.replace_find_text,
-        replace_text=state.command_palette.replace_replacement_text,
-    )
-    next_state = restore_browsing_from_palette(state)
-    return finalize(
-        replace(
-            next_state,
-            pending_replace_apply_request_id=request_id,
-            next_request_id=request_id + 1,
-            notification=NotificationState(level="info", message="Applying replacement..."),
-        ),
-        RunTextReplaceApplyEffect(request_id=request_id, request=request),
+        replacement_text=state.command_palette.replace_replacement_text,
+        target_paths=state.command_palette.replace_target_paths,
+        total_match_count=state.command_palette.replace_total_match_count,
     )
 
 
@@ -549,22 +543,15 @@ def handle_submit_find_and_replace_palette(state: AppState) -> ReduceResult:
         message = state.command_palette.rff_status_message or "No matching files"
         return notify(state, level="warning", message=message)
 
+    # Show confirmation dialog instead of directly applying replacement
     file_paths = tuple(r.path for r in state.command_palette.rff_file_results)
-    request_id = state.next_request_id
-    request = TextReplaceRequest(
-        paths=file_paths,
+    return _handle_begin_replace_confirmation(
+        state,
+        mode="replace_in_found_files",
         find_text=state.command_palette.rff_find_text,
-        replace_text=state.command_palette.rff_replacement_text,
-    )
-    next_state = restore_browsing_from_palette(state)
-    return finalize(
-        replace(
-            next_state,
-            pending_replace_apply_request_id=request_id,
-            next_request_id=request_id + 1,
-            notification=NotificationState(level="info", message="Applying replacement..."),
-        ),
-        RunTextReplaceApplyEffect(request_id=request_id, request=request),
+        replacement_text=state.command_palette.rff_replacement_text,
+        target_paths=file_paths,
+        total_match_count=state.command_palette.rff_total_match_count,
     )
 
 
@@ -583,26 +570,19 @@ def handle_submit_grep_replace_palette(state: AppState) -> ReduceResult:
         message = state.command_palette.grf_status_message or "No matching files"
         return notify(state, level="warning", message=message)
 
+    # Show confirmation dialog instead of directly applying replacement
     filtered_results = filter_grep_results_by_filename(
         state.command_palette.grf_grep_results,
         state.command_palette.grf_filename_filter,
     )
     file_paths = grf_unique_file_paths(filtered_results)
-    request_id = state.next_request_id
-    request = TextReplaceRequest(
-        paths=file_paths,
+    return _handle_begin_replace_confirmation(
+        state,
+        mode="replace_in_grep_files",
         find_text=state.command_palette.grf_keyword,
-        replace_text=state.command_palette.grf_replacement_text,
-    )
-    next_state = restore_browsing_from_palette(state)
-    return finalize(
-        replace(
-            next_state,
-            pending_replace_apply_request_id=request_id,
-            next_request_id=request_id + 1,
-            notification=NotificationState(level="info", message="Applying replacement..."),
-        ),
-        RunTextReplaceApplyEffect(request_id=request_id, request=request),
+        replacement_text=state.command_palette.grf_replacement_text,
+        target_paths=file_paths,
+        total_match_count=state.command_palette.grf_total_match_count,
     )
 
 
@@ -621,22 +601,15 @@ def handle_submit_grep_replace_selected_palette(state: AppState) -> ReduceResult
         message = state.command_palette.grs_status_message or "No matching files"
         return notify(state, level="warning", message=message)
 
+    # Show confirmation dialog instead of directly applying replacement
     file_paths = grs_unique_file_paths(state.command_palette.grs_grep_results)
-    request_id = state.next_request_id
-    request = TextReplaceRequest(
-        paths=file_paths,
+    return _handle_begin_replace_confirmation(
+        state,
+        mode="grep_replace_selected",
         find_text=state.command_palette.grs_keyword,
-        replace_text=state.command_palette.grs_replacement_text,
-    )
-    next_state = restore_browsing_from_palette(state)
-    return finalize(
-        replace(
-            next_state,
-            pending_replace_apply_request_id=request_id,
-            next_request_id=request_id + 1,
-            notification=NotificationState(level="info", message="Applying replacement..."),
-        ),
-        RunTextReplaceApplyEffect(request_id=request_id, request=request),
+        replacement_text=state.command_palette.grs_replacement_text,
+        target_paths=file_paths,
+        total_match_count=state.command_palette.grs_total_match_count,
     )
 
 

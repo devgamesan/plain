@@ -123,6 +123,22 @@ def _finalize_current_pane_window(
             effects=result.effects,
         )
 
+    # Fast path: only cursor moved, no visible entries change
+    if (previous_state.current_pane.entries == next_state.current_pane.entries and
+        previous_state.show_hidden == next_state.show_hidden and
+        previous_state.filter == next_state.filter and
+        previous_state.sort == next_state.sort):
+        # Reuse previous visible entries calculation
+        visible_entries = select_visible_current_entry_states(previous_state)
+        window_start = _select_current_pane_window_start(next_state, visible_entries)
+        if window_start == next_state.current_pane_window_start:
+            return result
+        return ReduceResult(
+            state=replace(next_state, current_pane_window_start=window_start),
+            effects=result.effects,
+        )
+
+    # Slow path: visible entries may have changed
     visible_entries = select_visible_current_entry_states(next_state)
     window_start = _select_current_pane_window_start(next_state, visible_entries)
     if window_start == next_state.current_pane_window_start:
@@ -160,6 +176,24 @@ def _finalize_current_pane_delta(
     return ReduceResult(state=next_state, effects=result.effects)
 
 
+def _select_selection_changed_paths(
+    previous_selected_paths: frozenset[str],
+    next_selected_paths: frozenset[str],
+    previous_cut_paths: frozenset[str],
+    next_cut_paths: frozenset[str],
+    visible_path_set: frozenset[str] | None = None,
+) -> tuple[str, ...]:
+    """選択/カット状態が変更されたパスを返す（オプションで可視パスでフィルタ）。"""
+    selected_diff = (previous_selected_paths ^ next_selected_paths)
+    cut_diff = (previous_cut_paths ^ next_cut_paths)
+    changed_paths = selected_diff | cut_diff
+
+    if visible_path_set is not None:
+        changed_paths = changed_paths & visible_path_set
+
+    return tuple(sorted(changed_paths))
+
+
 def _select_current_pane_changed_paths(
     previous_state: AppState,
     next_state: AppState,
@@ -167,6 +201,19 @@ def _select_current_pane_changed_paths(
     if previous_state.sort.field == "size" or next_state.sort.field == "size":
         return ()
 
+    # Fast path: only selection/cut state changed
+    if (previous_state.current_pane.entries == next_state.current_pane.entries and
+        previous_state.show_hidden == next_state.show_hidden and
+        previous_state.filter == next_state.filter and
+        previous_state.sort == next_state.sort):
+        return _select_selection_changed_paths(
+            previous_state.current_pane.selected_paths,
+            next_state.current_pane.selected_paths,
+            _select_cut_paths(previous_state),
+            _select_cut_paths(next_state),
+        )
+
+    # Slow path: visible entries may have changed
     previous_visible_entries = select_visible_current_entry_states(previous_state)
     next_visible_entries = select_visible_current_entry_states(next_state)
     previous_visible_paths = tuple(entry.path for entry in previous_visible_entries)
@@ -174,15 +221,12 @@ def _select_current_pane_changed_paths(
     if previous_visible_paths != next_visible_paths:
         return ()
 
-    previous_selected_paths = previous_state.current_pane.selected_paths
-    next_selected_paths = next_state.current_pane.selected_paths
-    previous_cut_paths = _select_cut_paths(previous_state)
-    next_cut_paths = _select_cut_paths(next_state)
-    return tuple(
-        path
-        for path in next_visible_paths
-        if (path in previous_selected_paths) != (path in next_selected_paths)
-        or (path in previous_cut_paths) != (path in next_cut_paths)
+    return _select_selection_changed_paths(
+        previous_state.current_pane.selected_paths,
+        next_state.current_pane.selected_paths,
+        _select_cut_paths(previous_state),
+        _select_cut_paths(next_state),
+        visible_path_set=frozenset(next_visible_paths),
     )
 
 

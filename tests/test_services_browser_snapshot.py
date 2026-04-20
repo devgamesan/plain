@@ -636,3 +636,219 @@ def test_live_browser_snapshot_loader_propagates_non_permission_os_error_for_dir
 
     with pytest.raises(OSError, match="Not found:"):
         loader.load_child_pane_snapshot(str(project), str(inaccessible))
+
+
+def test_live_browser_snapshot_loader_caches_grep_context_preview_reads(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    readme = project / "README.md"
+    readme.write_text("line 1\nline 2\nline 3\nline 4\nline 5\n", encoding="utf-8")
+
+    original_open = Path.open
+    open_calls: list[Path] = []
+
+    def _tracking_open(self: Path, *args, **kwargs):
+        if self == readme and args and args[0] == "rb":
+            open_calls.append(self)
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", _tracking_open)
+    loader = LiveBrowserSnapshotLoader()
+
+    first = loader.load_grep_preview(
+        str(project),
+        GrepSearchResultState(
+            path=str(readme),
+            display_path="README.md",
+            line_number=3,
+            line_text="line 3",
+        ),
+    )
+    second = loader.load_grep_preview(
+        str(project),
+        GrepSearchResultState(
+            path=str(readme),
+            display_path="README.md",
+            line_number=3,
+            line_text="line 3",
+        ),
+    )
+
+    assert first == second
+    assert open_calls == [readme]
+
+
+def test_live_browser_snapshot_loader_invalidates_grep_context_cache_when_file_changes(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    readme = project / "README.md"
+    readme.write_text("line 1\nline 2\nline 3\n", encoding="utf-8")
+
+    original_open = Path.open
+    open_calls: list[Path] = []
+
+    def _tracking_open(self: Path, *args, **kwargs):
+        if self == readme and args and args[0] == "rb":
+            open_calls.append(self)
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", _tracking_open)
+    loader = LiveBrowserSnapshotLoader()
+
+    first = loader.load_grep_preview(
+        str(project),
+        GrepSearchResultState(
+            path=str(readme),
+            display_path="README.md",
+            line_number=2,
+            line_text="line 2",
+        ),
+    )
+    readme.write_text("line 1 updated\nline 2 updated\nline 3 updated\n", encoding="utf-8")
+    second = loader.load_grep_preview(
+        str(project),
+        GrepSearchResultState(
+            path=str(readme),
+            display_path="README.md",
+            line_number=2,
+            line_text="line 2 updated",
+        ),
+    )
+
+    assert first.preview_content == "line 1\nline 2\nline 3\n"
+    assert second.preview_content == "line 1 updated\nline 2 updated\nline 3 updated\n"
+    assert len(open_calls) == 2
+
+
+def test_live_browser_snapshot_loader_grep_cache_respects_different_context_lines(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    readme = project / "README.md"
+    readme.write_text("line 1\nline 2\nline 3\nline 4\nline 5\n", encoding="utf-8")
+
+    original_open = Path.open
+    open_calls: list[Path] = []
+
+    def _tracking_open(self: Path, *args, **kwargs):
+        if self == readme and args and args[0] == "rb":
+            open_calls.append(self)
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", _tracking_open)
+    loader = LiveBrowserSnapshotLoader()
+
+    # Load with context_lines=1
+    first = loader.load_grep_preview(
+        str(project),
+        GrepSearchResultState(
+            path=str(readme),
+            display_path="README.md",
+            line_number=3,
+            line_text="line 3",
+        ),
+        context_lines=1,
+    )
+
+    # Load with context_lines=3 (should be a different cache entry)
+    second = loader.load_grep_preview(
+        str(project),
+        GrepSearchResultState(
+            path=str(readme),
+            display_path="README.md",
+            line_number=3,
+            line_text="line 3",
+        ),
+        context_lines=3,
+    )
+
+    assert first.preview_content == "line 2\nline 3\nline 4\n"
+    assert second.preview_content == "line 1\nline 2\nline 3\nline 4\nline 5\n"
+    assert len(open_calls) == 2  # Both should have opened the file
+
+
+def test_load_grep_context_preview_reads_file_once(tmp_path, monkeypatch) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    readme = project / "README.md"
+    readme.write_text("line 1\nline 2\nline 3\nline 4\nline 5\n", encoding="utf-8")
+
+    original_open = Path.open
+    open_calls: list[tuple[Path, str]] = []
+
+    def _tracking_open(self: Path, *args, **kwargs):
+        if self == readme:
+            mode = args[0] if args else kwargs.get("mode", "r")
+            open_calls.append((self, mode))
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", _tracking_open)
+
+    from zivo.services.browser_snapshot import _load_grep_context_preview
+
+    preview = _load_grep_context_preview(
+        readme, 3, context_lines=1, preview_max_bytes=1024
+    )
+
+    assert preview.content == "line 2\nline 3\nline 4\n"
+    assert preview.start_line == 2
+    assert preview.highlight_line == 3
+    # Should only open the file once
+    assert len([call for call in open_calls if call[0] == readme]) == 1
+
+
+def test_load_grep_context_preview_handles_binary_files(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    binary = project / "binary.bin"
+    binary.write_bytes(b"\x00\x01\x02\x03\x04\x05")
+
+    from zivo.services.browser_snapshot import (
+        PREVIEW_UNSUPPORTED_MESSAGE,
+        _load_grep_context_preview,
+    )
+
+    preview = _load_grep_context_preview(
+        binary, 1, context_lines=1, preview_max_bytes=1024
+    )
+
+    assert preview.content is None
+    assert preview.message == PREVIEW_UNSUPPORTED_MESSAGE
+
+
+def test_load_grep_context_preview_handles_permission_denied(tmp_path, monkeypatch) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    readme = project / "README.md"
+    readme.write_text("line 1\nline 2\nline 3\n", encoding="utf-8")
+
+    original_open = Path.open
+
+    def _permission_denied_open(self: Path, *args, **kwargs):
+        if self == readme:
+            raise PermissionError("Permission denied")
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", _permission_denied_open)
+
+    from zivo.services.browser_snapshot import (
+        PREVIEW_PERMISSION_DENIED_MESSAGE,
+        _load_grep_context_preview,
+    )
+
+    preview = _load_grep_context_preview(
+        readme, 2, context_lines=1, preview_max_bytes=1024
+    )
+
+    assert preview.content is None
+    assert preview.message == PREVIEW_PERMISSION_DENIED_MESSAGE
+
+

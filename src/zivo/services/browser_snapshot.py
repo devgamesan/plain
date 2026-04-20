@@ -24,6 +24,7 @@ from zivo.state.models import (
 
 DEFAULT_DIRECTORY_CACHE_CAPACITY = 64
 DEFAULT_TEXT_PREVIEW_CACHE_CAPACITY = 128
+DEFAULT_GREP_CONTEXT_CACHE_CAPACITY = 128
 TEXT_PREVIEW_MAX_BYTES = 64 * 1024
 TEXT_PREVIEW_EXTENSIONS = frozenset(
     {
@@ -189,6 +190,9 @@ PREVIEW_UNSUPPORTED_MESSAGE = "Preview unavailable for this file type"
 PREVIEW_ERROR_MESSAGE = "Preview unavailable"
 GREP_PREVIEW_ERROR_MESSAGE = "Preview unavailable: failed to load context"
 
+# Type alias for grep context cache key
+GrepContextCacheKey = tuple[str, int, int, int, int, int]
+
 
 class BrowserSnapshotLoader(Protocol):
     """Boundary for loading pane snapshots outside the reducer."""
@@ -243,6 +247,7 @@ class LiveBrowserSnapshotLoader:
     archive_list: ArchiveListService = field(default_factory=LiveArchiveListService)
     directory_cache_capacity: int = DEFAULT_DIRECTORY_CACHE_CAPACITY
     text_preview_cache_capacity: int = DEFAULT_TEXT_PREVIEW_CACHE_CAPACITY
+    grep_context_cache_capacity: int = DEFAULT_GREP_CONTEXT_CACHE_CAPACITY
     _directory_entries_cache: OrderedDict[str, tuple[DirectoryEntryState, ...]] = field(
         default_factory=OrderedDict,
         init=False,
@@ -262,6 +267,18 @@ class LiveBrowserSnapshotLoader:
         compare=False,
     )
     _text_preview_cache_lock: threading.Lock = field(
+        default_factory=threading.Lock,
+        init=False,
+        repr=False,
+        compare=False,
+    )
+    _grep_context_cache: "OrderedDict[GrepContextCacheKey, ContextPreviewState]" = field(
+        default_factory=OrderedDict,
+        init=False,
+        repr=False,
+        compare=False,
+    )
+    _grep_context_cache_lock: threading.Lock = field(
         default_factory=threading.Lock,
         init=False,
         repr=False,
@@ -440,12 +457,37 @@ class LiveBrowserSnapshotLoader:
         preview_max_bytes: int = TEXT_PREVIEW_MAX_BYTES,
     ) -> PaneState:
         child_path = Path(result.path).expanduser().resolve()
-        preview = _load_grep_context_preview(
-            child_path,
-            result.line_number,
-            context_lines,
-            preview_max_bytes=preview_max_bytes,
-        )
+
+        # Check cache first
+        if self.grep_context_cache_capacity > 0:
+            cache_key = _build_grep_context_cache_key(
+                child_path,
+                result.line_number,
+                context_lines,
+                preview_max_bytes,
+            )
+            if isinstance(cache_key, ContextPreviewState):
+                preview = cache_key
+            else:
+                cached_preview = self._get_cached_grep_context(cache_key)
+                if cached_preview is not None:
+                    preview = cached_preview
+                else:
+                    preview = _load_grep_context_preview(
+                        child_path,
+                        result.line_number,
+                        context_lines,
+                        preview_max_bytes=preview_max_bytes,
+                    )
+                    self._store_cached_grep_context(cache_key, preview)
+        else:
+            preview = _load_grep_context_preview(
+                child_path,
+                result.line_number,
+                context_lines,
+                preview_max_bytes=preview_max_bytes,
+            )
+
         return PaneState(
             directory_path=current_path,
             entries=(),
@@ -556,6 +598,28 @@ class LiveBrowserSnapshotLoader:
             self._text_preview_cache.move_to_end(cache_key)
             while len(self._text_preview_cache) > self.text_preview_cache_capacity:
                 self._text_preview_cache.popitem(last=False)
+
+    def _get_cached_grep_context(
+        self,
+        cache_key: GrepContextCacheKey,
+    ) -> "ContextPreviewState | None":
+        with self._grep_context_cache_lock:
+            preview = self._grep_context_cache.get(cache_key)
+            if preview is None:
+                return None
+            self._grep_context_cache.move_to_end(cache_key)
+            return preview
+
+    def _store_cached_grep_context(
+        self,
+        cache_key: GrepContextCacheKey,
+        preview: "ContextPreviewState",
+    ) -> None:
+        with self._grep_context_cache_lock:
+            self._grep_context_cache[cache_key] = preview
+            self._grep_context_cache.move_to_end(cache_key)
+            while len(self._grep_context_cache) > self.grep_context_cache_capacity:
+                self._grep_context_cache.popitem(last=False)
 
 
 def _is_permission_denied_error(error: OSError) -> bool:
@@ -760,6 +824,29 @@ def _build_text_preview_cache_key(
     )
 
 
+def _build_grep_context_cache_key(
+    path: Path,
+    line_number: int,
+    context_lines: int,
+    preview_max_bytes: int,
+) -> GrepContextCacheKey | "ContextPreviewState":
+    preview_limit = max(1, preview_max_bytes)
+    try:
+        stat = path.stat()
+    except PermissionError:
+        return ContextPreviewState.with_message(PREVIEW_PERMISSION_DENIED_MESSAGE)
+    except OSError:
+        return ContextPreviewState.with_message(GREP_PREVIEW_ERROR_MESSAGE)
+    return (
+        str(path),
+        stat.st_mtime_ns,
+        stat.st_size,
+        line_number,
+        context_lines,
+        preview_limit,
+    )
+
+
 def _load_text_preview(
     path: Path,
     *,
@@ -795,38 +882,46 @@ def _load_grep_context_preview(
     preview_max_bytes: int = TEXT_PREVIEW_MAX_BYTES,
 ) -> "ContextPreviewState":
     preview_limit = max(1, preview_max_bytes)
-    try:
-        with path.open("rb") as handle:
-            sample = handle.read(preview_limit + 1)
-    except PermissionError:
-        return ContextPreviewState.with_message(PREVIEW_PERMISSION_DENIED_MESSAGE)
-    except OSError:
-        return ContextPreviewState.with_message(GREP_PREVIEW_ERROR_MESSAGE)
-
-    if b"\x00" in sample[:preview_limit]:
-        return ContextPreviewState.with_message(PREVIEW_UNSUPPORTED_MESSAGE)
-
-    try:
-        sample.decode("utf-8")
-    except UnicodeDecodeError:
-        return ContextPreviewState.with_message(PREVIEW_UNSUPPORTED_MESSAGE)
-
     start_line = max(1, line_number - max(0, context_lines))
     end_line = line_number + max(0, context_lines)
     lines: list[str] = []
     last_line = 0
+    bytes_read = 0
+    binary_detected = False
+
     try:
-        with path.open("r", encoding="utf-8") as handle:
-            for current_line, line in enumerate(handle, start=1):
-                if current_line < start_line:
-                    continue
-                if current_line > end_line:
-                    break
-                lines.append(line)
-                last_line = current_line
+        # Single file open for both binary detection and context extraction
+        with path.open("rb") as handle:
+            current_line = 0
+            while current_line < end_line:
+                line_bytes = handle.readline()
+                if not line_bytes:
+                    break  # EOF
+
+                bytes_read += len(line_bytes)
+                current_line += 1
+
+                # Binary detection (only check first preview_limit bytes)
+                if not binary_detected and bytes_read <= preview_limit:
+                    if b"\x00" in line_bytes:
+                        return ContextPreviewState.with_message(PREVIEW_UNSUPPORTED_MESSAGE)
+                    try:
+                        line_bytes.decode("utf-8")
+                    except UnicodeDecodeError:
+                        return ContextPreviewState.with_message(PREVIEW_UNSUPPORTED_MESSAGE)
+
+                # Collect context lines
+                if current_line >= start_line:
+                    try:
+                        line_text = line_bytes.decode("utf-8")
+                        lines.append(line_text)
+                        last_line = current_line
+                    except UnicodeDecodeError:
+                        return ContextPreviewState.with_message(GREP_PREVIEW_ERROR_MESSAGE)
+
     except PermissionError:
         return ContextPreviewState.with_message(PREVIEW_PERMISSION_DENIED_MESSAGE)
-    except (OSError, UnicodeDecodeError):
+    except OSError:
         return ContextPreviewState.with_message(GREP_PREVIEW_ERROR_MESSAGE)
 
     if not lines or last_line < line_number:

@@ -6,6 +6,7 @@ from zivo.models import (
     BookmarkConfig,
     DisplayConfig,
     EditorConfig,
+    FileSearchConfig,
     HelpBarConfig,
     LoggingConfig,
     TerminalConfig,
@@ -472,3 +473,108 @@ def test_loader_created_default_config_round_trips_without_warnings(tmp_path) ->
     assert reloaded.created is False
     assert reloaded.warnings == ()
     assert reloaded.config == AppConfig()
+
+
+def test_file_search_config_default_is_unlimited() -> None:
+    """file_search.max_results のデフォルト値が None であることを確認."""
+    config = AppConfig()
+    assert config.file_search.max_results is None
+
+
+def test_file_search_config_custom_max_results() -> None:
+    """file_search.max_results にカスタム値を設定できることを確認."""
+    config = AppConfig(file_search=FileSearchConfig(max_results=1000))
+    assert config.file_search.max_results == 1000
+
+
+def test_loader_reads_file_search_max_results(tmp_path) -> None:
+    """config.toml から file_search.max_results を読み込めることを確認."""
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+        [file_search]
+        max_results = 500
+        """,
+        encoding="utf-8",
+    )
+
+    result = AppConfigLoader(config_path_resolver=lambda: config_path).load()
+
+    assert result.warnings == ()
+    assert result.config.file_search.max_results == 500
+
+
+def test_loader_accepts_empty_file_search_section(tmp_path) -> None:
+    """file_search セクションが空の場合、制限なしであることを確認."""
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+        [file_search]
+        """,
+        encoding="utf-8",
+    )
+
+    result = AppConfigLoader(config_path_resolver=lambda: config_path).load()
+
+    assert result.warnings == ()
+    assert result.config.file_search.max_results is None
+
+
+def test_loader_rejects_negative_file_search_max_results(tmp_path) -> None:
+    """file_search.max_results が負の値の場合、デフォルト値になることを確認."""
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+        [file_search]
+        max_results = -100
+        """,
+        encoding="utf-8",
+    )
+
+    result = AppConfigLoader(config_path_resolver=lambda: config_path).load()
+
+    assert result.config.file_search.max_results is None
+    assert any(
+        "file_search.max_results must be 0 or greater" in w
+        for w in result.warnings
+    )
+
+
+def test_loader_rejects_non_integer_file_search_max_results(tmp_path) -> None:
+    """file_search.max_results が整数以外の場合、デフォルト値になることを確認."""
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+        [file_search]
+        max_results = "unlimited"
+        """,
+        encoding="utf-8",
+    )
+
+    result = AppConfigLoader(config_path_resolver=lambda: config_path).load()
+
+    assert result.config.file_search.max_results is None
+    assert any(
+        "file_search.max_results must be an integer" in w
+        for w in result.warnings
+    )
+
+
+def test_render_app_config_includes_file_search_section(tmp_path) -> None:
+    """render_app_config が file_search セクションを出力することを確認."""
+    config = AppConfig(
+        file_search=FileSearchConfig(max_results=1000),
+    )
+    rendered = render_app_config(config)
+
+    assert "[file_search]" in rendered
+    assert "max_results = 1000" in rendered
+
+
+def test_render_app_config_shows_comment_for_default_file_search_max_results() -> None:
+    """file_search.max_results がデフォルト（None）の場合、コメントで表示されることを確認."""
+    config = AppConfig()
+    rendered = render_app_config(config)
+
+    assert "[file_search]" in rendered
+    assert "# max_results = 1000" in rendered

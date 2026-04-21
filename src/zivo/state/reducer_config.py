@@ -15,6 +15,7 @@ CONFIG_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 CONFIG_PASTE_ACTIONS = ("prompt", "overwrite", "skip", "rename")
 CONFIG_EDITOR_COMMANDS = (None, "nvim", "vim", "nano", "hx", "micro", "emacs -nw")
 CONFIG_SPLIT_TERMINAL_POSITIONS = ("bottom", "right", "overlay")
+CONFIG_FILE_SEARCH_MAX_RESULTS = (None, 100, 500, 1000, 5000, 10000)
 
 
 def normalize_config_editor_cursor(cursor_index: int) -> int:
@@ -169,6 +170,21 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
                 ),
             ),
         )
+    if field_id == "file_search.max_results":
+        current = config.file_search.max_results
+        if current not in CONFIG_FILE_SEARCH_MAX_RESULTS:
+            current = None
+        current_index = CONFIG_FILE_SEARCH_MAX_RESULTS.index(current)
+        new_max_results = CONFIG_FILE_SEARCH_MAX_RESULTS[
+            (current_index + delta) % len(CONFIG_FILE_SEARCH_MAX_RESULTS)
+        ]
+        return replace(
+            config,
+            file_search=replace(
+                config.file_search,
+                max_results=new_max_results,
+            ),
+        )
     return replace(
         config,
         behavior=replace(
@@ -213,6 +229,7 @@ def config_editor_field_ids() -> tuple[str, ...]:
         "behavior.confirm_delete",
         "behavior.paste_conflict_action",
         "logging.level",
+        "file_search.max_results",
     )
 
 
@@ -234,6 +251,7 @@ def config_editor_labels() -> tuple[str, ...]:
         "Confirm delete",
         "Paste conflict action",
         "Log level",
+        "File search max results",
     )
 
 
@@ -243,6 +261,7 @@ CONFIG_EDITOR_CATEGORIES: tuple[tuple[str, tuple[int, ...]], ...] = (
     ("Sorting", (8, 9, 10)),
     ("Behavior", (13, 14)),
     ("Logging", (15,)),
+    ("File Search", (16,)),
 )
 
 
@@ -316,6 +335,10 @@ def format_config_field_value(field_index: int, config: AppConfig) -> str:
         return config.behavior.paste_conflict_action
     if field_id == "logging.level":
         return config.logging.level
+    if field_id == "file_search.max_results":
+        if config.file_search.max_results is None:
+            return "unlimited"
+        return str(config.file_search.max_results)
     return ""
 
 

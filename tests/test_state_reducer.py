@@ -754,7 +754,7 @@ def test_move_config_editor_cursor_clamps_to_visible_settings() -> None:
     next_state = _reduce_state(state, MoveConfigEditorCursor(delta=99))
 
     assert next_state.config_editor is not None
-    assert next_state.config_editor.cursor_index == 15
+    assert next_state.config_editor.cursor_index == 16
 
 def test_cycle_config_editor_editor_command_updates_draft_and_dirty_state() -> None:
     state = replace(
@@ -1143,6 +1143,58 @@ def test_config_save_completed_requests_preview_when_enabled() -> None:
             ),
         ),
     )
+
+
+def test_cycle_config_editor_file_search_max_results_updates_draft() -> None:
+    """file_search.max_results をサイクルさせて設定を変更できることを確認."""
+    original_state = build_initial_app_state(config_path="/tmp/zivo/config.toml")
+    state = replace(
+        original_state,
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/zivo/config.toml",
+            draft=original_state.config,
+            cursor_index=16,  # file_search.max_results
+        ),
+    )
+
+    # None → 100
+    next_state = _reduce_state(state, CycleConfigEditorValue(delta=1))
+
+    assert next_state.config_editor is not None
+    assert next_state.config_editor.draft.file_search.max_results == 100
+    assert next_state.config_editor.dirty is True
+
+    # 100 → 500
+    next_state = _reduce_state(next_state, CycleConfigEditorValue(delta=1))
+
+    assert next_state.config_editor is not None
+    assert next_state.config_editor.draft.file_search.max_results == 500
+
+    # 500 → 1000
+    next_state = _reduce_state(next_state, CycleConfigEditorValue(delta=1))
+
+    assert next_state.config_editor is not None
+    assert next_state.config_editor.draft.file_search.max_results == 1000
+
+    # 1000 → 5000
+    next_state = _reduce_state(next_state, CycleConfigEditorValue(delta=1))
+
+    assert next_state.config_editor is not None
+    assert next_state.config_editor.draft.file_search.max_results == 5000
+
+    # 5000 → 10000
+    next_state = _reduce_state(next_state, CycleConfigEditorValue(delta=1))
+
+    assert next_state.config_editor is not None
+    assert next_state.config_editor.draft.file_search.max_results == 10000
+
+    # 10000 → None (制限なしに戻る)
+    next_state = _reduce_state(next_state, CycleConfigEditorValue(delta=1))
+
+    assert next_state.config_editor is not None
+    assert next_state.config_editor.draft.file_search.max_results is None
+
 
 def test_config_save_failed_sets_error_notification() -> None:
     state = replace(

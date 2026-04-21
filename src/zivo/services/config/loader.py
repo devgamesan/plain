@@ -13,6 +13,7 @@ from zivo.models import (
     ConfigLoadResult,
     DisplayConfig,
     EditorConfig,
+    FileSearchConfig,
     HelpBarConfig,
     LoggingConfig,
     TerminalConfig,
@@ -91,6 +92,7 @@ class AppConfigLoader:
                 logging=load_logging_config(document.get("logging"), warnings),
                 bookmarks=load_bookmark_config(document.get("bookmarks"), warnings),
                 help_bar=load_help_bar_config(document.get("help_bar"), warnings),
+                file_search=load_file_search_config(document.get("file_search"), warnings),
             ),
             path=str(path),
             warnings=tuple(warnings),
@@ -335,6 +337,27 @@ def load_help_lines(
             lines.append(item.strip())
 
     return tuple(lines)
+
+
+def load_file_search_config(section: object, warnings: list[str]) -> FileSearchConfig:
+    config = FileSearchConfig()
+    validated = validate_section_dict(section, "file_search", warnings)
+    if validated is None:
+        return config
+
+    max_results = validated.get("max_results")
+    if max_results is None:
+        return config
+
+    if not isinstance(max_results, int):
+        warnings.append("file_search.max_results must be an integer or null; using default.")
+        return config
+
+    if max_results < 0:
+        warnings.append("file_search.max_results must be 0 or greater; using default.")
+        return config
+
+    return FileSearchConfig(max_results=max_results)
 
 
 def load_logging_config(section: object, warnings: list[str]) -> LoggingConfig:

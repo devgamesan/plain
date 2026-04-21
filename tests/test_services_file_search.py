@@ -172,3 +172,61 @@ def test_live_file_search_service_skips_entries_with_generic_os_errors_during_wa
     results = service.search(str(root), "read", show_hidden=False)
 
     assert [result.display_path for result in results] == ["ok/README-ok.md"]
+
+
+def test_live_file_search_service_respects_max_results(tmp_path) -> None:
+    """max_results が指定されている場合、結果が制限されることを確認."""
+    root = tmp_path / "project"
+    root.mkdir()
+
+    # 100個のファイルを作成
+    for index in range(100):
+        (root / f"file_{index:03d}.txt").write_text(f"content {index}\n", encoding="utf-8")
+
+    service = LiveFileSearchService()
+
+    # max_results=10 を指定
+    results = service.search(str(root), "file", show_hidden=False, max_results=10)
+
+    # 結果が10件に制限されていることを確認
+    assert len(results) == 10
+    # 結果がソートされていることを確認
+    display_paths = [result.display_path for result in results]
+    assert display_paths == sorted(display_paths, key=str.casefold)
+
+
+def test_live_file_search_service_no_limit_when_max_results_is_none(tmp_path) -> None:
+    """max_results=None の場合、全結果が返されることを確認."""
+    root = tmp_path / "project"
+    root.mkdir()
+
+    # 50個のファイルを作成
+    for index in range(50):
+        (root / f"file_{index:02d}.txt").write_text(f"content {index}\n", encoding="utf-8")
+
+    service = LiveFileSearchService()
+
+    # max_results=None（制限なし）を指定
+    results = service.search(str(root), "file", show_hidden=False, max_results=None)
+
+    # 全結果（50件）が返されることを確認
+    assert len(results) == 50
+
+
+def test_live_file_search_service_returns_sorted_results_with_limit(tmp_path) -> None:
+    """max_results が指定されている場合でも、結果がソートされていることを確認."""
+    root = tmp_path / "project"
+    root.mkdir()
+
+    # 辞書順でないファイル名を作成
+    for name in ["z_file.txt", "a_file.txt", "m_file.txt", "b_file.txt"]:
+        (root / name).write_text("content\n", encoding="utf-8")
+
+    service = LiveFileSearchService()
+    results = service.search(str(root), "file", show_hidden=False, max_results=3)
+
+    # 3件が返されることを確認
+    assert len(results) == 3
+    # 結果がソートされていることを確認（ただし、辞書順の最初の3件とは限らない）
+    display_paths = [result.display_path for result in results]
+    assert display_paths == sorted(display_paths, key=str.casefold)

@@ -403,6 +403,7 @@ zivo は起動時にユーザー設定用の `config.toml` を読み込みます
 | `logging` | `level` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` | ログファイルへ出力するログレベルです。既定値は `ERROR` です。設定の反映にはアプリの再起動が必要です。 |
 | `logging` | `path` | パス文字列 | 任意のログファイル保存先です。空文字なら `config.toml` と同じディレクトリの `zivo.log` を使います。ログファイルの既定の場所: Linux: `~/.config/zivo/zivo.log`、macOS: `~/Library/Application Support/zivo/zivo.log`。 |
 | `bookmarks` | `paths` | 絶対パス文字列の配列 | `b` やコマンドパレットの `Show bookmarks` で使うブックマーク一覧です。重複パスは読み込み時に取り除かれます。 |
+| `file_search` | `max_results` | 整数または空 | ファイル検索の最大結果件数です。空欄の場合は制限なし（既定値）。大規模リポジトリでのメモリ使用量を削減するために設定します。 |
 
 例:
 

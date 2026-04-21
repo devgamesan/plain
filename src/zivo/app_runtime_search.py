@@ -318,6 +318,11 @@ def start_search_worker(
         "show_hidden": effect.show_hidden,
         "is_cancelled": cancel_event.is_set,
     }
+
+    # ファイル検索の場合のみ max_results を追加
+    if isinstance(effect, RunFileSearchEffect):
+        search_kwargs["max_results"] = app._app_state.config.file_search.max_results
+
     if isinstance(effect, RunGrepSearchEffect):
         search_kwargs["include_globs"] = effect.include_globs
         search_kwargs["exclude_globs"] = effect.exclude_globs

@@ -18,6 +18,7 @@ class FileSearchService(Protocol):
         query: str,
         *,
         show_hidden: bool,
+        max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
     ) -> tuple[FileSearchResultState, ...]: ...
 
@@ -95,6 +96,7 @@ class LiveFileSearchService:
         query: str,
         *,
         show_hidden: bool,
+        max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
     ) -> tuple[FileSearchResultState, ...]:
         parsed_query = parse_file_search_query(query)
@@ -135,6 +137,13 @@ class LiveFileSearchService:
                         display_path=str(child.relative_to(root)),
                     )
                 )
+
+                # max_results が指定されている場合のみ制限を適用
+                if max_results is not None and len(results) >= max_results:
+                    # 早期終了する前にソート
+                    results.sort(key=lambda result: result.display_path.casefold())
+                    return tuple(results)
+
         results.sort(key=lambda result: result.display_path.casefold())
         return tuple(results)
 
@@ -156,6 +165,7 @@ class FakeFileSearchService:
         query: str,
         *,
         show_hidden: bool,
+        max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
     ) -> tuple[FileSearchResultState, ...]:
         key = (root_path, query, show_hidden)
@@ -166,4 +176,14 @@ class FakeFileSearchService:
             raise InvalidFileSearchQueryError(self.invalid_query_messages[key])
         if key in self.failure_messages:
             raise OSError(self.failure_messages[key])
-        return self.results_by_query.get(key, ())
+
+        results = self.results_by_query.get(key, ())
+
+        # max_results が指定されている場合のみ制限を適用
+        if max_results is not None and len(results) > max_results:
+            limited_results = tuple(
+                sorted(results, key=lambda r: r.display_path.casefold())[:max_results]
+            )
+            return limited_results
+
+        return results

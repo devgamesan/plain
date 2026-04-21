@@ -453,6 +453,7 @@ class BlockingFileSearchService:
         query: str,
         *,
         show_hidden: bool,
+        max_results: int | None = None,
         is_cancelled=None,
     ) -> tuple[FileSearchResultState, ...]:
         key = (root_path, query, show_hidden)

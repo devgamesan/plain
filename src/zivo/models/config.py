@@ -97,6 +97,13 @@ class HelpBarConfig:
 
 
 @dataclass(frozen=True)
+class FileSearchConfig:
+    """File search behavior settings."""
+
+    max_results: int | None = None
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """Normalized application configuration."""
 
@@ -107,6 +114,7 @@ class AppConfig:
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     bookmarks: BookmarkConfig = field(default_factory=BookmarkConfig)
     help_bar: HelpBarConfig = field(default_factory=HelpBarConfig)
+    file_search: FileSearchConfig = field(default_factory=FileSearchConfig)
 
 
 @dataclass(frozen=True)

@@ -180,10 +180,13 @@ class FakeFileSearchService:
         results = self.results_by_query.get(key, ())
 
         # max_results が指定されている場合のみ制限を適用
-        if max_results is not None and len(results) > max_results:
-            limited_results = tuple(
-                sorted(results, key=lambda r: r.display_path.casefold())[:max_results]
-            )
-            return limited_results
+        if max_results is not None:
+            if max_results <= 0:
+                return ()
+            if len(results) > max_results:
+                limited_results = tuple(
+                    sorted(results, key=lambda r: r.display_path.casefold())[:max_results]
+                )
+                return limited_results
 
         return results

@@ -316,7 +316,7 @@ Notes:
 - `CONFIG`
   - Edits startup settings in the config overlay, saves with `s`, and opens raw `config.toml` in a terminal editor with `e`
 - While the split terminal is visible
-  - Terminal input takes precedence over browser shortcuts, and `Ctrl+t` or `Esc` closes it
+  - Terminal input takes precedence over browser shortcuts, and `Ctrl+q` closes it
 
 ## 6. What Works Today
 

@@ -26,6 +26,19 @@ def test_transfer_mode_uses_brackets_for_pane_focus() -> None:
     )
 
 
+def test_transfer_mode_q_and_2_return_to_normal_mode() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+
+    assert dispatch_key_input(state, key="q", character="q") == (
+        SetNotification(None),
+        ToggleTransferMode(),
+    )
+    assert dispatch_key_input(state, key="2", character="2") == (
+        SetNotification(None),
+        ToggleTransferMode(),
+    )
+
+
 def test_transfer_mode_keeps_tab_keys_for_browser_tabs() -> None:
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
 
@@ -62,7 +75,7 @@ def test_transfer_mode_does_not_use_clipboard_style_keys() -> None:
         SetNotification(
             NotificationState(
                 level="warning",
-                message="Use [], space, y copy, m move, z undo, . hidden, or 2 to close",
+                message="Use [], space, y copy, m move, z undo, . hidden, or q/2 to close",
             )
         ),
     )

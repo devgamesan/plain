@@ -26,6 +26,7 @@ from .selectors import compute_current_pane_visible_window
 
 TRANSFER_KEYMAP = {
     "2",
+    "q",
     "[",
     "]",
     "up",
@@ -67,7 +68,7 @@ def dispatch_transfer_input(
         return supported(ToggleTransferMode())
     visible_paths = _visible_paths(state, transfer.pane)
 
-    if key == "2":
+    if key in {"2", "q"}:
         return supported(ToggleTransferMode())
     if key == "tab":
         return supported(ActivateNextTab())
@@ -131,7 +132,7 @@ def dispatch_transfer_input(
     if key == "z":
         return supported(UndoLastOperation())
 
-    return warn("Use [], space, y copy, m move, z undo, . hidden, or 2 to close")
+    return warn("Use [], space, y copy, m move, z undo, . hidden, or q/2 to close")
 
 
 def _active_transfer_pane(state: AppState) -> TransferPaneState | None:

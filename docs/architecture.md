@@ -316,7 +316,7 @@ stateDiagram-v2
 - `CONFIG`
   - config overlay 上で起動時設定を編集し、`s` で保存し、`e` で生の `config.toml` を terminal editor で開く
 - split terminal 可視時
-  - 通常の browse 用キーバインドではなく terminal 入力が優先され、`Ctrl+t` または `Esc` で閉じる
+  - 通常の browse 用キーバインドではなく terminal 入力が優先され、`Ctrl+q` で閉じる
 
 ## 6. 現在できること
 

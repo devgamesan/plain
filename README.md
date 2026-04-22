@@ -259,7 +259,7 @@ When a file is focused, press `e` to switch into a terminal editor in the curren
 
 | Key | Action |
 | --- | ------ |
-| `2` | Return to normal mode |
+| `q` / `2` | Return to normal mode |
 | `[` / `]` | Focus the left/right transfer pane |
 | `j` / `↓` | Move down in the focused pane |
 | `k` / `↑` | Move up in the focused pane |
@@ -283,7 +283,7 @@ When a file is focused, press `e` to switch into a terminal editor in the curren
 | --- | ------ |
 | Any printable character | Send to terminal |
 | `Cmd+v` (macOS) / `Ctrl+shift+v` (Linux) | Paste from clipboard |
-| `Esc` | Close split terminal |
+| `Ctrl+q` | Close split terminal |
 
 ### Input Dialogs
 
@@ -370,7 +370,7 @@ The tab strip is only shown when two or more browser tabs are open.
 | `Go to path` | Always | Opens go-to-path input to navigate to a specific path, shows matching directories, and supports `Tab` completion for the selected candidate. |
 | `Go to home directory` | Always | Navigates to the home directory. |
 | `Reload directory` | Always | Reloads the current directory. |
-| `Toggle transfer mode` / `Close transfer mode` | Always | Switches between the normal three-pane browser and the two-pane transfer layout. Also available with `2`. |
+| `Toggle transfer mode` / `Close transfer mode` | Always | Switches between the normal three-pane browser and the two-pane transfer layout. Also available with `q` / `2` while transfer mode is open, and `2` from normal mode. |
 | `Undo last file operation` | Undo history is not empty | Reverses the most recent undoable rename, paste, or trash operation. Also available with `z`. Trash restore is currently Linux-only. |
 | `Toggle split terminal` | Always | Opens or closes the embedded split terminal. |
 | `Select all` | Current directory has at least one visible entry | Selects every currently visible entry in the current directory, respecting hidden-file visibility and any active filter. |

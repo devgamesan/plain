@@ -179,6 +179,12 @@ sequenceDiagram
 - ディレクトリ移動、history 戻る / 進む、home 移動、reload、filter、sort、hidden files 切り替えを担当する
 - browser snapshot と child pane snapshot の反映、directory size request の発行と結果反映もここで扱う
 
+### `src/zivo/state/reducer_transfer.py`
+
+- 2ペイン転送モードの開閉、左右フォーカス、左右ペイン内の移動と選択を担当する
+- 反対側ペインへの copy / move は既存 `PasteRequest` と clipboard paste effect を再利用する
+- 転送ペインの directory snapshot 読み込みと、paste 後の左右ペイン再読み込みを担当する
+
 ### `src/zivo/state/reducer_mutations.py`
 
 - `handle_mutation_action()` を公開入口として維持し、mutation 系 action を責務別ハンドラへ振り分ける
@@ -200,6 +206,7 @@ sequenceDiagram
 
 - `AppState` から `ThreePaneShellData` を組み立てる
 - 中央ペインにだけ filter / sort / directory size 表示を適用し、親・子ペインは固定順で表示する
+- 転送モードでは左右2つの `MainPane` 用表示モデルを組み立て、Parent / Child / Preview を描画対象から外す
 - help bar、status bar、input bar、command palette、conflict dialog、attribute dialog、config dialog、split terminal の表示文言を整形する
 - busy 状態、extract 進捗、検索エラー、通知メッセージを UI 向けに要約する
 
@@ -323,6 +330,7 @@ stateDiagram-v2
 - 名前 / 更新日時 / サイズソートと directory-first 切り替え
 - 必要に応じた可視ディレクトリの再帰サイズ表示
 - 選択トグル、選択解除、copy / cut / paste
+- 2ペイン転送モードでの左右フォーカス、左右間 copy / move、既存 clipboard paste
 - 貼り付け時の競合検出と overwrite / skip / rename の解決
 - 単一対象の rename
 - 新規ファイル / 新規ディレクトリ作成

@@ -15,7 +15,7 @@ from zivo.models import (
     UndoEntry,
 )
 
-from .models import AppState, GrepSearchResultState, PaneState
+from .models import AppState, GrepSearchResultState, PaneState, TransferPaneId
 
 
 @dataclass(frozen=True)
@@ -59,6 +59,17 @@ class LoadParentChildEffect:
     path: str
     cursor_path: str | None
     current_pane: PaneState
+
+
+@dataclass(frozen=True)
+class LoadTransferPaneEffect:
+    """Request a directory snapshot for a transfer pane."""
+
+    request_id: int
+    pane_id: TransferPaneId
+    path: str
+    cursor_path: str | None = None
+    invalidate_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -225,6 +236,7 @@ Effect = (
     | LoadChildPaneSnapshotEffect
     | LoadCurrentPaneEffect
     | LoadParentChildEffect
+    | LoadTransferPaneEffect
     | RunDirectorySizeEffect
     | RunAttributeInspectionEffect
     | RunClipboardPasteEffect

@@ -73,6 +73,7 @@ from .actions import (
     TextReplacePreviewFailed,
     ToggleHiddenFiles,
     ToggleSplitTerminal,
+    ToggleTransferMode,
     UndoLastOperation,
 )
 from .command_palette import get_command_palette_items, normalize_command_palette_cursor
@@ -595,6 +596,8 @@ def _run_palette_command_item(
         return _run_go_to_home_directory_command(next_state, reduce_state)
     if item_id == "reload_directory":
         return _run_reload_directory_command(next_state, reduce_state)
+    if item_id == "toggle_transfer_mode":
+        return reduce_state(next_state, ToggleTransferMode())
     if item_id == "undo_last_operation":
         return reduce_state(next_state, UndoLastOperation())
     if item_id == "toggle_split_terminal":

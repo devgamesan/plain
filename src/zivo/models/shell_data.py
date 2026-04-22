@@ -75,6 +75,19 @@ class CurrentSummaryState:
 
 
 @dataclass(frozen=True)
+class TransferPaneViewState:
+    """Display data for one side of the transfer layout."""
+
+    title: str
+    path: str
+    entries: tuple[PaneEntry, ...]
+    summary: CurrentSummaryState
+    cursor_index: int | None
+    cursor_visible: bool = True
+    active: bool = False
+
+
+@dataclass(frozen=True)
 class ChildPaneViewState:
     """Display data rendered in the right-side child pane."""
 
@@ -258,6 +271,9 @@ class ThreePaneShellData:
     config_dialog: ConfigDialogState | None = None
     shell_command_dialog: ShellCommandDialogState | None = None
     input_dialog: InputDialogState | None = None
+    layout_mode: Literal["browser", "transfer"] = "browser"
+    transfer_left: TransferPaneViewState | None = None
+    transfer_right: TransferPaneViewState | None = None
 
 
 def build_dummy_shell_data() -> ThreePaneShellData:

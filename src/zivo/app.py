@@ -131,7 +131,11 @@ _REPLACE_PREVIEW_SCROLL_SOURCES = frozenset(
 def _preview_scroll_delta(state: AppState, key: str) -> int | None:
     """Return scroll delta for preview key bindings, or None if not applicable."""
 
-    if state.ui_mode == "BROWSING" and state.child_pane.mode == "preview":
+    if (
+        state.ui_mode == "BROWSING"
+        and state.layout_mode != "transfer"
+        and state.child_pane.mode == "preview"
+    ):
         return _BROWSING_PREVIEW_SCROLL_KEYS.get(key)
     if state.ui_mode == "PALETTE" and state.command_palette is not None:
         if state.command_palette.source in _REPLACE_PREVIEW_SCROLL_SOURCES:
@@ -305,6 +309,11 @@ class zivoApp(App[None]):
             self._app_state.config.display.split_terminal_position == "right"
             and self._app_state.split_terminal.visible
         )
+
+        if self._app_state.layout_mode == "transfer":
+            parent_pane.display = False
+            child_pane.display = False
+            return
 
         if width >= self._PANE_VISIBILITY_MEDIUM_THRESHOLD:
             parent_pane.display = True
@@ -536,6 +545,7 @@ class zivoApp(App[None]):
         layout_changed = (
             previous_state.config.display.split_terminal_position
             != self._app_state.config.display.split_terminal_position
+            or previous_state.layout_mode != self._app_state.layout_mode
         )
         if theme_changed:
             self.theme = next_theme

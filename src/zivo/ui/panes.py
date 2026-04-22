@@ -11,6 +11,7 @@ from rich.text import Text
 from textual import events
 from textual.app import ComposeResult
 from textual.containers import Vertical, VerticalScroll
+from textual.css.query import NoMatches
 from textual.widgets import DataTable, Label, Static
 
 from zivo.models.shell_data import (
@@ -333,7 +334,10 @@ class SidePane(Vertical):
         self._last_render_width = render_width
 
     def _refresh_rendered_labels(self) -> None:
-        content = self._content_widget()
+        try:
+            content = self._content_widget()
+        except NoMatches:
+            return
         render_width = self._entry_width(content)
         if render_width <= 0 or render_width == self._last_render_width:
             return
@@ -475,23 +479,26 @@ class ChildPane(Vertical):
 
     def _refresh_rendered_content(self, *, force: bool = False) -> bool:
         render_signature = self._render_signature(self._state)
-        if self._state.is_preview:
-            widget = self._preview_widget()
-            render_width = max(0, widget.size.width - self.PREVIEW_HORIZONTAL_PADDING)
-            if render_width <= 0:
-                return False
-            if (
-                not force
-                and render_width == self._last_render_width
-                and render_signature == self._last_render_signature
-            ):
+        try:
+            if self._state.is_preview:
+                widget = self._preview_widget()
+                render_width = max(0, widget.size.width - self.PREVIEW_HORIZONTAL_PADDING)
+                if render_width <= 0:
+                    return False
+                if (
+                    not force
+                    and render_width == self._last_render_width
+                    and render_signature == self._last_render_signature
+                ):
+                    return True
+                widget.update(self._render_preview(self._state, render_width))
+                self._last_render_width = render_width
+                self._last_render_signature = render_signature
                 return True
-            widget.update(self._render_preview(self._state, render_width))
-            self._last_render_width = render_width
-            self._last_render_signature = render_signature
-            return True
 
-        widget = self._list_widget()
+            widget = self._list_widget()
+        except NoMatches:
+            return True
         render_width = max(0, widget.size.width - SidePane.ENTRY_HORIZONTAL_PADDING)
         if render_width <= 0:
             return False
@@ -840,7 +847,10 @@ class MainPane(Vertical):
     # -- Table building ---------------------------------------------------------
 
     def _refresh_table_width(self) -> None:
-        table = self.query_one(DataTable)
+        try:
+            table = self.query_one(DataTable)
+        except NoMatches:
+            return
         table_width = table.size.width
         if table_width <= 0 or table_width == self._last_table_width:
             return

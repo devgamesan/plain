@@ -48,6 +48,7 @@ from .actions import (
     ToggleHiddenFiles,
     ToggleSelectionAndAdvance,
     ToggleSplitTerminal,
+    ToggleTransferMode,
     UndoLastOperation,
 )
 from .input_common import (
@@ -78,6 +79,7 @@ BROWSING_KEYMAP = {
     "h": "go_to_parent",
     "R": "reload_directory",
     "q": "exit_current_path",
+    "2": "toggle_transfer_mode",
     "r": "begin_rename",
     "!": "begin_shell_command",
     ":": "begin_command_palette",
@@ -110,7 +112,7 @@ BROWSING_KEYMAP = {
     "]": "preview_pagedown",
     "{": "go_back",
     "}": "go_forward",
-    "m": "open_file_manager",
+    "M": "open_file_manager",
     "T": "open_terminal",
     "home": "jump_cursor_start",
     "end": "jump_cursor_end",
@@ -429,6 +431,7 @@ BROWSING_SIMPLE_DISPATCH: dict[str, type[Action]] = {
     "activate_previous_tab": ActivatePreviousTab,
     "exit_current_path": ExitCurrentPath,
     "show_attributes": ShowAttributes,
+    "toggle_transfer_mode": ToggleTransferMode,
 }
 
 BROWSING_PARAM_DISPATCH: dict[str, BrowsingHandler] = {

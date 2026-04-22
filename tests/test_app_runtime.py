@@ -21,6 +21,7 @@ from zivo.app_runtime import (
     schedule_browser_snapshot,
     schedule_child_pane_snapshot,
     schedule_file_search,
+    schedule_transfer_pane_snapshot,
     schedule_undo,
     start_child_pane_snapshot,
     start_file_search_worker,
@@ -35,6 +36,7 @@ from zivo.state import (
     DirectoryEntryState,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
+    LoadTransferPaneEffect,
     PaneState,
     RunConfigSaveEffect,
     RunDirectorySizeEffect,
@@ -75,6 +77,7 @@ class _RecordingSnapshotLoader:
     invalidated_paths: list[tuple[str, ...]] = field(default_factory=list)
     load_browser_snapshot_calls: list[tuple[str, str | None]] = field(default_factory=list)
     load_child_pane_snapshot_calls: list[tuple[str, str | None, int]] = field(default_factory=list)
+    load_current_pane_snapshot_calls: list[tuple[str, str | None]] = field(default_factory=list)
 
     def invalidate_directory_listing_cache(self, paths: tuple[str, ...] = ()) -> None:
         self.invalidated_paths.append(paths)
@@ -96,6 +99,15 @@ class _RecordingSnapshotLoader:
     ) -> PaneState:
         self.load_child_pane_snapshot_calls.append((current_path, cursor_path, preview_max_bytes))
         return PaneState(directory_path=current_path, entries=())
+
+    def load_current_pane_snapshot(
+        self,
+        path: str,
+        cursor_path: str | None,
+    ) -> tuple[str, PaneState, PaneState]:
+        self.load_current_pane_snapshot_calls.append((path, cursor_path))
+        pane = PaneState(directory_path=path, entries=(), cursor_path=cursor_path)
+        return path, pane, PaneState(directory_path=path, entries=())
 
 
 @dataclass
@@ -241,6 +253,25 @@ def test_schedule_browser_snapshot_invalidates_requested_paths_before_worker() -
 
     assert loader.invalidated_paths == [("/tmp/project", "/tmp", "/tmp/project/docs")]
     assert loader.load_browser_snapshot_calls == [("/tmp/project", "/tmp/project/docs")]
+
+
+def test_schedule_transfer_pane_snapshot_uses_pane_scoped_worker_group() -> None:
+    app = _RecordingApp()
+
+    schedule_transfer_pane_snapshot(
+        app,
+        LoadTransferPaneEffect(request_id=1, pane_id="left", path="/tmp/source"),
+    )
+    schedule_transfer_pane_snapshot(
+        app,
+        LoadTransferPaneEffect(request_id=2, pane_id="right", path="/tmp/destination"),
+    )
+
+    assert [call["group"] for call in app.run_worker_calls] == [
+        "transfer-pane-snapshot:left",
+        "transfer-pane-snapshot:right",
+    ]
+    assert all(call["exclusive"] is True for call in app.run_worker_calls)
 
 
 def test_complete_worker_actions_maps_directory_size_result() -> None:

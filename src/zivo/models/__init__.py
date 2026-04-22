@@ -81,6 +81,7 @@ from .shell_data import (
     TabBarState,
     TabItemState,
     ThreePaneShellData,
+    TransferPaneViewState,
     build_dummy_shell_data,
 )
 
@@ -162,5 +163,6 @@ __all__ = [
     "TabItemState",
     "TerminalConfig",
     "ThreePaneShellData",
+    "TransferPaneViewState",
     "build_dummy_shell_data",
 ]

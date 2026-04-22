@@ -77,6 +77,7 @@ class HelpBarConfig:
     """Custom help bar text for each UI mode."""
 
     browsing: tuple[str, ...] = ()
+    transfer: tuple[str, ...] = ()
     filter: tuple[str, ...] = ()
     rename: tuple[str, ...] = ()
     create: tuple[str, ...] = ()

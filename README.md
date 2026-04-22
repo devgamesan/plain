@@ -23,7 +23,7 @@ zivo aims to be usable by everyone without complex configuration, plugin install
 
 ## Features
 
-- Simple three-pane layout for parent / current / right panes. When the cursor is on a directory, the right pane shows its children. When the cursor is on a common text file, the right pane shows a syntax-highlighted text preview. You can navigate directories, multi-select items, copy, cut, paste, undo recent file operations, move items to trash, delete files, copy paths, rename, create files or directories, extract archives, create zip archives, replace text across selected files with a preview, replace text in files found by file search or grep search, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
+- Simple three-pane layout for parent / current / right panes. When the cursor is on a directory, the right pane shows its children. When the cursor is on a common text file, the right pane shows a syntax-highlighted text preview. You can switch to a two-pane transfer layout for side-by-side directory copy and move workflows. You can navigate directories, multi-select items, copy, cut, paste, undo recent file operations, move items to trash, delete files, copy paths, rename, create files or directories, extract archives, create zip archives, replace text across selected files with a preview, replace text in files found by file search or grep search, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
 
   ![](docs/resources/screen-entire-screen.png)
 
@@ -246,13 +246,36 @@ When a file is focused, press `e` to switch into a terminal editor in the curren
 | `w` | Close current tab |
 | `tab` | Switch to next tab |
 | `shift+tab` | Switch to previous tab |
-| `m` | Open current directory in file manager |
+| `M` | Open current directory in file manager |
 | `:` | Open command palette |
 | `q` | Quit |
 | `[` | Scroll the right-pane text preview up by a page |
 | `]` | Scroll the right-pane text preview down by a page |
 | `{` | Go back in history |
 | `}` | Go forward in history |
+| `2` | Toggle two-pane transfer mode |
+
+### Transfer Mode
+
+| Key | Action |
+| --- | ------ |
+| `2` | Return to normal mode |
+| `[` / `]` | Focus the left/right transfer pane |
+| `j` / `↓` | Move down in the focused pane |
+| `k` / `↑` | Move up in the focused pane |
+| `PageUp` / `PageDown` | Move by page in the focused pane |
+| `Home` / `End` | Jump to first/last visible entry in the focused pane |
+| `h` / `←` | Go to parent directory in the focused pane |
+| `l` / `→` / `Enter` | Enter directory in the focused pane |
+| `Space` | Toggle selection and move down in the focused pane |
+| `Shift+↑` / `Shift+↓` | Extend selection in the focused pane |
+| `a` | Select all visible entries in the focused pane |
+| `Esc` | Clear selection in the focused pane |
+| `y` | Copy focused-pane targets to the opposite pane |
+| `m` | Move focused-pane targets to the opposite pane |
+| `z` | Undo the last file operation |
+| `.` | Toggle hidden files |
+| `Tab` / `Shift+Tab` | Switch browser tabs, same as normal mode |
 
 ### Split Terminal Mode
 
@@ -347,6 +370,7 @@ The tab strip is only shown when two or more browser tabs are open.
 | `Go to path` | Always | Opens go-to-path input to navigate to a specific path, shows matching directories, and supports `Tab` completion for the selected candidate. |
 | `Go to home directory` | Always | Navigates to the home directory. |
 | `Reload directory` | Always | Reloads the current directory. |
+| `Toggle transfer mode` / `Close transfer mode` | Always | Switches between the normal three-pane browser and the two-pane transfer layout. Also available with `2`. |
 | `Undo last file operation` | Undo history is not empty | Reverses the most recent undoable rename, paste, or trash operation. Also available with `z`. Trash restore is currently Linux-only. |
 | `Toggle split terminal` | Always | Opens or closes the embedded split terminal. |
 | `Select all` | Current directory has at least one visible entry | Selects every currently visible entry in the current directory, respecting hidden-file visibility and any active filter. |
@@ -362,7 +386,7 @@ The tab strip is only shown when two or more browser tabs are open.
 | `Copy path` | At least one target is selected or focused | Copies the selected path list, or the focused path when nothing is selected, to the system clipboard. Also available with `C`. |
 | `Move to trash` | At least one target is selected or focused | Moves the selected items, or the focused item, to trash (confirmation is enabled by default and can be configured). |
 | `Empty trash` | Always (Linux/macOS only) | Permanently deletes all items from the trash. Shows a confirmation dialog before emptying. Not available on Windows. |
-| `Open in file manager` | Always | Opens the current directory in the OS file manager. Also available with `m`. |
+| `Open in file manager` | Always | Opens the current directory in the OS file manager. Also available with `M`. |
 | `Open terminal` | Always | Launches an external terminal rooted at the current directory, using `config.toml` templates before built-in fallbacks. Also available with `T`. |
 | `Run shell command` | Always | Opens a one-line shell command dialog, runs the command in the current directory in the background, and returns the first output line or failure summary in the status bar. Also available with `!`. |
 | `Bookmark this directory` / `Remove bookmark` | Always | Saves or removes the current directory in `[bookmarks].paths`. The label reflects whether the current directory is already bookmarked. Also available with `B`. |

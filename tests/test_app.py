@@ -551,6 +551,17 @@ async def _wait_for_row_count(app, expected_count: int, timeout: float = 0.5) ->
         await asyncio.sleep(0.01)
 
 
+async def _wait_for_transfer_right_table(app, timeout: float = 0.5) -> DataTable:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        try:
+            return app.query_one("#transfer-right-pane-table", DataTable)
+        except NoMatches:
+            if asyncio.get_running_loop().time() >= deadline:
+                raise
+            await asyncio.sleep(0.01)
+
+
 async def _wait_for_path(app, expected_path: str, timeout: float = 0.5) -> None:
     resolved_expected = str(Path(expected_path).resolve())
     deadline = asyncio.get_running_loop().time() + timeout
@@ -2577,6 +2588,92 @@ async def test_app_displays_browsing_help_bar() -> None:
         help_bar = await _wait_for_help_bar_text(app, expected_help)
 
         assert str(help_bar.renderable) == expected_help
+
+
+@pytest.mark.asyncio
+async def test_app_transfer_mode_refreshes_left_cursor_and_focuses_right_pane() -> None:
+    path = str(Path("/tmp/zivo-transfer-focus").resolve())
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/src", "src", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(120, 20)) as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 3)
+
+        await pilot.press("2")
+        right_table = await _wait_for_transfer_right_table(app)
+        left_table = app.query_one("#current-pane-table", DataTable)
+        left_pane = app.query_one("#current-pane", MainPane)
+        right_pane = app.query_one("#transfer-right-pane", MainPane)
+
+        assert left_table.cursor_row == 0
+        assert right_table.cursor_row == 0
+        assert left_pane.has_class("active-transfer-pane")
+        assert not right_pane.has_class("active-transfer-pane")
+
+        await pilot.press("down")
+        await pilot.pause()
+
+        assert app.app_state.transfer_left is not None
+        assert app.app_state.transfer_left.pane.cursor_path == f"{path}/src"
+        assert left_table.cursor_row == 1
+
+        await pilot.press("]")
+        await pilot.pause()
+
+        assert app.app_state.active_transfer_pane == "right"
+        assert not left_pane.has_class("active-transfer-pane")
+        assert right_pane.has_class("active-transfer-pane")
+        assert app.focused is right_table
+
+
+@pytest.mark.asyncio
+async def test_app_displays_transfer_help_bar() -> None:
+    path = str(Path("/tmp/zivo-transfer-help").resolve())
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+    expected_help = (
+        "[ ] focus pane | Space select | y copy | m move\n"
+        "z undo | . hidden | 2 close"
+    )
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("2")
+        help_bar = await _wait_for_help_bar_text(app, expected_help)
+
+        assert str(help_bar.renderable) == expected_help
+
+
+def test_transfer_mode_does_not_use_preview_scroll_keys_for_child_preview() -> None:
+    state = replace(
+        build_initial_app_state(),
+        layout_mode="transfer",
+        child_pane=PaneState(directory_path="/tmp", entries=(), mode="preview"),
+    )
+
+    assert _preview_scroll_delta(state, "[") is None
+    assert _preview_scroll_delta(state, "]") is None
 
 
 @pytest.mark.asyncio

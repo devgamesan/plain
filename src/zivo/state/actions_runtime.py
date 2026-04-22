@@ -19,7 +19,7 @@ from zivo.models import (
     UndoResult,
 )
 
-from .models import AttributeInspectionState, BrowserSnapshot, PaneState
+from .models import AttributeInspectionState, BrowserSnapshot, PaneState, TransferPaneId
 
 
 @dataclass(frozen=True)
@@ -98,6 +98,25 @@ class ParentChildSnapshotFailed:
     """Apply an error raised while loading parent/child panes."""
 
     request_id: int
+    message: str
+
+
+@dataclass(frozen=True)
+class TransferPaneSnapshotLoaded:
+    """Apply a loaded directory snapshot to one transfer pane."""
+
+    request_id: int
+    pane_id: TransferPaneId
+    current_path: str
+    pane: PaneState
+
+
+@dataclass(frozen=True)
+class TransferPaneSnapshotFailed:
+    """Apply an error raised while loading a transfer pane."""
+
+    request_id: int
+    pane_id: TransferPaneId
     message: str
 
 

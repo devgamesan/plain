@@ -18,6 +18,7 @@ from zivo.state import (
     LoadChildPaneSnapshotEffect,
     LoadCurrentPaneEffect,
     LoadParentChildEffect,
+    LoadTransferPaneEffect,
     RunDirectorySizeEffect,
     RunFileSearchEffect,
     RunGrepSearchEffect,
@@ -170,6 +171,26 @@ def schedule_parent_child_update(app: Any, effect: LoadParentChildEffect) -> Non
         WorkerSpec(
             name=f"progressive-snapshot-phase2:{effect.request_id}",
             group="browser-snapshot",
+            description=effect.path,
+            exclusive=True,
+        ),
+    )
+
+
+def schedule_transfer_pane_snapshot(app: Any, effect: LoadTransferPaneEffect) -> None:
+    if effect.invalidate_paths:
+        app._snapshot_loader.invalidate_directory_listing_cache(effect.invalidate_paths)
+    run_worker(
+        app,
+        effect,
+        partial(
+            app._snapshot_loader.load_current_pane_snapshot,
+            effect.path,
+            effect.cursor_path,
+        ),
+        WorkerSpec(
+            name=f"transfer-pane-snapshot:{effect.request_id}",
+            group=f"transfer-pane-snapshot:{effect.pane_id}",
             description=effect.path,
             exclusive=True,
         ),

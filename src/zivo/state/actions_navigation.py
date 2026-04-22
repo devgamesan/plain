@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
-from .models import SortField, SplitTerminalFocusTarget
+from .models import SortField, SplitTerminalFocusTarget, TransferPaneId
 
 
 @dataclass(frozen=True)
@@ -180,3 +180,93 @@ class SetSort:
     field: SortField
     descending: bool
     directories_first: bool | None = None
+
+
+@dataclass(frozen=True)
+class ToggleTransferMode:
+    """Switch between the regular browser layout and two-pane transfer layout."""
+
+
+@dataclass(frozen=True)
+class FocusTransferPane:
+    """Focus one side of the transfer layout."""
+
+    pane: TransferPaneId
+
+
+@dataclass(frozen=True)
+class MoveTransferCursor:
+    """Move the cursor in the active transfer pane."""
+
+    delta: int
+    visible_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class JumpTransferCursor:
+    """Jump the active transfer pane cursor to the first or last visible entry."""
+
+    position: Literal["start", "end"]
+    visible_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class MoveTransferCursorByPage:
+    """Move the active transfer pane cursor by page."""
+
+    direction: Literal["up", "down"]
+    page_size: int
+    visible_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class MoveTransferCursorAndSelectRange:
+    """Move the active transfer cursor and select the anchored range."""
+
+    delta: int
+    visible_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ToggleTransferSelectionAndAdvance:
+    """Toggle selection for the active transfer cursor and advance."""
+
+    path: str
+    visible_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ClearTransferSelection:
+    """Clear active transfer pane selection."""
+
+
+@dataclass(frozen=True)
+class SelectAllVisibleTransferEntries:
+    """Select all visible entries in the active transfer pane."""
+
+    paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class EnterTransferDirectory:
+    """Enter the focused directory in the active transfer pane."""
+
+
+@dataclass(frozen=True)
+class GoToTransferParent:
+    """Navigate the active transfer pane to its parent directory."""
+
+
+@dataclass(frozen=True)
+class TransferCopyToOppositePane:
+    """Copy active transfer targets into the opposite pane directory."""
+
+
+@dataclass(frozen=True)
+class TransferMoveToOppositePane:
+    """Move active transfer targets into the opposite pane directory."""
+
+
+@dataclass(frozen=True)
+class PasteClipboardToTransferPane:
+    """Paste the app clipboard into the active transfer pane directory."""

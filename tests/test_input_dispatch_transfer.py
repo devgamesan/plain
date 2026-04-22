@@ -75,7 +75,10 @@ def test_transfer_mode_does_not_use_clipboard_style_keys() -> None:
         SetNotification(
             NotificationState(
                 level="warning",
-                message="Use [], space, y copy, m move, z undo, . hidden, or q/2 to close",
+                message=(
+                    "Use [], space, y copy, m move, z undo, b bookmarks, "
+                    ". hidden, or q/2 to close"
+                ),
             )
         ),
     )

@@ -2654,7 +2654,7 @@ async def test_app_displays_transfer_help_bar() -> None:
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
         "[ ] focus pane | Space select | y copy | m move\n"
-        "z undo | . hidden | q/2 close"
+        "z undo | . hidden | b bookmarks | q/2 close"
     )
 
     async with app.run_test() as pilot:

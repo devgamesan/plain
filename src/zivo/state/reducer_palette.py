@@ -135,6 +135,7 @@ from .reducer_palette_shared import (
     restore_browsing_from_palette,
     selected_current_file_paths,
 )
+from .reducer_transfer import request_transfer_pane_snapshot
 from .selectors import select_target_paths, select_visible_current_entry_states
 
 
@@ -262,6 +263,13 @@ def _handle_submit_bookmarks_palette(state: AppState, reduce_state: ReducerFn) -
             state,
             level="error",
             message="Bookmarked path does not exist or is not a directory",
+        )
+    if state.layout_mode == "transfer":
+        return request_transfer_pane_snapshot(
+            state,
+            state.active_transfer_pane,
+            selected_item.path,
+            invalidate_paths=(),
         )
     return request_palette_snapshot(state, reduce_state, path=selected_item.path)
 

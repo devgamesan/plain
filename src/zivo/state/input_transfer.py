@@ -3,6 +3,7 @@
 from .actions import (
     ActivateNextTab,
     ActivatePreviousTab,
+    BeginBookmarkSearch,
     ClearTransferSelection,
     EnterTransferDirectory,
     FocusTransferPane,
@@ -51,6 +52,7 @@ TRANSFER_KEYMAP = {
     "m",
     ".",
     "z",
+    "b",
     "tab",
     "shift+tab",
 }
@@ -131,8 +133,10 @@ def dispatch_transfer_input(
         return supported(ToggleHiddenFiles())
     if key == "z":
         return supported(UndoLastOperation())
+    if key == "b":
+        return supported(BeginBookmarkSearch())
 
-    return warn("Use [], space, y copy, m move, z undo, . hidden, or q/2 to close")
+    return warn("Use [], space, y copy, m move, z undo, b bookmarks, . hidden, or q/2 to close")
 
 
 def _active_transfer_pane(state: AppState) -> TransferPaneState | None:

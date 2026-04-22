@@ -273,7 +273,8 @@ When a file is focused, press `e` to switch into a terminal editor in the curren
 | `Esc` | Clear selection in the focused pane |
 | `y` | Copy focused-pane targets to the opposite pane |
 | `m` | Move focused-pane targets to the opposite pane |
-| `c` / `x` / `v` | Copy, cut, or paste using the focused pane |
+| `z` | Undo the last file operation |
+| `.` | Toggle hidden files |
 | `Tab` / `Shift+Tab` | Switch browser tabs, same as normal mode |
 
 ### Split Terminal Mode

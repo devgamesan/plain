@@ -196,6 +196,15 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         if state.config.help_bar.busy:
             return HelpBarState(state.config.help_bar.busy)
         return HelpBarState(("processing...",))
+    if state.layout_mode == "transfer":
+        if state.config.help_bar.transfer:
+            return HelpBarState(state.config.help_bar.transfer)
+        return HelpBarState(
+            (
+                "[ ] focus pane | Space select | y copy | m move",
+                "z undo | . hidden | 2 close",
+            )
+        )
     if state.config.help_bar.browsing:
         return HelpBarState(state.config.help_bar.browsing)
     return HelpBarState(

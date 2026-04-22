@@ -486,6 +486,10 @@ class BrowserTabState:
     current_pane_delta: CurrentPaneDeltaState = CurrentPaneDeltaState()
     pending_browser_snapshot_request_id: int | None = None
     pending_child_pane_request_id: int | None = None
+    layout_mode: LayoutMode = "browser"
+    active_transfer_pane: TransferPaneId = "left"
+    transfer_left: TransferPaneState | None = None
+    transfer_right: TransferPaneState | None = None
     parent_pane_loading: bool = False  # Track parent pane loading in progressive mode
     child_pane_loading: bool = False  # Track child pane loading in progressive mode
 
@@ -575,6 +579,10 @@ def browser_tab_from_app_state(state: AppState) -> BrowserTabState:
         current_pane_delta=state.current_pane_delta,
         pending_browser_snapshot_request_id=state.pending_browser_snapshot_request_id,
         pending_child_pane_request_id=state.pending_child_pane_request_id,
+        layout_mode=state.layout_mode,
+        active_transfer_pane=state.active_transfer_pane,
+        transfer_left=state.transfer_left,
+        transfer_right=state.transfer_right,
     )
 
 
@@ -624,6 +632,10 @@ def load_browser_tab(state: AppState, index: int) -> AppState:
         current_pane_delta=tab.current_pane_delta,
         pending_browser_snapshot_request_id=tab.pending_browser_snapshot_request_id,
         pending_child_pane_request_id=tab.pending_child_pane_request_id,
+        layout_mode=tab.layout_mode,
+        active_transfer_pane=tab.active_transfer_pane,
+        transfer_left=tab.transfer_left,
+        transfer_right=tab.transfer_right,
     )
 
 

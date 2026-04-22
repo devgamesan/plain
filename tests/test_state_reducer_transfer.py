@@ -1,7 +1,15 @@
+from dataclasses import replace
 from pathlib import Path
 
 from tests.test_state_reducer import _reduce_state
-from zivo.models import PasteAppliedChange, PasteRequest, PasteSummary
+from zivo.models import (
+    PasteAppliedChange,
+    PasteRequest,
+    PasteSummary,
+    UndoDeletePathStep,
+    UndoEntry,
+    UndoResult,
+)
 from zivo.state import (
     LoadTransferPaneEffect,
     RunClipboardPasteEffect,
@@ -10,12 +18,15 @@ from zivo.state import (
     select_shell_data,
 )
 from zivo.state.actions import (
+    ActivatePreviousTab,
     ClipboardPasteCompleted,
     EnterTransferDirectory,
     FocusTransferPane,
+    OpenNewTab,
     ToggleTransferMode,
     TransferCopyToOppositePane,
     TransferMoveToOppositePane,
+    UndoCompleted,
 )
 
 
@@ -115,6 +126,60 @@ def test_transfer_paste_completed_refreshes_both_transfer_panes() -> None:
     )
 
 
+def test_transfer_undo_completed_refreshes_both_transfer_panes() -> None:
+    entry = UndoEntry(
+        kind="paste_copy",
+        steps=(UndoDeletePathStep(path="/home/tadashi/develop/zivo/copied"),),
+    )
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+    state = replace(
+        state,
+        undo_stack=(entry,),
+        pending_undo_entry=entry,
+        pending_undo_request_id=7,
+        next_request_id=8,
+        ui_mode="BUSY",
+    )
+
+    reduced = reduce_app_state(
+        state,
+        UndoCompleted(
+            request_id=7,
+            entry=entry,
+            result=UndoResult(
+                path=None,
+                message="Undid copied item",
+                removed_paths=("/home/tadashi/develop/zivo/copied",),
+            ),
+        ),
+    )
+
+    assert reduced.state.undo_stack == ()
+    assert reduced.state.pending_undo_request_id is None
+    assert reduced.effects == (
+        LoadTransferPaneEffect(
+            request_id=8,
+            pane_id="left",
+            path="/home/tadashi/develop/zivo",
+            cursor_path="/home/tadashi/develop/zivo/docs",
+            invalidate_paths=(
+                str(Path("/home/tadashi/develop/zivo").resolve()),
+                str(Path("/home/tadashi/develop").resolve()),
+            ),
+        ),
+        LoadTransferPaneEffect(
+            request_id=9,
+            pane_id="right",
+            path="/home/tadashi/develop/zivo",
+            cursor_path="/home/tadashi/develop/zivo/docs",
+            invalidate_paths=(
+                str(Path("/home/tadashi/develop/zivo").resolve()),
+                str(Path("/home/tadashi/develop").resolve()),
+            ),
+        ),
+    )
+
+
 def test_enter_transfer_directory_loads_active_pane_snapshot() -> None:
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
 
@@ -149,3 +214,21 @@ def test_select_shell_data_exposes_transfer_panes() -> None:
     assert shell.transfer_right.active is False
     assert shell.transfer_left.entries[0].name == "docs"
     assert shell.transfer_right.entries[0].name == "docs"
+
+
+def test_transfer_mode_is_scoped_to_browser_tab() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+
+    new_tab_state = _reduce_state(state, OpenNewTab())
+
+    assert new_tab_state.active_tab_index == 1
+    assert new_tab_state.layout_mode == "browser"
+    assert new_tab_state.transfer_left is None
+    assert new_tab_state.transfer_right is None
+
+    previous_tab_state = _reduce_state(new_tab_state, ActivatePreviousTab())
+
+    assert previous_tab_state.active_tab_index == 0
+    assert previous_tab_state.layout_mode == "transfer"
+    assert previous_tab_state.transfer_left is not None
+    assert previous_tab_state.transfer_right is not None

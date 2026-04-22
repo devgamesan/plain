@@ -11,12 +11,13 @@ from .actions import (
     MoveTransferCursor,
     MoveTransferCursorAndSelectRange,
     MoveTransferCursorByPage,
-    PasteClipboardToTransferPane,
     SelectAllVisibleTransferEntries,
+    ToggleHiddenFiles,
     ToggleTransferMode,
     ToggleTransferSelectionAndAdvance,
     TransferCopyToOppositePane,
     TransferMoveToOppositePane,
+    UndoLastOperation,
 )
 from .entry_state_helpers import select_visible_entry_states
 from .input_common import DispatchedActions, supported, warn
@@ -47,9 +48,8 @@ TRANSFER_KEYMAP = {
     "left",
     "y",
     "m",
-    "c",
-    "x",
-    "v",
+    ".",
+    "z",
     "tab",
     "shift+tab",
 }
@@ -126,14 +126,12 @@ def dispatch_transfer_input(
         return supported(TransferCopyToOppositePane())
     if key == "m":
         return supported(TransferMoveToOppositePane())
-    if key == "c":
-        return supported(TransferCopyToOppositePane())
-    if key == "x":
-        return supported(TransferMoveToOppositePane())
-    if key == "v":
-        return supported(PasteClipboardToTransferPane())
+    if key == ".":
+        return supported(ToggleHiddenFiles())
+    if key == "z":
+        return supported(UndoLastOperation())
 
-    return warn("Use [], arrows, space, y copy, m move, v paste, or 2 to close transfer mode")
+    return warn("Use [], space, y copy, m move, z undo, . hidden, or 2 to close")
 
 
 def _active_transfer_pane(state: AppState) -> TransferPaneState | None:

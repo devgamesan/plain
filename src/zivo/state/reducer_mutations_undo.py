@@ -22,6 +22,7 @@ from .reducer_mutations_common import (
     push_undo_entry,
     undo_entry_for_file_mutation,
 )
+from .reducer_transfer import request_all_transfer_pane_snapshots
 
 
 def _handle_undo_last_operation(state, action, reduce_state):
@@ -118,6 +119,8 @@ def _handle_undo_completed(state, action, reduce_state):
         and state.current_pane.cursor_path in action.result.removed_paths
     ):
         keep_current_cursor = False
+    if next_state.layout_mode == "transfer":
+        return request_all_transfer_pane_snapshots(next_state)
     return request_snapshot_refresh(
         next_state,
         cursor_path=action.result.path,

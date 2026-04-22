@@ -4,6 +4,7 @@ from typing import Any
 
 from textual.containers import Container, Horizontal, Vertical
 from textual.css.query import NoMatches
+from textual.widgets import DataTable
 
 from zivo.models import ThreePaneShellData
 from zivo.services import SplitTerminalSession
@@ -248,6 +249,23 @@ async def refresh_shell(
         await app.mount(StatusBar(shell.status, id="status-bar"))
         return
 
+    if _body_needs_layout_rebuild(app, shell):
+        terminal_position = app_state.config.display.split_terminal_position
+        body = app.query_one("#body", Vertical)
+        await body.remove()
+        await app.mount(
+            build_body(shell, terminal_position=terminal_position),
+            after="#current-path-bar",
+        )
+        await refresh_shell(
+            app,
+            app_state,
+            shell,
+            split_terminal_session,
+            theme_changed=theme_changed,
+        )
+        return
+
     tab_bar.set_state(shell.tab_bar)
     current_path_bar.set_path(shell.current_path)
     if shell.layout_mode == "transfer" and shell.transfer_left and shell.transfer_right:
@@ -283,18 +301,19 @@ async def refresh_shell(
             )
         except NoMatches:
             pass
-    elif shell.current_pane_update.mode == "size_delta":
-        current_pane.apply_size_updates(shell.current_pane_update.size_updates)
-    elif shell.current_pane_update.mode == "row_delta":
-        current_pane.apply_row_updates(shell.current_pane_update.row_updates)
     else:
-        current_pane.set_entries(shell.current_entries or (), shell.current_cursor_index)
-    current_pane.set_cursor_state(
-        shell.current_cursor_index,
-        shell.current_cursor_visible,
-    )
-    current_pane.set_summary(shell.current_summary)
-    current_pane.set_context_input(shell.current_context_input)
+        if shell.current_pane_update.mode == "size_delta":
+            current_pane.apply_size_updates(shell.current_pane_update.size_updates)
+        elif shell.current_pane_update.mode == "row_delta":
+            current_pane.apply_row_updates(shell.current_pane_update.row_updates)
+        else:
+            current_pane.set_entries(shell.current_entries or (), shell.current_cursor_index)
+        current_pane.set_cursor_state(
+            shell.current_cursor_index,
+            shell.current_cursor_visible,
+        )
+        current_pane.set_summary(shell.current_summary)
+        current_pane.set_context_input(shell.current_context_input)
     await parent_pane.set_entries(shell.parent_entries)
     await child_pane.set_state(shell.child_pane)
     terminal_position = app_state.config.display.split_terminal_position
@@ -338,6 +357,11 @@ async def refresh_shell(
     if app_state.ui_mode == "BROWSING":
         if app_state.split_terminal.visible and app_state.split_terminal.focus_target == "terminal":
             app.set_focus(split_terminal)
+        elif app_state.layout_mode == "transfer" and app_state.active_transfer_pane == "right":
+            try:
+                app.set_focus(app.query_one("#transfer-right-pane-table", DataTable))
+            except NoMatches:
+                pass
         else:
             try:
                 app.set_focus(current_pane.query_one("#current-pane-table"))
@@ -358,3 +382,12 @@ def resize_split_terminal_session(
         return
     columns, rows = split_terminal.terminal_dimensions()
     split_terminal_session.resize(columns=columns, rows=rows)
+
+
+def _body_needs_layout_rebuild(app: Any, shell: ThreePaneShellData) -> bool:
+    try:
+        app.query_one("#transfer-right-pane", MainPane)
+        has_transfer_right_pane = True
+    except NoMatches:
+        has_transfer_right_pane = False
+    return (shell.layout_mode == "transfer") != has_transfer_right_pane

@@ -113,6 +113,10 @@ def _load_browser_tab_from_tabs(
         current_pane_delta=tab.current_pane_delta,
         pending_browser_snapshot_request_id=tab.pending_browser_snapshot_request_id,
         pending_child_pane_request_id=tab.pending_child_pane_request_id,
+        layout_mode=tab.layout_mode,
+        active_transfer_pane=tab.active_transfer_pane,
+        transfer_left=tab.transfer_left,
+        transfer_right=tab.transfer_right,
     )
 
 
@@ -142,6 +146,10 @@ def _build_new_tab_state(state: AppState) -> BrowserTabState:
         current_pane_delta=CurrentPaneDeltaState(),
         pending_browser_snapshot_request_id=None,
         pending_child_pane_request_id=None,
+        layout_mode="browser",
+        active_transfer_pane="left",
+        transfer_left=None,
+        transfer_right=None,
     )
 
 

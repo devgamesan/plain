@@ -131,7 +131,11 @@ _REPLACE_PREVIEW_SCROLL_SOURCES = frozenset(
 def _preview_scroll_delta(state: AppState, key: str) -> int | None:
     """Return scroll delta for preview key bindings, or None if not applicable."""
 
-    if state.ui_mode == "BROWSING" and state.child_pane.mode == "preview":
+    if (
+        state.ui_mode == "BROWSING"
+        and state.layout_mode != "transfer"
+        and state.child_pane.mode == "preview"
+    ):
         return _BROWSING_PREVIEW_SCROLL_KEYS.get(key)
     if state.ui_mode == "PALETTE" and state.command_palette is not None:
         if state.command_palette.source in _REPLACE_PREVIEW_SCROLL_SOURCES:

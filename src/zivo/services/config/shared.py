@@ -18,6 +18,7 @@ VALIDATION_PATH = "/tmp/zivo"
 
 HELP_BAR_FIELDS = (
     "browsing",
+    "transfer",
     "filter",
     "rename",
     "create",

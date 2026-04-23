@@ -122,6 +122,7 @@ from .actions_navigation import (
     GoForward,
     GoToHomeDirectory,
     GoToParentDirectory,
+    GoToTransferHome,
     GoToTransferParent,
     JumpCursor,
     JumpTransferCursor,
@@ -351,6 +352,7 @@ Action = (
     | SelectAllVisibleTransferEntries
     | EnterTransferDirectory
     | GoToTransferParent
+    | GoToTransferHome
     | TransferCopyToOppositePane
     | TransferMoveToOppositePane
     | PasteClipboardToTransferPane

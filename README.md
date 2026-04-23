@@ -266,6 +266,7 @@ When a file is focused, press `e` to switch into a terminal editor in the curren
 | `PageUp` / `PageDown` | Move by page in the focused pane |
 | `Home` / `End` | Jump to first/last visible entry in the focused pane |
 | `h` / `←` | Go to parent directory in the focused pane |
+| `~` | Go to home directory in the focused pane |
 | `l` / `→` / `Enter` | Enter directory in the focused pane |
 | `Space` | Toggle selection and move down in the focused pane |
 | `Shift+↑` / `Shift+↓` | Extend selection in the focused pane |

@@ -9,6 +9,7 @@ from .actions import (
     ClearTransferSelection,
     EnterTransferDirectory,
     FocusTransferPane,
+    GoToTransferHome,
     GoToTransferParent,
     JumpTransferCursor,
     MoveTransferCursor,
@@ -31,6 +32,7 @@ TRANSFER_KEYMAP = {
     "2",
     "G",
     "q",
+    "~",
     "[",
     "]",
     "up",
@@ -129,6 +131,8 @@ def dispatch_transfer_input(
         return supported(EnterTransferDirectory())
     if key in {"h", "left"}:
         return supported(GoToTransferParent())
+    if key == "~":
+        return supported(GoToTransferHome())
     if key == "y":
         return supported(TransferCopyToOppositePane())
     if key == "m":

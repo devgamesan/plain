@@ -191,7 +191,11 @@ def _next_palette_query_state(state: AppState, query: str):
 def _handle_set_go_to_path_query(state: AppState, next_palette, query: str) -> ReduceResult:
     # Transferモード: アクティブペインのパスを基準に補完
     if state.layout_mode == "transfer":
-        active_pane = state.transfer_left if state.active_transfer_pane == "left" else state.transfer_right
+        active_pane = (
+            state.transfer_left
+            if state.active_transfer_pane == "left"
+            else state.transfer_right
+        )
         base_path = active_pane.current_path
     else:
         base_path = state.current_path
@@ -297,9 +301,15 @@ def _handle_submit_go_to_path_palette(state: AppState, reduce_state: ReducerFn) 
         ].path
     if state.layout_mode == "transfer":
         # Transferモード: アクティブペインのパスを基準に展開
-        active_pane = state.transfer_left if state.active_transfer_pane == "left" else state.transfer_right
+        active_pane = (
+            state.transfer_left
+            if state.active_transfer_pane == "left"
+            else state.transfer_right
+        )
         if expanded_path is None:
-            expanded_path = expand_and_validate_path(state.command_palette.query, active_pane.current_path)
+            expanded_path = expand_and_validate_path(
+                state.command_palette.query, active_pane.current_path
+            )
         if expanded_path is None:
             return notify(state, level="error", message="Path does not exist or is not a directory")
         next_state = restore_browsing_from_palette(state)

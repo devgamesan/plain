@@ -272,8 +272,11 @@ When a file is focused, press `e` to switch into a terminal editor in the curren
 | `Shift+↑` / `Shift+↓` | Extend selection in the focused pane |
 | `a` | Select all visible entries in the focused pane |
 | `Esc` | Clear selection in the focused pane |
-| `y` | Copy focused-pane targets to the opposite pane |
-| `m` | Move focused-pane targets to the opposite pane |
+| `c` | Copy selected items to clipboard |
+| `x` | Cut selected items to clipboard |
+| `v` | Paste from clipboard to focused pane |
+| `y` | Copy focused-pane targets to opposite pane (copy-to-pane) |
+| `m` | Move focused-pane targets to opposite pane (move-to-pane) |
 | `d` | Delete focused-pane targets to trash |
 | `r` | Rename focused or single selected entry |
 | `z` | Undo the last file operation |

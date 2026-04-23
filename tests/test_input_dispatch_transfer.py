@@ -1,5 +1,5 @@
 from tests.test_state_reducer import _reduce_state
-from zivo.state import NotificationState, build_initial_app_state, dispatch_key_input
+from zivo.state import build_initial_app_state, dispatch_key_input
 from zivo.state.actions import (
     ActivateNextTab,
     ActivatePreviousTab,
@@ -7,7 +7,10 @@ from zivo.state.actions import (
     BeginGoToPath,
     BeginHistorySearch,
     BeginRenameInput,
+    CopyTargets,
+    CutTargets,
     FocusTransferPane,
+    PasteClipboardToTransferPane,
     SetNotification,
     ToggleHiddenFiles,
     ToggleTransferMode,
@@ -73,23 +76,88 @@ def test_transfer_mode_exposes_undo_and_hidden_toggle() -> None:
     assert dispatch_key_input(state, key=".") == (SetNotification(None), ToggleHiddenFiles())
 
 
-def test_transfer_mode_does_not_use_clipboard_style_keys() -> None:
+def test_transfer_mode_c_copies_selected_or_focused_entry_to_clipboard() -> None:
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
-    expected = (
-        SetNotification(
-            NotificationState(
-                level="warning",
-                message=(
-                    "Use [], space, y copy, m move, d delete, r rename, z undo, b bookmarks, "
-                    "H history, . hidden, or q/2 to close"
-                ),
-            )
-        ),
-    )
 
-    assert dispatch_key_input(state, key="c") == expected
-    assert dispatch_key_input(state, key="x") == expected
-    assert dispatch_key_input(state, key="v") == expected
+    result = dispatch_key_input(state, key="c")
+    assert len(result) == 2
+    assert result[0] == SetNotification(None)
+    assert isinstance(result[1], CopyTargets)
+    # カーソル位置のファイルがターゲットになる
+    assert len(result[1].paths) == 1
+    assert result[1].paths[0].endswith("/docs")
+
+
+def test_transfer_mode_c_warns_when_no_targets() -> None:
+    from dataclasses import replace
+
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+    # カーソルをクリアしてターゲットがない状態を作る
+    updated_left_pane = replace(
+        state.transfer_left.pane,
+        cursor_path=None,
+        selected_paths=(),
+    )
+    updated_right_pane = replace(
+        state.transfer_right.pane,
+        cursor_path=None,
+        selected_paths=(),
+    )
+    transfer_left = replace(state.transfer_left, pane=updated_left_pane)
+    transfer_right = replace(state.transfer_right, pane=updated_right_pane)
+    state = replace(state, transfer_left=transfer_left, transfer_right=transfer_right)
+
+    result = dispatch_key_input(state, key="c")
+    assert len(result) == 1
+    assert isinstance(result[0], SetNotification)
+    assert result[0].notification.message == "Nothing to copy"
+
+
+def test_transfer_mode_x_cuts_selected_or_focused_entry_to_clipboard() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+
+    result = dispatch_key_input(state, key="x")
+    assert len(result) == 2
+    assert result[0] == SetNotification(None)
+    assert isinstance(result[1], CutTargets)
+    # カーソル位置のファイルがターゲットになる
+    assert len(result[1].paths) == 1
+    assert result[1].paths[0].endswith("/docs")
+
+
+def test_transfer_mode_x_warns_when_no_targets() -> None:
+    from dataclasses import replace
+
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+    # カーソルをクリアしてターゲットがない状態を作る
+    updated_left_pane = replace(
+        state.transfer_left.pane,
+        cursor_path=None,
+        selected_paths=(),
+    )
+    updated_right_pane = replace(
+        state.transfer_right.pane,
+        cursor_path=None,
+        selected_paths=(),
+    )
+    transfer_left = replace(state.transfer_left, pane=updated_left_pane)
+    transfer_right = replace(state.transfer_right, pane=updated_right_pane)
+    state = replace(state, transfer_left=transfer_left, transfer_right=transfer_right)
+
+    result = dispatch_key_input(state, key="x")
+    assert len(result) == 1
+    assert isinstance(result[0], SetNotification)
+    assert result[0].notification.message == "Nothing to cut"
+
+
+def test_transfer_mode_v_pastes_from_clipboard_to_focused_pane() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+
+    result = dispatch_key_input(state, key="v")
+    assert len(result) == 2
+    assert result[0] == SetNotification(None)
+    assert isinstance(result[1], PasteClipboardToTransferPane)
+
 
 def test_transfer_mode_H_begins_history_search() -> None:
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())

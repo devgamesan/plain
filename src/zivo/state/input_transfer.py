@@ -10,6 +10,8 @@ from .actions import (
     BeginHistorySearch,
     BeginRenameInput,
     ClearTransferSelection,
+    CopyTargets,
+    CutTargets,
     EnterTransferDirectory,
     FocusTransferPane,
     GoToTransferHome,
@@ -18,6 +20,7 @@ from .actions import (
     MoveTransferCursor,
     MoveTransferCursorAndSelectRange,
     MoveTransferCursorByPage,
+    PasteClipboardToTransferPane,
     SelectAllVisibleTransferEntries,
     ToggleHiddenFiles,
     ToggleTransferMode,
@@ -35,9 +38,12 @@ TRANSFER_KEYMAP = {
     "2",
     "G",
     "N",
+    "c",
     "d",
     "q",
     "r",
+    "v",
+    "x",
     "~",
     "[",
     "]",
@@ -183,9 +189,38 @@ def dispatch_transfer_input(
     if key == "H":
         return supported(BeginHistorySearch())
 
+    if key == "c":
+        selected_paths = tuple(
+            path
+            for path in visible_paths
+            if path in transfer.pane.selected_paths
+        )
+        target_paths = selected_paths if selected_paths else (
+            (transfer.pane.cursor_path,) if transfer.pane.cursor_path else ()
+        )
+        if not target_paths:
+            return warn("Nothing to copy")
+        return supported(CopyTargets(target_paths))
+
+    if key == "x":
+        selected_paths = tuple(
+            path
+            for path in visible_paths
+            if path in transfer.pane.selected_paths
+        )
+        target_paths = selected_paths if selected_paths else (
+            (transfer.pane.cursor_path,) if transfer.pane.cursor_path else ()
+        )
+        if not target_paths:
+            return warn("Nothing to cut")
+        return supported(CutTargets(target_paths))
+
+    if key == "v":
+        return supported(PasteClipboardToTransferPane())
+
     return warn(
-        "Use [], space, y copy, m move, d delete, r rename, z undo, b bookmarks, "
-        "H history, . hidden, or q/2 to close"
+        "Use [], space, c copy, x cut, v paste, y copy-to-pane, m move-to-pane, "
+        "d delete, r rename, z undo, b bookmarks, H history, . hidden, or q/2 to close"
     )
 
 

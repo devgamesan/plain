@@ -11,6 +11,7 @@ from .actions import (
     ClearTransferSelection,
     EnterTransferDirectory,
     FocusTransferPane,
+    GoToTransferHome,
     GoToTransferParent,
     JumpTransferCursor,
     MoveTransferCursor,
@@ -383,6 +384,22 @@ def _handle_go_to_transfer_parent(
     )
 
 
+def _handle_go_to_transfer_home(
+    state: AppState,
+    action: GoToTransferHome,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del action, reduce_state
+    _ = _require_transfer_pane(state, state.active_transfer_pane)
+    home_dir = Path("~").expanduser()
+    return request_transfer_pane_snapshot(
+        state,
+        state.active_transfer_pane,
+        str(home_dir),
+        invalidate_paths=browser_snapshot_invalidation_paths(str(home_dir)),
+    )
+
+
 def _handle_transfer_copy_to_opposite_pane(
     state: AppState,
     action: TransferCopyToOppositePane,
@@ -569,6 +586,7 @@ _TRANSFER_HANDLERS: dict[type[Action], Callable[[AppState, Action, ReducerFn], R
     SelectAllVisibleTransferEntries: _handle_select_all_visible_transfer_entries,
     EnterTransferDirectory: _handle_enter_transfer_directory,
     GoToTransferParent: _handle_go_to_transfer_parent,
+    GoToTransferHome: _handle_go_to_transfer_home,
     TransferCopyToOppositePane: _handle_transfer_copy_to_opposite_pane,
     TransferMoveToOppositePane: _handle_transfer_move_to_opposite_pane,
     PasteClipboardToTransferPane: _handle_paste_clipboard_to_transfer_pane,

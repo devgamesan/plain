@@ -258,6 +258,11 @@ class GoToTransferParent:
 
 
 @dataclass(frozen=True)
+class GoToTransferHome:
+    """Navigate the active transfer pane to the user's home directory."""
+
+
+@dataclass(frozen=True)
 class TransferCopyToOppositePane:
     """Copy active transfer targets into the opposite pane directory."""
 

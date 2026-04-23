@@ -3,6 +3,7 @@ from zivo.state import NotificationState, build_initial_app_state, dispatch_key_
 from zivo.state.actions import (
     ActivateNextTab,
     ActivatePreviousTab,
+    BeginGoToPath,
     BeginHistorySearch,
     FocusTransferPane,
     SetNotification,
@@ -94,4 +95,12 @@ def test_transfer_mode_H_begins_history_search() -> None:
     assert dispatch_key_input(state, key="H") == (
         SetNotification(None),
         BeginHistorySearch(),
+    )
+
+def test_transfer_mode_G_begins_go_to_path() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+
+    assert dispatch_key_input(state, key="G") == (
+        SetNotification(None),
+        BeginGoToPath(),
     )

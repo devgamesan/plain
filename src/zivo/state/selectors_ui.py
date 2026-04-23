@@ -202,7 +202,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         return HelpBarState(
             (
                 "[ ] focus pane | Space select | y copy | m move",
-                "z undo | . hidden | b bookmarks | H history | q/2 close",
+                "z undo | . hidden | b bookmarks | H history | G go-to | q/2 close",
             )
         )
     if state.config.help_bar.browsing:

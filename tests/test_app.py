@@ -2654,7 +2654,7 @@ async def test_app_displays_transfer_help_bar() -> None:
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
         "[ ] focus | Space select | c copy | x cut | v paste | y copy-to-pane | "
-        "m move-to-pane | d delete | r rename\n"
+        "m move-to-pane | d delete | r rename | / filter\n"
         "z undo | . hidden | N new-dir | b bookmarks | H history | G go-to | q/2 close"
     )
 

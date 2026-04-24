@@ -8,7 +8,10 @@ from zivo.models import PasteRequest
 
 from .actions import (
     Action,
+    BeginFilterInput,
+    CancelFilterInput,
     ClearTransferSelection,
+    ConfirmFilterInput,
     EnterTransferDirectory,
     FocusTransferPane,
     GoToTransferHome,
@@ -19,6 +22,7 @@ from .actions import (
     MoveTransferCursorByPage,
     PasteClipboardToTransferPane,
     SelectAllVisibleTransferEntries,
+    SetFilterQuery,
     ToggleTransferMode,
     ToggleTransferSelectionAndAdvance,
     TransferCopyToOppositePane,
@@ -28,7 +32,13 @@ from .actions import (
 )
 from .effects import LoadTransferPaneEffect, ReduceResult
 from .entry_state_helpers import select_visible_entry_states
-from .models import AppState, NotificationState, PaneState, TransferPaneId, TransferPaneState
+from .models import (
+    AppState,
+    FilterState,
+    NotificationState,
+    TransferPaneId,
+    TransferPaneState,
+)
 from .reducer_common import finalize, move_cursor, run_paste_request, select_range_paths
 from .reducer_requests import browser_snapshot_invalidation_paths, build_history_after_snapshot_load
 
@@ -283,7 +293,7 @@ def _handle_toggle_transfer_selection_and_advance(
 ) -> ReduceResult:
     del reduce_state
     transfer = _require_transfer_pane(state, state.active_transfer_pane)
-    visible = _visible_transfer_entries(state, transfer.pane)
+    visible = _visible_transfer_entries(state, transfer)
     visible_path_set = {entry.path for entry in visible}
     if action.path not in visible_path_set:
         return finalize(state)
@@ -526,7 +536,7 @@ def _run_transfer_to_opposite(state: AppState, *, mode: str) -> ReduceResult:
 
 
 def _transfer_target_paths(state: AppState, transfer: TransferPaneState) -> tuple[str, ...]:
-    visible_entries = _visible_transfer_entries(state, transfer.pane)
+    visible_entries = _visible_transfer_entries(state, transfer)
     selected_paths = tuple(
         entry.path for entry in visible_entries if entry.path in transfer.pane.selected_paths
     )
@@ -539,19 +549,19 @@ def _transfer_target_paths(state: AppState, transfer: TransferPaneState) -> tupl
 def _transfer_cursor_entry(state: AppState, transfer: TransferPaneState):
     if transfer.pane.cursor_path is None:
         return None
-    for entry in _visible_transfer_entries(state, transfer.pane):
+    for entry in _visible_transfer_entries(state, transfer):
         if entry.path == transfer.pane.cursor_path:
             return entry
     return None
 
 
-def _visible_transfer_entries(state: AppState, pane: PaneState):
+def _visible_transfer_entries(state: AppState, transfer: TransferPaneState):
     return select_visible_entry_states(
-        pane.entries,
+        transfer.pane.entries,
         state.directory_size_cache,
         state.show_hidden,
-        "",
-        False,
+        transfer.filter.query,
+        transfer.filter.active,
         state.sort,
     )
 
@@ -588,6 +598,123 @@ def _opposite_pane_id(pane_id: TransferPaneId) -> TransferPaneId:
     return "right" if pane_id == "left" else "left"
 
 
+def _handle_begin_filter_input(
+    state: AppState,
+    action: BeginFilterInput,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del action, reduce_state
+    transfer = _require_transfer_pane(state, state.active_transfer_pane)
+    return finalize(
+        _replace_active_transfer_pane(
+            replace(
+                state,
+                ui_mode="FILTER",
+                notification=None,
+                pending_input=None,
+                command_palette=None,
+                delete_confirmation=None,
+                name_conflict=None,
+                attribute_inspection=None,
+            ),
+            replace(
+                transfer,
+                pane=replace(transfer.pane, selection_anchor_path=None),
+                filter=FilterState(),
+            ),
+        ),
+    )
+
+
+def _handle_confirm_filter_input(
+    state: AppState,
+    action: ConfirmFilterInput,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del action, reduce_state
+    transfer = _require_transfer_pane(state, state.active_transfer_pane)
+    return finalize(
+        _replace_active_transfer_pane(
+            replace(
+                state,
+                ui_mode="BROWSING",
+                notification=None,
+            ),
+            replace(
+                transfer,
+                pane=replace(transfer.pane, selection_anchor_path=None),
+            ),
+        ),
+    )
+
+
+def _handle_cancel_filter_input(
+    state: AppState,
+    action: CancelFilterInput,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del action, reduce_state
+    transfer = _require_transfer_pane(state, state.active_transfer_pane)
+    return finalize(
+        _replace_active_transfer_pane(
+            replace(
+                state,
+                ui_mode="BROWSING",
+                notification=None,
+                pending_input=None,
+                command_palette=None,
+                delete_confirmation=None,
+                name_conflict=None,
+                attribute_inspection=None,
+            ),
+            replace(
+                transfer,
+                pane=replace(transfer.pane, selection_anchor_path=None),
+                filter=FilterState(query="", active=False),
+            ),
+        ),
+    )
+
+
+def _handle_set_filter_query(
+    state: AppState,
+    action: SetFilterQuery,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del reduce_state
+    transfer = _require_transfer_pane(state, state.active_transfer_pane)
+    active = bool(action.query) if action.active is None else action.active
+    next_transfer = replace(transfer, filter=FilterState(query=action.query, active=active))
+
+    visible_entries = _visible_transfer_entries(state, next_transfer)
+    visible_paths = tuple(entry.path for entry in visible_entries)
+
+    return finalize(
+        _replace_active_transfer_pane(
+            replace(state, notification=None),
+            replace(
+                next_transfer,
+                pane=replace(
+                    next_transfer.pane,
+                    selection_anchor_path=_normalize_selection_anchor_path(
+                        next_transfer.pane.selection_anchor_path,
+                        visible_paths,
+                    ),
+                ),
+            ),
+        ),
+    )
+
+
+def _normalize_selection_anchor_path(
+    anchor_path: str | None,
+    visible_paths: tuple[str, ...],
+) -> str | None:
+    if anchor_path is None:
+        return None
+    return anchor_path if anchor_path in visible_paths else None
+
+
 _TRANSFER_HANDLERS: dict[type[Action], Callable[[AppState, Action, ReducerFn], ReduceResult]] = {
     ToggleTransferMode: _handle_toggle_transfer_mode,
     FocusTransferPane: _handle_focus_transfer_pane,
@@ -606,4 +733,8 @@ _TRANSFER_HANDLERS: dict[type[Action], Callable[[AppState, Action, ReducerFn], R
     PasteClipboardToTransferPane: _handle_paste_clipboard_to_transfer_pane,
     TransferPaneSnapshotLoaded: _handle_transfer_pane_snapshot_loaded,
     TransferPaneSnapshotFailed: _handle_transfer_pane_snapshot_failed,
+    BeginFilterInput: _handle_begin_filter_input,
+    ConfirmFilterInput: _handle_confirm_filter_input,
+    CancelFilterInput: _handle_cancel_filter_input,
+    SetFilterQuery: _handle_set_filter_query,
 }

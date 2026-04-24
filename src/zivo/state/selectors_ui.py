@@ -202,7 +202,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         return HelpBarState(
             (
                 "[ ] focus | Space select | c copy | x cut | v paste | y copy-to-pane | "
-                "m move-to-pane | d delete | r rename",
+                "m move-to-pane | d delete | r rename | / filter",
                 "z undo | . hidden | N new-dir | b bookmarks | H history | G go-to | q/2 close",
             )
         )
@@ -235,16 +235,49 @@ def select_input_bar_state(state: AppState) -> InputBarState | None:
             hint=hint,
         )
 
-    if state.ui_mode == "FILTER" or (state.filter.active and state.filter.query):
-        hint = "esc clear"
-        if state.ui_mode == "FILTER":
-            hint = "enter/down apply | esc clear"
+    # Filter mode handling for both Browser and Transfer modes
+    if state.ui_mode == "FILTER":
+        if state.layout_mode == "transfer":
+            # Transfer mode: use active transfer pane's filter
+            transfer = (
+                state.transfer_left
+                if state.active_transfer_pane == "left"
+                else state.transfer_right
+            )
+            filter_query = transfer.filter.query if transfer else ""
+        else:
+            # Browser mode: use AppState filter
+            filter_query = state.filter.query
+        return InputBarState(
+            mode_label="FILTER",
+            prompt="Filter: ",
+            value=filter_query,
+            cursor_pos=len(filter_query),
+            hint="enter/down apply | esc clear",
+        )
+
+    # Show active filter in input bar when not in FILTER mode
+    if state.layout_mode == "transfer":
+        transfer = (
+            state.transfer_left
+            if state.active_transfer_pane == "left"
+            else state.transfer_right
+        )
+        if transfer and transfer.filter.active and transfer.filter.query:
+            return InputBarState(
+                mode_label="FILTER",
+                prompt="Filter: ",
+                value=transfer.filter.query,
+                cursor_pos=len(transfer.filter.query),
+                hint="esc clear",
+            )
+    elif state.filter.active and state.filter.query:
         return InputBarState(
             mode_label="FILTER",
             prompt="Filter: ",
             value=state.filter.query,
             cursor_pos=len(state.filter.query),
-            hint=hint,
+            hint="esc clear",
         )
 
     return None

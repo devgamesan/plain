@@ -330,6 +330,8 @@ def _handle_begin_filter_input(
     action: BeginFilterInput,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
+    # Set ui_mode to FILTER for both Browser and Transfer modes
+    # The actual filter state will be managed by mode-specific handlers
     return finalize(
         replace(
             state,
@@ -355,6 +357,8 @@ def _handle_confirm_filter_input(
     action: ConfirmFilterInput,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
+    # Set ui_mode to BROWSING for both Browser and Transfer modes
+    # The actual filter state will be managed by mode-specific handlers
     return finalize(
         replace(
             state,
@@ -373,6 +377,33 @@ def _handle_cancel_filter_input(
     action: CancelFilterInput,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
+    # Handle Transfer mode differently
+    if state.layout_mode == "transfer":
+        from .reducer_transfer import _require_transfer_pane
+
+        transfer = _require_transfer_pane(state, state.active_transfer_pane)
+        next_transfer = replace(transfer, filter=replace(transfer.filter, query="", active=False))
+
+        next_state = replace(
+            state,
+            ui_mode="BROWSING",
+            transfer_left=(
+                next_transfer if state.active_transfer_pane == "left" else state.transfer_left
+            ),
+            transfer_right=(
+                next_transfer if state.active_transfer_pane == "right" else state.transfer_right
+            ),
+            notification=None,
+            pending_input=None,
+            command_palette=None,
+            delete_confirmation=None,
+            name_conflict=None,
+            attribute_inspection=None,
+        )
+
+        return finalize(next_state)
+
+    # Browser mode
     return finalize(
         replace(
             state,
@@ -620,6 +651,35 @@ def _handle_set_filter_query(
     reduce_state: ReducerFn,
 ) -> ReduceResult:
     active = bool(action.query) if action.active is None else action.active
+
+    # Handle Transfer mode differently
+    if state.layout_mode == "transfer":
+        from .reducer_transfer import (
+            _require_transfer_pane,
+            _visible_transfer_entries,
+        )
+
+        transfer = _require_transfer_pane(state, state.active_transfer_pane)
+        next_transfer = replace(
+            transfer, filter=replace(transfer.filter, query=action.query, active=active)
+        )
+
+        visible_entries = _visible_transfer_entries(state, next_transfer)
+        visible_paths = tuple(entry.path for entry in visible_entries)
+
+        next_state = replace(
+            state,
+            transfer_left=(
+                next_transfer if state.active_transfer_pane == "left" else state.transfer_left
+            ),
+            transfer_right=(
+                next_transfer if state.active_transfer_pane == "right" else state.transfer_right
+            ),
+        )
+
+        return finalize(next_state)
+
+    # Browser mode
     next_state = replace(
         state,
         filter=replace(state.filter, query=action.query, active=active),

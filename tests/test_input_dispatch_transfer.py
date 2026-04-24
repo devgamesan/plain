@@ -4,6 +4,7 @@ from zivo.state.actions import (
     ActivateNextTab,
     ActivatePreviousTab,
     BeginDeleteTargets,
+    BeginFilterInput,
     BeginGoToPath,
     BeginHistorySearch,
     BeginRenameInput,
@@ -268,4 +269,82 @@ def test_transfer_lowercase_r_warns_for_multiple_targets() -> None:
     assert len(result) == 1
     assert isinstance(result[0], SetNotification)
     assert result[0].notification.message == "Rename requires a single target"
+
+
+def test_transfer_mode_slash_begins_filter_input() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+
+    result = dispatch_key_input(state, key="/")
+    assert len(result) == 2
+    assert result[0] == SetNotification(None)
+    assert isinstance(result[1], BeginFilterInput)
+
+
+def test_transfer_mode_filter_mode_updates_ui_mode() -> None:
+    from zivo.state.actions import SetFilterQuery
+
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+    # Begin filter input
+    state = _reduce_state(state, BeginFilterInput())
+    assert state.ui_mode == "FILTER"
+
+    # Update filter query
+    state = _reduce_state(state, SetFilterQuery("test", active=True))
+    assert state.transfer_left.filter.query == "test"
+    assert state.transfer_left.filter.active is True
+
+    # Confirm filter
+    from zivo.state.actions import ConfirmFilterInput
+    state = _reduce_state(state, ConfirmFilterInput())
+    assert state.ui_mode == "BROWSING"
+    assert state.transfer_left.filter.query == "test"
+    assert state.transfer_left.filter.active is True
+
+
+def test_transfer_mode_filter_shows_input_bar() -> None:
+    from zivo.state import select_input_bar_state
+    from zivo.state.actions import SetFilterQuery
+
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+
+    # Initially, no input bar should be shown
+    input_bar = select_input_bar_state(state)
+    assert input_bar is None
+
+    # Press "/" to begin filter input
+    state = _reduce_state(state, BeginFilterInput())
+    assert state.ui_mode == "FILTER"
+
+    # Check that input bar is shown
+    input_bar = select_input_bar_state(state)
+    assert input_bar is not None
+    assert input_bar.mode_label == "FILTER"
+    assert input_bar.prompt == "Filter: "
+    assert input_bar.value == ""
+
+    # Type some characters
+    state = _reduce_state(state, SetFilterQuery("test", active=True))
+    input_bar = select_input_bar_state(state)
+    assert input_bar is not None
+    assert input_bar.value == "test"
+
+
+def test_transfer_mode_slash_key_dispatches_begin_filter() -> None:
+    """Test that pressing "/" in Transfer mode dispatches BeginFilterInput action."""
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+
+    # Press "/" key
+    result = dispatch_key_input(state, key="/")
+    assert len(result) == 2
+    assert result[0] == SetNotification(None)
+    assert isinstance(result[1], BeginFilterInput)
+
+    # Apply the actions and check state
+    for action in result:
+        state = _reduce_state(state, action)
+
+    assert state.ui_mode == "FILTER"
+    assert state.transfer_left.filter.query == ""
+    assert state.transfer_left.filter.active is False
+
 

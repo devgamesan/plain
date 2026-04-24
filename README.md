@@ -285,6 +285,7 @@ When a file is focused, press `e` to switch into a terminal editor in the curren
 | `b` | Show bookmarks |
 | `H` | Show history |
 | `Tab` / `Shift+Tab` | Switch browser tabs, same as normal mode |
+| `/` | Filter entries by name in the focused pane |
 
 ### Split Terminal Mode
 

@@ -38,6 +38,18 @@ from .input_common import DispatchedActions, supported, warn
 from .models import AppState
 
 
+def _get_filter_query(state: AppState) -> str:
+    """Get the current filter query based on the layout mode."""
+    if state.layout_mode == "transfer":
+        transfer = (
+            state.transfer_left
+            if state.active_transfer_pane == "left"
+            else state.transfer_right
+        )
+        return transfer.filter.query if transfer else ""
+    return state.filter.query
+
+
 def dispatch_filter_input(
     state: AppState,
     *,
@@ -50,12 +62,14 @@ def dispatch_filter_input(
     if key in {"down", "enter"}:
         return supported(ConfirmFilterInput())
 
+    current_query = _get_filter_query(state)
+
     if key == "backspace":
-        next_query = state.filter.query[:-1]
+        next_query = current_query[:-1]
         return supported(SetFilterQuery(next_query, active=bool(next_query)))
 
     if character and character.isprintable() and not character.isspace():
-        return supported(SetFilterQuery(f"{state.filter.query}{character}", active=True))
+        return supported(SetFilterQuery(f"{current_query}{character}", active=True))
 
     return warn("This key is unavailable while editing the filter")
 

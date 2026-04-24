@@ -6,6 +6,7 @@ from .actions import (
     BeginBookmarkSearch,
     BeginCreateInput,
     BeginDeleteTargets,
+    BeginFilterInput,
     BeginGoToPath,
     BeginHistorySearch,
     BeginRenameInput,
@@ -31,11 +32,12 @@ from .actions import (
 )
 from .entry_state_helpers import select_visible_entry_states
 from .input_common import DispatchedActions, supported, warn
-from .models import AppState, PaneState, TransferPaneState
+from .models import AppState, TransferPaneState
 from .selectors import compute_current_pane_visible_window
 
 TRANSFER_KEYMAP = {
     "2",
+    "/",
     "G",
     "N",
     "c",
@@ -86,7 +88,11 @@ def dispatch_transfer_input(
     transfer = _active_transfer_pane(state)
     if transfer is None:
         return supported(ToggleTransferMode())
-    visible_paths = _visible_paths(state, transfer.pane)
+
+    if key == "/":
+        return supported(BeginFilterInput())
+
+    visible_paths = _visible_paths(state, transfer)
 
     if key in {"2", "q"}:
         return supported(ToggleTransferMode())
@@ -228,15 +234,15 @@ def _active_transfer_pane(state: AppState) -> TransferPaneState | None:
     return state.transfer_left if state.active_transfer_pane == "left" else state.transfer_right
 
 
-def _visible_paths(state: AppState, pane: PaneState) -> tuple[str, ...]:
+def _visible_paths(state: AppState, transfer: TransferPaneState) -> tuple[str, ...]:
     return tuple(
         entry.path
         for entry in select_visible_entry_states(
-            pane.entries,
+            transfer.pane.entries,
             state.directory_size_cache,
             state.show_hidden,
-            "",
-            False,
+            transfer.filter.query,
+            transfer.filter.active,
             state.sort,
         )
     )

@@ -676,6 +676,26 @@ async def _wait_for_request_count(service, expected_count: int, timeout: float =
         await asyncio.sleep(0.01)
 
 
+async def _wait_for_file_search_results(
+    app,
+    expected_paths: list[str],
+    timeout: float = 0.5,
+) -> None:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        palette = app.app_state.command_palette
+        actual_paths = (
+            [result.display_path for result in palette.file_search_results]
+            if palette is not None
+            else None
+        )
+        if actual_paths == expected_paths:
+            return
+        if asyncio.get_running_loop().time() >= deadline:
+            raise AssertionError(f"file search results did not become {expected_paths!r}")
+        await asyncio.sleep(0.01)
+
+
 async def _wait_for_child_pane_request_count(
     loader,
     expected_count: int,
@@ -2653,9 +2673,9 @@ async def test_app_displays_transfer_help_bar() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
-        "[ ] focus | Space select | c copy | x cut | v paste | y copy-to-pane | "
-        "m move-to-pane | d delete | r rename\n"
-        "z undo | . hidden | N new-dir | b bookmarks | H history | G go-to | : palette | q/2 close"
+        "[ ] focus | y copy-to-pane | m move-to-pane | q/2 close\n"
+        "Space select | c copy | x cut | v paste | d delete | r rename\n"
+        "z undo | . hidden | N new-dir | b bookmarks | H history | G go-to | : palette"
     )
 
     async with app.run_test() as pilot:
@@ -3255,6 +3275,7 @@ async def test_app_file_search_passes_regex_queries_through_to_service(tmp_path)
             "$",
         )
         await _wait_for_request_count(file_search_service, 1)
+        await _wait_for_file_search_results(app, ["README.md"])
 
         assert file_search_service.executed_requests == [(path, r"re:^README\.md$", False)]
         assert app.app_state.command_palette is not None

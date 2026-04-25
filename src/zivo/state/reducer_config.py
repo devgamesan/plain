@@ -270,6 +270,139 @@ def config_editor_labels() -> tuple[str, ...]:
     )
 
 
+def config_editor_field_description(field_index: int, config: AppConfig) -> tuple[str, ...]:
+    """Return short detail lines for the selected config editor field."""
+
+    field_id = config_editor_field_ids()[field_index]
+    if field_id == "editor.command":
+        lines = [
+            "How file editing is launched from zivo.",
+            "Uses config.toml first, then $EDITOR, then built-in terminal editors.",
+        ]
+        if config.editor.command is None:
+            lines.append("Current behavior: system default fallback chain is active.")
+        elif config.editor.command in CONFIG_EDITOR_COMMANDS:
+            lines.append(f"Current behavior: always prefer `{config.editor.command}`.")
+        else:
+            lines.append(
+                f"Current behavior: custom raw command `{config.editor.command}` is preserved."
+            )
+        lines.append("Custom commands can only be edited in the raw config file with `e`.")
+        return tuple(lines)
+    if field_id == "terminal.launch_mode":
+        return (
+            "Controls how the external terminal command is launched.",
+            "window opens a separate terminal app; foreground hands the current terminal over.",
+            f"Current behavior: `{config.terminal.launch_mode}`.",
+        )
+    if field_id == "display.show_hidden_files":
+        return (
+            "Controls whether dotfiles and other hidden entries appear in browser panes.",
+            "Current behavior: hidden files are "
+            f"{'visible' if config.display.show_hidden_files else 'hidden'} on startup.",
+        )
+    if field_id == "display.theme":
+        return (
+            "Sets the application theme used by the panes, dialogs, and status UI.",
+            "Changing this here previews the theme immediately before saving.",
+            f"Current behavior: `{config.display.theme}`.",
+        )
+    if field_id == "display.show_directory_sizes":
+        return (
+            "Controls whether directory rows try to show aggregated directory size labels.",
+            "Current behavior: directory size labels are "
+            f"{'shown' if config.display.show_directory_sizes else 'hidden'} when available.",
+        )
+    if field_id == "display.show_preview":
+        return (
+            "Controls whether the right pane opens file previews for previewable files.",
+            "Current behavior: preview pane is "
+            f"{'enabled' if config.display.show_preview else 'disabled'} on startup.",
+        )
+    if field_id == "display.preview_syntax_theme":
+        return (
+            "Controls syntax highlighting inside the preview pane.",
+            "auto follows the brightness of the selected app theme.",
+            f"Current behavior: `{config.display.preview_syntax_theme}`.",
+        )
+    if field_id == "display.preview_max_kib":
+        return (
+            "Limits how much text zivo reads into the preview pane for a single file.",
+            "Higher values show more content but can make previews heavier.",
+            f"Current behavior: {config.display.preview_max_kib} KiB.",
+        )
+    if field_id == "display.show_help_bar":
+        return (
+            "Controls whether the help bar is visible at the bottom of the UI.",
+            "Current behavior: help bar is "
+            f"{'shown' if config.display.show_help_bar else 'hidden'} on startup.",
+        )
+    if field_id == "display.default_sort_field":
+        return (
+            "Sets the default sort field used when a directory is first loaded.",
+            "You can still change sorting later from the running UI.",
+            f"Current behavior: sort by `{config.display.default_sort_field}`.",
+        )
+    if field_id == "display.default_sort_descending":
+        return (
+            "Controls whether the default sort starts in descending order.",
+            "Current behavior: descending sort is "
+            f"{'enabled' if config.display.default_sort_descending else 'disabled'}.",
+        )
+    if field_id == "display.directories_first":
+        return (
+            "Controls whether directories stay grouped before files in sorted lists.",
+            "Current behavior: directories are "
+            (
+                "kept first."
+                if config.display.directories_first
+                else "mixed into the main sort order."
+            ),
+        )
+    if field_id == "display.grep_preview_context_lines":
+        return (
+            "Sets how many surrounding lines grep search previews include around each match.",
+            "Increase this to show more context in grep preview results.",
+            f"Current behavior: {config.display.grep_preview_context_lines} context lines.",
+        )
+    if field_id == "display.split_terminal_position":
+        return (
+            "Controls where the embedded split terminal appears.",
+            "bottom docks below the browser, right docks beside it, overlay floats on top.",
+            f"Current behavior: `{config.display.split_terminal_position}`.",
+        )
+    if field_id == "behavior.confirm_delete":
+        return (
+            "Controls whether delete and move-to-trash actions ask for confirmation first.",
+            "Current behavior: confirmations are "
+            f"{'enabled' if config.behavior.confirm_delete else 'disabled'} by default.",
+        )
+    if field_id == "behavior.paste_conflict_action":
+        return (
+            "Sets the default behavior when a paste target already exists.",
+            "prompt asks every time; overwrite, skip, and rename apply immediately.",
+            f"Current behavior: `{config.behavior.paste_conflict_action}`.",
+        )
+    if field_id == "logging.level":
+        return (
+            "Controls the minimum severity written to zivo's log file.",
+            "This affects runtime diagnostics, not the status bar text in the UI.",
+            f"Current behavior: `{config.logging.level}` and above are logged.",
+        )
+    if field_id == "file_search.max_results":
+        current = (
+            "unlimited"
+            if config.file_search.max_results is None
+            else str(config.file_search.max_results)
+        )
+        return (
+            "Limits how many matches recursive file search can return in the command palette.",
+            "Lower limits keep large searches responsive; unlimited returns every match found.",
+            f"Current behavior: {current}.",
+        )
+    return ()
+
+
 CONFIG_EDITOR_CATEGORIES: tuple[tuple[str, tuple[int, ...]], ...] = (
     ("External", (0, 1)),
     ("Display", (3, 6, 2, 4, 5, 7, 8, 12, 13)),

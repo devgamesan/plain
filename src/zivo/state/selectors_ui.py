@@ -19,6 +19,7 @@ from zivo.models import (
 from .models import AppState
 from .reducer_config import (
     CONFIG_EDITOR_CATEGORIES,
+    config_editor_field_description,
     config_editor_labels,
     format_config_field_value,
 )
@@ -696,6 +697,14 @@ def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
                 )
             )
 
+    lines_list.extend([
+        "",
+        "  ── Selected Setting ──",
+        f"  {labels[selected_index]}",
+    ])
+    lines_list.extend(
+        f"  {line}" for line in config_editor_field_description(selected_index, config)
+    )
     lines_list.extend([
         "",
         _format_custom_editor_hint(config.editor.command),

@@ -1993,6 +1993,11 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
     assert "  Show preview: true" in dialog.lines
     assert "  ── Sorting ──" in dialog.lines
     assert "  Default sort field: name" in dialog.lines
+    assert "  ── Selected Setting ──" in dialog.lines
+    assert "  Theme" in dialog.lines
+    assert "  Sets the application theme used by the panes, dialogs, and status UI." in dialog.lines
+    assert "  Changing this here previews the theme immediately before saving." in dialog.lines
+    assert "  Current behavior: `textual-dark`." in dialog.lines
     assert "Editor presets: system default, nvim, vim, nano, hx, micro, emacs -nw" in dialog.lines
     assert "Terminal launch templates: edit config.toml with e" in dialog.lines
     assert dialog.options == (
@@ -2030,6 +2035,11 @@ def test_select_config_dialog_state_shows_custom_editor_command_hint() -> None:
     assert dialog is not None
     assert "> Editor command: custom (raw config only)" in dialog.lines
     assert "Custom editor command: nvim -u NONE" in dialog.lines
+    assert (
+        "  Current behavior: custom raw command `nvim -u NONE` is preserved."
+        in dialog.lines
+    )
+    assert "  Custom commands can only be edited in the raw config file with `e`." in dialog.lines
 
 
 def test_select_command_palette_state_for_file_search_results() -> None:

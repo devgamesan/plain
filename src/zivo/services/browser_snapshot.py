@@ -9,7 +9,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from time import sleep
-from typing import Any, Literal, Mapping, Protocol
+from typing import Literal, Mapping, Protocol
 
 from zivo.adapters import DirectoryReader, LocalFilesystemAdapter
 from zivo.archive_utils import is_supported_archive_path
@@ -653,7 +653,7 @@ class LiveBrowserSnapshotLoader:
                 object.__setattr__(
                     self,
                     "document_preview_loader",
-                    MarkItDownDocumentPreviewLoader(),
+                    PandocDocumentPreviewLoader(),
                 )
             return self.document_preview_loader
 
@@ -963,7 +963,7 @@ def _load_text_preview(
     if _is_office_preview_candidate(path):
         if not enable_office_preview:
             return FilePreviewState.unavailable()
-        loader = document_preview_loader or MarkItDownDocumentPreviewLoader()
+        loader = document_preview_loader or PandocDocumentPreviewLoader()
         preview = loader.load_preview(path, preview_max_bytes=preview_max_bytes)
         if preview is not None:
             return preview
@@ -1004,9 +1004,9 @@ class DocumentPreviewLoader(Protocol):
 
 
 @dataclass
-class MarkItDownDocumentPreviewLoader:
-    converter: Any | None = field(default=None, init=False, repr=False)
-    converter_error: bool = field(default=False, init=False, repr=False)
+class PandocDocumentPreviewLoader:
+    pandoc_path: str | None = field(default=None, init=False, repr=False)
+    pandoc_missing: bool = field(default=False, init=False, repr=False)
 
     def load_preview(
         self,
@@ -1014,31 +1014,44 @@ class MarkItDownDocumentPreviewLoader:
         *,
         preview_max_bytes: int,
     ) -> "FilePreviewState | None":
-        converter = self._load_converter()
-        if converter is None:
+        pandoc = self._resolve_pandoc()
+        if pandoc is None:
             return None
         try:
-            result = converter.convert(str(path))
-        except (FileNotFoundError, ModuleNotFoundError, OSError, RuntimeError, ValueError):
+            result = subprocess.run(
+                [
+                    pandoc,
+                    "--from",
+                    path.suffix.lstrip(".").lower(),
+                    "--to",
+                    "markdown",
+                    str(path),
+                ],
+                check=True,
+                capture_output=True,
+            )
+        except (OSError, subprocess.SubprocessError, ValueError):
             return None
 
-        content = getattr(result, "text_content", None)
-        if not isinstance(content, str) or not content:
+        try:
+            content = result.stdout.decode("utf-8")
+        except UnicodeDecodeError:
+            content = result.stdout.decode("utf-8", errors="ignore")
+        if not content.strip():
             return None
         return _truncate_preview_text(content, preview_max_bytes)
 
-    def _load_converter(self) -> Any | None:
-        if self.converter_error:
+    def _resolve_pandoc(self) -> str | None:
+        if self.pandoc_missing:
             return None
-        if self.converter is not None:
-            return self.converter
-        try:
-            from markitdown import MarkItDown
-        except ImportError:
-            self.converter_error = True
+        if self.pandoc_path is not None:
+            return self.pandoc_path
+        pandoc = shutil.which("pandoc")
+        if pandoc is None:
+            self.pandoc_missing = True
             return None
-        self.converter = MarkItDown(enable_plugins=False)
-        return self.converter
+        self.pandoc_path = pandoc
+        return pandoc
 
 
 def _load_pdf_preview(

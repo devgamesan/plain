@@ -154,7 +154,7 @@ def test_live_browser_snapshot_loader_returns_empty_child_pane_for_binary_file_c
     assert snapshot.child_pane.preview_message == "Preview unavailable for this file type"
 
 
-def test_live_browser_snapshot_loader_uses_markitdown_preview_for_supported_documents(
+def test_live_browser_snapshot_loader_uses_document_preview_for_supported_documents(
     tmp_path,
 ) -> None:
     project = tmp_path / "project"
@@ -199,7 +199,7 @@ def test_live_browser_snapshot_loader_skips_office_preview_when_disabled(tmp_pat
     assert preview_loader.calls == []
  
 
-def test_live_browser_snapshot_loader_caches_markitdown_previews(tmp_path) -> None:
+def test_live_browser_snapshot_loader_caches_document_previews(tmp_path) -> None:
     project = tmp_path / "project"
     project.mkdir()
     report = project / "slides.pptx"
@@ -216,6 +216,57 @@ def test_live_browser_snapshot_loader_caches_markitdown_previews(tmp_path) -> No
 
     assert first == second
     assert preview_loader.calls == [f"{report}:{64 * 1024}"]
+
+
+def test_pandoc_document_preview_loader_returns_none_when_pandoc_is_missing(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    from zivo.services.browser_snapshot import PandocDocumentPreviewLoader
+
+    report = tmp_path / "report.docx"
+    report.write_bytes(b"placeholder")
+    loader = PandocDocumentPreviewLoader()
+
+    monkeypatch.setattr(
+        "zivo.services.browser_snapshot.shutil.which",
+        lambda name: None,
+    )
+
+    assert loader.load_preview(report, preview_max_bytes=64 * 1024) is None
+
+
+def test_pandoc_document_preview_loader_uses_pandoc_command(tmp_path, monkeypatch) -> None:
+    from zivo.services.browser_snapshot import PandocDocumentPreviewLoader
+
+    slides = tmp_path / "slides.pptx"
+    slides.write_bytes(b"placeholder")
+    loader = PandocDocumentPreviewLoader()
+
+    monkeypatch.setattr(
+        "zivo.services.browser_snapshot.shutil.which",
+        lambda name: "/opt/homebrew/bin/pandoc",
+    )
+
+    class _CompletedProcess:
+        stdout = b"# Slide 1\n"
+
+    def _run(args, **kwargs):
+        assert args == [
+            "/opt/homebrew/bin/pandoc",
+            "--from",
+            "pptx",
+            "--to",
+            "markdown",
+            str(slides),
+        ]
+        return _CompletedProcess()
+
+    monkeypatch.setattr("zivo.services.browser_snapshot.subprocess.run", _run)
+
+    preview = loader.load_preview(slides, preview_max_bytes=64 * 1024)
+
+    assert preview == FilePreviewState.with_content("# Slide 1\n", False)
 
 
 def test_live_browser_snapshot_loader_uses_pdftotext_for_pdf_preview(

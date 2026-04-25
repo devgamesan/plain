@@ -24,7 +24,7 @@ zivo aims to be usable by everyone without complex configuration, plugin install
 
 ## Features
 
-- Simple three-pane layout for parent / current / right panes. When the cursor is on a directory, the right pane shows its children. When the cursor is on a common text file, the right pane shows a syntax-highlighted text preview. `pdf` files are previewed through `pdftotext`, and `docx` / `xlsx` / `pptx` files are previewed through MarkItDown. You can switch to a two-pane transfer layout for side-by-side directory copy and move workflows. You can navigate directories, multi-select items, copy, cut, paste, undo recent file operations, move items to trash, delete files, copy paths, rename, create files or directories, extract archives, create zip archives, replace text across selected files with a preview, replace text in files found by file search or grep search, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
+- Simple three-pane layout for parent / current / right panes. When the cursor is on a directory, the right pane shows its children. When the cursor is on a common text file, the right pane shows a syntax-highlighted text preview. `pdf` files are previewed through `pdftotext`, and `docx` / `xlsx` / `pptx` files are previewed through `pandoc`. You can switch to a two-pane transfer layout for side-by-side directory copy and move workflows. You can navigate directories, multi-select items, copy, cut, paste, undo recent file operations, move items to trash, delete files, copy paths, rename, create files or directories, extract archives, create zip archives, replace text across selected files with a preview, replace text in files found by file search or grep search, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
 
   ![](docs/resources/screen-entire-screen.png)
 
@@ -108,6 +108,11 @@ With `uv` installed, install zivo directly from PyPI.
 ```bash
 uv tool install zivo
 ```
+
+To enable document preview, install these external commands separately:
+
+- `pandoc` for `docx` / `xlsx` / `pptx` preview
+- `pdftotext` for PDF preview
 
 ### Install from repository
 
@@ -428,7 +433,7 @@ The supported settings are:
 | `display` | `show_directory_sizes` | `true` / `false` | Shows recursive directory sizes in the current pane. Defaults to `true`. Large directories can be expensive to scan. zivo also calculates sizes automatically while the main pane is sorted by `size`. |
 | `display` | `enable_text_preview` | `true` / `false` | Shows text-file previews in the right pane. Defaults to `true`. grep result context preview follows the same setting. |
 | `display` | `enable_pdf_preview` | `true` / `false` | Enables PDF preview conversion through `pdftotext`. Defaults to `true`. When disabled, PDF files fall back to the usual unsupported-file message. |
-| `display` | `enable_office_preview` | `true` / `false` | Enables MarkItDown-based preview conversion for `docx`, `xlsx`, and `pptx` files. Defaults to `true`. When disabled, those formats fall back to the usual unsupported-file message. |
+| `display` | `enable_office_preview` | `true` / `false` | Enables `pandoc`-based preview conversion for `docx`, `xlsx`, and `pptx` files. Defaults to `true`. When disabled, those formats fall back to the usual unsupported-file message. |
 | `display` | `show_help_bar` | `true` / `false` | Shows the help bar at the bottom of the screen. Defaults to `true`. The help bar is always shown when the command palette or split terminal is open, regardless of this setting. |
 | `display` | `theme` | Any built-in Textual theme, for example `textual-dark`, `textual-light`, `dracula`, or `tokyo-night` | Default UI theme applied on startup. In the settings editor, theme changes are previewed immediately and are persisted when you save. |
 | `display` | `preview_syntax_theme` | `auto` or a supported Pygments style, for example `one-dark`, `xcode`, `nord`, or `gruvbox-dark` | Syntax-highlighting colors used by the right-pane text preview. `auto` keeps the current light/dark-based default selection. In the settings editor, changes are previewed immediately when a text preview is visible. |

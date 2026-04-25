@@ -24,7 +24,7 @@ zivo は、複雑な設定やプラグイン導入、スクリプトの作成な
 
 ## 特徴
 
-- 親 / 現在 / 右ペインを並べたシンプルな 3 ペイン表示です。カーソルがディレクトリ上にあるときは右ペインに子要素一覧を表示し、一般的なテキストファイル上にあるときは右ペインに構文色分け付きのテキストプレビューを表示します。`pdf` は `pdftotext`、`docx` / `xlsx` / `pptx` は MarkItDown を使ってプレビューできます。ディレクトリ移動、複数選択、コピー、カット、貼り付け、直前の可逆ファイル操作の Undo、ゴミ箱への移動、ファイル削除、パスのコピー、リネーム、新規作成、アーカイブの展開、zip 圧縮、選択ファイル群に対する文字列置換プレビュー、ファイル検索、grep 検索、1 行シェルコマンド実行をキーボードだけで操作できます。よく使う操作は画面下部のヘルプバーに常時表示しています。
+- 親 / 現在 / 右ペインを並べたシンプルな 3 ペイン表示です。カーソルがディレクトリ上にあるときは右ペインに子要素一覧を表示し、一般的なテキストファイル上にあるときは右ペインに構文色分け付きのテキストプレビューを表示します。`pdf` は `pdftotext`、`docx` / `xlsx` / `pptx` は `pandoc` を使ってプレビューできます。ディレクトリ移動、複数選択、コピー、カット、貼り付け、直前の可逆ファイル操作の Undo、ゴミ箱への移動、ファイル削除、パスのコピー、リネーム、新規作成、アーカイブの展開、zip 圧縮、選択ファイル群に対する文字列置換プレビュー、ファイル検索、grep 検索、1 行シェルコマンド実行をキーボードだけで操作できます。よく使う操作は画面下部のヘルプバーに常時表示しています。
 
   ![](docs/resources/screen-entire-screen.png)
 
@@ -112,6 +112,11 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ```bash
 uv tool install zivo
 ```
+
+ドキュメント preview を有効にするには、次の外部コマンドを別途インストールしてください。
+
+- `pandoc`: `docx` / `xlsx` / `pptx` preview 用
+- `pdftotext`: PDF preview 用
 
 ### リポジトリからインストール
 
@@ -432,7 +437,7 @@ zivo は起動時にユーザー設定用の `config.toml` を読み込みます
 | `display` | `show_directory_sizes` | `true` / `false` | ペイン内に再帰ディレクトリサイズを表示します。既定値は `true` です。大きいディレクトリでは計算コストがかかる場合があります。中央ペインを `size` ソートしている間は、この設定が `false` でも自動計算されます。 |
 | `display` | `enable_text_preview` | `true` / `false` | 右ペインのテキストファイル preview を表示します。既定値は `true` です。grep 結果のコンテキスト preview も同じ設定に従います。 |
 | `display` | `enable_pdf_preview` | `true` / `false` | `pdftotext` を使った PDF preview を有効にします。既定値は `true` です。無効にすると PDF は通常の非対応メッセージへ戻ります。 |
-| `display` | `enable_office_preview` | `true` / `false` | `docx` / `xlsx` / `pptx` の preview を MarkItDown 変換で有効にします。既定値は `true` です。無効にすると、これらの形式は通常の非対応メッセージへ戻ります。 |
+| `display` | `enable_office_preview` | `true` / `false` | `docx` / `xlsx` / `pptx` の preview を `pandoc` 変換で有効にします。既定値は `true` です。無効にすると、これらの形式は通常の非対応メッセージへ戻ります。 |
 | `display` | `show_help_bar` | `true` / `false` | 画面下部のヘルプバーを表示します。既定値は `true` です。コマンドパレットや分割ターミナルが開いている場合は、この設定に関係なく常に表示されます。 |
 | `display` | `theme` | `textual-dark` / `textual-light` | 起動時の UI テーマです。設定エディタでは変更内容が即座にプレビューされ、`s` で保存するとこの値が永続化されます。 |
 | `display` | `preview_syntax_theme` | `auto` またはサポートされている Pygments style | 右ペインのテキスト preview に使うシンタックスハイライト配色です。`auto` を選ぶと、現在の light/dark に応じた既定配色を使います。設定エディタで右ペインにテキスト preview が出ている場合は、その場で即時プレビューされます。 |

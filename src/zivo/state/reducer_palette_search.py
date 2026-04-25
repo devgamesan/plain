@@ -601,6 +601,7 @@ def sync_file_search_preview(state: AppState) -> ReduceResult:
             current_path=state.current_path,
             cursor_path=selected_result.path,
             preview_max_bytes=state.config.display.preview_max_kib * 1024,
+            enable_markitdown_preview=state.config.display.enable_markitdown_preview,
         ),
     )
 
@@ -636,6 +637,7 @@ def sync_grep_preview(state: AppState) -> ReduceResult:
             current_path=state.current_path,
             cursor_path=selected_result.path,
             preview_max_bytes=state.config.display.preview_max_kib * 1024,
+            enable_markitdown_preview=state.config.display.enable_markitdown_preview,
             grep_result=selected_result,
             grep_context_lines=state.config.display.grep_preview_context_lines,
         ),
@@ -814,6 +816,7 @@ def sync_sfg_preview(state: AppState) -> ReduceResult:
             current_path=state.current_path,
             cursor_path=selected_result.path,
             preview_max_bytes=state.config.display.preview_max_kib * 1024,
+            enable_markitdown_preview=state.config.display.enable_markitdown_preview,
             grep_result=selected_result,
             grep_context_lines=state.config.display.grep_preview_context_lines,
         ),

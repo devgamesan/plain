@@ -49,6 +49,7 @@ def test_loader_creates_default_config_when_missing(tmp_path) -> None:
     assert "preview_max_kib = 64" in written
     assert "show_directory_sizes = true" in written
     assert "show_preview = true" in written
+    assert "enable_markitdown_preview = true" in written
     assert 'default_sort_field = "name"' in written
     assert "[logging]" in written
     assert "enabled = true" in written
@@ -72,6 +73,7 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
         show_hidden_files = true
         show_directory_sizes = true
         show_preview = false
+        enable_markitdown_preview = false
         theme = "dracula"
         preview_syntax_theme = "one-dark"
         preview_max_kib = 256
@@ -104,6 +106,7 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
     assert result.config.display.show_hidden_files is True
     assert result.config.display.show_directory_sizes is True
     assert result.config.display.show_preview is False
+    assert result.config.display.enable_markitdown_preview is False
     assert result.config.display.theme == "dracula"
     assert result.config.display.preview_syntax_theme == "one-dark"
     assert result.config.display.preview_max_kib == 256
@@ -137,6 +140,7 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
         show_hidden_files = true
         show_directory_sizes = "yes"
         show_preview = "yes"
+        enable_markitdown_preview = "yes"
         theme = "bad-theme"
         preview_syntax_theme = "bad-preview-style"
         preview_max_kib = 42
@@ -165,6 +169,7 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
     assert result.config.display.show_hidden_files is True
     assert result.config.display.show_directory_sizes is True
     assert result.config.display.show_preview is True
+    assert result.config.display.enable_markitdown_preview is True
     assert result.config.display.theme == "textual-dark"
     assert result.config.display.preview_syntax_theme == "auto"
     assert result.config.display.preview_max_kib == 64
@@ -174,7 +179,7 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
     assert result.config.logging.enabled is True
     assert result.config.logging.path is None
     assert result.config.bookmarks.paths == ()
-    assert len(result.warnings) == 16
+    assert len(result.warnings) == 17
 
 
 def test_loader_warns_for_invalid_editor_command_syntax(tmp_path) -> None:
@@ -211,6 +216,7 @@ def test_config_save_service_writes_normalized_config_file(tmp_path) -> None:
                 show_hidden_files=True,
                 show_directory_sizes=True,
                 show_preview=False,
+                enable_markitdown_preview=False,
                 theme="tokyo-night",
                 preview_syntax_theme="one-dark",
                 preview_max_kib=512,
@@ -241,6 +247,7 @@ def test_config_save_service_writes_normalized_config_file(tmp_path) -> None:
     assert "show_hidden_files = true" in written
     assert "show_directory_sizes = true" in written
     assert "show_preview = false" in written
+    assert "enable_markitdown_preview = false" in written
     assert 'theme = "tokyo-night"' in written
     assert 'preview_syntax_theme = "one-dark"' in written
     assert "preview_max_kib = 512" in written
@@ -438,6 +445,7 @@ def test_render_app_config_round_trips_full_config(tmp_path) -> None:
             show_hidden_files=True,
             show_directory_sizes=False,
             show_preview=False,
+            enable_markitdown_preview=False,
             theme="tokyo-night",
             preview_syntax_theme="one-dark",
             preview_max_kib=512,

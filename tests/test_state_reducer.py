@@ -755,7 +755,7 @@ def test_move_config_editor_cursor_clamps_to_visible_settings() -> None:
     next_state = _reduce_state(state, MoveConfigEditorCursor(delta=99))
 
     assert next_state.config_editor is not None
-    assert next_state.config_editor.cursor_index == 17
+    assert next_state.config_editor.cursor_index == 18
 
 def test_cycle_config_editor_terminal_launch_mode_updates_draft() -> None:
     state = replace(
@@ -816,7 +816,7 @@ def test_cycle_config_editor_split_terminal_position_updates_draft() -> None:
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=original_state.config,
-            cursor_index=13,
+            cursor_index=14,
         ),
     )
 
@@ -840,7 +840,7 @@ def test_cycle_config_editor_split_terminal_position_reaches_overlay() -> None:
                     split_terminal_position="right",
                 ),
             ),
-            cursor_index=13,
+            cursor_index=14,
         ),
     )
 
@@ -925,7 +925,7 @@ def test_cycle_config_editor_preview_visibility_updates_draft_and_dirty_state() 
     assert next_state.config_editor.draft.display.show_preview is False
     assert next_state.config_editor.dirty is True
 
-def test_cycle_config_editor_preview_syntax_theme_updates_draft_and_dirty_state() -> None:
+def test_cycle_config_editor_markitdown_preview_updates_draft_and_dirty_state() -> None:
     state = replace(
         build_initial_app_state(config_path="/tmp/zivo/config.toml"),
         ui_mode="CONFIG",
@@ -933,6 +933,23 @@ def test_cycle_config_editor_preview_syntax_theme_updates_draft_and_dirty_state(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
             cursor_index=6,
+        ),
+    )
+
+    next_state = _reduce_state(state, CycleConfigEditorValue(delta=1))
+
+    assert next_state.config_editor is not None
+    assert next_state.config_editor.draft.display.enable_markitdown_preview is False
+    assert next_state.config_editor.dirty is True
+
+def test_cycle_config_editor_preview_syntax_theme_updates_draft_and_dirty_state() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/zivo/config.toml",
+            draft=build_initial_app_state().config,
+            cursor_index=7,
         ),
     )
 
@@ -949,7 +966,7 @@ def test_cycle_config_editor_preview_max_kib_updates_draft_and_dirty_state() -> 
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=7,
+            cursor_index=8,
         ),
     )
 
@@ -1172,7 +1189,7 @@ def test_cycle_config_editor_file_search_max_results_updates_draft() -> None:
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=original_state.config,
-            cursor_index=17,  # file_search.max_results
+            cursor_index=18,  # file_search.max_results
         ),
     )
 

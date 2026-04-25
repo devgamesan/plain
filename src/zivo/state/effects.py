@@ -27,6 +27,7 @@ class LoadBrowserSnapshotEffect:
     cursor_path: str | None = None
     blocking: bool = False
     invalidate_paths: tuple[str, ...] = ()
+    enable_markitdown_preview: bool = True
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,7 @@ class LoadChildPaneSnapshotEffect:
     current_path: str
     cursor_path: str
     preview_max_bytes: int = 64 * 1024
+    enable_markitdown_preview: bool = True
     grep_result: GrepSearchResultState | None = None
     grep_context_lines: int = 3
 
@@ -59,6 +61,7 @@ class LoadParentChildEffect:
     path: str
     cursor_path: str | None
     current_pane: PaneState
+    enable_markitdown_preview: bool = True
 
 
 @dataclass(frozen=True)

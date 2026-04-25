@@ -75,8 +75,10 @@ class _RecordingTimer:
 @dataclass
 class _RecordingSnapshotLoader:
     invalidated_paths: list[tuple[str, ...]] = field(default_factory=list)
-    load_browser_snapshot_calls: list[tuple[str, str | None]] = field(default_factory=list)
-    load_child_pane_snapshot_calls: list[tuple[str, str | None, int]] = field(default_factory=list)
+    load_browser_snapshot_calls: list[tuple[str, str | None, bool]] = field(default_factory=list)
+    load_child_pane_snapshot_calls: list[tuple[str, str | None, int, bool]] = field(
+        default_factory=list
+    )
     load_current_pane_snapshot_calls: list[tuple[str, str | None]] = field(default_factory=list)
 
     def invalidate_directory_listing_cache(self, paths: tuple[str, ...] = ()) -> None:
@@ -86,8 +88,10 @@ class _RecordingSnapshotLoader:
         self,
         path: str,
         cursor_path: str | None = None,
+        *,
+        enable_markitdown_preview: bool = True,
     ) -> None:
-        self.load_browser_snapshot_calls.append((path, cursor_path))
+        self.load_browser_snapshot_calls.append((path, cursor_path, enable_markitdown_preview))
         return None
 
     def load_child_pane_snapshot(
@@ -96,8 +100,11 @@ class _RecordingSnapshotLoader:
         cursor_path: str | None,
         *,
         preview_max_bytes: int = 64 * 1024,
+        enable_markitdown_preview: bool = True,
     ) -> PaneState:
-        self.load_child_pane_snapshot_calls.append((current_path, cursor_path, preview_max_bytes))
+        self.load_child_pane_snapshot_calls.append(
+            (current_path, cursor_path, preview_max_bytes, enable_markitdown_preview)
+        )
         return PaneState(directory_path=current_path, entries=())
 
     def load_current_pane_snapshot(
@@ -252,7 +259,7 @@ def test_schedule_browser_snapshot_invalidates_requested_paths_before_worker() -
     worker_fn()
 
     assert loader.invalidated_paths == [("/tmp/project", "/tmp", "/tmp/project/docs")]
-    assert loader.load_browser_snapshot_calls == [("/tmp/project", "/tmp/project/docs")]
+    assert loader.load_browser_snapshot_calls == [("/tmp/project", "/tmp/project/docs", True)]
 
 
 def test_schedule_transfer_pane_snapshot_uses_pane_scoped_worker_group() -> None:
@@ -490,7 +497,7 @@ def test_start_child_pane_snapshot_passes_preview_max_bytes_to_loader() -> None:
     worker_fn = app.run_worker_calls[0]["worker_fn"]
     worker_fn()
     assert app._snapshot_loader.load_child_pane_snapshot_calls == [
-        ("/tmp/project", "/tmp/project/README.md", 128 * 1024)
+        ("/tmp/project", "/tmp/project/README.md", 128 * 1024, True)
     ]
 
 

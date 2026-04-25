@@ -14,7 +14,7 @@ zivo aims to be usable by everyone without complex configuration, plugin install
 
 - **No memorization needed**: Common actions are always visible in the help bar
 - **Never get lost**: All actions can be called from the command palette
-- **Clear 3-pane layout**: Parent, current, and right panes displayed side by side, with text preview for focused files
+- **Clear 3-pane layout**: Parent, current, and right panes displayed side by side, with text and document preview for focused files
 - **Transfer mode**: Put two directories side by side to copy or move files with ease
 - **Tabbed browsing**: Keep multiple browser workspaces open inside one TUI and switch between them quickly
 - **Embedded terminal**: Seamlessly switch between browsing and shell with `t`
@@ -24,7 +24,7 @@ zivo aims to be usable by everyone without complex configuration, plugin install
 
 ## Features
 
-- Simple three-pane layout for parent / current / right panes. When the cursor is on a directory, the right pane shows its children. When the cursor is on a common text file, the right pane shows a syntax-highlighted text preview. You can switch to a two-pane transfer layout for side-by-side directory copy and move workflows. You can navigate directories, multi-select items, copy, cut, paste, undo recent file operations, move items to trash, delete files, copy paths, rename, create files or directories, extract archives, create zip archives, replace text across selected files with a preview, replace text in files found by file search or grep search, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
+- Simple three-pane layout for parent / current / right panes. When the cursor is on a directory, the right pane shows its children. When the cursor is on a common text file, the right pane shows a syntax-highlighted text preview, and `pdf` / `docx` / `xlsx` / `pptx` files can be previewed through MarkItDown. You can switch to a two-pane transfer layout for side-by-side directory copy and move workflows. You can navigate directories, multi-select items, copy, cut, paste, undo recent file operations, move items to trash, delete files, copy paths, rename, create files or directories, extract archives, create zip archives, replace text across selected files with a preview, replace text in files found by file search or grep search, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
 
   ![](docs/resources/screen-entire-screen.png)
 
@@ -402,7 +402,7 @@ The tab strip is only shown when two or more browser tabs are open.
 | `Run shell command` | Always | Opens a one-line shell command dialog, runs the command in the current directory in the background, and returns the first output line or failure summary in the status bar. Also available with `!`. |
 | `Bookmark this directory` / `Remove bookmark` | Always | Saves or removes the current directory in `[bookmarks].paths`. The label reflects whether the current directory is already bookmarked. Also available with `B`. |
 | `Show hidden files` / `Hide hidden files` | Always | Toggles hidden-file visibility for the browser panes. The label reflects the current visibility state. Also available with `.`. |
-| `Edit config` | Always | Opens the settings overlay for startup defaults. You can edit the preferred terminal editor, external terminal launch mode, hidden-file visibility, directory-size visibility, text preview visibility, preview size limit, theme, sorting, default paste-conflict behavior, and delete confirmation. The overlay also explains what the selected setting changes so you do not need to cross-reference the README while browsing options. Theme changes are previewed immediately. Use `↑` / `↓` or `Ctrl+n` / `Ctrl+p` to move, `←` / `→` / `Enter` to change values, `s` to save `config.toml`, and `e` to open the raw config file in a terminal editor. |
+| `Edit config` | Always | Opens the settings overlay for startup defaults. You can edit the preferred terminal editor, external terminal launch mode, hidden-file visibility, directory-size visibility, text preview visibility, MarkItDown document preview visibility, preview size limit, theme, sorting, default paste-conflict behavior, and delete confirmation. The overlay also explains what the selected setting changes so you do not need to cross-reference the README while browsing options. Theme changes are previewed immediately. Use `↑` / `↓` or `Ctrl+n` / `Ctrl+p` to move, `←` / `→` / `Enter` to change values, `s` to save `config.toml`, and `e` to open the raw config file in a terminal editor. |
 | `Create file` | Always | Starts the inline create-file flow in the current directory. |
 | `Create directory` | Always | Starts the inline create-directory flow in the current directory. |
 
@@ -426,7 +426,8 @@ The supported settings are:
 | `editor` | `command` | Shell-style string, for example `nvim -u NONE` | Optional terminal editor command used by `e`. Do not include the file path; zivo appends it automatically. Unsupported GUI editors or invalid commands are ignored. |
 | `display` | `show_hidden_files` | `true` / `false` | Default hidden-file visibility when the app starts. |
 | `display` | `show_directory_sizes` | `true` / `false` | Shows recursive directory sizes in the current pane. Defaults to `true`. Large directories can be expensive to scan. zivo also calculates sizes automatically while the main pane is sorted by `size`. |
-| `display` | `show_preview` | `true` / `false` | Shows the text-file preview in the right pane. Defaults to `true`. Directory and archive child panes are unaffected. grep result context preview follows the same setting. |
+| `display` | `show_preview` | `true` / `false` | Shows the file preview in the right pane. Defaults to `true`. Directory and archive child panes are unaffected. grep result context preview follows the same setting. |
+| `display` | `enable_markitdown_preview` | `true` / `false` | Enables MarkItDown-based preview conversion for `pdf`, `docx`, `xlsx`, and `pptx` files. Defaults to `true`. When disabled, those formats fall back to the usual unsupported-file message. |
 | `display` | `show_help_bar` | `true` / `false` | Shows the help bar at the bottom of the screen. Defaults to `true`. The help bar is always shown when the command palette or split terminal is open, regardless of this setting. |
 | `display` | `theme` | Any built-in Textual theme, for example `textual-dark`, `textual-light`, `dracula`, or `tokyo-night` | Default UI theme applied on startup. In the settings editor, theme changes are previewed immediately and are persisted when you save. |
 | `display` | `preview_syntax_theme` | `auto` or a supported Pygments style, for example `one-dark`, `xcode`, `nord`, or `gruvbox-dark` | Syntax-highlighting colors used by the right-pane text preview. `auto` keeps the current light/dark-based default selection. In the settings editor, changes are previewed immediately when a text preview is visible. |
@@ -459,6 +460,7 @@ command = "nvim -u NONE"
 show_hidden_files = false
 show_directory_sizes = true
 show_preview = true
+enable_markitdown_preview = true
 show_help_bar = true
 theme = "textual-dark"
 preview_syntax_theme = "auto"

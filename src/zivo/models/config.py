@@ -39,6 +39,7 @@ class DisplayConfig:
     show_hidden_files: bool = False
     show_directory_sizes: bool = True
     show_preview: bool = True
+    enable_markitdown_preview: bool = True
     show_help_bar: bool = True
     theme: ConfigTheme = DEFAULT_APP_THEME
     preview_syntax_theme: PreviewSyntaxTheme = AUTO_PREVIEW_SYNTAX_THEME

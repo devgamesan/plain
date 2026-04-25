@@ -753,6 +753,7 @@ def _handle_request_browser_snapshot(
             cursor_path=action.cursor_path,
             blocking=action.blocking,
             invalidate_paths=action.invalidate_paths,
+            enable_markitdown_preview=state.config.display.enable_markitdown_preview,
         ),
     )
 
@@ -845,6 +846,7 @@ def _handle_current_pane_loaded(
             path=action.current_path,
             cursor_path=action.current_pane.cursor_path,
             current_pane=action.current_pane,
+            enable_markitdown_preview=state.config.display.enable_markitdown_preview,
         ),
     )
 

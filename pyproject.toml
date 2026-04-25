@@ -10,6 +10,7 @@ readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.12"
 dependencies = [
+  "markitdown[docx,pdf,pptx,xlsx]>=0.1.5",
   "pyte>=0.8.2",
   "send2trash>=1.8.3",
   "textual>=0.70,<1.0",

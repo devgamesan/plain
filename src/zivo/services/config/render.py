@@ -73,6 +73,7 @@ def render_display_section(config: AppConfig) -> str:
         f"show_hidden_files = {render_bool(config.display.show_hidden_files)}\n"
         f"show_directory_sizes = {render_bool(config.display.show_directory_sizes)}\n"
         f"show_preview = {render_bool(config.display.show_preview)}\n"
+        f"enable_markitdown_preview = {render_bool(config.display.enable_markitdown_preview)}\n"
         f'theme = "{config.display.theme}"\n'
         f'preview_syntax_theme = "{config.display.preview_syntax_theme}"\n'
         f"preview_max_kib = {config.display.preview_max_kib}\n"

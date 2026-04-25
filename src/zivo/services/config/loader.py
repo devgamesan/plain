@@ -155,6 +155,13 @@ def load_display_config(section: object, warnings: list[str]) -> DisplayConfig:
             warnings=warnings,
             section_name="display",
         ),
+        enable_markitdown_preview=read_bool(
+            validated,
+            key="enable_markitdown_preview",
+            default=config.enable_markitdown_preview,
+            warnings=warnings,
+            section_name="display",
+        ),
         default_sort_descending=read_bool(
             validated,
             key="default_sort_descending",

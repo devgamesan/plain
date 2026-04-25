@@ -128,6 +128,7 @@ def sync_child_pane(
             current_path=state.current_path,
             cursor_path=entry.path,
             preview_max_bytes=state.config.display.preview_max_kib * 1024,
+            enable_markitdown_preview=state.config.display.enable_markitdown_preview,
         ),
     )
 

@@ -1,7 +1,7 @@
 """Editable config dialog widget."""
 
 from rich.text import Text
-from textual.containers import Container
+from textual.containers import Container, VerticalScroll
 from textual.widgets import Static
 
 from zivo.models import ConfigDialogState
@@ -22,7 +22,8 @@ class ConfigDialog(Container):
 
     def compose(self):
         yield Static("", id="config-dialog-title")
-        yield Static("", id="config-dialog-lines")
+        with VerticalScroll(id="config-dialog-body"):
+            yield Static("", id="config-dialog-lines")
         yield Static("", id="config-dialog-options")
 
     def on_mount(self) -> None:

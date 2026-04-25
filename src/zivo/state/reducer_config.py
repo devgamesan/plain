@@ -350,14 +350,14 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
             f"{'enabled' if config.display.default_sort_descending else 'disabled'}.",
         )
     if field_id == "display.directories_first":
+        current_behavior = (
+            "kept first."
+            if config.display.directories_first
+            else "mixed into the main sort order."
+        )
         return (
             "Controls whether directories stay grouped before files in sorted lists.",
-            "Current behavior: directories are "
-            (
-                "kept first."
-                if config.display.directories_first
-                else "mixed into the main sort order."
-            ),
+            f"Current behavior: directories are {current_behavior}",
         )
     if field_id == "display.grep_preview_context_lines":
         return (

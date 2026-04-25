@@ -7,6 +7,7 @@ from zivo.models import (
     AppConfig,
     BookmarkConfig,
     CreateZipArchiveRequest,
+    DisplayConfig,
     EditorConfig,
     ExtractArchiveRequest,
     PasteConflict,
@@ -2040,6 +2041,28 @@ def test_select_config_dialog_state_shows_custom_editor_command_hint() -> None:
         in dialog.lines
     )
     assert "  Custom commands can only be edited in the raw config file with `e`." in dialog.lines
+
+
+def test_select_config_dialog_state_formats_directories_first_detail() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/zivo/config.toml",
+            draft=AppConfig(display=DisplayConfig(directories_first=False)),
+            cursor_index=11,
+        ),
+    )
+
+    dialog = select_config_dialog_state(state)
+
+    assert dialog is not None
+    assert "> Directories first: false" in dialog.lines
+    assert (
+        "  Controls whether directories stay grouped before files in sorted lists."
+        in dialog.lines
+    )
+    assert "  Current behavior: directories are mixed into the main sort order." in dialog.lines
 
 
 def test_select_command_palette_state_for_file_search_results() -> None:

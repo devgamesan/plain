@@ -4396,6 +4396,42 @@ async def test_app_config_dialog_e_opens_config_file_in_editor() -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_config_dialog_height_stays_stable_across_settings() -> None:
+    path = str(Path("/tmp/zivo-config-dialog-stable-height").resolve())
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file", size_bytes=120),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(
+        snapshot_loader=loader,
+        config_path="/tmp/zivo/config.toml",
+        initial_path=path,
+    )
+
+    async with app.run_test(size=(100, 30)) as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await pilot.press("c", "o", "n", "f", "i", "g")
+        await pilot.press("enter")
+        dialog = await _wait_for_config_dialog(app)
+
+        initial_height = dialog.region.height
+
+        for _ in range(11):
+            await pilot.press("down")
+            await asyncio.sleep(0.01)
+            assert dialog.region.height == initial_height
+
+
+@pytest.mark.asyncio
 async def test_app_config_save_refreshes_live_external_launch_service() -> None:
     path = str(Path("/tmp/zivo-refresh-editor-config").resolve())
     loader = FakeBrowserSnapshotLoader(

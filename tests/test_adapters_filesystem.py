@@ -77,6 +77,21 @@ def test_local_filesystem_adapter_inspect_entry_loads_detailed_metadata(tmp_path
     assert entry.modified_at is not None
     assert entry.owner == pwd.getpwuid(stat_result.st_uid).pw_name
     assert entry.group == grp.getgrgid(stat_result.st_gid).gr_name
+    assert entry.symlink is False
+
+
+def test_local_filesystem_adapter_inspect_entry_marks_symlink(tmp_path) -> None:
+    target = tmp_path / "README.md"
+    target.write_text("plain\n", encoding="utf-8")
+    link = tmp_path / "README.link"
+    link.symlink_to(target)
+    adapter = LocalFilesystemAdapter()
+
+    entry = adapter.inspect_entry(str(link))
+
+    assert entry is not None
+    assert entry.symlink is True
+    assert entry.kind == "file"
 
 
 def test_local_filesystem_adapter_includes_broken_symlink_entries(tmp_path) -> None:

@@ -3755,6 +3755,7 @@ async def test_app_command_palette_show_attributes_opens_read_only_dialog() -> N
                 name="docs",
                 kind="dir",
                 path=f"{path}/docs",
+                symlink=True,
                 permissions_mode=0o40755,
                 owner="tadashi",
                 group="staff",
@@ -3783,6 +3784,7 @@ async def test_app_command_palette_show_attributes_opens_read_only_dialog() -> N
         assert "Attributes: docs" in str(title.renderable)
         assert "Name: docs" in str(lines.renderable)
         assert "Type: Directory" in str(lines.renderable)
+        assert "Symlink: Yes" in str(lines.renderable)
         assert f"Path: {path}/docs" in str(lines.renderable)
         assert "Hidden: No" in str(lines.renderable)
         assert "Permissions: drwxr-xr-x (755) tadashi staff" in str(lines.renderable)

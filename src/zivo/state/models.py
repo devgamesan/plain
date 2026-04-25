@@ -230,6 +230,7 @@ class AttributeInspectionState:
     name: str
     kind: EntryKind
     path: str
+    symlink: bool = False
     size_bytes: int | None = None
     modified_at: datetime | None = None
     hidden: bool = False

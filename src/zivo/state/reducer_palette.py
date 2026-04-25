@@ -474,6 +474,7 @@ def _run_show_attributes_command(state: AppState) -> ReduceResult:
                 name=entry.name,
                 kind=entry.kind,
                 path=entry.path,
+                symlink=entry.symlink,
                 size_bytes=entry.size_bytes,
                 modified_at=entry.modified_at,
                 hidden=entry.hidden,

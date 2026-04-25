@@ -674,11 +674,13 @@ def select_attribute_dialog_state(state: AppState) -> AttributeDialogState | Non
     entry = state.attribute_inspection
     kind_label = "Directory" if entry.kind == "dir" else "File"
     hidden_label = "Yes" if entry.hidden else "No"
+    symlink_label = "Yes" if entry.symlink else "No"
     return AttributeDialogState(
         title=f"Attributes: {entry.name}",
         lines=(
             f"Name: {entry.name}",
             f"Type: {kind_label}",
+            f"Symlink: {symlink_label}",
             f"Path: {entry.path}",
             f"Size: {_format_size_label(entry.size_bytes)}",
             f"Modified: {_format_modified_label_from_timestamp(entry.modified_at)}",

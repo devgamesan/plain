@@ -1960,6 +1960,7 @@ def test_select_attribute_dialog_state_formats_selected_entry() -> None:
     assert dialog.title == "Attributes: README.md"
     assert "Name: README.md" in dialog.lines
     assert "Type: File" in dialog.lines
+    assert "Symlink: No" in dialog.lines
     assert "Path: /home/tadashi/develop/zivo/README.md" in dialog.lines
     assert "Size: 2.1KiB" in dialog.lines
     assert "Hidden: No" in dialog.lines

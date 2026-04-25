@@ -24,7 +24,7 @@ zivo は、複雑な設定やプラグイン導入、スクリプトの作成な
 
 ## 特徴
 
-- 親 / 現在 / 右ペインを並べたシンプルな 3 ペイン表示です。カーソルがディレクトリ上にあるときは右ペインに子要素一覧を表示し、一般的なテキストファイル上にあるときは右ペインに構文色分け付きのテキストプレビューを表示します。`pdf` は `pdftotext`、`docx` / `xlsx` / `pptx` は `pandoc` を使ってプレビューできます。ディレクトリ移動、複数選択、コピー、カット、貼り付け、直前の可逆ファイル操作の Undo、ゴミ箱への移動、ファイル削除、パスのコピー、リネーム、新規作成、アーカイブの展開、zip 圧縮、選択ファイル群に対する文字列置換プレビュー、ファイル検索、grep 検索、1 行シェルコマンド実行をキーボードだけで操作できます。よく使う操作は画面下部のヘルプバーに常時表示しています。
+- 親 / 現在 / 右ペインを並べたシンプルな 3 ペイン表示です。カーソルがディレクトリ上にあるときは右ペインに子要素一覧を表示し、一般的なテキストファイル上にあるときは右ペインに構文色分け付きのテキストプレビューを表示します。`pdf`、`docx`、`xlsx`、`pptx` も右ペインでプレビューできます。ディレクトリ移動、複数選択、コピー、カット、貼り付け、直前の可逆ファイル操作の Undo、ゴミ箱への移動、ファイル削除、パスのコピー、リネーム、新規作成、アーカイブの展開、zip 圧縮、選択ファイル群に対する文字列置換プレビュー、ファイル検索、grep 検索、1 行シェルコマンド実行をキーボードだけで操作できます。よく使う操作は画面下部のヘルプバーに常時表示しています。
 
   ![](docs/resources/screen-entire-screen.png)
 
@@ -90,7 +90,7 @@ Overlay表示:
 | --- | --- | --- |
 | Ubuntu | サポート | 現時点で主要な動作確認対象です。 |
 | Ubuntu (WSL) | サポート | WSL 上の Ubuntu を動作確認対象としています。 |
-| macOS | サポート | ripgrep が必要（`brew install ripgrep`）。ゴミ箱操作にはターミナルへのフルディスクアクセス権限が必要です。 |
+| macOS | サポート | ゴミ箱操作にはターミナルへのフルディスクアクセス権限が必要です。 |
 | Windows | 現時点では未サポート | Windows ネイティブ実行は未サポートです。 |
 
 ## インストール
@@ -113,11 +113,6 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv tool install zivo
 ```
 
-ドキュメント preview を有効にするには、次の外部コマンドを別途インストールしてください。
-
-- `pandoc`: `docx` / `xlsx` / `pptx` preview 用
-- `pdftotext`: PDF preview 用
-
 ### リポジトリからインストール
 
 または、リポジトリを clone してからツールとしてインストールします。
@@ -134,56 +129,33 @@ uv tool install --from . zivo
 
 zivo 本体の起動は `uv` だけで行えますが、一部の機能は `PATH` 上の外部コマンドに依存します。利用する OS / 環境ごとに必要なものは次のとおりです。
 
-#### Ubuntu / Debian
-
-- grep 検索 (`g`) を使う場合: `ripgrep` (`rg`)
-- パスコピーを使う場合:
-  - X11 環境: `xclip`
-  - Wayland 環境: `wl-copy`
-
-インストール例:
-
-```bash
-sudo apt install ripgrep xclip
-```
-
-Wayland 環境の例:
-
-```bash
-sudo apt install ripgrep wl-clipboard
-```
-
-#### Ubuntu (WSL)
-
-- grep 検索 (`g`) を使う場合: `ripgrep` (`rg`)
-- パスコピーを使う場合:
-  - 通常は `clip.exe` を利用できます
-  - 必要に応じて Linux 側の `xclip` / `wl-copy` も利用できます
-- GUI 連携を使う場合は `wslu` を推奨します
-  - `wslview` などのブリッジコマンドに使います
+| 機能 | Ubuntu / Debian | Ubuntu (WSL) | macOS |
+| --- | --- | --- | --- |
+| ドキュメント preview (`docx` / `xlsx` / `pptx`) | `pandoc` | `pandoc` | `pandoc` |
+| PDF preview (`pdf`) | `poppler-utils` | `poppler-utils` | `poppler` |
+| grep 検索 (`g`) | `ripgrep` | `ripgrep` | `ripgrep` |
+| パスコピー (`C`) | X11: `xclip` / Wayland: `wl-clipboard` | 通常は不要 (`clip.exe`)、必要なら `xclip` / `wl-clipboard` | 不要 (`pbcopy` 組み込み) |
+| GUI 連携コマンド | 不要 | `wslu` 推奨 | 不要 |
 
 インストール例:
 
 ```bash
-sudo apt install ripgrep wslu
+# Ubuntu / Debian (X11)
+sudo apt install pandoc poppler-utils ripgrep xclip
+
+# Ubuntu / Debian (Wayland)
+sudo apt install pandoc poppler-utils ripgrep wl-clipboard
+
+# Ubuntu (WSL)
+sudo apt install pandoc poppler-utils ripgrep wslu
+
+# macOS
+brew install pandoc poppler ripgrep
 ```
 
-#### macOS
+Windows は現時点では未サポートのため、Windows ネイティブ実行向けの依存ツール案内は対象外です。
 
-- grep 検索 (`g`) を使う場合: `ripgrep` (`rg`)
-- パスコピーは macOS 標準の `pbcopy` を利用します
-- ゴミ箱を空にするやその他のファイル操作を使う場合: 使用しているターミナルアプリに **フルディスクアクセス** 権限を付与してください。**システム設定 > プライバシーとセキュリティ > フルディスクアクセス** を開き、zivo を実行するターミナルアプリ（Terminal.app、iTerm2、Alacritty など）を有効にしてください。この権限がない場合、`~/.Trash` などの保護されたディレクトリにアクセスする操作が失敗します。
-
-インストール例:
-
-```bash
-brew install ripgrep
-```
-
-#### Windows
-
-- 現時点では未サポートです
-- 依存ツールの案内も Windows ネイティブ実行は対象外です
+macOS では、使用しているターミナルアプリに **フルディスクアクセス** 権限を付与してください。**システム設定 > プライバシーとセキュリティ > フルディスクアクセス** を開き、zivo を実行するターミナルアプリ（Terminal.app、iTerm2、Alacritty など）を有効にしてください。この権限がない場合、`~/.Trash` などの保護されたディレクトリにアクセスする操作が失敗します。
 
 ## 起動
 

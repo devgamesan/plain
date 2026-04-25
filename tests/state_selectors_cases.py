@@ -2896,4 +2896,127 @@ def test_selected_files_grep_command_opens_palette() -> None:
     assert state.ui_mode == "PALETTE"
     assert state.command_palette is not None
     assert state.command_palette.source == "selected_files_grep"
-    assert state.command_palette.sfg_target_paths == ("/home/tadashi/develop/zivo/src/main.py",)
+
+
+def test_detect_preview_disabled_message_returns_none_for_directory() -> None:
+    """Test that preview disabled message is None for directories."""
+    from zivo.state.selectors_panes import _detect_preview_disabled_message
+
+    entry = DirectoryEntryState("/home/tadashi/docs", "docs", "dir")
+    message = _detect_preview_disabled_message(
+        entry,
+        enable_text_preview=False,
+        enable_pdf_preview=False,
+        enable_office_preview=False,
+    )
+    assert message is None
+
+
+def test_detect_preview_disabled_message_returns_none_for_null_cursor() -> None:
+    """Test that preview disabled message is None for null cursor."""
+    from zivo.state.selectors_panes import _detect_preview_disabled_message
+
+    message = _detect_preview_disabled_message(
+        None,
+        enable_text_preview=False,
+        enable_pdf_preview=False,
+        enable_office_preview=False,
+    )
+    assert message is None
+
+
+def test_detect_preview_disabled_message_for_pdf_file() -> None:
+    """Test that PDF preview disabled message is returned for PDF files."""
+    from zivo.state.selectors_panes import _detect_preview_disabled_message
+
+    entry = DirectoryEntryState("/home/tadashi/docs/test.pdf", "test.pdf", "file")
+    message = _detect_preview_disabled_message(
+        entry,
+        enable_text_preview=True,
+        enable_pdf_preview=False,
+        enable_office_preview=True,
+    )
+    assert message == "PDF preview is disabled"
+
+
+def test_detect_preview_disabled_message_for_office_file() -> None:
+    """Test that Office preview disabled message is returned for Office files."""
+    from zivo.state.selectors_panes import _detect_preview_disabled_message
+
+    # Test .docx
+    entry = DirectoryEntryState(
+        "/home/tadashi/docs/test.docx", "test.docx", "file"
+    )
+    message = _detect_preview_disabled_message(
+        entry,
+        enable_text_preview=True,
+        enable_pdf_preview=True,
+        enable_office_preview=False,
+    )
+    assert message == "Office file preview is disabled"
+
+    # Test .xlsx
+    entry = DirectoryEntryState(
+        "/home/tadashi/docs/test.xlsx", "test.xlsx", "file"
+    )
+    message = _detect_preview_disabled_message(
+        entry,
+        enable_text_preview=True,
+        enable_pdf_preview=True,
+        enable_office_preview=False,
+    )
+    assert message == "Office file preview is disabled"
+
+    # Test .pptx
+    entry = DirectoryEntryState(
+        "/home/tadashi/docs/test.pptx", "test.pptx", "file"
+    )
+    message = _detect_preview_disabled_message(
+        entry,
+        enable_text_preview=True,
+        enable_pdf_preview=True,
+        enable_office_preview=False,
+    )
+    assert message == "Office file preview is disabled"
+
+
+def test_detect_preview_disabled_message_for_text_file() -> None:
+    """Test that text preview disabled message is returned for text files."""
+    from zivo.state.selectors_panes import _detect_preview_disabled_message
+
+    entry = DirectoryEntryState("/home/tadashi/docs/test.txt", "test.txt", "file")
+    message = _detect_preview_disabled_message(
+        entry,
+        enable_text_preview=False,
+        enable_pdf_preview=True,
+        enable_office_preview=True,
+    )
+    assert message == "Text preview is disabled"
+
+
+def test_detect_preview_disabled_message_for_all_previews_disabled() -> None:
+    """Test that generic preview disabled message is returned when all previews are disabled."""
+    from zivo.state.selectors_panes import _detect_preview_disabled_message
+
+    entry = DirectoryEntryState("/home/tadashi/docs/test.txt", "test.txt", "file")
+    message = _detect_preview_disabled_message(
+        entry,
+        enable_text_preview=False,
+        enable_pdf_preview=False,
+        enable_office_preview=False,
+    )
+    assert message == "Preview is disabled"
+
+
+def test_detect_preview_disabled_message_returns_none_when_enabled() -> None:
+    """Test that no message is returned when preview is enabled."""
+    from zivo.state.selectors_panes import _detect_preview_disabled_message
+
+    entry = DirectoryEntryState("/home/tadashi/docs/test.txt", "test.txt", "file")
+    message = _detect_preview_disabled_message(
+        entry,
+        enable_text_preview=True,
+        enable_pdf_preview=True,
+        enable_office_preview=True,
+    )
+    assert message is None

@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from functools import lru_cache
+from pathlib import Path
 
 from zivo.archive_utils import is_supported_archive_path
 from zivo.models import (
@@ -41,6 +42,10 @@ from .selectors_shared import (
     normalize_command_palette_cursor,
     select_visible_current_entry_states,
 )
+
+# Preview file type extensions
+PDF_PREVIEW_EXTENSIONS = frozenset({".pdf"})
+OFFICE_PREVIEW_EXTENSIONS = frozenset({".docx", ".xlsx", ".pptx"})
 
 
 @dataclass(frozen=True)
@@ -169,7 +174,18 @@ def select_child_pane_for_cursor(
         state.child_pane.mode != "preview"
         or cursor_entry.path != state.child_pane.preview_path
     ):
-        return _build_child_entries_view((), syntax_theme, permissions_label)
+        preview_disabled_message = _detect_preview_disabled_message(
+            cursor_entry,
+            state.config.display.enable_text_preview,
+            state.config.display.enable_pdf_preview,
+            state.config.display.enable_office_preview,
+        )
+        return _build_child_entries_view(
+            (),
+            syntax_theme,
+            permissions_label,
+            preview_disabled_message,
+        )
 
     if state.child_pane.mode == "preview" and state.child_pane.preview_content is not None:
         preview_path = state.child_pane.preview_path or cursor_entry.path
@@ -525,9 +541,10 @@ def _build_child_entries_view(
     entries: tuple[PaneEntry, ...],
     syntax_theme: str,
     permissions_label: str = "",
+    preview_disabled_message: str | None = None,
 ) -> ChildPaneViewState:
     return ChildPaneViewState(
-        title="Child Directory",
+        title=preview_disabled_message or "Child Directory",
         entries=entries,
         syntax_theme=syntax_theme,
         permissions_label=permissions_label,
@@ -589,3 +606,49 @@ def _select_cut_paths(state: AppState) -> frozenset[str]:
     if state.clipboard.mode != "cut":
         return frozenset()
     return frozenset(state.clipboard.paths)
+
+
+def _detect_preview_disabled_message(
+    cursor_entry: DirectoryEntryState | None,
+    enable_text_preview: bool,
+    enable_pdf_preview: bool,
+    enable_office_preview: bool,
+) -> str | None:
+    """Return appropriate message when preview is disabled for the file type.
+
+    Args:
+        cursor_entry: The currently selected directory entry
+        enable_text_preview: Whether text preview is enabled
+        enable_pdf_preview: Whether PDF preview is enabled
+        enable_office_preview: Whether Office preview is enabled
+
+    Returns:
+        Message string if preview is disabled, None otherwise
+    """
+    if cursor_entry is None or cursor_entry.kind != "file":
+        return None
+
+    path = Path(cursor_entry.path)
+    ext = path.suffix.casefold()
+
+    # If all previews are disabled, return generic message
+    if (
+        not enable_text_preview
+        and not enable_pdf_preview
+        and not enable_office_preview
+    ):
+        return "Preview is disabled"
+
+    # Check specific file types
+    if ext in PDF_PREVIEW_EXTENSIONS:
+        if not enable_pdf_preview:
+            return "PDF preview is disabled"
+    elif ext in OFFICE_PREVIEW_EXTENSIONS:
+        if not enable_office_preview:
+            return "Office file preview is disabled"
+    elif not enable_text_preview:
+        # For text files and other unsupported types
+        return "Text preview is disabled"
+
+    return None
+

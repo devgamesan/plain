@@ -24,7 +24,7 @@ zivo aims to be usable by everyone without complex configuration, plugin install
 
 ## Features
 
-- Simple three-pane layout for parent / current / right panes. When the cursor is on a directory, the right pane shows its children. When the cursor is on a common text file, the right pane shows a syntax-highlighted text preview. `pdf` files are previewed through `pdftotext`, and `docx` / `xlsx` / `pptx` files are previewed through `pandoc`. You can switch to a two-pane transfer layout for side-by-side directory copy and move workflows. You can navigate directories, multi-select items, copy, cut, paste, undo recent file operations, move items to trash, delete files, copy paths, rename, create files or directories, extract archives, create zip archives, replace text across selected files with a preview, replace text in files found by file search or grep search, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
+- Simple three-pane layout for parent / current / right panes. When the cursor is on a directory, the right pane shows its children. When the cursor is on a common text file, the right pane shows a syntax-highlighted text preview. `pdf`, `docx`, `xlsx`, and `pptx` files can also be previewed in the right pane. You can switch to a two-pane transfer layout for side-by-side directory copy and move workflows. You can navigate directories, multi-select items, copy, cut, paste, undo recent file operations, move items to trash, delete files, copy paths, rename, create files or directories, extract archives, create zip archives, replace text across selected files with a preview, replace text in files found by file search or grep search, search for files, run grep searches, and execute one-line shell commands entirely from the keyboard. Common actions stay visible in the help bar at the bottom.
 
   ![](docs/resources/screen-entire-screen.png)
 
@@ -86,7 +86,7 @@ Overlay display:
 | --- | --- | --- |
 | Ubuntu | Supported | Primary verified environment at the moment. |
 | Ubuntu (WSL) | Supported | WSL running Ubuntu is part of the verified environments. |
-| macOS | Supported | Requires ripgrep (`brew install ripgrep`). Grant Full Disk Access to your terminal for trash operations. |
+| macOS | Supported | Grant Full Disk Access to your terminal for trash operations. |
 | Windows | Not supported at this time | Native Windows runtime is not supported. |
 
 ## Installation
@@ -109,11 +109,6 @@ With `uv` installed, install zivo directly from PyPI.
 uv tool install zivo
 ```
 
-To enable document preview, install these external commands separately:
-
-- `pandoc` for `docx` / `xlsx` / `pptx` preview
-- `pdftotext` for PDF preview
-
 ### Install from repository
 
 Alternatively, clone the repository and install zivo as a tool.
@@ -130,55 +125,33 @@ To update, pull the latest changes and run the same install command again.
 
 zivo itself can be installed and started with `uv`, but some features depend on external commands being available on `PATH`. The required tools vary by OS or environment.
 
-#### Ubuntu / Debian
-
-- For grep search (`g`): `ripgrep` (`rg`)
-- For copy path (`C`):
-  - X11: `xclip`
-  - Wayland: `wl-copy`
-
-Install example:
-
-```bash
-sudo apt install ripgrep xclip
-```
-
-Wayland example:
-
-```bash
-sudo apt install ripgrep wl-clipboard
-```
-
-#### Ubuntu (WSL)
-
-- For grep search (`g`): `ripgrep` (`rg`)
-- For copy path (`C`):
-  - `clip.exe` is usually available
-  - Linux-side `xclip` / `wl-copy` can also be used when needed
-- `wslu` is recommended for GUI bridge commands such as `wslview`
+| Feature | Ubuntu / Debian | Ubuntu (WSL) | macOS |
+| --- | --- | --- | --- |
+| Document preview (`docx` / `xlsx` / `pptx`) | `pandoc` | `pandoc` | `pandoc` |
+| PDF preview (`pdf`) | `poppler-utils` | `poppler-utils` | `poppler` |
+| Grep search (`g`) | `ripgrep` | `ripgrep` | `ripgrep` |
+| Copy path (`C`) | X11: `xclip` / Wayland: `wl-clipboard` | Usually none (`clip.exe`), optional: `xclip` / `wl-clipboard` | None (`pbcopy` built in) |
+| GUI bridge commands | None | `wslu` recommended | None |
 
 Install example:
 
 ```bash
-sudo apt install ripgrep wslu
+# Ubuntu / Debian (X11)
+sudo apt install pandoc poppler-utils ripgrep xclip
+
+# Ubuntu / Debian (Wayland)
+sudo apt install pandoc poppler-utils ripgrep wl-clipboard
+
+# Ubuntu (WSL)
+sudo apt install pandoc poppler-utils ripgrep wslu
+
+# macOS
+brew install pandoc poppler ripgrep
 ```
 
-#### macOS
+Windows is not supported at this time, so native Windows dependency guidance is out of scope.
 
-- For grep search (`g`): `ripgrep` (`rg`)
-- For copy path (`C`): the built-in `pbcopy`
-- For empty trash and other file operations: grant **Full Disk Access** to your terminal application. Open **System Settings > Privacy & Security > Full Disk Access** and enable the terminal app you use to run zivo (e.g. Terminal.app, iTerm2, Alacritty, etc.). Without this permission, operations that access `~/.Trash` or other protected directories will fail.
-
-Install example:
-
-```bash
-brew install ripgrep
-```
-
-#### Windows
-
-- Not supported at this time
-- Dependency guidance for native Windows runtime is out of scope
+On macOS, grant **Full Disk Access** to your terminal application. Open **System Settings > Privacy & Security > Full Disk Access** and enable the terminal app you use to run zivo (for example Terminal.app, iTerm2, or Alacritty). Without this permission, operations that access `~/.Trash` or other protected directories will fail.
 
 ## Run
 

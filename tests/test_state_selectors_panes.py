@@ -167,3 +167,24 @@ test_select_visible_current_entries_sorts_by_modified_with_missing_values_last =
 test_select_visible_current_entries_sorts_by_size_without_directories_first = (
     cases.test_select_visible_current_entries_sorts_by_size_without_directories_first
 )
+test_detect_preview_disabled_message_returns_none_for_directory = (
+    cases.test_detect_preview_disabled_message_returns_none_for_directory
+)
+test_detect_preview_disabled_message_returns_none_for_null_cursor = (
+    cases.test_detect_preview_disabled_message_returns_none_for_null_cursor
+)
+test_detect_preview_disabled_message_for_pdf_file = (
+    cases.test_detect_preview_disabled_message_for_pdf_file
+)
+test_detect_preview_disabled_message_for_office_file = (
+    cases.test_detect_preview_disabled_message_for_office_file
+)
+test_detect_preview_disabled_message_for_text_file = (
+    cases.test_detect_preview_disabled_message_for_text_file
+)
+test_detect_preview_disabled_message_for_all_previews_disabled = (
+    cases.test_detect_preview_disabled_message_for_all_previews_disabled
+)
+test_detect_preview_disabled_message_returns_none_when_enabled = (
+    cases.test_detect_preview_disabled_message_returns_none_when_enabled
+)

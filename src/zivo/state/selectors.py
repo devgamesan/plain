@@ -1,8 +1,11 @@
 """Selectors that convert AppState into display models."""
 
-from zivo.models import ThreePaneShellData
+from dataclasses import replace
 
-from .models import AppState
+from zivo.models import CurrentSummaryState, ThreePaneShellData, TransferPaneViewState
+
+from .entry_state_helpers import select_visible_entry_states
+from .models import AppState, PaneState, TransferPaneId
 from .selectors_panes import (
     CurrentPaneProjection as _CurrentPaneProjection,
 )
@@ -23,6 +26,7 @@ from .selectors_panes import (
 )
 from .selectors_shared import (
     _find_current_cursor_index,
+    _format_sort_label,
     _has_execute_permission,
     _select_child_syntax_theme,
     _select_command_palette_window,
@@ -104,7 +108,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         state.directory_size_delta.changed_paths,
         state.directory_size_delta.revision,
     )
-    return ThreePaneShellData(
+    shell = ThreePaneShellData(
         tab_bar=select_tab_bar_state(state),
         current_path=state.current_path,
         parent_entries=select_parent_entries(state),
@@ -134,6 +138,58 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         config_dialog=select_config_dialog_state(state),
         shell_command_dialog=select_shell_command_dialog_state(state),
         input_dialog=select_input_dialog_state(state),
+    )
+    if state.layout_mode != "transfer":
+        return shell
+    return replace(
+        shell,
+        layout_mode="transfer",
+        transfer_left=_select_transfer_pane(state, "left"),
+        transfer_right=_select_transfer_pane(state, "right"),
+    )
+
+
+def _select_transfer_pane(
+    state: AppState,
+    pane_id: TransferPaneId,
+) -> TransferPaneViewState | None:
+    transfer = state.transfer_left if pane_id == "left" else state.transfer_right
+    if transfer is None:
+        return None
+    visible_entries = _select_visible_transfer_entry_states(state, transfer.pane)
+    cursor_index = _find_current_cursor_index(visible_entries, transfer.pane.cursor_path)
+    return TransferPaneViewState(
+        title="Left Directory" if pane_id == "left" else "Right Directory",
+        path=transfer.current_path,
+        entries=_select_current_pane_entries(
+            visible_entries,
+            state.directory_size_cache,
+            state.config.display.show_directory_sizes or state.sort.field == "size",
+            transfer.pane.selected_paths,
+            frozenset() if state.clipboard.mode != "cut" else frozenset(state.clipboard.paths),
+        ),
+        summary=CurrentSummaryState(
+            item_count=len(visible_entries),
+            selected_count=len(transfer.pane.selected_paths),
+            sort_label=_format_sort_label(state.sort),
+        ),
+        cursor_index=cursor_index,
+        cursor_visible=state.ui_mode != "FILTER",
+        active=state.active_transfer_pane == pane_id,
+    )
+
+
+def _select_visible_transfer_entry_states(
+    state: AppState,
+    pane: PaneState,
+):
+    return select_visible_entry_states(
+        pane.entries,
+        state.directory_size_cache,
+        state.show_hidden,
+        "",
+        False,
+        state.sort,
     )
 
 

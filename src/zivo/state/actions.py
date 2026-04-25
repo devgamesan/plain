@@ -110,31 +110,46 @@ from .actions_navigation import (
     ActivateNextTab,
     ActivatePreviousTab,
     AddBookmark,
+    ClearTransferSelection,
     CloseCurrentTab,
     CopyPathsToClipboard,
     EnterCursorDirectory,
+    EnterTransferDirectory,
     ExitCurrentPath,
     FocusSplitTerminal,
+    FocusTransferPane,
     GoBack,
     GoForward,
     GoToHomeDirectory,
     GoToParentDirectory,
+    GoToTransferHome,
+    GoToTransferParent,
     JumpCursor,
+    JumpTransferCursor,
     MoveCursor,
     MoveCursorAndSelectRange,
     MoveCursorByPage,
+    MoveTransferCursor,
+    MoveTransferCursorAndSelectRange,
+    MoveTransferCursorByPage,
     OpenNewTab,
     OpenPathInEditor,
     OpenPathWithDefaultApp,
     OpenTerminalAtPath,
+    PasteClipboardToTransferPane,
     ReloadDirectory,
     RemoveBookmark,
+    SelectAllVisibleTransferEntries,
     SendSplitTerminalInput,
     SetCursorPath,
     SetSort,
     ShowAttributes,
     ToggleHiddenFiles,
     ToggleSplitTerminal,
+    ToggleTransferMode,
+    ToggleTransferSelectionAndAdvance,
+    TransferCopyToOppositePane,
+    TransferMoveToOppositePane,
 )
 from .actions_palette import (
     BeginBookmarkSearch,
@@ -209,6 +224,8 @@ from .actions_runtime import (
     SplitTerminalOutputReceived,
     SplitTerminalStarted,
     SplitTerminalStartFailed,
+    TransferPaneSnapshotFailed,
+    TransferPaneSnapshotLoaded,
     UndoCompleted,
     UndoFailed,
     ZipCompressCompleted,
@@ -324,6 +341,21 @@ Action = (
     | SendSplitTerminalInput
     | ToggleHiddenFiles
     | SetSort
+    | ToggleTransferMode
+    | FocusTransferPane
+    | MoveTransferCursor
+    | JumpTransferCursor
+    | MoveTransferCursorByPage
+    | MoveTransferCursorAndSelectRange
+    | ToggleTransferSelectionAndAdvance
+    | ClearTransferSelection
+    | SelectAllVisibleTransferEntries
+    | EnterTransferDirectory
+    | GoToTransferParent
+    | GoToTransferHome
+    | TransferCopyToOppositePane
+    | TransferMoveToOppositePane
+    | PasteClipboardToTransferPane
     | BeginDeleteTargets
     | ToggleSelection
     | ToggleSelectionAndAdvance
@@ -355,6 +387,8 @@ Action = (
     | CurrentPaneSnapshotLoaded
     | ParentChildSnapshotLoaded
     | ParentChildSnapshotFailed
+    | TransferPaneSnapshotLoaded
+    | TransferPaneSnapshotFailed
     | DirectorySizesLoaded
     | DirectorySizesFailed
     | ClipboardPasteNeedsResolution

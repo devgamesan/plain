@@ -179,6 +179,12 @@ sequenceDiagram
 - Handles directory movement, history back / forward, home navigation, reload, filter, sort, and hidden-files toggling
 - Also applies browser snapshots, child-pane snapshots, directory-size requests, and directory-size results
 
+### `src/zivo/state/reducer_transfer.py`
+
+- Handles two-pane transfer mode open / close, left-right focus, and movement / selection inside each transfer pane
+- Reuses the existing `PasteRequest` and clipboard paste effect for copy / move into the opposite pane
+- Owns transfer-pane directory snapshot loading and reloads both transfer panes after paste completion
+
 ### `src/zivo/state/reducer_mutations.py`
 
 - Keeps `handle_mutation_action()` as the public entrypoint and dispatches mutation actions to responsibility-specific handlers
@@ -200,6 +206,7 @@ sequenceDiagram
 
 - Builds `ThreePaneShellData` from `AppState`
 - Applies filter, sort, and directory-size display only to the main pane, while parent and child panes remain fixed-order
+- In transfer mode, builds display models for two `MainPane` instances and leaves Parent / Child / Preview out of the visible layout
 - Formats display text for the help bar, status bar, input bar, command palette, conflict dialog, attribute dialog, config dialog, and split terminal
 - Summarizes busy state, extraction progress, search errors, and notifications for the UI
 
@@ -232,7 +239,7 @@ sequenceDiagram
   - `Create directory`
 - Palette sources are `commands`, `file_search`, `grep_search`, `history`, `bookmarks`, and `go_to_path`
 - `go_to_path` shows matching directory candidates while the user types and lets `Tab` complete the selected one
-- `grep_search` uses separate keyword / include-extensions / exclude-extensions fields and moves focus with `Tab` / `Shift+Tab`
+- `grep_search` uses separate keyword / filename-filter / include-extensions / exclude-extensions fields and moves focus with `Tab` / `Shift+Tab`
 
 ### `src/zivo/services/`
 
@@ -309,7 +316,7 @@ Notes:
 - `CONFIG`
   - Edits startup settings in the config overlay, saves with `s`, and opens raw `config.toml` in a terminal editor with `e`
 - While the split terminal is visible
-  - Terminal input takes precedence over browser shortcuts, and `Ctrl+t` or `Esc` closes it
+  - Terminal input takes precedence over browser shortcuts, and `Ctrl+q` closes it
 
 ## 6. What Works Today
 
@@ -323,6 +330,7 @@ Notes:
 - Switches sort by name / modified time / size and toggles directories-first ordering
 - Shows recursive directory sizes for visible directories when needed
 - Supports selection toggle, clear selection, copy / cut / paste
+- Supports left-right focus, copy / move between panes, and existing clipboard paste in two-pane transfer mode
 - Detects paste conflicts and resolves them with overwrite / skip / rename
 - Renames a single target
 - Creates files and directories

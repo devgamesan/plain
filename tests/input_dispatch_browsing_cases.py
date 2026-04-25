@@ -483,6 +483,17 @@ def test_browsing_enter_on_file_dispatches_open_with_default_app() -> None:
     )
 
 
+def test_browsing_shift_m_dispatches_open_file_manager() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="M", character="M")
+
+    assert actions == (
+        SetNotification(None),
+        OpenPathWithDefaultApp("/home/tadashi/develop/zivo"),
+    )
+
+
 def test_browsing_e_on_file_dispatches_open_in_editor() -> None:
     state = build_initial_app_state()
     state = replace(
@@ -993,4 +1004,3 @@ def test_browsing_close_brace_dispatches_go_forward() -> None:
     actions = dispatch_key_input(state, key="}")
 
     assert actions == (SetNotification(None), GoForward())
-

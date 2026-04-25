@@ -131,7 +131,11 @@ _REPLACE_PREVIEW_SCROLL_SOURCES = frozenset(
 def _preview_scroll_delta(state: AppState, key: str) -> int | None:
     """Return scroll delta for preview key bindings, or None if not applicable."""
 
-    if state.ui_mode == "BROWSING" and state.child_pane.mode == "preview":
+    if (
+        state.ui_mode == "BROWSING"
+        and state.layout_mode != "transfer"
+        and state.child_pane.mode == "preview"
+    ):
         return _BROWSING_PREVIEW_SCROLL_KEYS.get(key)
     if state.ui_mode == "PALETTE" and state.command_palette is not None:
         if state.command_palette.source in _REPLACE_PREVIEW_SCROLL_SOURCES:
@@ -306,6 +310,11 @@ class zivoApp(App[None]):
             and self._app_state.split_terminal.visible
         )
 
+        if self._app_state.layout_mode == "transfer":
+            parent_pane.display = False
+            child_pane.display = False
+            return
+
         if width >= self._PANE_VISIBILITY_MEDIUM_THRESHOLD:
             parent_pane.display = True
         elif width >= self._PANE_VISIBILITY_NARROW_THRESHOLD:
@@ -320,17 +329,48 @@ class zivoApp(App[None]):
         else:
             child_pane.display = False
 
+    def _get_target_overlay_pane(self) -> MainPane | None:
+        """
+        Get the target pane for overlay positioning based on current mode.
+
+        In transfer mode, overlays the opposite pane to keep the active pane visible.
+        In browser mode, overlays the current pane.
+
+        Returns:
+            MainPane instance if found, None otherwise
+        """
+        # Transfer mode with active left pane -> overlay on right pane
+        if (
+            self._app_state.layout_mode == "transfer"
+            and self._app_state.active_transfer_pane == "left"
+        ):
+            try:
+                return self.query_one("#transfer-right-pane", MainPane)
+            except NoMatches:
+                # Fallback to current pane if right pane doesn't exist
+                pass
+
+        # Default: current pane (browser mode or transfer mode with active right pane)
+        try:
+            return self.query_one("#current-pane", MainPane)
+        except NoMatches:
+            return None
+
     def _update_command_palette_geometry(self) -> None:
-        """Constrain the command palette overlay to the current pane."""
+        """Constrain the command palette overlay to the appropriate pane."""
 
         try:
             command_palette_layer = self.query_one("#command-palette-layer", Container)
-            current_pane = self.query_one("#current-pane", MainPane)
             browser_row = self.query_one("#browser-row")
         except NoMatches:
             return
 
-        pane_region = current_pane.region
+        # Determine target pane based on mode and active pane
+        target_pane = self._get_target_overlay_pane()
+        if target_pane is None:
+            return
+
+        pane_region = target_pane.region
         row_region = browser_row.region
         if pane_region.width <= 0 or pane_region.height <= 0:
             return
@@ -343,16 +383,20 @@ class zivoApp(App[None]):
         )
 
     def _update_config_dialog_geometry(self) -> None:
-        """Constrain the config dialog overlay to the current pane."""
+        """Constrain the config dialog overlay to the appropriate pane."""
 
         try:
             config_dialog_layer = self.query_one("#config-dialog-layer", Container)
-            current_pane = self.query_one("#current-pane", MainPane)
             browser_row = self.query_one("#browser-row")
         except NoMatches:
             return
 
-        pane_region = current_pane.region
+        # Determine target pane based on mode and active pane
+        target_pane = self._get_target_overlay_pane()
+        if target_pane is None:
+            return
+
+        pane_region = target_pane.region
         row_region = browser_row.region
         if pane_region.width <= 0 or pane_region.height <= 0:
             return
@@ -365,16 +409,20 @@ class zivoApp(App[None]):
         )
 
     def _update_input_dialog_geometry(self) -> None:
-        """Constrain the input dialog overlay to the current pane."""
+        """Constrain the input dialog overlay to the appropriate pane."""
 
         try:
             input_dialog_layer = self.query_one("#input-dialog-layer", Container)
-            current_pane = self.query_one("#current-pane", MainPane)
             browser_row = self.query_one("#browser-row")
         except NoMatches:
             return
 
-        pane_region = current_pane.region
+        # Determine target pane based on mode and active pane
+        target_pane = self._get_target_overlay_pane()
+        if target_pane is None:
+            return
+
+        pane_region = target_pane.region
         row_region = browser_row.region
         if pane_region.width <= 0 or pane_region.height <= 0:
             return
@@ -536,6 +584,7 @@ class zivoApp(App[None]):
         layout_changed = (
             previous_state.config.display.split_terminal_position
             != self._app_state.config.display.split_terminal_position
+            or previous_state.layout_mode != self._app_state.layout_mode
         )
         if theme_changed:
             self.theme = next_theme

@@ -408,7 +408,11 @@ def _handle_open_terminal_at_path(
 ) -> ReduceResult:
     return run_external_launch_request(
         replace(state, notification=None),
-        ExternalLaunchRequest(kind="open_terminal", path=action.path),
+        ExternalLaunchRequest(
+            kind="open_terminal",
+            path=action.path,
+            terminal_launch_mode=state.config.terminal.launch_mode,
+        ),
     )
 
 

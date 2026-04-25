@@ -580,7 +580,13 @@ def matches_file_search_preview(
 
 def sync_file_search_preview(state: AppState) -> ReduceResult:
     selected_result = selected_file_search_result(state)
-    if selected_result is None or not state.config.display.show_preview:
+    if selected_result is None:
+        return finalize(replace(state, pending_child_pane_request_id=None))
+    if not (
+        state.config.display.enable_text_preview
+        or state.config.display.enable_pdf_preview
+        or state.config.display.enable_office_preview
+    ):
         return finalize(replace(state, pending_child_pane_request_id=None))
 
     if state.pending_child_pane_request_id is None and matches_file_search_preview(
@@ -601,6 +607,9 @@ def sync_file_search_preview(state: AppState) -> ReduceResult:
             current_path=state.current_path,
             cursor_path=selected_result.path,
             preview_max_bytes=state.config.display.preview_max_kib * 1024,
+            enable_text_preview=state.config.display.enable_text_preview,
+            enable_pdf_preview=state.config.display.enable_pdf_preview,
+            enable_office_preview=state.config.display.enable_office_preview,
         ),
     )
 
@@ -618,7 +627,7 @@ def matches_grep_preview(
 
 def sync_grep_preview(state: AppState) -> ReduceResult:
     selected_result = selected_grep_result(state)
-    if selected_result is None or not state.config.display.show_preview:
+    if selected_result is None or not state.config.display.enable_text_preview:
         return finalize(replace(state, pending_child_pane_request_id=None))
 
     if state.pending_child_pane_request_id is None and matches_grep_preview(state, selected_result):
@@ -636,6 +645,9 @@ def sync_grep_preview(state: AppState) -> ReduceResult:
             current_path=state.current_path,
             cursor_path=selected_result.path,
             preview_max_bytes=state.config.display.preview_max_kib * 1024,
+            enable_text_preview=state.config.display.enable_text_preview,
+            enable_pdf_preview=state.config.display.enable_pdf_preview,
+            enable_office_preview=state.config.display.enable_office_preview,
             grep_result=selected_result,
             grep_context_lines=state.config.display.grep_preview_context_lines,
         ),
@@ -796,7 +808,7 @@ def matches_sfg_preview(
 def sync_sfg_preview(state: AppState) -> ReduceResult:
     """Sync the preview pane for selected-files-grep."""
     selected_result = selected_sfg_result(state)
-    if selected_result is None or not state.config.display.show_preview:
+    if selected_result is None or not state.config.display.enable_text_preview:
         return finalize(replace(state, pending_child_pane_request_id=None))
 
     if state.pending_child_pane_request_id is None and matches_sfg_preview(state, selected_result):
@@ -814,6 +826,9 @@ def sync_sfg_preview(state: AppState) -> ReduceResult:
             current_path=state.current_path,
             cursor_path=selected_result.path,
             preview_max_bytes=state.config.display.preview_max_kib * 1024,
+            enable_text_preview=state.config.display.enable_text_preview,
+            enable_pdf_preview=state.config.display.enable_pdf_preview,
+            enable_office_preview=state.config.display.enable_office_preview,
             grep_result=selected_result,
             grep_context_lines=state.config.display.grep_preview_context_lines,
         ),

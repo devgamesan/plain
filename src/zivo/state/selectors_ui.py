@@ -19,6 +19,7 @@ from zivo.models import (
 from .models import AppState
 from .reducer_config import (
     CONFIG_EDITOR_CATEGORIES,
+    config_editor_field_description,
     config_editor_labels,
     format_config_field_value,
 )
@@ -196,6 +197,16 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         if state.config.help_bar.busy:
             return HelpBarState(state.config.help_bar.busy)
         return HelpBarState(("processing...",))
+    if state.layout_mode == "transfer":
+        if state.config.help_bar.transfer:
+            return HelpBarState(state.config.help_bar.transfer)
+        return HelpBarState(
+            (
+                "[ ] focus | y copy-to-pane | m move-to-pane | Esc close",
+                "Space select | c copy | x cut | v paste | d delete | r rename",
+                "z undo | . hidden | N new-dir | b bookmarks | H history | G go-to | : palette",
+            )
+        )
     if state.config.help_bar.browsing:
         return HelpBarState(state.config.help_bar.browsing)
     return HelpBarState(
@@ -686,6 +697,14 @@ def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
                 )
             )
 
+    lines_list.extend([
+        "",
+        "  ── Selected Setting ──",
+        f"  {labels[selected_index]}",
+    ])
+    lines_list.extend(
+        f"  {line}" for line in config_editor_field_description(selected_index, config)
+    )
     lines_list.extend([
         "",
         _format_custom_editor_hint(config.editor.command),

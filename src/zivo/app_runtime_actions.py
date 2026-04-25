@@ -28,6 +28,7 @@ from zivo.state import (
     LoadChildPaneSnapshotEffect,
     LoadCurrentPaneEffect,
     LoadParentChildEffect,
+    LoadTransferPaneEffect,
     RunArchiveExtractEffect,
     RunArchivePreparationEffect,
     RunAttributeInspectionEffect,
@@ -80,6 +81,8 @@ from zivo.state.actions import (
     TextReplaceApplyFailed,
     TextReplacePreviewCompleted,
     TextReplacePreviewFailed,
+    TransferPaneSnapshotFailed,
+    TransferPaneSnapshotLoaded,
     UndoCompleted,
     UndoFailed,
     ZipCompressCompleted,
@@ -139,6 +142,21 @@ def complete_parent_child_snapshot(
             request_id=effect.request_id,
             parent_pane=parent_pane,
             child_pane=child_pane,
+        ),
+    )
+
+
+def complete_transfer_pane_snapshot(
+    effect: LoadTransferPaneEffect,
+    result: object,
+) -> tuple[Any, ...]:
+    current_path, pane, _parent_pane = result
+    return (
+        TransferPaneSnapshotLoaded(
+            request_id=effect.request_id,
+            pane_id=effect.pane_id,
+            current_path=current_path,
+            pane=pane,
         ),
     )
 
@@ -374,6 +392,10 @@ failed_browser_snapshot = make_failed_handler(
 failed_child_pane_snapshot = make_failed_handler(ChildPaneSnapshotFailed)
 failed_current_pane_snapshot = make_failed_handler(CurrentPaneSnapshotLoaded)
 failed_parent_child_snapshot = make_failed_handler(ParentChildSnapshotFailed)
+failed_transfer_pane_snapshot = make_failed_handler(
+    TransferPaneSnapshotFailed,
+    extra_field_builders={"pane_id": lambda e, _err, _msg: e.pane_id},
+)
 failed_clipboard_paste = make_failed_handler(ClipboardPasteFailed)
 failed_file_mutation = make_failed_handler(FileMutationFailed)
 failed_archive_preparation = make_failed_handler(ArchivePreparationFailed)
@@ -430,6 +452,7 @@ COMPLETE_ACTION_HANDLERS: tuple[tuple[type[Any], CompleteActionHandler], ...] = 
     (LoadChildPaneSnapshotEffect, complete_child_pane_snapshot),
     (LoadCurrentPaneEffect, complete_current_pane_snapshot),
     (LoadParentChildEffect, complete_parent_child_snapshot),
+    (LoadTransferPaneEffect, complete_transfer_pane_snapshot),
     (RunConfigSaveEffect, complete_config_save),
     (RunDirectorySizeEffect, complete_directory_sizes),
     (RunAttributeInspectionEffect, complete_attribute_inspection),
@@ -446,6 +469,7 @@ FAILED_ACTION_HANDLERS: tuple[tuple[type[Any], FailureActionHandler], ...] = (
     (LoadChildPaneSnapshotEffect, failed_child_pane_snapshot),
     (LoadCurrentPaneEffect, failed_current_pane_snapshot),
     (LoadParentChildEffect, failed_parent_child_snapshot),
+    (LoadTransferPaneEffect, failed_transfer_pane_snapshot),
     (RunArchivePreparationEffect, failed_archive_preparation),
     (RunArchiveExtractEffect, failed_archive_extract),
     (RunZipCompressPreparationEffect, failed_zip_compress_preparation),

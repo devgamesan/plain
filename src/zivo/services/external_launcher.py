@@ -48,7 +48,7 @@ class LiveExternalLaunchService:
 
         path = _require_path(request)
         try:
-            self.adapter.open_terminal(path)
+            self.adapter.open_terminal(path, request.terminal_launch_mode or "window")
         except OSError as error:
             raise OSError(_format_terminal_error(path, str(error))) from error
 

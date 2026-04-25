@@ -15,7 +15,7 @@ from zivo.models import (
     UndoEntry,
 )
 
-from .models import AppState, GrepSearchResultState, PaneState
+from .models import AppState, GrepSearchResultState, PaneState, TransferPaneId
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,8 @@ class LoadBrowserSnapshotEffect:
     cursor_path: str | None = None
     blocking: bool = False
     invalidate_paths: tuple[str, ...] = ()
+    enable_pdf_preview: bool = True
+    enable_office_preview: bool = True
 
 
 @dataclass(frozen=True)
@@ -37,6 +39,9 @@ class LoadChildPaneSnapshotEffect:
     current_path: str
     cursor_path: str
     preview_max_bytes: int = 64 * 1024
+    enable_text_preview: bool = True
+    enable_pdf_preview: bool = True
+    enable_office_preview: bool = True
     grep_result: GrepSearchResultState | None = None
     grep_context_lines: int = 3
 
@@ -59,6 +64,20 @@ class LoadParentChildEffect:
     path: str
     cursor_path: str | None
     current_pane: PaneState
+    enable_text_preview: bool = True
+    enable_pdf_preview: bool = True
+    enable_office_preview: bool = True
+
+
+@dataclass(frozen=True)
+class LoadTransferPaneEffect:
+    """Request a directory snapshot for a transfer pane."""
+
+    request_id: int
+    pane_id: TransferPaneId
+    path: str
+    cursor_path: str | None = None
+    invalidate_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -225,6 +244,7 @@ Effect = (
     | LoadChildPaneSnapshotEffect
     | LoadCurrentPaneEffect
     | LoadParentChildEffect
+    | LoadTransferPaneEffect
     | RunDirectorySizeEffect
     | RunAttributeInspectionEffect
     | RunClipboardPasteEffect

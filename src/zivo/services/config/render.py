@@ -35,6 +35,9 @@ def render_terminal_section(config: AppConfig) -> str:
     windows = render_command_array(config.terminal.windows)
     return (
         "[terminal]\n"
+        '# launch_mode = "window"\n'
+        "# window: launch a separate terminal window.\n"
+        "# foreground: suspend zivo and use the terminal in the foreground until exit.\n"
         "# Optional OS-specific terminal launch templates.\n"
         "# Use {path} for the working directory.\n"
         "# Examples:\n"
@@ -44,6 +47,7 @@ def render_terminal_section(config: AppConfig) -> str:
         '# ]\n'
         '# macos = ["open -a Terminal {path}"]\n'
         '# windows = ["wt -d {path}"]\n'
+        f'launch_mode = "{config.terminal.launch_mode}"\n'
         f"linux = [{linux}]\n"
         f"macos = [{macos}]\n"
         f"windows = [{windows}]"
@@ -68,7 +72,9 @@ def render_display_section(config: AppConfig) -> str:
         "[display]\n"
         f"show_hidden_files = {render_bool(config.display.show_hidden_files)}\n"
         f"show_directory_sizes = {render_bool(config.display.show_directory_sizes)}\n"
-        f"show_preview = {render_bool(config.display.show_preview)}\n"
+        f"enable_text_preview = {render_bool(config.display.enable_text_preview)}\n"
+        f"enable_pdf_preview = {render_bool(config.display.enable_pdf_preview)}\n"
+        f"enable_office_preview = {render_bool(config.display.enable_office_preview)}\n"
         f'theme = "{config.display.theme}"\n'
         f'preview_syntax_theme = "{config.display.preview_syntax_theme}"\n'
         f"preview_max_kib = {config.display.preview_max_kib}\n"

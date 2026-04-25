@@ -28,6 +28,14 @@ Screen {
     min-width: 44;
 }
 
+.transfer-pane {
+    width: 1fr;
+}
+
+.active-transfer-pane {
+    border: heavy $accent;
+}
+
 #child-pane {
     width: 2.2fr;
 }
@@ -228,7 +236,7 @@ Screen {
 
 #config-dialog {
     display: none;
-    height: auto;
+    height: 1fr;
     min-height: 10;
     margin: 0 2;
     padding: 1 2;
@@ -241,8 +249,13 @@ Screen {
     color: $accent;
 }
 
-#config-dialog-lines {
+#config-dialog-body {
+    height: 1fr;
     margin: 0 0 1 0;
+}
+
+#config-dialog-lines {
+    width: 100%;
 }
 
 #config-dialog-options {

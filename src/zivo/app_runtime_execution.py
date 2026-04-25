@@ -410,6 +410,12 @@ def schedule_external_launch_effect(app: Any, effect: RunExternalLaunchEffect) -
     if effect.request.kind == "open_editor":
         app.call_next(run_foreground_external_launch, app, effect)
         return
+    if (
+        effect.request.kind == "open_terminal"
+        and effect.request.terminal_launch_mode == "foreground"
+    ):
+        app.call_next(run_foreground_external_launch, app, effect)
+        return
     schedule_external_launch(app, effect)
 
 

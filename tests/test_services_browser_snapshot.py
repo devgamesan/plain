@@ -9,6 +9,7 @@ from zivo.services import (
     FakeBrowserSnapshotLoader,
     LiveBrowserSnapshotLoader,
 )
+from zivo.services.browser_snapshot import FilePreviewState
 from zivo.state import BrowserSnapshot, GrepSearchResultState
 from zivo.state.models import DirectoryEntryState, PaneState
 
@@ -24,6 +25,16 @@ class StubFilesystemAdapter:
         if path in self.errors_by_path:
             raise self.errors_by_path[path]
         return self.entries_by_path[path]
+
+
+@dataclass
+class StubDocumentPreviewLoader:
+    previews_by_path: dict[str, FilePreviewState] = field(default_factory=dict)
+    calls: list[str] = field(default_factory=list)
+
+    def load_preview(self, path: Path, *, preview_max_bytes: int) -> FilePreviewState | None:
+        self.calls.append(f"{path}:{preview_max_bytes}")
+        return self.previews_by_path.get(str(path))
 
 
 def _build_stub_filesystem(*paths: str) -> StubFilesystemAdapter:
@@ -141,6 +152,176 @@ def test_live_browser_snapshot_loader_returns_empty_child_pane_for_binary_file_c
     assert snapshot.child_pane.preview_path == str(binary)
     assert snapshot.child_pane.preview_content is None
     assert snapshot.child_pane.preview_message == "Preview unavailable for this file type"
+
+
+def test_live_browser_snapshot_loader_uses_document_preview_for_supported_documents(
+    tmp_path,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    report = project / "report.docx"
+    report.write_bytes(b"placeholder")
+    preview_loader = StubDocumentPreviewLoader(
+        previews_by_path={
+            str(report): FilePreviewState.with_content("# Report\n\nConverted\n", False),
+        }
+    )
+    loader = LiveBrowserSnapshotLoader(document_preview_loader=preview_loader)
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(report))
+
+    assert snapshot.child_pane.mode == "preview"
+    assert snapshot.child_pane.preview_path == str(report)
+    assert snapshot.child_pane.preview_content == "# Report\n\nConverted\n"
+    assert preview_loader.calls == [f"{report}:{64 * 1024}"]
+
+
+def test_live_browser_snapshot_loader_skips_office_preview_when_disabled(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    report = project / "report.docx"
+    report.write_bytes(b"placeholder")
+    preview_loader = StubDocumentPreviewLoader(
+        previews_by_path={
+            str(report): FilePreviewState.with_content("# Report\n\nConverted\n", False),
+        }
+    )
+    loader = LiveBrowserSnapshotLoader(document_preview_loader=preview_loader)
+
+    pane = loader.load_child_pane_snapshot(
+        str(project),
+        str(report),
+        enable_office_preview=False,
+    )
+
+    assert pane.mode == "entries"
+    assert pane.entries == ()
+    assert preview_loader.calls == []
+ 
+
+def test_live_browser_snapshot_loader_caches_document_previews(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    report = project / "slides.pptx"
+    report.write_bytes(b"placeholder")
+    preview_loader = StubDocumentPreviewLoader(
+        previews_by_path={
+            str(report): FilePreviewState.with_content("Slide 1\n", False),
+        }
+    )
+    loader = LiveBrowserSnapshotLoader(document_preview_loader=preview_loader)
+
+    first = loader.load_child_pane_snapshot(str(project), str(report))
+    second = loader.load_child_pane_snapshot(str(project), str(report))
+
+    assert first == second
+    assert preview_loader.calls == [f"{report}:{64 * 1024}"]
+
+
+def test_pandoc_document_preview_loader_returns_none_when_pandoc_is_missing(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    from zivo.services.browser_snapshot import PandocDocumentPreviewLoader
+
+    report = tmp_path / "report.docx"
+    report.write_bytes(b"placeholder")
+    loader = PandocDocumentPreviewLoader()
+
+    monkeypatch.setattr(
+        "zivo.services.browser_snapshot.shutil.which",
+        lambda name: None,
+    )
+
+    assert loader.load_preview(report, preview_max_bytes=64 * 1024) is None
+
+
+def test_pandoc_document_preview_loader_uses_pandoc_command(tmp_path, monkeypatch) -> None:
+    from zivo.services.browser_snapshot import PandocDocumentPreviewLoader
+
+    slides = tmp_path / "slides.pptx"
+    slides.write_bytes(b"placeholder")
+    loader = PandocDocumentPreviewLoader()
+
+    monkeypatch.setattr(
+        "zivo.services.browser_snapshot.shutil.which",
+        lambda name: "/opt/homebrew/bin/pandoc",
+    )
+
+    class _CompletedProcess:
+        stdout = b"# Slide 1\n"
+
+    def _run(args, **kwargs):
+        assert args == [
+            "/opt/homebrew/bin/pandoc",
+            "--from",
+            "pptx",
+            "--to",
+            "markdown",
+            str(slides),
+        ]
+        return _CompletedProcess()
+
+    monkeypatch.setattr("zivo.services.browser_snapshot.subprocess.run", _run)
+
+    preview = loader.load_preview(slides, preview_max_bytes=64 * 1024)
+
+    assert preview == FilePreviewState.with_content("# Slide 1\n", False)
+
+
+def test_live_browser_snapshot_loader_uses_pdftotext_for_pdf_preview(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    report = project / "report.pdf"
+    report.write_bytes(b"%PDF-1.4")
+    loader = LiveBrowserSnapshotLoader()
+
+    monkeypatch.setattr(
+        "zivo.services.browser_snapshot.shutil.which",
+        lambda name: "/usr/bin/pdftotext",
+    )
+
+    class _CompletedProcess:
+        stdout = b"PDF text\n"
+
+    monkeypatch.setattr(
+        "zivo.services.browser_snapshot.subprocess.run",
+        lambda *args, **kwargs: _CompletedProcess(),
+    )
+
+    pane = loader.load_child_pane_snapshot(str(project), str(report))
+
+    assert pane.mode == "preview"
+    assert pane.preview_path == str(report)
+    assert pane.preview_content == "PDF text\n"
+
+
+def test_live_browser_snapshot_loader_skips_pdf_preview_when_disabled(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    report = project / "report.pdf"
+    report.write_bytes(b"%PDF-1.4")
+    loader = LiveBrowserSnapshotLoader()
+
+    monkeypatch.setattr(
+        "zivo.services.browser_snapshot.shutil.which",
+        lambda name: "/usr/bin/pdftotext",
+    )
+
+    pane = loader.load_child_pane_snapshot(
+        str(project),
+        str(report),
+        enable_pdf_preview=False,
+    )
+
+    assert pane.mode == "entries"
+    assert pane.entries == ()
 
 
 def test_live_browser_snapshot_loader_builds_grep_context_preview(tmp_path) -> None:
@@ -850,5 +1031,3 @@ def test_load_grep_context_preview_handles_permission_denied(tmp_path, monkeypat
 
     assert preview.content is None
     assert preview.message == PREVIEW_PERMISSION_DENIED_MESSAGE
-
-

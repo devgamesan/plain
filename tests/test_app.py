@@ -551,6 +551,17 @@ async def _wait_for_row_count(app, expected_count: int, timeout: float = 0.5) ->
         await asyncio.sleep(0.01)
 
 
+async def _wait_for_transfer_right_table(app, timeout: float = 0.5) -> DataTable:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        try:
+            return app.query_one("#transfer-right-pane-table", DataTable)
+        except NoMatches:
+            if asyncio.get_running_loop().time() >= deadline:
+                raise
+            await asyncio.sleep(0.01)
+
+
 async def _wait_for_path(app, expected_path: str, timeout: float = 0.5) -> None:
     resolved_expected = str(Path(expected_path).resolve())
     deadline = asyncio.get_running_loop().time() + timeout
@@ -662,6 +673,26 @@ async def _wait_for_request_count(service, expected_count: int, timeout: float =
             return
         if asyncio.get_running_loop().time() >= deadline:
             raise AssertionError(f"search request count did not reach {expected_count}")
+        await asyncio.sleep(0.01)
+
+
+async def _wait_for_file_search_results(
+    app,
+    expected_paths: list[str],
+    timeout: float = 0.5,
+) -> None:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        palette = app.app_state.command_palette
+        actual_paths = (
+            [result.display_path for result in palette.file_search_results]
+            if palette is not None
+            else None
+        )
+        if actual_paths == expected_paths:
+            return
+        if asyncio.get_running_loop().time() >= deadline:
+            raise AssertionError(f"file search results did not become {expected_paths!r}")
         await asyncio.sleep(0.01)
 
 
@@ -1096,7 +1127,7 @@ async def test_app_hides_text_preview_in_child_pane_when_preview_disabled() -> N
     app = create_app(
         snapshot_loader=loader,
         initial_path=path,
-        app_config=AppConfig(display=DisplayConfig(show_preview=False)),
+        app_config=AppConfig(display=DisplayConfig(enable_text_preview=False)),
     )
 
     async with app.run_test():
@@ -1150,7 +1181,7 @@ async def test_app_updates_child_preview_when_cursor_moves_between_files() -> No
                 entries=(),
                 mode="preview",
                 preview_path=config,
-                preview_content="[display]\nshow_preview = true\n",
+                preview_content="[display]\nenable_text_preview = true\n",
             ),
         },
         child_delay_seconds={
@@ -1174,7 +1205,7 @@ async def test_app_updates_child_preview_when_cursor_moves_between_files() -> No
         )
         await _wait_for_cursor_path(app, config)
         await _wait_for_child_entries(app, [], timeout=1.0)
-        await _wait_for_child_preview(app, "Preview: config.toml", "show_preview = true")
+        await _wait_for_child_preview(app, "Preview: config.toml", "enable_text_preview = true")
         await _wait_for_child_pane_runtime_idle(app, timeout=1.0)
 
 
@@ -2580,6 +2611,117 @@ async def test_app_displays_browsing_help_bar() -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_transfer_mode_refreshes_left_cursor_and_focuses_right_pane() -> None:
+    path = str(Path("/tmp/zivo-transfer-focus").resolve())
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/src", "src", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(120, 20)) as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 3)
+
+        await pilot.press("2")
+        right_table = await _wait_for_transfer_right_table(app)
+        left_table = app.query_one("#current-pane-table", DataTable)
+        left_pane = app.query_one("#current-pane", MainPane)
+        right_pane = app.query_one("#transfer-right-pane", MainPane)
+
+        assert left_table.cursor_row == 0
+        assert right_table.cursor_row == 0
+        assert left_pane.has_class("active-transfer-pane")
+        assert not right_pane.has_class("active-transfer-pane")
+
+        await pilot.press("down")
+        await pilot.pause()
+
+        assert app.app_state.transfer_left is not None
+        assert app.app_state.transfer_left.pane.cursor_path == f"{path}/src"
+        assert left_table.cursor_row == 1
+
+        await pilot.press("]")
+        await pilot.pause()
+
+        assert app.app_state.active_transfer_pane == "right"
+        assert not left_pane.has_class("active-transfer-pane")
+        assert right_pane.has_class("active-transfer-pane")
+        assert app.focused is right_table
+
+
+@pytest.mark.asyncio
+async def test_app_displays_transfer_help_bar() -> None:
+    path = str(Path("/tmp/zivo-transfer-help").resolve())
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+    expected_help = (
+        "[ ] focus | y copy-to-pane | m move-to-pane | Esc close\n"
+        "Space select | c copy | x cut | v paste | d delete | r rename\n"
+        "z undo | . hidden | N new-dir | b bookmarks | H history | G go-to | : palette"
+    )
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("2")
+        help_bar = await _wait_for_help_bar_text(app, expected_help)
+
+        assert str(help_bar.renderable) == expected_help
+
+
+@pytest.mark.asyncio
+async def test_app_opens_command_palette_from_transfer_mode_with_colon() -> None:
+    path = str(Path("/tmp/zivo-transfer-palette").resolve())
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test() as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press("2")
+        await pilot.press(":")
+        palette = await _wait_for_command_palette(app)
+
+        assert app.app_state.ui_mode == "PALETTE"
+        assert palette.display is True
+
+
+def test_transfer_mode_does_not_use_preview_scroll_keys_for_child_preview() -> None:
+    state = replace(
+        build_initial_app_state(),
+        layout_mode="transfer",
+        child_pane=PaneState(directory_path="/tmp", entries=(), mode="preview"),
+    )
+
+    assert _preview_scroll_delta(state, "[") is None
+    assert _preview_scroll_delta(state, "]") is None
+
+
+@pytest.mark.asyncio
 async def test_app_pressing_z_runs_undo() -> None:
     path = str(Path("/tmp/zivo-undo").resolve())
     loader = FakeBrowserSnapshotLoader(
@@ -3133,6 +3275,7 @@ async def test_app_file_search_passes_regex_queries_through_to_service(tmp_path)
             "$",
         )
         await _wait_for_request_count(file_search_service, 1)
+        await _wait_for_file_search_results(app, ["README.md"])
 
         assert file_search_service.executed_requests == [(path, r"re:^README\.md$", False)]
         assert app.app_state.command_palette is not None
@@ -3478,10 +3621,23 @@ async def test_app_grep_search_filters_results_by_filename(tmp_path) -> None:
         await pilot.press("tab", "R", "E", "A", "D")
 
         await _wait_for_request_count(grep_search_service, 1, timeout=1.0)
+        expected_labels = ["README.md:1: TODO: readme"]
+
+        def _filtered_results_ready() -> bool:
+            palette = app.app_state.command_palette
+            return palette is not None and [
+                result.display_label for result in palette.grep_search_results
+            ] == expected_labels
+
+        await _wait_for_predicate(
+            _filtered_results_ready,
+            timeout=1.0,
+            message="grep results to be filtered by filename",
+        )
         assert app.app_state.command_palette is not None
         assert [
             result.display_label for result in app.app_state.command_palette.grep_search_results
-        ] == ["README.md:1: TODO: readme"]
+        ] == expected_labels
 
 
 @pytest.mark.asyncio
@@ -3913,7 +4069,7 @@ async def test_app_command_palette_opens_config_dialog_and_saves_changes() -> No
         assert "Path: /tmp/zivo/config.toml" in str(lines.renderable)
         assert "> Editor command: system default" in str(lines.renderable)
 
-        for _ in range(3):
+        for _ in range(4):
             await pilot.press("down")
         await pilot.press("enter")
         await pilot.press("s")
@@ -3984,7 +4140,8 @@ async def test_app_config_dialog_save_updates_theme(monkeypatch) -> None:
 
         assert app.theme == "textual-dark"
 
-        await pilot.press("down")
+        for _ in range(2):
+            await pilot.press("down")
         await pilot.press("enter")
         await _wait_for_app_theme(app, "textual-light")
         await _wait_for_predicate(
@@ -4046,7 +4203,8 @@ async def test_app_config_dialog_dismiss_restores_theme_preview() -> None:
         await pilot.press("enter")
         await _wait_for_config_dialog(app)
 
-        await pilot.press("down")
+        for _ in range(2):
+            await pilot.press("down")
         await pilot.press("enter")
         await _wait_for_app_theme(app, "textual-light")
 
@@ -4109,7 +4267,8 @@ async def test_app_config_dialog_theme_preview_updates_auto_syntax_theme() -> No
         await pilot.press("c", "o", "n", "f", "i", "g")
         await pilot.press("enter")
         await _wait_for_config_dialog(app)
-        await pilot.press("down")
+        for _ in range(2):
+            await pilot.press("down")
         await pilot.press("enter")
         await _wait_for_app_theme(app, "textual-light")
 
@@ -4176,7 +4335,7 @@ async def test_app_config_dialog_save_updates_preview_syntax_theme() -> None:
         await pilot.press("enter")
         await _wait_for_config_dialog(app)
 
-        for _ in range(2):
+        for _ in range(3):
             await pilot.press("down")
         await pilot.press("enter")
 
@@ -4250,6 +4409,42 @@ async def test_app_config_dialog_e_opens_config_file_in_editor() -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_config_dialog_height_stays_stable_across_settings() -> None:
+    path = str(Path("/tmp/zivo-config-dialog-stable-height").resolve())
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file", size_bytes=120),
+                ),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(
+        snapshot_loader=loader,
+        config_path="/tmp/zivo/config.toml",
+        initial_path=path,
+    )
+
+    async with app.run_test(size=(100, 30)) as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await pilot.press(":")
+        await pilot.press("c", "o", "n", "f", "i", "g")
+        await pilot.press("enter")
+        dialog = await _wait_for_config_dialog(app)
+
+        initial_height = dialog.region.height
+
+        for _ in range(11):
+            await pilot.press("down")
+            await asyncio.sleep(0.01)
+            assert dialog.region.height == initial_height
+
+
+@pytest.mark.asyncio
 async def test_app_config_save_refreshes_live_external_launch_service() -> None:
     path = str(Path("/tmp/zivo-refresh-editor-config").resolve())
     loader = FakeBrowserSnapshotLoader(
@@ -4275,9 +4470,17 @@ async def test_app_config_save_refreshes_live_external_launch_service() -> None:
 
         assert isinstance(app._external_launch_service, LiveExternalLaunchService)
         assert app._external_launch_service.adapter.editor_command_template.command is None
+        assert (
+            app._external_launch_service.adapter.terminal_command_templates.launch_mode
+            == "window"
+        )
 
         app._app_state = replace(app.app_state, pending_config_save_request_id=7)
-        saved_config = replace(app.app_state.config, editor=EditorConfig(command="nvim -u NONE"))
+        saved_config = replace(
+            app.app_state.config,
+            editor=EditorConfig(command="nvim -u NONE"),
+            terminal=replace(app.app_state.config.terminal, launch_mode="foreground"),
+        )
         await app.dispatch_actions(
             (
                 ConfigSaveCompleted(
@@ -4291,6 +4494,10 @@ async def test_app_config_save_refreshes_live_external_launch_service() -> None:
         assert isinstance(app._external_launch_service, LiveExternalLaunchService)
         assert (
             app._external_launch_service.adapter.editor_command_template.command == "nvim -u NONE"
+        )
+        assert (
+            app._external_launch_service.adapter.terminal_command_templates.launch_mode
+            == "foreground"
         )
 
 
@@ -4468,7 +4675,11 @@ async def test_app_command_palette_open_terminal_launches_current_directory() ->
         await _wait_for_external_launch_count(app, 1)
 
         assert launch_service.executed_requests == [
-            ExternalLaunchRequest(kind="open_terminal", path=path)
+            ExternalLaunchRequest(
+                kind="open_terminal",
+                path=path,
+                terminal_launch_mode="window",
+            )
         ]
         assert app.app_state.ui_mode == "BROWSING"
 

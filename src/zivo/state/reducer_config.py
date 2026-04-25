@@ -13,6 +13,7 @@ CONFIG_PREVIEW_SYNTAX_THEMES = SUPPORTED_PREVIEW_SYNTAX_THEMES
 CONFIG_PREVIEW_MAX_KIB = (64, 128, 256, 512, 1024)
 CONFIG_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 CONFIG_PASTE_ACTIONS = ("prompt", "overwrite", "skip", "rename")
+CONFIG_TERMINAL_LAUNCH_MODES = ("window", "foreground")
 CONFIG_EDITOR_COMMANDS = (None, "nvim", "vim", "nano", "hx", "micro", "emacs -nw")
 CONFIG_SPLIT_TERMINAL_POSITIONS = ("bottom", "right", "overlay")
 CONFIG_FILE_SEARCH_MAX_RESULTS = (None, 100, 500, 1000, 5000, 10000)
@@ -32,6 +33,18 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
                 command=cycle_editor_command(config.editor.command, delta),
             ),
         )
+    if field_id == "terminal.launch_mode":
+        return replace(
+            config,
+            terminal=replace(
+                config.terminal,
+                launch_mode=cycle_choice(
+                    CONFIG_TERMINAL_LAUNCH_MODES,
+                    config.terminal.launch_mode,
+                    delta,
+                ),
+            ),
+        )
     if field_id == "display.show_hidden_files":
         return replace(
             config,
@@ -48,12 +61,28 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
                 show_directory_sizes=not config.display.show_directory_sizes,
             ),
         )
-    if field_id == "display.show_preview":
+    if field_id == "display.enable_text_preview":
         return replace(
             config,
             display=replace(
                 config.display,
-                show_preview=not config.display.show_preview,
+                enable_text_preview=not config.display.enable_text_preview,
+            ),
+        )
+    if field_id == "display.enable_pdf_preview":
+        return replace(
+            config,
+            display=replace(
+                config.display,
+                enable_pdf_preview=not config.display.enable_pdf_preview,
+            ),
+        )
+    if field_id == "display.enable_office_preview":
+        return replace(
+            config,
+            display=replace(
+                config.display,
+                enable_office_preview=not config.display.enable_office_preview,
             ),
         )
     if field_id == "display.show_help_bar":
@@ -214,10 +243,13 @@ def cycle_editor_command(current: str | None, delta: int) -> str | None:
 def config_editor_field_ids() -> tuple[str, ...]:
     return (
         "editor.command",
+        "terminal.launch_mode",
         "display.show_hidden_files",
         "display.theme",
         "display.show_directory_sizes",
-        "display.show_preview",
+        "display.enable_text_preview",
+        "display.enable_pdf_preview",
+        "display.enable_office_preview",
         "display.preview_syntax_theme",
         "display.preview_max_kib",
         "display.show_help_bar",
@@ -236,10 +268,13 @@ def config_editor_field_ids() -> tuple[str, ...]:
 def config_editor_labels() -> tuple[str, ...]:
     return (
         "Editor command",
+        "Terminal launch mode",
         "Show hidden files",
         "Theme",
         "Show directory sizes",
-        "Show preview",
+        "Text preview",
+        "PDF preview",
+        "Office preview",
         "Preview syntax theme",
         "Preview max KiB",
         "Show help bar",
@@ -255,13 +290,160 @@ def config_editor_labels() -> tuple[str, ...]:
     )
 
 
+def config_editor_field_description(field_index: int, config: AppConfig) -> tuple[str, ...]:
+    """Return short detail lines for the selected config editor field."""
+
+    field_id = config_editor_field_ids()[field_index]
+    if field_id == "editor.command":
+        lines = [
+            "How file editing is launched from zivo.",
+            "Uses config.toml first, then $EDITOR, then built-in terminal editors.",
+        ]
+        if config.editor.command is None:
+            lines.append("Current behavior: system default fallback chain is active.")
+        elif config.editor.command in CONFIG_EDITOR_COMMANDS:
+            lines.append(f"Current behavior: always prefer `{config.editor.command}`.")
+        else:
+            lines.append(
+                f"Current behavior: custom raw command `{config.editor.command}` is preserved."
+            )
+        lines.append("Custom commands can only be edited in the raw config file with `e`.")
+        return tuple(lines)
+    if field_id == "terminal.launch_mode":
+        return (
+            "Controls how the external terminal command is launched.",
+            "window opens a separate terminal app; foreground hands the current terminal over.",
+            f"Current behavior: `{config.terminal.launch_mode}`.",
+        )
+    if field_id == "display.show_hidden_files":
+        return (
+            "Controls whether dotfiles and other hidden entries appear in browser panes.",
+            "Current behavior: hidden files are "
+            f"{'visible' if config.display.show_hidden_files else 'hidden'} on startup.",
+        )
+    if field_id == "display.theme":
+        return (
+            "Sets the application theme used by the panes, dialogs, and status UI.",
+            "Changing this here previews the theme immediately before saving.",
+            f"Current behavior: `{config.display.theme}`.",
+        )
+    if field_id == "display.show_directory_sizes":
+        return (
+            "Controls whether directory rows try to show aggregated directory size labels.",
+            "Current behavior: directory size labels are "
+            f"{'shown' if config.display.show_directory_sizes else 'hidden'} when available.",
+        )
+    if field_id == "display.enable_text_preview":
+        return (
+            "Controls text-file preview in the right pane and grep context preview windows.",
+            "Current behavior: text preview is "
+            f"{'enabled' if config.display.enable_text_preview else 'disabled'} on startup.",
+        )
+    if field_id == "display.enable_pdf_preview":
+        return (
+            "Controls PDF preview conversion in the right pane.",
+            "Uses the external `pdftotext` command when available.",
+            "Current behavior: PDF preview is "
+            f"{'enabled' if config.display.enable_pdf_preview else 'disabled'}.",
+        )
+    if field_id == "display.enable_office_preview":
+        return (
+            "Controls modern Office preview conversion in the right pane.",
+            "Applies to docx, xlsx, and pptx files through pandoc.",
+            "Current behavior: Office preview is "
+            f"{'enabled' if config.display.enable_office_preview else 'disabled'}.",
+        )
+    if field_id == "display.preview_syntax_theme":
+        return (
+            "Controls syntax highlighting inside the preview pane.",
+            "auto follows the brightness of the selected app theme.",
+            f"Current behavior: `{config.display.preview_syntax_theme}`.",
+        )
+    if field_id == "display.preview_max_kib":
+        return (
+            "Limits how much text zivo reads into the preview pane for a single file.",
+            "Higher values show more content but can make previews heavier.",
+            f"Current behavior: {config.display.preview_max_kib} KiB.",
+        )
+    if field_id == "display.show_help_bar":
+        return (
+            "Controls whether the help bar is visible at the bottom of the UI.",
+            "Current behavior: help bar is "
+            f"{'shown' if config.display.show_help_bar else 'hidden'} on startup.",
+        )
+    if field_id == "display.default_sort_field":
+        return (
+            "Sets the default sort field used when a directory is first loaded.",
+            "You can still change sorting later from the running UI.",
+            f"Current behavior: sort by `{config.display.default_sort_field}`.",
+        )
+    if field_id == "display.default_sort_descending":
+        return (
+            "Controls whether the default sort starts in descending order.",
+            "Current behavior: descending sort is "
+            f"{'enabled' if config.display.default_sort_descending else 'disabled'}.",
+        )
+    if field_id == "display.directories_first":
+        current_behavior = (
+            "kept first."
+            if config.display.directories_first
+            else "mixed into the main sort order."
+        )
+        return (
+            "Controls whether directories stay grouped before files in sorted lists.",
+            f"Current behavior: directories are {current_behavior}",
+        )
+    if field_id == "display.grep_preview_context_lines":
+        return (
+            "Sets how many surrounding lines grep search previews include around each match.",
+            "Increase this to show more context in grep preview results.",
+            f"Current behavior: {config.display.grep_preview_context_lines} context lines.",
+        )
+    if field_id == "display.split_terminal_position":
+        return (
+            "Controls where the embedded split terminal appears.",
+            "bottom docks below the browser, right docks beside it, overlay floats on top.",
+            f"Current behavior: `{config.display.split_terminal_position}`.",
+        )
+    if field_id == "behavior.confirm_delete":
+        return (
+            "Controls whether delete and move-to-trash actions ask for confirmation first.",
+            "Current behavior: confirmations are "
+            f"{'enabled' if config.behavior.confirm_delete else 'disabled'} by default.",
+        )
+    if field_id == "behavior.paste_conflict_action":
+        return (
+            "Sets the default behavior when a paste target already exists.",
+            "prompt asks every time; overwrite, skip, and rename apply immediately.",
+            f"Current behavior: `{config.behavior.paste_conflict_action}`.",
+        )
+    if field_id == "logging.level":
+        return (
+            "Controls the minimum severity written to zivo's log file.",
+            "This affects runtime diagnostics, not the status bar text in the UI.",
+            f"Current behavior: `{config.logging.level}` and above are logged.",
+        )
+    if field_id == "file_search.max_results":
+        current = (
+            "unlimited"
+            if config.file_search.max_results is None
+            else str(config.file_search.max_results)
+        )
+        return (
+            "Limits how many matches recursive file search can return in the command palette.",
+            "Lower limits keep large searches responsive; unlimited returns every match found.",
+            f"Current behavior: {current}.",
+        )
+    return ()
+
+
 CONFIG_EDITOR_CATEGORIES: tuple[tuple[str, tuple[int, ...]], ...] = (
-    ("External", (0,)),
-    ("Display", (2, 5, 1, 3, 4, 6, 7, 11, 12)),
-    ("Sorting", (8, 9, 10)),
-    ("Behavior", (13, 14)),
-    ("Logging", (15,)),
-    ("File Search", (16,)),
+    ("External", (0, 1)),
+    ("Display", (3, 8, 2, 4, 5, 6, 7, 9, 10, 14, 15)),
+    ("Sorting", (11, 12, 13)),
+    ("Behavior", (16, 17)),
+    ("Logging", (18,)),
+    ("File Search", (19,)),
 )
 
 
@@ -305,14 +487,20 @@ def format_config_field_value(field_index: int, config: AppConfig) -> str:
     field_id = config_editor_field_ids()[field_index]
     if field_id == "editor.command":
         return _format_editor_command_value(config.editor.command)
+    if field_id == "terminal.launch_mode":
+        return config.terminal.launch_mode
     if field_id == "display.show_hidden_files":
         return _format_bool(config.display.show_hidden_files)
     if field_id == "display.theme":
         return config.display.theme
     if field_id == "display.show_directory_sizes":
         return _format_bool(config.display.show_directory_sizes)
-    if field_id == "display.show_preview":
-        return _format_bool(config.display.show_preview)
+    if field_id == "display.enable_text_preview":
+        return _format_bool(config.display.enable_text_preview)
+    if field_id == "display.enable_pdf_preview":
+        return _format_bool(config.display.enable_pdf_preview)
+    if field_id == "display.enable_office_preview":
+        return _format_bool(config.display.enable_office_preview)
     if field_id == "display.preview_syntax_theme":
         return config.display.preview_syntax_theme
     if field_id == "display.preview_max_kib":

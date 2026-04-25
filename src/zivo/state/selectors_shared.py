@@ -406,15 +406,15 @@ def _build_grep_search_input_fields(
             active=palette.grep_search_active_field == "filename",
         ),
         CommandPaletteInputFieldViewState(
-            label="Filter: Include",
+            label="Include extensions",
             value=palette.grep_search_include_extensions,
-            placeholder="all extensions",
+            placeholder="e.g. py, js",
             active=palette.grep_search_active_field == "include",
         ),
         CommandPaletteInputFieldViewState(
-            label="Filter: Exclude",
+            label="Exclude extensions",
             value=palette.grep_search_exclude_extensions,
-            placeholder="none",
+            placeholder="e.g. log, tmp",
             active=palette.grep_search_active_field == "exclude",
         ),
     )
@@ -487,13 +487,13 @@ def _build_grep_replace_input_fields(
             active=palette.grf_active_field == "filename",
         ),
         CommandPaletteInputFieldViewState(
-            label="Filter: Include",
+            label="Include extensions",
             value=palette.grf_include_extensions,
             placeholder="e.g. py, js",
             active=palette.grf_active_field == "include",
         ),
         CommandPaletteInputFieldViewState(
-            label="Filter: Exclude",
+            label="Exclude extensions",
             value=palette.grf_exclude_extensions,
             placeholder="e.g. log, tmp",
             active=palette.grf_active_field == "exclude",

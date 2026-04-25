@@ -14,6 +14,7 @@ from .input_dialogs import (
 )
 from .input_palette import dispatch_command_palette_input
 from .input_terminal import TERMINAL_KEYMAP, dispatch_split_terminal_input, terminal_has_focus
+from .input_transfer import TRANSFER_KEYMAP, dispatch_transfer_input
 from .models import AppState
 
 PRINTABLE_BINDING_KEYS = tuple((*string.ascii_letters, *string.digits))
@@ -45,6 +46,7 @@ def iter_bound_keys() -> tuple[str, ...]:
                         for key in sequence
                     )
                 ),
+                *TRANSFER_KEYMAP,
             )
         )
     )
@@ -77,6 +79,8 @@ def dispatch_key_input(
         return dispatch_input_dialog_input(state, key=key, character=character)
     if state.ui_mode == "SHELL":
         return dispatch_shell_command_input(state, key=key, character=character)
+    if state.layout_mode == "transfer":
+        return dispatch_transfer_input(state, key=key, character=character)
     return dispatch_browsing_input(
         state,
         key=key,

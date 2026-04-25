@@ -58,11 +58,16 @@ SplitTerminalStatus = Literal["closed", "starting", "running"]
 SplitTerminalFocusTarget = Literal["browser", "terminal"]
 DirectorySizeStatus = Literal["pending", "ready", "failed"]
 CurrentPaneProjectionMode = Literal["full", "viewport"]
+LayoutMode = Literal["browser", "transfer"]
+TransferPaneId = Literal["left", "right"]
 ConfigFieldId = Literal[
     "editor.command",
+    "terminal.launch_mode",
     "display.show_hidden_files",
     "display.show_directory_sizes",
-    "display.show_preview",
+    "display.enable_text_preview",
+    "display.enable_pdf_preview",
+    "display.enable_office_preview",
     "display.theme",
     "display.preview_syntax_theme",
     "display.preview_max_kib",
@@ -460,6 +465,18 @@ class BrowserSnapshot:
 
 
 @dataclass(frozen=True)
+class TransferPaneState:
+    """Directory pane state used by the two-pane transfer layout."""
+
+    pane: PaneState
+    current_path: str
+    history: HistoryState = HistoryState()
+    current_pane_window_start: int = 0
+    current_pane_delta: CurrentPaneDeltaState = CurrentPaneDeltaState()
+    pending_snapshot_request_id: int | None = None
+
+
+@dataclass(frozen=True)
 class BrowserTabState:
     """Per-tab browser state that can be swapped into the active app view."""
 
@@ -473,6 +490,10 @@ class BrowserTabState:
     current_pane_delta: CurrentPaneDeltaState = CurrentPaneDeltaState()
     pending_browser_snapshot_request_id: int | None = None
     pending_child_pane_request_id: int | None = None
+    layout_mode: LayoutMode = "browser"
+    active_transfer_pane: TransferPaneId = "left"
+    transfer_left: TransferPaneState | None = None
+    transfer_right: TransferPaneState | None = None
     parent_pane_loading: bool = False  # Track parent pane loading in progressive mode
     child_pane_loading: bool = False  # Track child pane loading in progressive mode
 
@@ -498,6 +519,10 @@ class AppState:
     clipboard: ClipboardState = ClipboardState()
     history: HistoryState = HistoryState()
     ui_mode: UiMode = "BROWSING"
+    layout_mode: LayoutMode = "browser"
+    active_transfer_pane: TransferPaneId = "left"
+    transfer_left: TransferPaneState | None = None
+    transfer_right: TransferPaneState | None = None
     notification: NotificationState | None = None
     pending_input: PendingInputState | None = None
     pending_key_sequence: PendingKeySequenceState | None = None
@@ -558,6 +583,10 @@ def browser_tab_from_app_state(state: AppState) -> BrowserTabState:
         current_pane_delta=state.current_pane_delta,
         pending_browser_snapshot_request_id=state.pending_browser_snapshot_request_id,
         pending_child_pane_request_id=state.pending_child_pane_request_id,
+        layout_mode=state.layout_mode,
+        active_transfer_pane=state.active_transfer_pane,
+        transfer_left=state.transfer_left,
+        transfer_right=state.transfer_right,
     )
 
 
@@ -607,6 +636,10 @@ def load_browser_tab(state: AppState, index: int) -> AppState:
         current_pane_delta=tab.current_pane_delta,
         pending_browser_snapshot_request_id=tab.pending_browser_snapshot_request_id,
         pending_child_pane_request_id=tab.pending_child_pane_request_id,
+        layout_mode=tab.layout_mode,
+        active_transfer_pane=tab.active_transfer_pane,
+        transfer_left=tab.transfer_left,
+        transfer_right=tab.transfer_right,
     )
 
 

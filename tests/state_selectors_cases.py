@@ -7,6 +7,7 @@ from zivo.models import (
     AppConfig,
     BookmarkConfig,
     CreateZipArchiveRequest,
+    DisplayConfig,
     EditorConfig,
     ExtractArchiveRequest,
     PasteConflict,
@@ -68,6 +69,7 @@ from zivo.state.actions import (
     SetNotification,
     SetSort,
     ToggleSelection,
+    ToggleTransferMode,
 )
 from zivo.state.command_palette import CommandPaletteItem
 from zivo.state.reducer_common import directory_size_target_paths
@@ -1280,6 +1282,23 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     )
 
 
+def test_select_help_bar_for_transfer_mode_prioritizes_transfer_actions() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+
+    help_state = select_help_bar_state(state)
+
+    assert help_state.lines == (
+        "[ ] focus | y copy-to-pane | m move-to-pane | Esc close",
+        "Space select | c copy | x cut | v paste | d delete | r rename",
+        "z undo | . hidden | N new-dir | b bookmarks | H history | G go-to | : palette",
+    )
+    assert help_state.text == (
+        "[ ] focus | y copy-to-pane | m move-to-pane | Esc close\n"
+        "Space select | c copy | x cut | v paste | d delete | r rename\n"
+        "z undo | . hidden | N new-dir | b bookmarks | H history | G go-to | : palette"
+    )
+
+
 def test_select_help_bar_for_busy_mode() -> None:
     state = replace(build_initial_app_state(), ui_mode="BUSY")
 
@@ -1384,6 +1403,22 @@ def test_select_command_palette_state_enables_history_navigation_items() -> None
     assert palette_state is not None
     assert any(item.label == "Go back" and item.enabled for item in palette_state.items)
     assert any(item.label == "Go forward" and item.enabled for item in palette_state.items)
+
+
+def test_select_command_palette_state_in_transfer_mode_shows_transfer_commands_only() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+    state = _reduce_state(state, BeginCommandPalette())
+
+    palette_state = select_command_palette_state(state)
+
+    assert palette_state is not None
+    labels = [item.label for item in palette_state.items]
+    assert "History search" in labels
+    assert "Copy to opposite pane" in labels
+    assert "Move to opposite pane" in labels
+    assert "Close transfer mode" in labels
+    assert "Find files" not in labels
+    assert "Toggle split terminal" not in labels
 
 
 def test_select_command_palette_state_shows_bookmark_items() -> None:
@@ -1562,8 +1597,8 @@ def test_select_command_palette_state_for_grep_search_includes_input_fields() ->
     assert [field.label for field in palette_state.input_fields] == [
         "Keyword",
         "Filter: Filename",
-        "Filter: Include",
-        "Filter: Exclude",
+        "Include extensions",
+        "Exclude extensions",
     ]
     assert [field.value for field in palette_state.input_fields] == ["todo", "main", "py,ts", "log"]
     assert [field.active for field in palette_state.input_fields] == [False, False, False, True]
@@ -1939,7 +1974,7 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=2,
+            cursor_index=3,
             dirty=True,
         ),
     )
@@ -1951,13 +1986,19 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
     assert "Path: /tmp/zivo/config.toml" in dialog.lines
     assert "  ── External ──" in dialog.lines
     assert "  Editor command: system default" in dialog.lines
+    assert "  Terminal launch mode: window" in dialog.lines
     assert "  ── Display ──" in dialog.lines
     assert "> Theme: textual-dark" in dialog.lines
     assert "  Preview syntax theme: auto" in dialog.lines
     assert "  Preview max KiB: 64 KiB" in dialog.lines
-    assert "  Show preview: true" in dialog.lines
+    assert "  Text preview: true" in dialog.lines
     assert "  ── Sorting ──" in dialog.lines
     assert "  Default sort field: name" in dialog.lines
+    assert "  ── Selected Setting ──" in dialog.lines
+    assert "  Theme" in dialog.lines
+    assert "  Sets the application theme used by the panes, dialogs, and status UI." in dialog.lines
+    assert "  Changing this here previews the theme immediately before saving." in dialog.lines
+    assert "  Current behavior: `textual-dark`." in dialog.lines
     assert "Editor presets: system default, nvim, vim, nano, hx, micro, emacs -nw" in dialog.lines
     assert "Terminal launch templates: edit config.toml with e" in dialog.lines
     assert dialog.options == (
@@ -1995,6 +2036,33 @@ def test_select_config_dialog_state_shows_custom_editor_command_hint() -> None:
     assert dialog is not None
     assert "> Editor command: custom (raw config only)" in dialog.lines
     assert "Custom editor command: nvim -u NONE" in dialog.lines
+    assert (
+        "  Current behavior: custom raw command `nvim -u NONE` is preserved."
+        in dialog.lines
+    )
+    assert "  Custom commands can only be edited in the raw config file with `e`." in dialog.lines
+
+
+def test_select_config_dialog_state_formats_directories_first_detail() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/zivo/config.toml",
+            draft=AppConfig(display=DisplayConfig(directories_first=False)),
+            cursor_index=11,
+        ),
+    )
+
+    dialog = select_config_dialog_state(state)
+
+    assert dialog is not None
+    assert "> Directories first: false" in dialog.lines
+    assert (
+        "  Controls whether directories stay grouped before files in sorted lists."
+        in dialog.lines
+    )
+    assert "  Current behavior: directories are mixed into the main sort order." in dialog.lines
 
 
 def test_select_command_palette_state_for_file_search_results() -> None:
@@ -2828,4 +2896,127 @@ def test_selected_files_grep_command_opens_palette() -> None:
     assert state.ui_mode == "PALETTE"
     assert state.command_palette is not None
     assert state.command_palette.source == "selected_files_grep"
-    assert state.command_palette.sfg_target_paths == ("/home/tadashi/develop/zivo/src/main.py",)
+
+
+def test_detect_preview_disabled_message_returns_none_for_directory() -> None:
+    """Test that preview disabled message is None for directories."""
+    from zivo.state.selectors_panes import _detect_preview_disabled_message
+
+    entry = DirectoryEntryState("/home/tadashi/docs", "docs", "dir")
+    message = _detect_preview_disabled_message(
+        entry,
+        enable_text_preview=False,
+        enable_pdf_preview=False,
+        enable_office_preview=False,
+    )
+    assert message is None
+
+
+def test_detect_preview_disabled_message_returns_none_for_null_cursor() -> None:
+    """Test that preview disabled message is None for null cursor."""
+    from zivo.state.selectors_panes import _detect_preview_disabled_message
+
+    message = _detect_preview_disabled_message(
+        None,
+        enable_text_preview=False,
+        enable_pdf_preview=False,
+        enable_office_preview=False,
+    )
+    assert message is None
+
+
+def test_detect_preview_disabled_message_for_pdf_file() -> None:
+    """Test that PDF preview disabled message is returned for PDF files."""
+    from zivo.state.selectors_panes import _detect_preview_disabled_message
+
+    entry = DirectoryEntryState("/home/tadashi/docs/test.pdf", "test.pdf", "file")
+    message = _detect_preview_disabled_message(
+        entry,
+        enable_text_preview=True,
+        enable_pdf_preview=False,
+        enable_office_preview=True,
+    )
+    assert message == "PDF preview is disabled"
+
+
+def test_detect_preview_disabled_message_for_office_file() -> None:
+    """Test that Office preview disabled message is returned for Office files."""
+    from zivo.state.selectors_panes import _detect_preview_disabled_message
+
+    # Test .docx
+    entry = DirectoryEntryState(
+        "/home/tadashi/docs/test.docx", "test.docx", "file"
+    )
+    message = _detect_preview_disabled_message(
+        entry,
+        enable_text_preview=True,
+        enable_pdf_preview=True,
+        enable_office_preview=False,
+    )
+    assert message == "Office file preview is disabled"
+
+    # Test .xlsx
+    entry = DirectoryEntryState(
+        "/home/tadashi/docs/test.xlsx", "test.xlsx", "file"
+    )
+    message = _detect_preview_disabled_message(
+        entry,
+        enable_text_preview=True,
+        enable_pdf_preview=True,
+        enable_office_preview=False,
+    )
+    assert message == "Office file preview is disabled"
+
+    # Test .pptx
+    entry = DirectoryEntryState(
+        "/home/tadashi/docs/test.pptx", "test.pptx", "file"
+    )
+    message = _detect_preview_disabled_message(
+        entry,
+        enable_text_preview=True,
+        enable_pdf_preview=True,
+        enable_office_preview=False,
+    )
+    assert message == "Office file preview is disabled"
+
+
+def test_detect_preview_disabled_message_for_text_file() -> None:
+    """Test that text preview disabled message is returned for text files."""
+    from zivo.state.selectors_panes import _detect_preview_disabled_message
+
+    entry = DirectoryEntryState("/home/tadashi/docs/test.txt", "test.txt", "file")
+    message = _detect_preview_disabled_message(
+        entry,
+        enable_text_preview=False,
+        enable_pdf_preview=True,
+        enable_office_preview=True,
+    )
+    assert message == "Text preview is disabled"
+
+
+def test_detect_preview_disabled_message_for_all_previews_disabled() -> None:
+    """Test that generic preview disabled message is returned when all previews are disabled."""
+    from zivo.state.selectors_panes import _detect_preview_disabled_message
+
+    entry = DirectoryEntryState("/home/tadashi/docs/test.txt", "test.txt", "file")
+    message = _detect_preview_disabled_message(
+        entry,
+        enable_text_preview=False,
+        enable_pdf_preview=False,
+        enable_office_preview=False,
+    )
+    assert message == "Preview is disabled"
+
+
+def test_detect_preview_disabled_message_returns_none_when_enabled() -> None:
+    """Test that no message is returned when preview is enabled."""
+    from zivo.state.selectors_panes import _detect_preview_disabled_message
+
+    entry = DirectoryEntryState("/home/tadashi/docs/test.txt", "test.txt", "file")
+    message = _detect_preview_disabled_message(
+        entry,
+        enable_text_preview=True,
+        enable_pdf_preview=True,
+        enable_office_preview=True,
+    )
+    assert message is None

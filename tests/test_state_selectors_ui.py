@@ -33,6 +33,9 @@ test_select_conflict_dialog_state_formats_zip_confirmation = (
 test_select_help_bar_defaults_to_browsing_shortcuts = (
     cases.test_select_help_bar_defaults_to_browsing_shortcuts
 )
+test_select_help_bar_for_transfer_mode_prioritizes_transfer_actions = (
+    cases.test_select_help_bar_for_transfer_mode_prioritizes_transfer_actions
+)
 test_select_help_bar_for_attribute_dialog = (
     cases.test_select_help_bar_for_attribute_dialog
 )

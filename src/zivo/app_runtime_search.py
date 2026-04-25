@@ -2,6 +2,7 @@
 
 import threading
 from functools import partial
+from pathlib import Path
 from typing import Any
 
 from zivo.app_runtime_core import (
@@ -18,6 +19,7 @@ from zivo.state import (
     LoadChildPaneSnapshotEffect,
     LoadCurrentPaneEffect,
     LoadParentChildEffect,
+    LoadTransferPaneEffect,
     RunDirectorySizeEffect,
     RunFileSearchEffect,
     RunGrepSearchEffect,
@@ -26,8 +28,10 @@ from zivo.state import (
 )
 
 CHILD_PANE_DEBOUNCE_SECONDS = 0.03
+DOCUMENT_PREVIEW_DEBOUNCE_SECONDS = 0.35
 FILE_SEARCH_DEBOUNCE_SECONDS = 0.2
 GREP_SEARCH_DEBOUNCE_SECONDS = 0.2
+DOCUMENT_PREVIEW_EXTENSIONS = frozenset({".pdf", ".docx", ".xlsx", ".pptx"})
 
 FILE_SEARCH_RUNTIME = SearchRuntimeConfig(
     debounce_seconds=FILE_SEARCH_DEBOUNCE_SECONDS,
@@ -78,6 +82,8 @@ def schedule_browser_snapshot(app: Any, effect: LoadBrowserSnapshotEffect) -> No
             app._snapshot_loader.load_browser_snapshot,
             effect.path,
             effect.cursor_path,
+            enable_pdf_preview=effect.enable_pdf_preview,
+            enable_office_preview=effect.enable_office_preview,
         ),
         WorkerSpec(
             name=f"browser-snapshot:{effect.request_id}",
@@ -90,11 +96,12 @@ def schedule_browser_snapshot(app: Any, effect: LoadBrowserSnapshotEffect) -> No
 
 def schedule_child_pane_snapshot(app: Any, effect: LoadChildPaneSnapshotEffect) -> None:
     cancel_timer(app, "_child_pane_timer")
-    if CHILD_PANE_DEBOUNCE_SECONDS <= 0:
+    debounce_seconds = _child_pane_debounce_seconds(effect)
+    if debounce_seconds <= 0:
         start_child_pane_snapshot(app, effect)
         return
     timer = app.set_timer(
-        CHILD_PANE_DEBOUNCE_SECONDS,
+        debounce_seconds,
         partial(start_child_pane_snapshot, app, effect),
         name=f"child-pane-snapshot-debounce:{effect.request_id}",
     )
@@ -112,6 +119,9 @@ def start_child_pane_snapshot(app: Any, effect: LoadChildPaneSnapshotEffect) -> 
         effect.current_path,
         effect.cursor_path,
         preview_max_bytes=effect.preview_max_bytes,
+        enable_text_preview=effect.enable_text_preview,
+        enable_pdf_preview=effect.enable_pdf_preview,
+        enable_office_preview=effect.enable_office_preview,
     )
     if effect.grep_result is not None:
         loader = partial(
@@ -166,10 +176,33 @@ def schedule_parent_child_update(app: Any, effect: LoadParentChildEffect) -> Non
             effect.path,
             effect.cursor_path,
             effect.current_pane,
+            enable_text_preview=effect.enable_text_preview,
+            enable_pdf_preview=effect.enable_pdf_preview,
+            enable_office_preview=effect.enable_office_preview,
         ),
         WorkerSpec(
             name=f"progressive-snapshot-phase2:{effect.request_id}",
             group="browser-snapshot",
+            description=effect.path,
+            exclusive=True,
+        ),
+    )
+
+
+def schedule_transfer_pane_snapshot(app: Any, effect: LoadTransferPaneEffect) -> None:
+    if effect.invalidate_paths:
+        app._snapshot_loader.invalidate_directory_listing_cache(effect.invalidate_paths)
+    run_worker(
+        app,
+        effect,
+        partial(
+            app._snapshot_loader.load_current_pane_snapshot,
+            effect.path,
+            effect.cursor_path,
+        ),
+        WorkerSpec(
+            name=f"transfer-pane-snapshot:{effect.request_id}",
+            group=f"transfer-pane-snapshot:{effect.pane_id}",
             description=effect.path,
             exclusive=True,
         ),
@@ -224,6 +257,22 @@ def schedule_text_replace_preview(app: Any, effect: RunTextReplacePreviewEffect)
             exclusive=True,
         ),
     )
+
+
+def _child_pane_debounce_seconds(effect: LoadChildPaneSnapshotEffect) -> float:
+    if (
+        (effect.enable_pdf_preview or effect.enable_office_preview)
+        and effect.grep_result is None
+        and _is_document_preview_path(effect.cursor_path)
+    ):
+        return DOCUMENT_PREVIEW_DEBOUNCE_SECONDS
+    return CHILD_PANE_DEBOUNCE_SECONDS
+
+
+def _is_document_preview_path(path: str | None) -> bool:
+    if path is None:
+        return False
+    return Path(path).suffix.casefold() in DOCUMENT_PREVIEW_EXTENSIONS
 
 
 def schedule_text_replace_apply(app: Any, effect: RunTextReplaceApplyEffect) -> None:

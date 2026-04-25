@@ -1,6 +1,7 @@
 """Directory-size and child-pane synchronization helpers."""
 
 from dataclasses import replace
+from pathlib import Path
 
 from zivo.archive_utils import is_supported_archive_path
 
@@ -9,6 +10,29 @@ from .effects import Effect, LoadChildPaneSnapshotEffect, ReduceResult
 from .entry_state_helpers import current_entry_for_path, visible_current_entry_states
 from .models import DirectoryEntryState, DirectorySizeCacheEntry, PaneState
 from .reducer_requests import ReducerFn
+
+
+def _any_file_preview_enabled(state) -> bool:
+    return (
+        state.config.display.enable_text_preview
+        or state.config.display.enable_pdf_preview
+        or state.config.display.enable_office_preview
+    )
+
+
+def _is_preview_enabled_for_path(
+    path: str,
+    *,
+    enable_text_preview: bool,
+    enable_pdf_preview: bool,
+    enable_office_preview: bool,
+) -> bool:
+    suffix = Path(path).suffix.casefold()
+    if suffix == ".pdf":
+        return enable_pdf_preview
+    if suffix in {".docx", ".xlsx", ".pptx"}:
+        return enable_office_preview
+    return enable_text_preview
 
 
 def maybe_request_directory_sizes(
@@ -94,7 +118,12 @@ def sync_child_pane(
         return maybe_request_directory_sizes(next_state, reduce_state)
 
     if entry.kind != "dir" and not is_supported_archive_path(entry.path):
-        if not state.config.display.show_preview:
+        if not _is_preview_enabled_for_path(
+            entry.path,
+            enable_text_preview=state.config.display.enable_text_preview,
+            enable_pdf_preview=state.config.display.enable_pdf_preview,
+            enable_office_preview=state.config.display.enable_office_preview,
+        ):
             next_child_pane = PaneState(directory_path=state.current_path, entries=())
             if (
                 state.pending_child_pane_request_id is None
@@ -128,6 +157,9 @@ def sync_child_pane(
             current_path=state.current_path,
             cursor_path=entry.path,
             preview_max_bytes=state.config.display.preview_max_kib * 1024,
+            enable_text_preview=state.config.display.enable_text_preview,
+            enable_pdf_preview=state.config.display.enable_pdf_preview,
+            enable_office_preview=state.config.display.enable_office_preview,
         ),
     )
 
@@ -136,9 +168,18 @@ def normalize_child_pane_for_display(
     current_path: str,
     child_pane: PaneState,
     *,
-    show_preview: bool,
+    enable_text_preview: bool,
+    enable_pdf_preview: bool,
+    enable_office_preview: bool,
 ) -> PaneState:
-    if show_preview or child_pane.mode != "preview":
+    if child_pane.mode != "preview":
+        return child_pane
+    if child_pane.preview_path is not None and _is_preview_enabled_for_path(
+        child_pane.preview_path,
+        enable_text_preview=enable_text_preview,
+        enable_pdf_preview=enable_pdf_preview,
+        enable_office_preview=enable_office_preview,
+    ):
         return child_pane
     return PaneState(directory_path=current_path, entries=())
 

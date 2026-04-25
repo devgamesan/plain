@@ -67,7 +67,7 @@ def validate_pending_input(state, *, is_macos: bool) -> str | None:
     if parent_path is None:
         return "Unable to resolve target directory"
 
-    existing_paths = current_entry_paths(state)
+    existing_paths = _pending_input_existing_paths(state)
     if is_macos:
         name_cf = name.casefold()
         for existing_path in existing_paths:
@@ -106,8 +106,22 @@ def build_file_mutation_request(
             new_name=state.pending_input.value,
         )
     if state.ui_mode == "CREATE" and state.pending_input.create_kind is not None:
+        # Use the active transfer pane's directory path in transfer mode
+        if state.layout_mode == "transfer":
+            active_pane = (
+                state.transfer_left
+                if state.active_transfer_pane == "left"
+                else state.transfer_right
+            )
+            parent_dir = (
+                active_pane.current_path
+                if active_pane
+                else state.current_pane.directory_path
+            )
+        else:
+            parent_dir = state.current_pane.directory_path
         return CreatePathRequest(
-            parent_dir=state.current_pane.directory_path,
+            parent_dir=parent_dir,
             name=state.pending_input.value,
             kind=state.pending_input.create_kind,
         )
@@ -158,6 +172,10 @@ def pending_input_parent_and_target(state) -> tuple[str | None, str | None]:
         target_path = Path(state.pending_input.target_path)
         return (str(target_path.parent), str(target_path))
     if state.ui_mode == "CREATE":
+        if state.layout_mode == "transfer":
+            active_pane = _active_transfer_pane(state)
+            if active_pane is not None:
+                return (active_pane.current_path, None)
         return (state.current_pane.directory_path, None)
     if state.ui_mode == "EXTRACT" and state.pending_input.extract_source_path is not None:
         source_path = Path(state.pending_input.extract_source_path)
@@ -165,3 +183,19 @@ def pending_input_parent_and_target(state) -> tuple[str | None, str | None]:
     if state.ui_mode == "ZIP" and state.pending_input.zip_source_paths is not None:
         return (state.current_pane.directory_path, None)
     return (None, None)
+
+
+def _active_transfer_pane(state):
+    if state.layout_mode != "transfer":
+        return None
+    if state.active_transfer_pane == "left":
+        return state.transfer_left
+    return state.transfer_right
+
+
+def _pending_input_existing_paths(state) -> tuple[str, ...]:
+    if state.layout_mode == "transfer":
+        active_pane = _active_transfer_pane(state)
+        if active_pane is not None:
+            return tuple(entry.path for entry in active_pane.pane.entries)
+    return current_entry_paths(state)

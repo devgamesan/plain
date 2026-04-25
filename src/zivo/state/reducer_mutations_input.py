@@ -96,7 +96,26 @@ def _handle_begin_zip_compress_input(state, action, reduce_state):
 
 
 def _handle_begin_rename_input(state, action, reduce_state):
-    entry = current_entry_for_path(state, action.path)
+    if state.layout_mode == "transfer":
+        active_pane = (
+            state.transfer_left
+            if state.active_transfer_pane == "left"
+            else state.transfer_right
+        )
+        entry = (
+            next(
+                (
+                    candidate
+                    for candidate in active_pane.pane.entries
+                    if candidate.path == action.path
+                ),
+                None,
+            )
+            if active_pane is not None
+            else None
+        )
+    else:
+        entry = current_entry_for_path(state, action.path)
     if entry is None:
         return finalize(state)
     return finalize(

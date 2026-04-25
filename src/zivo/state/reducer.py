@@ -20,6 +20,7 @@ from .reducer_mutations import handle_mutation_action
 from .reducer_navigation import handle_navigation_action
 from .reducer_palette import handle_palette_action
 from .reducer_terminal_config import handle_terminal_config_action
+from .reducer_transfer import handle_transfer_action
 from .selectors import compute_current_pane_visible_window, select_visible_current_entry_states
 
 logger = logging.getLogger(__name__)
@@ -66,6 +67,7 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
     for handler in (
         handle_navigation_action,
         handle_mutation_action,
+        handle_transfer_action,
         handle_palette_action,
         handle_terminal_config_action,
     ):

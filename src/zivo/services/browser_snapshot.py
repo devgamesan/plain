@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 import threading
 from collections import OrderedDict
 from dataclasses import dataclass, field, replace
@@ -26,6 +28,8 @@ DEFAULT_DIRECTORY_CACHE_CAPACITY = 64
 DEFAULT_TEXT_PREVIEW_CACHE_CAPACITY = 128
 DEFAULT_GREP_CONTEXT_CACHE_CAPACITY = 128
 TEXT_PREVIEW_MAX_BYTES = 64 * 1024
+PDF_PREVIEW_EXTENSIONS = frozenset({".pdf"})
+OFFICE_PREVIEW_EXTENSIONS = frozenset({".docx", ".xlsx", ".pptx"})
 TEXT_PREVIEW_EXTENSIONS = frozenset(
     {
         ".adoc",
@@ -201,6 +205,9 @@ class BrowserSnapshotLoader(Protocol):
         self,
         path: str,
         cursor_path: str | None = None,
+        *,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> BrowserSnapshot: ...
 
     def load_child_pane_snapshot(
@@ -209,6 +216,9 @@ class BrowserSnapshotLoader(Protocol):
         cursor_path: str | None,
         *,
         preview_max_bytes: int = TEXT_PREVIEW_MAX_BYTES,
+        enable_text_preview: bool = True,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> PaneState: ...
 
     def load_current_pane_snapshot(
@@ -222,6 +232,10 @@ class BrowserSnapshotLoader(Protocol):
         path: str,
         cursor_path: str | None,
         current_pane: PaneState,
+        *,
+        enable_text_preview: bool = True,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> tuple[PaneState, PaneState]: ...
 
     def load_grep_preview(
@@ -248,6 +262,7 @@ class LiveBrowserSnapshotLoader:
     directory_cache_capacity: int = DEFAULT_DIRECTORY_CACHE_CAPACITY
     text_preview_cache_capacity: int = DEFAULT_TEXT_PREVIEW_CACHE_CAPACITY
     grep_context_cache_capacity: int = DEFAULT_GREP_CONTEXT_CACHE_CAPACITY
+    document_preview_loader: "DocumentPreviewLoader | None" = None
     _directory_entries_cache: OrderedDict[str, tuple[DirectoryEntryState, ...]] = field(
         default_factory=OrderedDict,
         init=False,
@@ -260,7 +275,9 @@ class LiveBrowserSnapshotLoader:
         repr=False,
         compare=False,
     )
-    _text_preview_cache: OrderedDict[tuple[str, int, int, int], "FilePreviewState"] = field(
+    _text_preview_cache: OrderedDict[
+        tuple[str, int, int, int, bool, bool, bool], "FilePreviewState"
+    ] = field(
         default_factory=OrderedDict,
         init=False,
         repr=False,
@@ -284,11 +301,20 @@ class LiveBrowserSnapshotLoader:
         repr=False,
         compare=False,
     )
+    _document_preview_loader_lock: threading.Lock = field(
+        default_factory=threading.Lock,
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     def load_browser_snapshot(
         self,
         path: str,
         cursor_path: str | None = None,
+        *,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> BrowserSnapshot:
         resolved_path, parent_path = resolve_parent_directory_path(path)
         current_entries = self._list_directory(resolved_path)
@@ -317,7 +343,12 @@ class LiveBrowserSnapshotLoader:
                 entries=current_entries,
                 cursor_path=resolved_cursor_path,
             ),
-            child_pane=self.load_child_pane_snapshot(resolved_path, resolved_cursor_path),
+            child_pane=self.load_child_pane_snapshot(
+                resolved_path,
+                resolved_cursor_path,
+                enable_pdf_preview=enable_pdf_preview,
+                enable_office_preview=enable_office_preview,
+            ),
         )
 
     def load_child_pane_snapshot(
@@ -326,6 +357,9 @@ class LiveBrowserSnapshotLoader:
         cursor_path: str | None,
         *,
         preview_max_bytes: int = TEXT_PREVIEW_MAX_BYTES,
+        enable_text_preview: bool = True,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> PaneState:
         if cursor_path is None:
             return PaneState(directory_path=current_path, entries=())
@@ -355,6 +389,9 @@ class LiveBrowserSnapshotLoader:
         preview = self._load_cached_text_preview(
             child_path,
             preview_max_bytes=preview_max_bytes,
+            enable_text_preview=enable_text_preview,
+            enable_pdf_preview=enable_pdf_preview,
+            enable_office_preview=enable_office_preview,
         )
         if preview.kind != "unavailable":
             return PaneState(
@@ -416,6 +453,10 @@ class LiveBrowserSnapshotLoader:
         path: str,
         cursor_path: str | None,
         current_pane: PaneState,
+        *,
+        enable_text_preview: bool = True,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> tuple[PaneState, PaneState]:
         """Load complete parent + child panes (Phase 2 of progressive loading).
 
@@ -444,7 +485,13 @@ class LiveBrowserSnapshotLoader:
 
         # Load child pane using existing method
         resolved_cursor_path = current_pane.cursor_path
-        child_pane = self.load_child_pane_snapshot(resolved_path, resolved_cursor_path)
+        child_pane = self.load_child_pane_snapshot(
+            resolved_path,
+            resolved_cursor_path,
+            enable_text_preview=enable_text_preview,
+            enable_pdf_preview=enable_pdf_preview,
+            enable_office_preview=enable_office_preview,
+        )
 
         return parent_pane, child_pane
 
@@ -564,22 +611,55 @@ class LiveBrowserSnapshotLoader:
         path: Path,
         *,
         preview_max_bytes: int,
+        enable_text_preview: bool,
+        enable_pdf_preview: bool,
+        enable_office_preview: bool,
     ) -> "FilePreviewState":
         if self.text_preview_cache_capacity <= 0:
-            return _load_text_preview(path, preview_max_bytes=preview_max_bytes)
-        cache_key = _build_text_preview_cache_key(path, preview_max_bytes)
+            return _load_text_preview(
+                path,
+                preview_max_bytes=preview_max_bytes,
+                enable_text_preview=enable_text_preview,
+                enable_pdf_preview=enable_pdf_preview,
+                enable_office_preview=enable_office_preview,
+                document_preview_loader=self._resolve_document_preview_loader(),
+            )
+        cache_key = _build_text_preview_cache_key(
+            path,
+            preview_max_bytes,
+            enable_text_preview,
+            enable_pdf_preview,
+            enable_office_preview,
+        )
         if isinstance(cache_key, FilePreviewState):
             return cache_key
         cached_preview = self._get_cached_text_preview(cache_key)
         if cached_preview is not None:
             return cached_preview
-        preview = _load_text_preview(path, preview_max_bytes=preview_max_bytes)
+        preview = _load_text_preview(
+            path,
+            preview_max_bytes=preview_max_bytes,
+            enable_text_preview=enable_text_preview,
+            enable_pdf_preview=enable_pdf_preview,
+            enable_office_preview=enable_office_preview,
+            document_preview_loader=self._resolve_document_preview_loader(),
+        )
         self._store_cached_text_preview(cache_key, preview)
         return preview
 
+    def _resolve_document_preview_loader(self) -> "DocumentPreviewLoader":
+        with self._document_preview_loader_lock:
+            if self.document_preview_loader is None:
+                object.__setattr__(
+                    self,
+                    "document_preview_loader",
+                    PandocDocumentPreviewLoader(),
+                )
+            return self.document_preview_loader
+
     def _get_cached_text_preview(
         self,
-        cache_key: tuple[str, int, int, int],
+        cache_key: tuple[str, int, int, int, bool, bool, bool],
     ) -> "FilePreviewState | None":
         with self._text_preview_cache_lock:
             preview = self._text_preview_cache.get(cache_key)
@@ -590,7 +670,7 @@ class LiveBrowserSnapshotLoader:
 
     def _store_cached_text_preview(
         self,
-        cache_key: tuple[str, int, int, int],
+        cache_key: tuple[str, int, int, int, bool, bool, bool],
         preview: "FilePreviewState",
     ) -> None:
         with self._text_preview_cache_lock:
@@ -647,6 +727,9 @@ class FakeBrowserSnapshotLoader:
         self,
         path: str,
         cursor_path: str | None = None,
+        *,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> BrowserSnapshot:
         delay = self.per_path_delay_seconds.get(path, self.default_delay_seconds)
         if delay > 0:
@@ -667,6 +750,9 @@ class FakeBrowserSnapshotLoader:
         cursor_path: str | None,
         *,
         preview_max_bytes: int = TEXT_PREVIEW_MAX_BYTES,
+        enable_text_preview: bool = True,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> PaneState:
         key = (current_path, cursor_path)
         self.executed_child_pane_requests.append(key)
@@ -697,6 +783,10 @@ class FakeBrowserSnapshotLoader:
         path: str,
         cursor_path: str | None,
         current_pane: PaneState,
+        *,
+        enable_text_preview: bool = True,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> tuple[PaneState, PaneState]:
         """Load complete parent + child panes (Phase 2 of progressive loading)."""
         snapshot = self.load_browser_snapshot(path, cursor_path)
@@ -808,7 +898,10 @@ def _normalize_directory_cache_path(path: str) -> str:
 def _build_text_preview_cache_key(
     path: Path,
     preview_max_bytes: int,
-) -> tuple[str, int, int, int] | "FilePreviewState":
+    enable_text_preview: bool,
+    enable_pdf_preview: bool,
+    enable_office_preview: bool,
+) -> tuple[str, int, int, int, bool, bool, bool] | "FilePreviewState":
     preview_limit = max(1, preview_max_bytes)
     try:
         stat = path.stat()
@@ -821,6 +914,9 @@ def _build_text_preview_cache_key(
         stat.st_mtime_ns,
         stat.st_size,
         preview_limit,
+        enable_text_preview,
+        enable_pdf_preview,
+        enable_office_preview,
     )
 
 
@@ -851,7 +947,31 @@ def _load_text_preview(
     path: Path,
     *,
     preview_max_bytes: int = TEXT_PREVIEW_MAX_BYTES,
+    enable_text_preview: bool = True,
+    enable_pdf_preview: bool = True,
+    enable_office_preview: bool = True,
+    document_preview_loader: "DocumentPreviewLoader | None" = None,
 ) -> "FilePreviewState":
+    if _is_pdf_preview_candidate(path):
+        if not enable_pdf_preview:
+            return FilePreviewState.unavailable()
+        preview = _load_pdf_preview(path, preview_max_bytes=preview_max_bytes)
+        if preview is not None:
+            return preview
+        return FilePreviewState.unsupported()
+
+    if _is_office_preview_candidate(path):
+        if not enable_office_preview:
+            return FilePreviewState.unavailable()
+        loader = document_preview_loader or PandocDocumentPreviewLoader()
+        preview = loader.load_preview(path, preview_max_bytes=preview_max_bytes)
+        if preview is not None:
+            return preview
+        return FilePreviewState.unsupported()
+
+    if not enable_text_preview:
+        return FilePreviewState.unavailable()
+
     preview_limit = max(1, preview_max_bytes)
     try:
         with path.open("rb") as handle:
@@ -872,6 +992,91 @@ def _load_text_preview(
         return FilePreviewState.unsupported()
 
     return FilePreviewState.with_content(preview_text, truncated)
+
+
+class DocumentPreviewLoader(Protocol):
+    def load_preview(
+        self,
+        path: Path,
+        *,
+        preview_max_bytes: int,
+    ) -> "FilePreviewState | None": ...
+
+
+@dataclass
+class PandocDocumentPreviewLoader:
+    pandoc_path: str | None = field(default=None, init=False, repr=False)
+    pandoc_missing: bool = field(default=False, init=False, repr=False)
+
+    def load_preview(
+        self,
+        path: Path,
+        *,
+        preview_max_bytes: int,
+    ) -> "FilePreviewState | None":
+        pandoc = self._resolve_pandoc()
+        if pandoc is None:
+            return None
+        try:
+            result = subprocess.run(
+                [
+                    pandoc,
+                    "--from",
+                    path.suffix.lstrip(".").lower(),
+                    "--to",
+                    "markdown",
+                    str(path),
+                ],
+                check=True,
+                capture_output=True,
+            )
+        except (OSError, subprocess.SubprocessError, ValueError):
+            return None
+
+        try:
+            content = result.stdout.decode("utf-8")
+        except UnicodeDecodeError:
+            content = result.stdout.decode("utf-8", errors="ignore")
+        if not content.strip():
+            return None
+        return _truncate_preview_text(content, preview_max_bytes)
+
+    def _resolve_pandoc(self) -> str | None:
+        if self.pandoc_missing:
+            return None
+        if self.pandoc_path is not None:
+            return self.pandoc_path
+        pandoc = shutil.which("pandoc")
+        if pandoc is None:
+            self.pandoc_missing = True
+            return None
+        self.pandoc_path = pandoc
+        return pandoc
+
+
+def _load_pdf_preview(
+    path: Path,
+    *,
+    preview_max_bytes: int,
+) -> "FilePreviewState | None":
+    pdftotext = shutil.which("pdftotext")
+    if pdftotext is None:
+        return None
+    try:
+        result = subprocess.run(
+            [pdftotext, "-q", str(path), "-"],
+            check=True,
+            capture_output=True,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    try:
+        content = result.stdout.decode("utf-8")
+    except UnicodeDecodeError:
+        content = result.stdout.decode("utf-8", errors="ignore")
+    if not content.strip():
+        return None
+    return _truncate_preview_text(content, preview_max_bytes)
 
 
 def _load_grep_context_preview(
@@ -954,6 +1159,10 @@ class FilePreviewState:
         return cls(kind="message", message=PREVIEW_UNSUPPORTED_MESSAGE)
 
     @classmethod
+    def unavailable(cls) -> "FilePreviewState":
+        return cls(kind="unavailable")
+
+    @classmethod
     def error(cls) -> "FilePreviewState":
         return cls(kind="message", message=PREVIEW_ERROR_MESSAGE)
 
@@ -1029,6 +1238,9 @@ def _is_text_content(path: Path, blocksize: int = 512) -> bool:
 
 
 def _is_preview_candidate(path: Path) -> bool:
+    if _is_pdf_preview_candidate(path) or _is_office_preview_candidate(path):
+        return True
+
     # 既存：拡張子ベースの判定（高速パス）
     if path.name.casefold() in TEXT_PREVIEW_FILENAMES:
         return True
@@ -1038,6 +1250,26 @@ def _is_preview_candidate(path: Path) -> bool:
 
     # 新規：拡張子がない、またはリストにないファイルはヒューリスティック判定
     return _is_text_content(path)
+
+
+def _is_pdf_preview_candidate(path: Path) -> bool:
+    return path.suffix.casefold() in PDF_PREVIEW_EXTENSIONS
+
+
+def _is_office_preview_candidate(path: Path) -> bool:
+    return path.suffix.casefold() in OFFICE_PREVIEW_EXTENSIONS
+
+
+def _truncate_preview_text(content: str, preview_max_bytes: int) -> FilePreviewState:
+    preview_limit = max(1, preview_max_bytes)
+    encoded = content.encode("utf-8")
+    truncated = len(encoded) > preview_limit
+    if not truncated:
+        return FilePreviewState.with_content(content, False)
+
+    preview_bytes = encoded[:preview_limit]
+    preview_text = preview_bytes.decode("utf-8", errors="ignore")
+    return FilePreviewState.with_content(preview_text, True)
 
 
 def preview_max_bytes_from_kib(preview_max_kib: int) -> int:

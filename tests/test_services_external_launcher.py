@@ -46,7 +46,7 @@ class StubExternalLaunchAdapter:
     def open_in_editor(self, path: str) -> None:
         self.edited_paths.append(path)
 
-    def open_terminal(self, path: str) -> None:
+    def open_terminal(self, path: str, launch_mode: str = "window") -> None:
         self.terminal_paths.append(path)
 
     def copy_to_clipboard(self, text: str) -> None:
@@ -285,6 +285,19 @@ def test_local_external_launch_adapter_uses_windows_templates_first_on_wsl(tmp_p
     ]
 
 
+def test_local_external_launch_adapter_runs_terminal_in_foreground_mode(tmp_path) -> None:
+    runner = StubForegroundRunner()
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Linux",
+        foreground_command_runner=runner,
+        environment_variable=lambda name: "/bin/sh" if name == "SHELL" else None,
+    )
+
+    adapter.open_terminal(str(tmp_path), launch_mode="foreground")
+
+    assert runner.executed == [(("/bin/sh", "-i"), str(tmp_path))]
+
+
 def test_local_external_launch_adapter_copies_to_clipboard_on_linux() -> None:
     runner = StubCommandRunner()
     adapter = LocalExternalLaunchAdapter(
@@ -431,6 +444,27 @@ def test_live_external_launch_service_opens_terminal_with_adapter() -> None:
     service.execute(ExternalLaunchRequest(kind="open_terminal", path="/tmp/zivo"))
 
     assert adapter.terminal_paths == ["/tmp/zivo"]
+
+
+def test_live_external_launch_service_opens_terminal_in_foreground_mode(tmp_path) -> None:
+    runner = StubForegroundRunner()
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Linux",
+        foreground_command_runner=runner,
+        environment_variable=lambda name: "/bin/sh" if name == "SHELL" else None,
+    )
+    service = LiveExternalLaunchService(adapter=adapter)
+    path = str(tmp_path.resolve())
+
+    service.execute(
+        ExternalLaunchRequest(
+            kind="open_terminal",
+            path=path,
+            terminal_launch_mode="foreground",
+        )
+    )
+
+    assert runner.executed == [(("/bin/sh", "-i"), path)]
 
 
 def test_live_external_launch_service_copies_paths_with_expected_payload() -> None:

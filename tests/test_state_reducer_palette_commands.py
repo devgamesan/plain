@@ -14,6 +14,7 @@ from zivo.state import (
     DirectoryEntryState,
     HistoryState,
     LoadBrowserSnapshotEffect,
+    LoadTransferPaneEffect,
     NotificationState,
     PaneState,
     PendingInputState,
@@ -22,6 +23,7 @@ from zivo.state import (
     RunConfigSaveEffect,
     RunExternalLaunchEffect,
     StartSplitTerminalEffect,
+    TransferPaneState,
     build_initial_app_state,
     reduce_app_state,
     select_command_palette_state,
@@ -39,6 +41,7 @@ from zivo.state.actions import (
     SetCursorPath,
     ShowAttributes,
     SubmitCommandPalette,
+    ToggleTransferMode,
 )
 
 
@@ -243,6 +246,87 @@ def test_submit_history_palette_with_empty_history_shows_warning() -> None:
 
     assert result.state.notification is not None
     assert result.state.notification.message == "No directory history"
+
+
+
+def test_submit_history_palette_in_transfer_mode_navigates_active_pane() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        layout_mode="transfer",
+        active_transfer_pane="left",
+        transfer_left=TransferPaneState(
+            pane=PaneState(directory_path="/tmp/a", entries=(), cursor_path="/tmp/a"),
+            current_path="/tmp/a",
+        ),
+        transfer_right=TransferPaneState(
+            pane=PaneState(directory_path="/tmp/b", entries=(), cursor_path="/tmp/b"),
+            current_path="/tmp/b",
+        ),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="history",
+            history_results=("/tmp/a", "/tmp/b", "/tmp/c"),
+            cursor_index=2,
+        ),
+    )
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.command_palette is None
+    assert any(
+        isinstance(e, LoadTransferPaneEffect)
+        and e.pane_id == "left"
+        and e.path == "/tmp/c"
+        for e in result.effects
+    )
+
+
+def test_submit_command_palette_select_all_in_transfer_mode() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+    state = _reduce_state(state, BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("select all"))
+
+    next_state = _reduce_state(state, SubmitCommandPalette())
+
+    assert next_state.transfer_left is not None
+    assert next_state.transfer_left.pane.selected_paths == frozenset(
+        {
+            "/home/tadashi/develop/zivo/docs",
+            "/home/tadashi/develop/zivo/src",
+            "/home/tadashi/develop/zivo/tests",
+            "/home/tadashi/develop/zivo/README.md",
+            "/home/tadashi/develop/zivo/pyproject.toml",
+        }
+    )
+
+
+def test_submit_command_palette_reloads_active_transfer_pane() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+    state = _reduce_state(state, BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("reload"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.command_palette is None
+    assert any(
+        isinstance(effect, LoadTransferPaneEffect)
+        and effect.pane_id == "left"
+        and effect.path == "/home/tadashi/develop/zivo"
+        for effect in result.effects
+    )
+
+
+def test_submit_command_palette_begins_rename_in_transfer_mode() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+    state = _reduce_state(state, BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("rename"))
+
+    next_state = _reduce_state(state, SubmitCommandPalette())
+
+    assert next_state.ui_mode == "RENAME"
+    assert next_state.pending_input is not None
+    assert next_state.pending_input.value == "docs"
 
 def test_submit_bookmarks_palette_navigates_to_selected_directory(tmp_path) -> None:
     bookmarked_path = tmp_path / "project"
@@ -539,6 +623,7 @@ def test_submit_command_palette_runs_open_terminal_flow() -> None:
             request=ExternalLaunchRequest(
                 kind="open_terminal",
                 path="/home/tadashi/develop/zivo",
+                terminal_launch_mode="window",
             ),
         ),
     )

@@ -39,6 +39,7 @@ def test_loader_creates_default_config_when_missing(tmp_path) -> None:
     assert result.config.display.show_hidden_files is False
     assert config_path.exists()
     written = config_path.read_text(encoding="utf-8")
+    assert '# launch_mode = "window"' in written
     assert '# linux = [' in written
     assert '#   "konsole --working-directory {path}",' in written
     assert '#   "gnome-terminal --working-directory={path}",' in written
@@ -47,7 +48,9 @@ def test_loader_creates_default_config_when_missing(tmp_path) -> None:
     assert 'preview_syntax_theme = "auto"' in written
     assert "preview_max_kib = 64" in written
     assert "show_directory_sizes = true" in written
-    assert "show_preview = true" in written
+    assert "enable_text_preview = true" in written
+    assert "enable_pdf_preview = true" in written
+    assert "enable_office_preview = true" in written
     assert 'default_sort_field = "name"' in written
     assert "[logging]" in written
     assert "enabled = true" in written
@@ -61,6 +64,7 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
     config_path.write_text(
         """
         [terminal]
+        launch_mode = "foreground"
         linux = ["konsole --working-directory {path}"]
 
         [editor]
@@ -69,7 +73,9 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
         [display]
         show_hidden_files = true
         show_directory_sizes = true
-        show_preview = false
+        enable_text_preview = false
+        enable_pdf_preview = false
+        enable_office_preview = false
         theme = "dracula"
         preview_syntax_theme = "one-dark"
         preview_max_kib = 256
@@ -96,11 +102,14 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
 
     assert result.created is False
     assert result.warnings == ()
+    assert result.config.terminal.launch_mode == "foreground"
     assert result.config.terminal.linux == ("konsole --working-directory {path}",)
     assert result.config.editor.command == "nvim -u NONE"
     assert result.config.display.show_hidden_files is True
     assert result.config.display.show_directory_sizes is True
-    assert result.config.display.show_preview is False
+    assert result.config.display.enable_text_preview is False
+    assert result.config.display.enable_pdf_preview is False
+    assert result.config.display.enable_office_preview is False
     assert result.config.display.theme == "dracula"
     assert result.config.display.preview_syntax_theme == "one-dark"
     assert result.config.display.preview_max_kib == 256
@@ -124,6 +133,7 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
     config_path.write_text(
         """
         [terminal]
+        launch_mode = "popup"
         linux = ["konsole --working-directory {path}", "{broken"]
 
         [editor]
@@ -132,7 +142,9 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
         [display]
         show_hidden_files = true
         show_directory_sizes = "yes"
-        show_preview = "yes"
+        enable_text_preview = "yes"
+        enable_pdf_preview = "yes"
+        enable_office_preview = "yes"
         theme = "bad-theme"
         preview_syntax_theme = "bad-preview-style"
         preview_max_kib = 42
@@ -155,11 +167,14 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
 
     result = AppConfigLoader(config_path_resolver=lambda: config_path).load()
 
+    assert result.config.terminal.launch_mode == "window"
     assert result.config.terminal.linux == ("konsole --working-directory {path}",)
     assert result.config.editor.command is None
     assert result.config.display.show_hidden_files is True
     assert result.config.display.show_directory_sizes is True
-    assert result.config.display.show_preview is True
+    assert result.config.display.enable_text_preview is True
+    assert result.config.display.enable_pdf_preview is True
+    assert result.config.display.enable_office_preview is True
     assert result.config.display.theme == "textual-dark"
     assert result.config.display.preview_syntax_theme == "auto"
     assert result.config.display.preview_max_kib == 64
@@ -169,7 +184,7 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
     assert result.config.logging.enabled is True
     assert result.config.logging.path is None
     assert result.config.bookmarks.paths == ()
-    assert len(result.warnings) == 15
+    assert len(result.warnings) == 18
 
 
 def test_loader_warns_for_invalid_editor_command_syntax(tmp_path) -> None:
@@ -197,12 +212,17 @@ def test_config_save_service_writes_normalized_config_file(tmp_path) -> None:
     saved_path = service.save(
         path=str(config_path),
         config=AppConfig(
-            terminal=TerminalConfig(linux=("konsole --working-directory {path}",)),
+            terminal=TerminalConfig(
+                launch_mode="foreground",
+                linux=("konsole --working-directory {path}",),
+            ),
             editor=EditorConfig(command="nvim -u NONE"),
             display=DisplayConfig(
                 show_hidden_files=True,
                 show_directory_sizes=True,
-                show_preview=False,
+                enable_text_preview=False,
+                enable_pdf_preview=False,
+                enable_office_preview=False,
                 theme="tokyo-night",
                 preview_syntax_theme="one-dark",
                 preview_max_kib=512,
@@ -225,13 +245,16 @@ def test_config_save_service_writes_normalized_config_file(tmp_path) -> None:
 
     assert saved_path == str(config_path)
     written = config_path.read_text(encoding="utf-8")
+    assert 'launch_mode = "foreground"' in written
     assert '# macos = ["open -a Terminal {path}"]' in written
     assert '# windows = ["wt -d {path}"]' in written
     assert 'linux = ["konsole --working-directory {path}"]' in written
     assert 'command = "nvim -u NONE"' in written
     assert "show_hidden_files = true" in written
     assert "show_directory_sizes = true" in written
-    assert "show_preview = false" in written
+    assert "enable_text_preview = false" in written
+    assert "enable_pdf_preview = false" in written
+    assert "enable_office_preview = false" in written
     assert 'theme = "tokyo-night"' in written
     assert 'preview_syntax_theme = "one-dark"' in written
     assert "preview_max_kib = 512" in written
@@ -428,7 +451,9 @@ def test_render_app_config_round_trips_full_config(tmp_path) -> None:
         display=DisplayConfig(
             show_hidden_files=True,
             show_directory_sizes=False,
-            show_preview=False,
+            enable_text_preview=False,
+            enable_pdf_preview=False,
+            enable_office_preview=False,
             theme="tokyo-night",
             preview_syntax_theme="one-dark",
             preview_max_kib=512,

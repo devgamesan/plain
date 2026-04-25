@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Protocol
 
-from zivo.models import EditorConfig, TerminalConfig
+from zivo.models import EditorConfig, TerminalConfig, TerminalLaunchMode
 
 CommandRunner = Callable[[Sequence[str], str | None, str | None], None]
 ForegroundCommandRunner = Callable[[Sequence[str], str | None], None]
@@ -40,7 +40,7 @@ class ExternalLaunchAdapter(Protocol):
 
     def open_in_editor(self, path: str) -> None: ...
 
-    def open_terminal(self, path: str) -> None: ...
+    def open_terminal(self, path: str, launch_mode: TerminalLaunchMode = "window") -> None: ...
 
     def copy_to_clipboard(self, text: str) -> None: ...
 
@@ -90,8 +90,12 @@ class LocalExternalLaunchAdapter:
 
         raise OSError(errors[-1] if errors else f"Failed to open {resolved_path} in editor")
 
-    def open_terminal(self, path: str) -> None:
+    def open_terminal(self, path: str, launch_mode: TerminalLaunchMode = "window") -> None:
         resolved_path = _resolve_directory_path(path)
+        if launch_mode == "foreground":
+            command = self._foreground_terminal_command()
+            self.foreground_command_runner(command, str(resolved_path))
+            return
         candidates = self._terminal_candidates(self._platform_kind(), str(resolved_path))
         self._run_first_available(
             candidates,
@@ -303,6 +307,19 @@ class LocalExternalLaunchAdapter:
         if command_path.is_absolute():
             return command_path.exists()
         return self.command_available(command) is not None
+
+    def _foreground_terminal_command(self) -> tuple[str, ...]:
+        shell = self.environment_variable("SHELL")
+        if shell:
+            try:
+                parsed = tuple(shlex.split(shell))
+            except ValueError as error:
+                raise OSError(f"Invalid SHELL value: {error}") from error
+            if parsed and self._command_exists(parsed[0]):
+                return (*parsed, "-i")
+        if self._command_exists("/bin/bash"):
+            return ("/bin/bash", "-i")
+        raise OSError("No supported interactive shell found for foreground terminal mode")
 
     def _terminal_candidates(
         self,

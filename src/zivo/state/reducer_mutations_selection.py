@@ -32,6 +32,7 @@ from .reducer_common import (
     sync_child_pane,
 )
 from .reducer_mutations_common import MutationHandler, push_undo_entry, undo_entry_for_paste
+from .reducer_transfer import request_all_transfer_pane_snapshots
 
 
 def _handle_toggle_selection(state, action, reduce_state):
@@ -268,6 +269,8 @@ def _handle_clipboard_paste_completed(state, action, reduce_state):
         pending_paste_request_id=None,
         ui_mode="BROWSING",
     )
+    if next_state.layout_mode == "transfer":
+        return request_all_transfer_pane_snapshots(next_state)
     return request_snapshot_refresh(next_state)
 
 

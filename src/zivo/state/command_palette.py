@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from zivo.archive_utils import is_supported_archive_path
 
+from .entry_state_helpers import select_visible_entry_states
 from .models import AppState
 from .selectors import (
     select_current_entry_for_path,
@@ -128,6 +129,13 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
         )
 
     query = state.command_palette.query
+
+    if state.layout_mode == "transfer":
+        return tuple(
+            item
+            for item in _build_transfer_command_palette_items(state)
+            if _matches_query(item, query)
+        )
 
     return tuple(
         item for item in _build_command_palette_items(state) if _matches_query(item, query)
@@ -257,6 +265,16 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             enabled=tab_count > 1,
         ),
         CommandPaletteItem(
+            id="toggle_transfer_mode",
+            label=(
+                "Close transfer mode"
+                if state.layout_mode == "transfer"
+                else "Toggle transfer mode"
+            ),
+            shortcut="2",
+            enabled=True,
+        ),
+        CommandPaletteItem(
             id="toggle_split_terminal",
             label="Toggle split terminal",
             shortcut="t",
@@ -384,7 +402,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="open_file_manager",
                 label="Open in file manager",
-                shortcut="m",
+                shortcut="M",
                 enabled=True,
             ),
             CommandPaletteItem(
@@ -439,6 +457,113 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
     return tuple(items)
 
 
+def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]:
+    target_paths = _transfer_target_paths(state)
+    has_target = bool(target_paths)
+    has_single_target = _transfer_single_target_entry(state) is not None
+    has_visible_entries = bool(_transfer_visible_entries(state))
+    can_paste = state.clipboard.mode != "none" and bool(state.clipboard.paths)
+
+    return (
+        CommandPaletteItem(
+            id="history_search",
+            label="History search",
+            shortcut="H",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="bookmark_search",
+            label="Show bookmarks",
+            shortcut="b",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="go_to_path",
+            label="Go to path",
+            shortcut="G",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="go_to_home_directory",
+            label="Go to home directory",
+            shortcut="~",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="reload_directory",
+            label="Reload directory",
+            shortcut="R",
+            enabled=_active_transfer_pane_state(state) is not None,
+        ),
+        CommandPaletteItem(
+            id="toggle_transfer_mode",
+            label="Close transfer mode",
+            shortcut="2",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="undo_last_operation",
+            label="Undo last file operation",
+            shortcut="z",
+            enabled=bool(state.undo_stack),
+        ),
+        CommandPaletteItem(
+            id="copy_targets",
+            label="Copy selection",
+            shortcut="c",
+            enabled=has_target,
+        ),
+        CommandPaletteItem(
+            id="cut_targets",
+            label="Cut selection",
+            shortcut="x",
+            enabled=has_target,
+        ),
+        CommandPaletteItem(
+            id="paste_clipboard",
+            label="Paste clipboard",
+            shortcut="v",
+            enabled=can_paste,
+        ),
+        CommandPaletteItem(
+            id="transfer_copy_to_opposite_pane",
+            label="Copy to opposite pane",
+            shortcut="y",
+            enabled=has_target,
+        ),
+        CommandPaletteItem(
+            id="transfer_move_to_opposite_pane",
+            label="Move to opposite pane",
+            shortcut="m",
+            enabled=has_target,
+        ),
+        CommandPaletteItem(
+            id="select_all",
+            label="Select all",
+            shortcut="a",
+            enabled=has_visible_entries,
+        ),
+        CommandPaletteItem(
+            id="rename",
+            label="Rename",
+            shortcut="r",
+            enabled=has_single_target,
+        ),
+        CommandPaletteItem(
+            id="delete_targets",
+            label="Move to trash",
+            shortcut="d",
+            enabled=has_target,
+        ),
+        CommandPaletteItem(
+            id="toggle_hidden",
+            label=_hidden_files_label(state),
+            shortcut=".",
+            enabled=True,
+        ),
+    )
+
+
 def _matches_query(item: CommandPaletteItem, query: str) -> bool:
     if not query:
         return True
@@ -479,6 +604,56 @@ def _selected_files_grep_target_paths(state: AppState) -> tuple[str, ...]:
     if cursor_entry is None or cursor_entry.kind != "file":
         return ()
     return (cursor_entry.path,)
+
+
+def _active_transfer_pane_state(state: AppState):
+    if state.layout_mode != "transfer":
+        return None
+    if state.active_transfer_pane == "left":
+        return state.transfer_left
+    return state.transfer_right
+
+
+def _transfer_visible_entries(state: AppState):
+    transfer = _active_transfer_pane_state(state)
+    if transfer is None:
+        return ()
+    return select_visible_entry_states(
+        transfer.pane.entries,
+        state.directory_size_cache,
+        state.show_hidden,
+        "",
+        False,
+        state.sort,
+    )
+
+
+def _transfer_target_paths(state: AppState) -> tuple[str, ...]:
+    transfer = _active_transfer_pane_state(state)
+    if transfer is None:
+        return ()
+    visible_entries = _transfer_visible_entries(state)
+    selected_paths = tuple(
+        entry.path
+        for entry in visible_entries
+        if entry.path in transfer.pane.selected_paths
+    )
+    if selected_paths:
+        return selected_paths
+    if any(entry.path == transfer.pane.cursor_path for entry in visible_entries):
+        return (transfer.pane.cursor_path,)
+    return ()
+
+
+def _transfer_single_target_entry(state: AppState):
+    target_paths = _transfer_target_paths(state)
+    if len(target_paths) != 1:
+        return None
+    target_path = target_paths[0]
+    for entry in _transfer_visible_entries(state):
+        if entry.path == target_path:
+            return entry
+    return None
 
 
 def _is_empty_trash_supported() -> bool:

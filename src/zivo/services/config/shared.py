@@ -10,6 +10,7 @@ VALID_PREVIEW_SYNTAX_THEMES = frozenset(SUPPORTED_PREVIEW_SYNTAX_THEMES)
 VALID_LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 VALID_PASTE_ACTIONS = frozenset({"overwrite", "skip", "rename", "prompt"})
 VALID_SPLIT_TERMINAL_POSITIONS = frozenset({"bottom", "right", "overlay"})
+VALID_TERMINAL_LAUNCH_MODES = frozenset({"window", "foreground"})
 VALID_PREVIEW_MAX_KIB = frozenset({64, 128, 256, 512, 1024})
 VALID_TERMINAL_EDITOR_NAMES = frozenset(
     {"emacs", "helix", "hx", "kak", "micro", "nano", "nvim", "vi", "vim"}
@@ -18,6 +19,7 @@ VALIDATION_PATH = "/tmp/zivo"
 
 HELP_BAR_FIELDS = (
     "browsing",
+    "transfer",
     "filter",
     "rename",
     "create",

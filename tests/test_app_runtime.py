@@ -75,8 +75,10 @@ class _RecordingTimer:
 @dataclass
 class _RecordingSnapshotLoader:
     invalidated_paths: list[tuple[str, ...]] = field(default_factory=list)
-    load_browser_snapshot_calls: list[tuple[str, str | None, bool]] = field(default_factory=list)
-    load_child_pane_snapshot_calls: list[tuple[str, str | None, int, bool]] = field(
+    load_browser_snapshot_calls: list[tuple[str, str | None, bool, bool]] = field(
+        default_factory=list
+    )
+    load_child_pane_snapshot_calls: list[tuple[str, str | None, int, bool, bool, bool]] = field(
         default_factory=list
     )
     load_current_pane_snapshot_calls: list[tuple[str, str | None]] = field(default_factory=list)
@@ -89,9 +91,12 @@ class _RecordingSnapshotLoader:
         path: str,
         cursor_path: str | None = None,
         *,
-        enable_markitdown_preview: bool = True,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> None:
-        self.load_browser_snapshot_calls.append((path, cursor_path, enable_markitdown_preview))
+        self.load_browser_snapshot_calls.append(
+            (path, cursor_path, enable_pdf_preview, enable_office_preview)
+        )
         return None
 
     def load_child_pane_snapshot(
@@ -100,10 +105,19 @@ class _RecordingSnapshotLoader:
         cursor_path: str | None,
         *,
         preview_max_bytes: int = 64 * 1024,
-        enable_markitdown_preview: bool = True,
+        enable_text_preview: bool = True,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> PaneState:
         self.load_child_pane_snapshot_calls.append(
-            (current_path, cursor_path, preview_max_bytes, enable_markitdown_preview)
+            (
+                current_path,
+                cursor_path,
+                preview_max_bytes,
+                enable_text_preview,
+                enable_pdf_preview,
+                enable_office_preview,
+            )
         )
         return PaneState(directory_path=current_path, entries=())
 
@@ -259,7 +273,9 @@ def test_schedule_browser_snapshot_invalidates_requested_paths_before_worker() -
     worker_fn()
 
     assert loader.invalidated_paths == [("/tmp/project", "/tmp", "/tmp/project/docs")]
-    assert loader.load_browser_snapshot_calls == [("/tmp/project", "/tmp/project/docs", True)]
+    assert loader.load_browser_snapshot_calls == [
+        ("/tmp/project", "/tmp/project/docs", True, True)
+    ]
 
 
 def test_schedule_transfer_pane_snapshot_uses_pane_scoped_worker_group() -> None:
@@ -492,7 +508,7 @@ def test_schedule_child_pane_snapshot_uses_longer_debounce_for_document_preview(
             request_id=5,
             current_path="/tmp/project",
             cursor_path="/tmp/project/large.pdf",
-            enable_markitdown_preview=True,
+            enable_pdf_preview=True,
         ),
     )
 
@@ -517,7 +533,7 @@ def test_start_child_pane_snapshot_passes_preview_max_bytes_to_loader() -> None:
     worker_fn = app.run_worker_calls[0]["worker_fn"]
     worker_fn()
     assert app._snapshot_loader.load_child_pane_snapshot_calls == [
-        ("/tmp/project", "/tmp/project/README.md", 128 * 1024, True)
+        ("/tmp/project", "/tmp/project/README.md", 128 * 1024, True, True, True)
     ]
 
 

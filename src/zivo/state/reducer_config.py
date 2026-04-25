@@ -61,20 +61,28 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
                 show_directory_sizes=not config.display.show_directory_sizes,
             ),
         )
-    if field_id == "display.show_preview":
+    if field_id == "display.enable_text_preview":
         return replace(
             config,
             display=replace(
                 config.display,
-                show_preview=not config.display.show_preview,
+                enable_text_preview=not config.display.enable_text_preview,
             ),
         )
-    if field_id == "display.enable_markitdown_preview":
+    if field_id == "display.enable_pdf_preview":
         return replace(
             config,
             display=replace(
                 config.display,
-                enable_markitdown_preview=not config.display.enable_markitdown_preview,
+                enable_pdf_preview=not config.display.enable_pdf_preview,
+            ),
+        )
+    if field_id == "display.enable_office_preview":
+        return replace(
+            config,
+            display=replace(
+                config.display,
+                enable_office_preview=not config.display.enable_office_preview,
             ),
         )
     if field_id == "display.show_help_bar":
@@ -239,8 +247,9 @@ def config_editor_field_ids() -> tuple[str, ...]:
         "display.show_hidden_files",
         "display.theme",
         "display.show_directory_sizes",
-        "display.show_preview",
-        "display.enable_markitdown_preview",
+        "display.enable_text_preview",
+        "display.enable_pdf_preview",
+        "display.enable_office_preview",
         "display.preview_syntax_theme",
         "display.preview_max_kib",
         "display.show_help_bar",
@@ -263,8 +272,9 @@ def config_editor_labels() -> tuple[str, ...]:
         "Show hidden files",
         "Theme",
         "Show directory sizes",
-        "Show preview",
-        "MarkItDown preview",
+        "Text preview",
+        "PDF preview",
+        "Office preview",
         "Preview syntax theme",
         "Preview max KiB",
         "Show help bar",
@@ -323,18 +333,25 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
             "Current behavior: directory size labels are "
             f"{'shown' if config.display.show_directory_sizes else 'hidden'} when available.",
         )
-    if field_id == "display.show_preview":
+    if field_id == "display.enable_text_preview":
         return (
-            "Controls whether the right pane opens file previews for previewable files.",
-            "Current behavior: preview pane is "
-            f"{'enabled' if config.display.show_preview else 'disabled'} on startup.",
+            "Controls text-file preview in the right pane and grep context preview windows.",
+            "Current behavior: text preview is "
+            f"{'enabled' if config.display.enable_text_preview else 'disabled'} on startup.",
         )
-    if field_id == "display.enable_markitdown_preview":
+    if field_id == "display.enable_pdf_preview":
         return (
-            "Controls document preview conversion for PDF and modern Office files.",
-            "Applies to pdf, docx, xlsx, and pptx files in the right pane preview.",
-            "Current behavior: MarkItDown preview is "
-            f"{'enabled' if config.display.enable_markitdown_preview else 'disabled'}.",
+            "Controls PDF preview conversion in the right pane.",
+            "Uses the external `pdftotext` command when available.",
+            "Current behavior: PDF preview is "
+            f"{'enabled' if config.display.enable_pdf_preview else 'disabled'}.",
+        )
+    if field_id == "display.enable_office_preview":
+        return (
+            "Controls modern Office preview conversion in the right pane.",
+            "Applies to docx, xlsx, and pptx files through MarkItDown.",
+            "Current behavior: Office preview is "
+            f"{'enabled' if config.display.enable_office_preview else 'disabled'}.",
         )
     if field_id == "display.preview_syntax_theme":
         return (
@@ -422,11 +439,11 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
 
 CONFIG_EDITOR_CATEGORIES: tuple[tuple[str, tuple[int, ...]], ...] = (
     ("External", (0, 1)),
-    ("Display", (3, 7, 2, 4, 5, 6, 8, 9, 13, 14)),
-    ("Sorting", (10, 11, 12)),
-    ("Behavior", (15, 16)),
-    ("Logging", (17,)),
-    ("File Search", (18,)),
+    ("Display", (3, 8, 2, 4, 5, 6, 7, 9, 10, 14, 15)),
+    ("Sorting", (11, 12, 13)),
+    ("Behavior", (16, 17)),
+    ("Logging", (18,)),
+    ("File Search", (19,)),
 )
 
 
@@ -478,10 +495,12 @@ def format_config_field_value(field_index: int, config: AppConfig) -> str:
         return config.display.theme
     if field_id == "display.show_directory_sizes":
         return _format_bool(config.display.show_directory_sizes)
-    if field_id == "display.show_preview":
-        return _format_bool(config.display.show_preview)
-    if field_id == "display.enable_markitdown_preview":
-        return _format_bool(config.display.enable_markitdown_preview)
+    if field_id == "display.enable_text_preview":
+        return _format_bool(config.display.enable_text_preview)
+    if field_id == "display.enable_pdf_preview":
+        return _format_bool(config.display.enable_pdf_preview)
+    if field_id == "display.enable_office_preview":
+        return _format_bool(config.display.enable_office_preview)
     if field_id == "display.preview_syntax_theme":
         return config.display.preview_syntax_theme
     if field_id == "display.preview_max_kib":

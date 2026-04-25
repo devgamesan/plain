@@ -201,7 +201,9 @@ def _apply_loaded_snapshot_to_tab(
         child_pane=normalize_child_pane_for_display(
             action.snapshot.current_path,
             action.snapshot.child_pane,
-            show_preview=state.config.display.show_preview,
+            enable_text_preview=state.config.display.enable_text_preview,
+            enable_pdf_preview=state.config.display.enable_pdf_preview,
+            enable_office_preview=state.config.display.enable_office_preview,
         ),
         filter=FilterState() if action.snapshot.current_path != tab.current_path else tab.filter,
         history=build_history_after_snapshot_load(history_source, action.snapshot.current_path),
@@ -753,7 +755,8 @@ def _handle_request_browser_snapshot(
             cursor_path=action.cursor_path,
             blocking=action.blocking,
             invalidate_paths=action.invalidate_paths,
-            enable_markitdown_preview=state.config.display.enable_markitdown_preview,
+            enable_pdf_preview=state.config.display.enable_pdf_preview,
+            enable_office_preview=state.config.display.enable_office_preview,
         ),
     )
 
@@ -846,7 +849,9 @@ def _handle_current_pane_loaded(
             path=action.current_path,
             cursor_path=action.current_pane.cursor_path,
             current_pane=action.current_pane,
-            enable_markitdown_preview=state.config.display.enable_markitdown_preview,
+            enable_text_preview=state.config.display.enable_text_preview,
+            enable_pdf_preview=state.config.display.enable_pdf_preview,
+            enable_office_preview=state.config.display.enable_office_preview,
         ),
     )
 
@@ -958,7 +963,9 @@ def _handle_child_pane_snapshot_loaded(
             child_pane=normalize_child_pane_for_display(
                 tab.current_path,
                 action.pane,
-                show_preview=state.config.display.show_preview,
+                enable_text_preview=state.config.display.enable_text_preview,
+                enable_pdf_preview=state.config.display.enable_pdf_preview,
+                enable_office_preview=state.config.display.enable_office_preview,
             ),
             pending_child_pane_request_id=None,
         ),

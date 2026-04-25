@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 import threading
 from collections import OrderedDict
 from dataclasses import dataclass, field, replace
@@ -26,7 +28,8 @@ DEFAULT_DIRECTORY_CACHE_CAPACITY = 64
 DEFAULT_TEXT_PREVIEW_CACHE_CAPACITY = 128
 DEFAULT_GREP_CONTEXT_CACHE_CAPACITY = 128
 TEXT_PREVIEW_MAX_BYTES = 64 * 1024
-MARKITDOWN_PREVIEW_EXTENSIONS = frozenset({".pdf", ".docx", ".xlsx", ".pptx"})
+PDF_PREVIEW_EXTENSIONS = frozenset({".pdf"})
+OFFICE_PREVIEW_EXTENSIONS = frozenset({".docx", ".xlsx", ".pptx"})
 TEXT_PREVIEW_EXTENSIONS = frozenset(
     {
         ".adoc",
@@ -203,7 +206,8 @@ class BrowserSnapshotLoader(Protocol):
         path: str,
         cursor_path: str | None = None,
         *,
-        enable_markitdown_preview: bool = True,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> BrowserSnapshot: ...
 
     def load_child_pane_snapshot(
@@ -212,7 +216,9 @@ class BrowserSnapshotLoader(Protocol):
         cursor_path: str | None,
         *,
         preview_max_bytes: int = TEXT_PREVIEW_MAX_BYTES,
-        enable_markitdown_preview: bool = True,
+        enable_text_preview: bool = True,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> PaneState: ...
 
     def load_current_pane_snapshot(
@@ -227,7 +233,9 @@ class BrowserSnapshotLoader(Protocol):
         cursor_path: str | None,
         current_pane: PaneState,
         *,
-        enable_markitdown_preview: bool = True,
+        enable_text_preview: bool = True,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> tuple[PaneState, PaneState]: ...
 
     def load_grep_preview(
@@ -267,7 +275,9 @@ class LiveBrowserSnapshotLoader:
         repr=False,
         compare=False,
     )
-    _text_preview_cache: OrderedDict[tuple[str, int, int, int, bool], "FilePreviewState"] = field(
+    _text_preview_cache: OrderedDict[
+        tuple[str, int, int, int, bool, bool, bool], "FilePreviewState"
+    ] = field(
         default_factory=OrderedDict,
         init=False,
         repr=False,
@@ -303,7 +313,8 @@ class LiveBrowserSnapshotLoader:
         path: str,
         cursor_path: str | None = None,
         *,
-        enable_markitdown_preview: bool = True,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> BrowserSnapshot:
         resolved_path, parent_path = resolve_parent_directory_path(path)
         current_entries = self._list_directory(resolved_path)
@@ -335,7 +346,8 @@ class LiveBrowserSnapshotLoader:
             child_pane=self.load_child_pane_snapshot(
                 resolved_path,
                 resolved_cursor_path,
-                enable_markitdown_preview=enable_markitdown_preview,
+                enable_pdf_preview=enable_pdf_preview,
+                enable_office_preview=enable_office_preview,
             ),
         )
 
@@ -345,7 +357,9 @@ class LiveBrowserSnapshotLoader:
         cursor_path: str | None,
         *,
         preview_max_bytes: int = TEXT_PREVIEW_MAX_BYTES,
-        enable_markitdown_preview: bool = True,
+        enable_text_preview: bool = True,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> PaneState:
         if cursor_path is None:
             return PaneState(directory_path=current_path, entries=())
@@ -375,7 +389,9 @@ class LiveBrowserSnapshotLoader:
         preview = self._load_cached_text_preview(
             child_path,
             preview_max_bytes=preview_max_bytes,
-            enable_markitdown_preview=enable_markitdown_preview,
+            enable_text_preview=enable_text_preview,
+            enable_pdf_preview=enable_pdf_preview,
+            enable_office_preview=enable_office_preview,
         )
         if preview.kind != "unavailable":
             return PaneState(
@@ -438,7 +454,9 @@ class LiveBrowserSnapshotLoader:
         cursor_path: str | None,
         current_pane: PaneState,
         *,
-        enable_markitdown_preview: bool = True,
+        enable_text_preview: bool = True,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> tuple[PaneState, PaneState]:
         """Load complete parent + child panes (Phase 2 of progressive loading).
 
@@ -470,7 +488,9 @@ class LiveBrowserSnapshotLoader:
         child_pane = self.load_child_pane_snapshot(
             resolved_path,
             resolved_cursor_path,
-            enable_markitdown_preview=enable_markitdown_preview,
+            enable_text_preview=enable_text_preview,
+            enable_pdf_preview=enable_pdf_preview,
+            enable_office_preview=enable_office_preview,
         )
 
         return parent_pane, child_pane
@@ -591,19 +611,25 @@ class LiveBrowserSnapshotLoader:
         path: Path,
         *,
         preview_max_bytes: int,
-        enable_markitdown_preview: bool,
+        enable_text_preview: bool,
+        enable_pdf_preview: bool,
+        enable_office_preview: bool,
     ) -> "FilePreviewState":
         if self.text_preview_cache_capacity <= 0:
             return _load_text_preview(
                 path,
                 preview_max_bytes=preview_max_bytes,
-                enable_markitdown_preview=enable_markitdown_preview,
+                enable_text_preview=enable_text_preview,
+                enable_pdf_preview=enable_pdf_preview,
+                enable_office_preview=enable_office_preview,
                 document_preview_loader=self._resolve_document_preview_loader(),
             )
         cache_key = _build_text_preview_cache_key(
             path,
             preview_max_bytes,
-            enable_markitdown_preview,
+            enable_text_preview,
+            enable_pdf_preview,
+            enable_office_preview,
         )
         if isinstance(cache_key, FilePreviewState):
             return cache_key
@@ -613,7 +639,9 @@ class LiveBrowserSnapshotLoader:
         preview = _load_text_preview(
             path,
             preview_max_bytes=preview_max_bytes,
-            enable_markitdown_preview=enable_markitdown_preview,
+            enable_text_preview=enable_text_preview,
+            enable_pdf_preview=enable_pdf_preview,
+            enable_office_preview=enable_office_preview,
             document_preview_loader=self._resolve_document_preview_loader(),
         )
         self._store_cached_text_preview(cache_key, preview)
@@ -631,7 +659,7 @@ class LiveBrowserSnapshotLoader:
 
     def _get_cached_text_preview(
         self,
-        cache_key: tuple[str, int, int, int, bool],
+        cache_key: tuple[str, int, int, int, bool, bool, bool],
     ) -> "FilePreviewState | None":
         with self._text_preview_cache_lock:
             preview = self._text_preview_cache.get(cache_key)
@@ -642,7 +670,7 @@ class LiveBrowserSnapshotLoader:
 
     def _store_cached_text_preview(
         self,
-        cache_key: tuple[str, int, int, int, bool],
+        cache_key: tuple[str, int, int, int, bool, bool, bool],
         preview: "FilePreviewState",
     ) -> None:
         with self._text_preview_cache_lock:
@@ -700,7 +728,8 @@ class FakeBrowserSnapshotLoader:
         path: str,
         cursor_path: str | None = None,
         *,
-        enable_markitdown_preview: bool = True,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> BrowserSnapshot:
         delay = self.per_path_delay_seconds.get(path, self.default_delay_seconds)
         if delay > 0:
@@ -721,7 +750,9 @@ class FakeBrowserSnapshotLoader:
         cursor_path: str | None,
         *,
         preview_max_bytes: int = TEXT_PREVIEW_MAX_BYTES,
-        enable_markitdown_preview: bool = True,
+        enable_text_preview: bool = True,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> PaneState:
         key = (current_path, cursor_path)
         self.executed_child_pane_requests.append(key)
@@ -753,7 +784,9 @@ class FakeBrowserSnapshotLoader:
         cursor_path: str | None,
         current_pane: PaneState,
         *,
-        enable_markitdown_preview: bool = True,
+        enable_text_preview: bool = True,
+        enable_pdf_preview: bool = True,
+        enable_office_preview: bool = True,
     ) -> tuple[PaneState, PaneState]:
         """Load complete parent + child panes (Phase 2 of progressive loading)."""
         snapshot = self.load_browser_snapshot(path, cursor_path)
@@ -865,8 +898,10 @@ def _normalize_directory_cache_path(path: str) -> str:
 def _build_text_preview_cache_key(
     path: Path,
     preview_max_bytes: int,
-    enable_markitdown_preview: bool,
-) -> tuple[str, int, int, int, bool] | "FilePreviewState":
+    enable_text_preview: bool,
+    enable_pdf_preview: bool,
+    enable_office_preview: bool,
+) -> tuple[str, int, int, int, bool, bool, bool] | "FilePreviewState":
     preview_limit = max(1, preview_max_bytes)
     try:
         stat = path.stat()
@@ -879,7 +914,9 @@ def _build_text_preview_cache_key(
         stat.st_mtime_ns,
         stat.st_size,
         preview_limit,
-        enable_markitdown_preview,
+        enable_text_preview,
+        enable_pdf_preview,
+        enable_office_preview,
     )
 
 
@@ -910,17 +947,30 @@ def _load_text_preview(
     path: Path,
     *,
     preview_max_bytes: int = TEXT_PREVIEW_MAX_BYTES,
-    enable_markitdown_preview: bool = True,
+    enable_text_preview: bool = True,
+    enable_pdf_preview: bool = True,
+    enable_office_preview: bool = True,
     document_preview_loader: "DocumentPreviewLoader | None" = None,
 ) -> "FilePreviewState":
-    if _is_markitdown_preview_candidate(path):
-        if not enable_markitdown_preview:
-            return FilePreviewState.unsupported()
+    if _is_pdf_preview_candidate(path):
+        if not enable_pdf_preview:
+            return FilePreviewState.unavailable()
+        preview = _load_pdf_preview(path, preview_max_bytes=preview_max_bytes)
+        if preview is not None:
+            return preview
+        return FilePreviewState.unsupported()
+
+    if _is_office_preview_candidate(path):
+        if not enable_office_preview:
+            return FilePreviewState.unavailable()
         loader = document_preview_loader or MarkItDownDocumentPreviewLoader()
         preview = loader.load_preview(path, preview_max_bytes=preview_max_bytes)
         if preview is not None:
             return preview
         return FilePreviewState.unsupported()
+
+    if not enable_text_preview:
+        return FilePreviewState.unavailable()
 
     preview_limit = max(1, preview_max_bytes)
     try:
@@ -989,6 +1039,31 @@ class MarkItDownDocumentPreviewLoader:
             return None
         self.converter = MarkItDown(enable_plugins=False)
         return self.converter
+
+
+def _load_pdf_preview(
+    path: Path,
+    *,
+    preview_max_bytes: int,
+) -> "FilePreviewState | None":
+    pdftotext = shutil.which("pdftotext")
+    if pdftotext is None:
+        return None
+    try:
+        result = subprocess.run(
+            [pdftotext, "-q", str(path), "-"],
+            check=True,
+            capture_output=True,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    try:
+        content = result.stdout.decode("utf-8")
+    except UnicodeDecodeError:
+        content = result.stdout.decode("utf-8", errors="ignore")
+    if not content.strip():
+        return None
+    return _truncate_preview_text(content, preview_max_bytes)
 
 
 def _load_grep_context_preview(
@@ -1071,6 +1146,10 @@ class FilePreviewState:
         return cls(kind="message", message=PREVIEW_UNSUPPORTED_MESSAGE)
 
     @classmethod
+    def unavailable(cls) -> "FilePreviewState":
+        return cls(kind="unavailable")
+
+    @classmethod
     def error(cls) -> "FilePreviewState":
         return cls(kind="message", message=PREVIEW_ERROR_MESSAGE)
 
@@ -1146,7 +1225,7 @@ def _is_text_content(path: Path, blocksize: int = 512) -> bool:
 
 
 def _is_preview_candidate(path: Path) -> bool:
-    if _is_markitdown_preview_candidate(path):
+    if _is_pdf_preview_candidate(path) or _is_office_preview_candidate(path):
         return True
 
     # 既存：拡張子ベースの判定（高速パス）
@@ -1160,8 +1239,12 @@ def _is_preview_candidate(path: Path) -> bool:
     return _is_text_content(path)
 
 
-def _is_markitdown_preview_candidate(path: Path) -> bool:
-    return path.suffix.casefold() in MARKITDOWN_PREVIEW_EXTENSIONS
+def _is_pdf_preview_candidate(path: Path) -> bool:
+    return path.suffix.casefold() in PDF_PREVIEW_EXTENSIONS
+
+
+def _is_office_preview_candidate(path: Path) -> bool:
+    return path.suffix.casefold() in OFFICE_PREVIEW_EXTENSIONS
 
 
 def _truncate_preview_text(content: str, preview_max_bytes: int) -> FilePreviewState:

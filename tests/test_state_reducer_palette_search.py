@@ -727,7 +727,7 @@ def test_grep_search_completed_skips_context_preview_when_preview_disabled() -> 
         _reduce_state(build_initial_app_state(), BeginGrepSearch()),
         config=replace(
             build_initial_app_state().config,
-            display=replace(build_initial_app_state().config.display, show_preview=False),
+            display=replace(build_initial_app_state().config.display, enable_text_preview=False),
         ),
         command_palette=replace(
             _reduce_state(build_initial_app_state(), BeginGrepSearch()).command_palette,
@@ -745,7 +745,7 @@ def test_grep_search_completed_skips_context_preview_when_preview_disabled() -> 
         ),
     )
 
-    assert result.state.config.display.show_preview is False
+    assert result.state.config.display.enable_text_preview is False
     assert result.state.pending_child_pane_request_id is None
     assert result.effects == ()
 

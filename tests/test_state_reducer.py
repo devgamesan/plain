@@ -755,7 +755,7 @@ def test_move_config_editor_cursor_clamps_to_visible_settings() -> None:
     next_state = _reduce_state(state, MoveConfigEditorCursor(delta=99))
 
     assert next_state.config_editor is not None
-    assert next_state.config_editor.cursor_index == 18
+    assert next_state.config_editor.cursor_index == 19
 
 def test_cycle_config_editor_terminal_launch_mode_updates_draft() -> None:
     state = replace(
@@ -816,7 +816,7 @@ def test_cycle_config_editor_split_terminal_position_updates_draft() -> None:
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=original_state.config,
-            cursor_index=14,
+            cursor_index=15,
         ),
     )
 
@@ -840,7 +840,7 @@ def test_cycle_config_editor_split_terminal_position_reaches_overlay() -> None:
                     split_terminal_position="right",
                 ),
             ),
-            cursor_index=14,
+            cursor_index=15,
         ),
     )
 
@@ -908,7 +908,7 @@ def test_cycle_config_editor_directory_size_visibility_updates_draft_and_dirty_s
     assert next_state.config_editor.draft.display.show_directory_sizes is False
     assert next_state.config_editor.dirty is True
 
-def test_cycle_config_editor_preview_visibility_updates_draft_and_dirty_state() -> None:
+def test_cycle_config_editor_text_preview_updates_draft_and_dirty_state() -> None:
     state = replace(
         build_initial_app_state(config_path="/tmp/zivo/config.toml"),
         ui_mode="CONFIG",
@@ -922,10 +922,10 @@ def test_cycle_config_editor_preview_visibility_updates_draft_and_dirty_state() 
     next_state = _reduce_state(state, CycleConfigEditorValue(delta=1))
 
     assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.display.show_preview is False
+    assert next_state.config_editor.draft.display.enable_text_preview is False
     assert next_state.config_editor.dirty is True
 
-def test_cycle_config_editor_markitdown_preview_updates_draft_and_dirty_state() -> None:
+def test_cycle_config_editor_pdf_preview_updates_draft_and_dirty_state() -> None:
     state = replace(
         build_initial_app_state(config_path="/tmp/zivo/config.toml"),
         ui_mode="CONFIG",
@@ -939,7 +939,24 @@ def test_cycle_config_editor_markitdown_preview_updates_draft_and_dirty_state() 
     next_state = _reduce_state(state, CycleConfigEditorValue(delta=1))
 
     assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.display.enable_markitdown_preview is False
+    assert next_state.config_editor.draft.display.enable_pdf_preview is False
+    assert next_state.config_editor.dirty is True
+
+def test_cycle_config_editor_office_preview_updates_draft_and_dirty_state() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/zivo/config.toml",
+            draft=build_initial_app_state().config,
+            cursor_index=7,
+        ),
+    )
+
+    next_state = _reduce_state(state, CycleConfigEditorValue(delta=1))
+
+    assert next_state.config_editor is not None
+    assert next_state.config_editor.draft.display.enable_office_preview is False
     assert next_state.config_editor.dirty is True
 
 def test_cycle_config_editor_preview_syntax_theme_updates_draft_and_dirty_state() -> None:
@@ -949,7 +966,7 @@ def test_cycle_config_editor_preview_syntax_theme_updates_draft_and_dirty_state(
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=7,
+            cursor_index=8,
         ),
     )
 
@@ -966,7 +983,7 @@ def test_cycle_config_editor_preview_max_kib_updates_draft_and_dirty_state() -> 
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=8,
+            cursor_index=9,
         ),
     )
 
@@ -1104,7 +1121,10 @@ def test_config_save_completed_clears_preview_when_disabled() -> None:
             path="/tmp/zivo/config.toml",
             draft=replace(
                 build_initial_app_state().config,
-                display=replace(build_initial_app_state().config.display, show_preview=False),
+                display=replace(
+                    build_initial_app_state().config.display,
+                    enable_text_preview=False,
+                ),
             ),
             dirty=True,
         ),
@@ -1121,7 +1141,7 @@ def test_config_save_completed_clears_preview_when_disabled() -> None:
         ),
     )
 
-    assert next_state.config.display.show_preview is False
+    assert next_state.config.display.enable_text_preview is False
     assert next_state.child_pane == PaneState(
         directory_path="/home/tadashi/develop/zivo",
         entries=(),
@@ -1136,7 +1156,7 @@ def test_config_save_completed_requests_preview_when_enabled() -> None:
         ui_mode="CONFIG",
         config=replace(
             base_state.config,
-            display=replace(base_state.config.display, show_preview=False),
+            display=replace(base_state.config.display, enable_text_preview=False),
         ),
         current_pane=replace(base_state.current_pane, cursor_path=path),
         child_pane=PaneState(directory_path="/home/tadashi/develop/zivo", entries=()),
@@ -1144,7 +1164,7 @@ def test_config_save_completed_requests_preview_when_enabled() -> None:
             path="/tmp/zivo/config.toml",
             draft=replace(
                 base_state.config,
-                display=replace(base_state.config.display, show_preview=True),
+                display=replace(base_state.config.display, enable_text_preview=True),
             ),
             dirty=True,
         ),
@@ -1161,7 +1181,7 @@ def test_config_save_completed_requests_preview_when_enabled() -> None:
         ),
     )
 
-    assert result.state.config.display.show_preview is True
+    assert result.state.config.display.enable_text_preview is True
     assert result.state.pending_child_pane_request_id == 1
     assert result.effects == (
         LoadChildPaneSnapshotEffect(
@@ -1189,7 +1209,7 @@ def test_cycle_config_editor_file_search_max_results_updates_draft() -> None:
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=original_state.config,
-            cursor_index=18,  # file_search.max_results
+            cursor_index=19,  # file_search.max_results
         ),
     )
 
@@ -1894,7 +1914,7 @@ def test_set_cursor_path_to_file_clears_child_pane_when_preview_disabled() -> No
         build_initial_app_state(),
         config=replace(
             build_initial_app_state().config,
-            display=replace(build_initial_app_state().config.display, show_preview=False),
+            display=replace(build_initial_app_state().config.display, enable_text_preview=False),
         ),
         child_pane=PaneState(
             directory_path="/home/tadashi/develop/zivo",
@@ -1943,7 +1963,7 @@ def test_child_pane_snapshot_loaded_clears_grep_preview_when_file_preview_disabl
         build_initial_app_state(),
         config=replace(
             build_initial_app_state().config,
-            display=replace(build_initial_app_state().config.display, show_preview=False),
+            display=replace(build_initial_app_state().config.display, enable_text_preview=False),
         ),
         pending_child_pane_request_id=7,
     )

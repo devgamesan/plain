@@ -236,7 +236,11 @@ def _select_file_search_preview_pane(
     state: AppState,
     syntax_theme: str,
 ) -> ChildPaneViewState:
-    if not state.config.display.show_preview:
+    if not (
+        state.config.display.enable_text_preview
+        or state.config.display.enable_pdf_preview
+        or state.config.display.enable_office_preview
+    ):
         return _build_child_entries_view((), syntax_theme)
 
     results = state.command_palette.file_search_results
@@ -271,7 +275,7 @@ def _select_grep_preview_pane(
     state: AppState,
     syntax_theme: str,
 ) -> ChildPaneViewState:
-    if not state.config.display.show_preview:
+    if not state.config.display.enable_text_preview:
         return _build_child_entries_view((), syntax_theme)
 
     results = state.command_palette.grep_search_results
@@ -304,7 +308,7 @@ def _select_replace_preview_pane(
     state: AppState,
     syntax_theme: str,
 ) -> ChildPaneViewState:
-    if not state.config.display.show_preview:
+    if not state.config.display.enable_text_preview:
         return _build_child_entries_view((), syntax_theme)
     if state.command_palette.source == "replace_in_found_files":
         results = state.command_palette.rff_preview_results

@@ -1127,7 +1127,7 @@ async def test_app_hides_text_preview_in_child_pane_when_preview_disabled() -> N
     app = create_app(
         snapshot_loader=loader,
         initial_path=path,
-        app_config=AppConfig(display=DisplayConfig(show_preview=False)),
+        app_config=AppConfig(display=DisplayConfig(enable_text_preview=False)),
     )
 
     async with app.run_test():
@@ -1181,7 +1181,7 @@ async def test_app_updates_child_preview_when_cursor_moves_between_files() -> No
                 entries=(),
                 mode="preview",
                 preview_path=config,
-                preview_content="[display]\nshow_preview = true\n",
+                preview_content="[display]\nenable_text_preview = true\n",
             ),
         },
         child_delay_seconds={
@@ -1205,7 +1205,7 @@ async def test_app_updates_child_preview_when_cursor_moves_between_files() -> No
         )
         await _wait_for_cursor_path(app, config)
         await _wait_for_child_entries(app, [], timeout=1.0)
-        await _wait_for_child_preview(app, "Preview: config.toml", "show_preview = true")
+        await _wait_for_child_preview(app, "Preview: config.toml", "enable_text_preview = true")
         await _wait_for_child_pane_runtime_idle(app, timeout=1.0)
 
 
@@ -3621,10 +3621,23 @@ async def test_app_grep_search_filters_results_by_filename(tmp_path) -> None:
         await pilot.press("tab", "R", "E", "A", "D")
 
         await _wait_for_request_count(grep_search_service, 1, timeout=1.0)
+        expected_labels = ["README.md:1: TODO: readme"]
+
+        def _filtered_results_ready() -> bool:
+            palette = app.app_state.command_palette
+            return palette is not None and [
+                result.display_label for result in palette.grep_search_results
+            ] == expected_labels
+
+        await _wait_for_predicate(
+            _filtered_results_ready,
+            timeout=1.0,
+            message="grep results to be filtered by filename",
+        )
         assert app.app_state.command_palette is not None
         assert [
             result.display_label for result in app.app_state.command_palette.grep_search_results
-        ] == ["README.md:1: TODO: readme"]
+        ] == expected_labels
 
 
 @pytest.mark.asyncio

@@ -148,17 +148,24 @@ def load_display_config(section: object, warnings: list[str]) -> DisplayConfig:
             warnings=warnings,
             section_name="display",
         ),
-        show_preview=read_bool(
+        enable_text_preview=read_bool(
             validated,
-            key="show_preview",
-            default=config.show_preview,
+            key="enable_text_preview",
+            default=config.enable_text_preview,
             warnings=warnings,
             section_name="display",
         ),
-        enable_markitdown_preview=read_bool(
+        enable_pdf_preview=read_bool(
             validated,
-            key="enable_markitdown_preview",
-            default=config.enable_markitdown_preview,
+            key="enable_pdf_preview",
+            default=config.enable_pdf_preview,
+            warnings=warnings,
+            section_name="display",
+        ),
+        enable_office_preview=read_bool(
+            validated,
+            key="enable_office_preview",
+            default=config.enable_office_preview,
             warnings=warnings,
             section_name="display",
         ),

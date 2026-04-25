@@ -176,7 +176,7 @@ def test_live_browser_snapshot_loader_uses_markitdown_preview_for_supported_docu
     assert preview_loader.calls == [f"{report}:{64 * 1024}"]
 
 
-def test_live_browser_snapshot_loader_skips_markitdown_preview_when_disabled(tmp_path) -> None:
+def test_live_browser_snapshot_loader_skips_office_preview_when_disabled(tmp_path) -> None:
     project = tmp_path / "project"
     project.mkdir()
     report = project / "report.docx"
@@ -191,12 +191,11 @@ def test_live_browser_snapshot_loader_skips_markitdown_preview_when_disabled(tmp
     pane = loader.load_child_pane_snapshot(
         str(project),
         str(report),
-        enable_markitdown_preview=False,
+        enable_office_preview=False,
     )
 
-    assert pane.mode == "preview"
-    assert pane.preview_content is None
-    assert pane.preview_message == "Preview unavailable for this file type"
+    assert pane.mode == "entries"
+    assert pane.entries == ()
     assert preview_loader.calls == []
  
 
@@ -217,6 +216,61 @@ def test_live_browser_snapshot_loader_caches_markitdown_previews(tmp_path) -> No
 
     assert first == second
     assert preview_loader.calls == [f"{report}:{64 * 1024}"]
+
+
+def test_live_browser_snapshot_loader_uses_pdftotext_for_pdf_preview(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    report = project / "report.pdf"
+    report.write_bytes(b"%PDF-1.4")
+    loader = LiveBrowserSnapshotLoader()
+
+    monkeypatch.setattr(
+        "zivo.services.browser_snapshot.shutil.which",
+        lambda name: "/usr/bin/pdftotext",
+    )
+
+    class _CompletedProcess:
+        stdout = b"PDF text\n"
+
+    monkeypatch.setattr(
+        "zivo.services.browser_snapshot.subprocess.run",
+        lambda *args, **kwargs: _CompletedProcess(),
+    )
+
+    pane = loader.load_child_pane_snapshot(str(project), str(report))
+
+    assert pane.mode == "preview"
+    assert pane.preview_path == str(report)
+    assert pane.preview_content == "PDF text\n"
+
+
+def test_live_browser_snapshot_loader_skips_pdf_preview_when_disabled(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    report = project / "report.pdf"
+    report.write_bytes(b"%PDF-1.4")
+    loader = LiveBrowserSnapshotLoader()
+
+    monkeypatch.setattr(
+        "zivo.services.browser_snapshot.shutil.which",
+        lambda name: "/usr/bin/pdftotext",
+    )
+
+    pane = loader.load_child_pane_snapshot(
+        str(project),
+        str(report),
+        enable_pdf_preview=False,
+    )
+
+    assert pane.mode == "entries"
+    assert pane.entries == ()
 
 
 def test_live_browser_snapshot_loader_builds_grep_context_preview(tmp_path) -> None:
@@ -926,4 +980,3 @@ def test_load_grep_context_preview_handles_permission_denied(tmp_path, monkeypat
 
     assert preview.content is None
     assert preview.message == PREVIEW_PERMISSION_DENIED_MESSAGE
-

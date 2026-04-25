@@ -24,7 +24,7 @@ zivo は、複雑な設定やプラグイン導入、スクリプトの作成な
 
 ## 特徴
 
-- 親 / 現在 / 右ペインを並べたシンプルな 3 ペイン表示です。カーソルがディレクトリ上にあるときは右ペインに子要素一覧を表示し、一般的なテキストファイル上にあるときは右ペインに構文色分け付きのテキストプレビューを表示します。ディレクトリ移動、複数選択、コピー、カット、貼り付け、直前の可逆ファイル操作の Undo、ゴミ箱への移動、ファイル削除、パスのコピー、リネーム、新規作成、アーカイブの展開、zip 圧縮、選択ファイル群に対する文字列置換プレビュー、ファイル検索、grep 検索、1 行シェルコマンド実行をキーボードだけで操作できます。よく使う操作は画面下部のヘルプバーに常時表示しています。
+- 親 / 現在 / 右ペインを並べたシンプルな 3 ペイン表示です。カーソルがディレクトリ上にあるときは右ペインに子要素一覧を表示し、一般的なテキストファイル上にあるときは右ペインに構文色分け付きのテキストプレビューを表示します。`pdf` は `pdftotext`、`docx` / `xlsx` / `pptx` は MarkItDown を使ってプレビューできます。ディレクトリ移動、複数選択、コピー、カット、貼り付け、直前の可逆ファイル操作の Undo、ゴミ箱への移動、ファイル削除、パスのコピー、リネーム、新規作成、アーカイブの展開、zip 圧縮、選択ファイル群に対する文字列置換プレビュー、ファイル検索、grep 検索、1 行シェルコマンド実行をキーボードだけで操作できます。よく使う操作は画面下部のヘルプバーに常時表示しています。
 
   ![](docs/resources/screen-entire-screen.png)
 
@@ -407,7 +407,7 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 | `Run shell command` | 常に表示 | 1 行シェルコマンド入力ダイアログを開き、現在ディレクトリでバックグラウンド実行します。完了後は先頭の出力行、または失敗要約を status bar に表示します。`!` でも実行できます。 |
 | `Bookmark this directory` / `Remove bookmark` | 常に表示 | 現在ディレクトリを `[bookmarks].paths` に追加または削除します。ラベルは現在状態を反映し、`B` でも切り替えられます。 |
 | `Show hidden files` / `Hide hidden files` | 常に表示 | ブラウザ 3 ペインの隠しファイル表示を切り替えます。ラベルは現在状態を反映し、`.` でも切り替えられます。 |
-| `Edit config` | 常に表示 | 起動時設定を編集するオーバーレイを開きます。優先ターミナルエディタ、外部ターミナル起動モード、隠しファイル表示、ディレクトリサイズ表示、テキスト preview 表示、MarkItDown 文書 preview 表示、テーマ、ソート、貼り付け競合時の既定動作、削除確認の有無などを編集できます。オーバーレイ内には選択中の設定が何を変えるかの説明も表示されるため、README を見返さなくても挙動を判断できます。テーマ変更はその場で即時プレビューされます。`↑` / `↓` または `Ctrl+n` / `Ctrl+p` で項目移動し、`←` / `→` / `Enter` で値変更、`s` で `config.toml` 保存、`e` で生の設定ファイルをターミナルエディタで開けます。 |
+| `Edit config` | 常に表示 | 起動時設定を編集するオーバーレイを開きます。優先ターミナルエディタ、外部ターミナル起動モード、隠しファイル表示、ディレクトリサイズ表示、テキスト preview 表示、PDF preview 表示、Office preview 表示、テーマ、ソート、貼り付け競合時の既定動作、削除確認の有無などを編集できます。オーバーレイ内には選択中の設定が何を変えるかの説明も表示されるため、README を見返さなくても挙動を判断できます。テーマ変更はその場で即時プレビューされます。`↑` / `↓` または `Ctrl+n` / `Ctrl+p` で項目移動し、`←` / `→` / `Enter` で値変更、`s` で `config.toml` 保存、`e` で生の設定ファイルをターミナルエディタで開けます。 |
 | `Create file` | 常に表示 | 現在ディレクトリで新規ファイル作成の入力を開始します。 |
 | `Create directory` | 常に表示 | 現在ディレクトリで新規ディレクトリ作成の入力を開始します。 |
 
@@ -430,8 +430,9 @@ zivo は起動時にユーザー設定用の `config.toml` を読み込みます
 | `editor` | `command` | shell 形式の文字列。例: `nvim -u NONE` | `e` で起動するターミナルエディタです。ファイルパスは自動で末尾に付与されるため、設定値には含めません。GUI エディタや不正なコマンドは無視されます。 |
 | `display` | `show_hidden_files` | `true` / `false` | 起動時の隠しファイル表示状態です。 |
 | `display` | `show_directory_sizes` | `true` / `false` | ペイン内に再帰ディレクトリサイズを表示します。既定値は `true` です。大きいディレクトリでは計算コストがかかる場合があります。中央ペインを `size` ソートしている間は、この設定が `false` でも自動計算されます。 |
-| `display` | `show_preview` | `true` / `false` | 右ペインのファイル preview を表示します。既定値は `true` です。ディレクトリ表示や archive 表示には影響しません。grep 結果のコンテキスト preview も同じ設定に従います。 |
-| `display` | `enable_markitdown_preview` | `true` / `false` | `pdf` / `docx` / `xlsx` / `pptx` の preview を MarkItDown 変換で有効にします。既定値は `true` です。無効にすると、これらの形式は通常の非対応メッセージへ戻ります。 |
+| `display` | `enable_text_preview` | `true` / `false` | 右ペインのテキストファイル preview を表示します。既定値は `true` です。grep 結果のコンテキスト preview も同じ設定に従います。 |
+| `display` | `enable_pdf_preview` | `true` / `false` | `pdftotext` を使った PDF preview を有効にします。既定値は `true` です。無効にすると PDF は通常の非対応メッセージへ戻ります。 |
+| `display` | `enable_office_preview` | `true` / `false` | `docx` / `xlsx` / `pptx` の preview を MarkItDown 変換で有効にします。既定値は `true` です。無効にすると、これらの形式は通常の非対応メッセージへ戻ります。 |
 | `display` | `show_help_bar` | `true` / `false` | 画面下部のヘルプバーを表示します。既定値は `true` です。コマンドパレットや分割ターミナルが開いている場合は、この設定に関係なく常に表示されます。 |
 | `display` | `theme` | `textual-dark` / `textual-light` | 起動時の UI テーマです。設定エディタでは変更内容が即座にプレビューされ、`s` で保存するとこの値が永続化されます。 |
 | `display` | `preview_syntax_theme` | `auto` またはサポートされている Pygments style | 右ペインのテキスト preview に使うシンタックスハイライト配色です。`auto` を選ぶと、現在の light/dark に応じた既定配色を使います。設定エディタで右ペインにテキスト preview が出ている場合は、その場で即時プレビューされます。 |
@@ -461,8 +462,9 @@ command = "nvim -u NONE"
 [display]
 show_hidden_files = false
 show_directory_sizes = true
-show_preview = true
-enable_markitdown_preview = true
+enable_text_preview = true
+enable_pdf_preview = true
+enable_office_preview = true
 show_help_bar = true
 theme = "textual-dark"
 default_sort_field = "name"

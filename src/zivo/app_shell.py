@@ -33,7 +33,7 @@ def build_split_terminal_layer(
     terminal_position: str = "bottom",
 ) -> Container:
     children: tuple[Any, ...] = ()
-    if terminal_position == "overlay":
+    if terminal_position == "overlay" and SplitTerminalPane is not None:
         children = (
             SplitTerminalPane(
                 shell.split_terminal,
@@ -107,7 +107,7 @@ def build_body(shell: ThreePaneShellData, *, terminal_position: str = "bottom") 
                 classes="pane side-pane",
             ),
         ]
-    if terminal_position == "right":
+    if terminal_position == "right" and SplitTerminalPane is not None:
         browser_row_children.append(
             SplitTerminalPane(
                 shell.split_terminal,
@@ -118,7 +118,7 @@ def build_body(shell: ThreePaneShellData, *, terminal_position: str = "bottom") 
     body_children: list[Any] = [
         Horizontal(*browser_row_children, id="browser-row"),
     ]
-    if terminal_position not in {"right", "overlay"}:
+    if terminal_position not in {"right", "overlay"} and SplitTerminalPane is not None:
         body_children.append(
             SplitTerminalPane(shell.split_terminal, id="split-terminal")
         )
@@ -150,7 +150,11 @@ async def refresh_shell(
         parent_pane = app.query_one("#parent-pane", SidePane)
         current_pane = app.query_one("#current-pane", MainPane)
         child_pane = app.query_one("#child-pane", ChildPane)
-        split_terminal = app.query_one("#split-terminal", SplitTerminalPane)
+        split_terminal = (
+            app.query_one("#split-terminal", SplitTerminalPane)
+            if SplitTerminalPane is not None
+            else None
+        )
         command_palette = app.query_one("#command-palette", CommandPalette)
         help_bar = app.query_one("#help-bar", HelpBar)
         status_bar = app.query_one("#status-bar", StatusBar)
@@ -332,7 +336,8 @@ async def refresh_shell(
             child_pane.refresh_styles()
 
         app.call_after_refresh(_refresh_themed_panes)
-    split_terminal.set_state(shell.split_terminal)
+    if split_terminal is not None:
+        split_terminal.set_state(shell.split_terminal)
     resize_split_terminal_session(app, app_state, split_terminal_session)
     command_palette_layer.display = shell.command_palette is not None
     command_palette.set_state(shell.command_palette)
@@ -375,6 +380,8 @@ def resize_split_terminal_session(
     split_terminal_session: SplitTerminalSession | None,
 ) -> None:
     if split_terminal_session is None or not app_state.split_terminal.visible:
+        return
+    if SplitTerminalPane is None:
         return
     try:
         split_terminal = app.query_one("#split-terminal", SplitTerminalPane)

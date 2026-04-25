@@ -1,5 +1,7 @@
 """Application services and effect orchestration."""
 
+import sys
+
 from zivo.archive_utils import (
     default_extract_destination,
     default_zip_destination,
@@ -81,12 +83,23 @@ from .shell_command import (
     LiveShellCommandService,
     ShellCommandService,
 )
-from .split_terminal import (
-    FakeSplitTerminalService,
-    LiveSplitTerminalService,
-    SplitTerminalService,
-    SplitTerminalSession,
-)
+
+if sys.platform != "win32":
+    from .split_terminal import (
+        FakeSplitTerminalService,
+        LiveSplitTerminalService,
+        SplitTerminalService,
+        SplitTerminalSession,
+    )
+else:
+    # Windowsではsplit-terminalサービスを提供しない
+    # プロトコルはインポート可能にする
+    from .split_terminal import (
+        SplitTerminalService,
+        SplitTerminalSession,
+    )
+    FakeSplitTerminalService = None  # type: ignore[misc,assignment]
+    LiveSplitTerminalService = None  # type: ignore[misc,assignment]
 from .text_replace import (
     FakeTextReplaceService,
     InvalidTextReplaceQueryError,

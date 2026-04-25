@@ -1,8 +1,14 @@
 """Filesystem adapter for reading local directory entries."""
 
-import grp
 import os
-import pwd
+import sys
+
+if sys.platform != "win32":
+    import grp
+    import pwd
+else:
+    grp = None  # type: ignore[assignment]
+    pwd = None  # type: ignore[assignment]
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -190,6 +196,8 @@ class DirectorySizeCancelled(RuntimeError):
 
 @lru_cache(maxsize=256)
 def _resolve_user_name(uid: int) -> str | None:
+    if pwd is None:  # type: ignore[truthy-function]
+        return None
     try:
         return pwd.getpwuid(uid).pw_name
     except (KeyError, OSError):
@@ -198,6 +206,8 @@ def _resolve_user_name(uid: int) -> str | None:
 
 @lru_cache(maxsize=256)
 def _resolve_group_name(gid: int) -> str | None:
+    if grp is None:  # type: ignore[truthy-function]
+        return None
     try:
         return grp.getgrgid(gid).gr_name
     except (KeyError, OSError):

@@ -231,7 +231,9 @@ class zivoApp(App[None]):
         self._grep_search_service = grep_search_service or LiveGrepSearchService()
         self._text_replace_service = text_replace_service or LiveTextReplaceService()
         self._shell_command_service = shell_command_service or LiveShellCommandService()
-        self._split_terminal_service = split_terminal_service or LiveSplitTerminalService()
+        self._split_terminal_service = split_terminal_service or (
+            LiveSplitTerminalService() if LiveSplitTerminalService is not None else None
+        )
         self._undo_service = undo_service or LiveUndoService()
         self._pending_workers: dict[str, Effect] = {}
         self._split_terminal_session: SplitTerminalSession | None = None

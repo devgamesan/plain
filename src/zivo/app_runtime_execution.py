@@ -205,6 +205,17 @@ def schedule_external_launch(app: Any, effect: RunExternalLaunchEffect) -> None:
 
 
 def start_split_terminal(app: Any, effect: StartSplitTerminalEffect) -> None:
+    if app._split_terminal_service is None:
+        app.call_next(
+            app.dispatch_actions,
+            (
+                SplitTerminalStartFailed(
+                    session_id=effect.session_id,
+                    message="Split terminal is not supported on this platform",
+                ),
+            ),
+        )
+        return
     try:
         session = app._split_terminal_service.start(
             effect.cwd,

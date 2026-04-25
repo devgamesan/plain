@@ -1,5 +1,7 @@
 """Textual UI components for zivo."""
 
+import sys
+
 from .attribute_dialog import AttributeDialog
 from .command_palette import CommandPalette
 from .config_dialog import ConfigDialog
@@ -10,7 +12,11 @@ from .input_bar import InputBar
 from .input_dialog import InputDialog
 from .panes import ChildPane, MainPane, SidePane
 from .shell_command_dialog import ShellCommandDialog
-from .split_terminal import SplitTerminalPane
+
+if sys.platform != "win32":
+    from .split_terminal import SplitTerminalPane
+else:
+    SplitTerminalPane = None  # type: ignore[misc,assignment]
 from .status_bar import StatusBar
 from .summary_bar import SummaryBar
 from .tab_bar import TabBar

@@ -3,18 +3,25 @@
 from __future__ import annotations
 
 import os
-import pty
-import select
 import shlex
 import struct
 import subprocess
-import termios
+import sys
 import threading
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import sleep
 from typing import Protocol
+
+if sys.platform != "win32":
+    import pty
+    import select
+    import termios
+else:
+    pty = None  # type: ignore[assignment]
+    select = None  # type: ignore[assignment]
+    termios = None  # type: ignore[assignment]
 
 SplitTerminalOutputHandler = Callable[[str], None]
 SplitTerminalExitHandler = Callable[[int | None], None]

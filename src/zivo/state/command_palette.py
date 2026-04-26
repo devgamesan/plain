@@ -278,7 +278,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             id="toggle_split_terminal",
             label="Toggle split terminal",
             shortcut="t",
-            enabled=True,
+            enabled=_is_split_terminal_supported(),
         ),
         CommandPaletteItem(
             id="select_all",
@@ -673,3 +673,8 @@ def _transfer_single_target_entry(state: AppState):
 def _is_empty_trash_supported() -> bool:
     """Check if empty trash is supported on current platform."""
     return platform.system() in ("Linux", "Darwin")
+
+
+def _is_split_terminal_supported() -> bool:
+    """Check if the embedded split terminal is available on this platform."""
+    return os.name == "posix" and platform.system() != "Windows"

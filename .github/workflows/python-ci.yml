@@ -5,10 +5,12 @@ on:
     branches:
       - main
       - develop
+      - feat/windows
   pull_request:
     branches:
       - main
       - develop
+      - feat/windows
 
 jobs:
   lint-and-test:

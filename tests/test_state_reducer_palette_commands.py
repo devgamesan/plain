@@ -1,3 +1,4 @@
+import os
 from dataclasses import replace
 from pathlib import Path
 
@@ -130,7 +131,7 @@ def test_submit_command_palette_runs_create_symlink_flow() -> None:
     assert next_state.pending_input is not None
     assert next_state.pending_input.prompt == "Create link at: "
     assert next_state.pending_input.symlink_source_path == "/home/tadashi/develop/zivo/docs"
-    assert next_state.pending_input.value.endswith("/docs.link")
+    assert next_state.pending_input.value.endswith(("/docs.link", "\\docs.link"))
 
 def test_submit_command_palette_begins_extract_archive_flow() -> None:
     archive_path = "/home/tadashi/develop/zivo/archive.zip"
@@ -871,6 +872,17 @@ def test_submit_command_palette_toggles_split_terminal() -> None:
     state = _reduce_state(state, SetCommandPaletteQuery("split terminal"))
 
     result = reduce_app_state(state, SubmitCommandPalette())
+
+    if os.name != "posix":
+        assert result.state.ui_mode == "PALETTE"
+        assert result.state.command_palette is not None
+        assert result.state.split_terminal.visible is False
+        assert result.effects == ()
+        assert result.state.notification == NotificationState(
+            level="warning",
+            message="Toggle split terminal is not available yet",
+        )
+        return
 
     assert result.state.ui_mode == "BROWSING"
     assert result.state.command_palette is None

@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import os
-import pty
 import select
 import shlex
 import struct
 import subprocess
-import termios
 import threading
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
@@ -58,6 +56,7 @@ class LiveSplitTerminalService:
     ) -> SplitTerminalSession:
         if os.name != "posix":
             raise OSError("Split terminal is currently supported only on POSIX platforms")
+        import pty
 
         resolved_cwd = str(Path(cwd).expanduser().resolve())
         if not Path(resolved_cwd).is_dir():
@@ -173,6 +172,8 @@ class _PtySplitTerminalSession:
     def resize(self, *, columns: int, rows: int) -> None:
         if self._closed.is_set():
             return
+        import termios
+
         winsize = struct.pack("HHHH", rows, columns, 0, 0)
         try:
             termios.tcsetwinsize(self.master_fd, (rows, columns))
@@ -246,4 +247,6 @@ def _default_shell_command() -> tuple[str, ...]:
         parsed = tuple(shlex.split(shell))
         if parsed:
             return (*parsed, "-i")
-    return ("/bin/bash", "-i")
+    if os.name == "posix":
+        return ("/bin/bash", "-i")
+    raise OSError("No supported interactive shell found for split terminal")

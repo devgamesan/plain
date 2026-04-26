@@ -6,6 +6,10 @@ import pytest
 from zivo.services import LiveSplitTerminalService
 
 
+@pytest.mark.skipif(
+    condition=__import__("os").name != "posix",
+    reason="split terminal PTY behavior is POSIX-only",
+)
 def test_live_split_terminal_service_starts_and_echoes_input(tmp_path) -> None:
     outputs: list[str] = []
     exit_codes: list[int | None] = []
@@ -30,6 +34,10 @@ def test_live_split_terminal_service_starts_and_echoes_input(tmp_path) -> None:
     assert exit_codes
 
 
+@pytest.mark.skipif(
+    condition=__import__("os").name != "posix",
+    reason="split terminal PTY behavior is POSIX-only",
+)
 def test_live_split_terminal_service_requires_directory(tmp_path) -> None:
     service = LiveSplitTerminalService(shell_command=("/bin/sh", "-c", "cat"))
     file_path = tmp_path / "README.md"

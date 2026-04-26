@@ -1,3 +1,4 @@
+import os
 from dataclasses import replace
 from stat import S_IFREG
 
@@ -128,8 +129,9 @@ def test_select_current_entries_hides_hidden_by_default() -> None:
 def test_build_placeholder_app_state_keeps_parent_pane_empty_at_root() -> None:
     state = build_placeholder_app_state("/")
 
-    assert state.current_path == "/"
-    assert state.parent_pane.directory_path == "/"
+    expected_root = "C:\\" if os.name == "nt" else "/"
+    assert state.current_path == expected_root
+    assert state.parent_pane.directory_path == expected_root
     assert state.parent_pane.entries == ()
     assert state.parent_pane.cursor_path is None
 
@@ -1267,18 +1269,23 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     state = build_initial_app_state()
 
     help_state = select_help_bar_state(state)
+    split_terminal_hint = " | t term" if os.name == "posix" else ""
 
     assert help_state.lines == (
         "enter open | e edit | i info | space select | c copy | x cut | v paste | "
         "d delete | r rename | z undo",
         "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to | [ ] preview",
-        "n new-file | N new-dir | H history | b bookmarks | t term | : palette | q quit",
+        (
+            "n new-file | N new-dir | H history | "
+            f"b bookmarks{split_terminal_hint} | : palette | q quit"
+        ),
     )
     assert help_state.text == (
         "enter open | e edit | i info | space select | c copy | x cut | v paste | "
         "d delete | r rename | z undo\n"
         "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to | [ ] preview\n"
-        "n new-file | N new-dir | H history | b bookmarks | t term | : palette | q quit"
+        "n new-file | N new-dir | H history | "
+        f"b bookmarks{split_terminal_hint} | : palette | q quit"
     )
 
 

@@ -1,5 +1,10 @@
 """Browsing-mode key bindings and dispatcher."""
 
+from zivo.platform_support import (
+    is_split_terminal_supported,
+    split_terminal_unavailable_message,
+)
+
 from .actions import (
     Action,
     ActivateNextTab,
@@ -335,6 +340,12 @@ def handle_open_file_manager(state: AppState, _ctx: BrowsingCtx) -> DispatchedAc
     return supported(OpenPathWithDefaultApp(state.current_path))
 
 
+def handle_toggle_split_terminal(_state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
+    if not is_split_terminal_supported():
+        return warn(split_terminal_unavailable_message())
+    return supported(ToggleSplitTerminal())
+
+
 def handle_cursor_up(state: AppState, ctx: BrowsingCtx) -> DispatchedActions:
     if state.current_pane.selection_anchor_path is not None:
         return supported(ClearSelection(), MoveCursor(delta=-1, visible_paths=ctx.visible_paths))
@@ -416,7 +427,6 @@ BROWSING_SIMPLE_DISPATCH: dict[str, type[Action]] = {
     "begin_history_search": BeginHistorySearch,
     "begin_go_to_path": BeginGoToPath,
     "go_to_home_directory": GoToHomeDirectory,
-    "toggle_split_terminal": ToggleSplitTerminal,
     "reload_directory": ReloadDirectory,
     "go_back": GoBack,
     "go_forward": GoForward,
@@ -464,6 +474,7 @@ BROWSING_COMPLEX_DISPATCH: dict[str, BrowsingHandler] = {
     "permanent_delete_targets": handle_permanent_delete_targets,
     "open_in_editor": handle_open_in_editor,
     "enter_directory": handle_enter_directory,
+    "toggle_split_terminal": handle_toggle_split_terminal,
 }
 
 BROWSING_COMMAND_DISPATCH: dict[str, BrowsingHandler] = {

@@ -91,7 +91,7 @@ Overlay表示:
 | Ubuntu | サポート | 現時点で主要な動作確認対象です。 |
 | Ubuntu (WSL) | サポート | WSL 上の Ubuntu を動作確認対象としています。 |
 | macOS | サポート | ゴミ箱操作にはターミナルへのフルディスクアクセス権限が必要です。 |
-| Windows | 現時点では未サポート | Windows ネイティブ実行は未サポートです。 |
+| Windows | 一部対応 | 最低限の起動と基本的なブラウズは利用できますが、Windows ネイティブ実行はまだ完全な機能互換ではありません。 |
 
 ## インストール
 
@@ -156,7 +156,7 @@ sudo apt install chafa pandoc poppler-utils ripgrep wslu
 brew install chafa pandoc poppler ripgrep
 ```
 
-Windows は現時点では未サポートのため、Windows ネイティブ実行向けの依存ツール案内は対象外です。
+Windows ネイティブでは、現時点では最低限の起動と基本的なブラウズを主な対象としています。埋め込み split terminal のような POSIX 前提の機能は引き続き利用できず、`t` を押した場合も起動を試みずに非対応メッセージを表示します。そのため、Windows ネイティブ実行向けの依存ツール案内は対象外です。
 
 macOS では、使用しているターミナルアプリに **フルディスクアクセス** 権限を付与してください。**システム設定 > プライバシーとセキュリティ > フルディスクアクセス** を開き、zivo を実行するターミナルアプリ（Terminal.app、iTerm2、Alacritty など）を有効にしてください。この権限がない場合、`~/.Trash` などの保護されたディレクトリにアクセスする操作が失敗します。
 
@@ -226,7 +226,7 @@ zivo-cd
 | `.` | 隠しファイル表示を切り替え |
 | `s` | ソート順を循環切り替え |
 | `R` | ディレクトリを再読み込み |
-| `t` | 分割ターミナルを切り替え |
+| `t` | 分割ターミナルを切り替え（POSIX のみ。Windows ネイティブでは非対応メッセージを表示） |
 | `T` | 現在のディレクトリでターミナルを開く |
 | `o` | 新しいタブを開く |
 | `w` | 現在のタブを閉じる |
@@ -368,7 +368,7 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 | `Reload directory` | 常に表示 | 現在ディレクトリを再読み込みします。 |
 | `Toggle transfer mode` / `Close transfer mode` | 常に表示 | 通常の 3 ペインブラウザと 2 ペイン転送レイアウトを切り替えます。転送モード中は `q` / `2`、通常モードからは `2` でも実行できます。 |
 | `Undo last file operation` | Undo 履歴があるとき | 直前の Undo 対象リネーム、貼り付け、ゴミ箱移動を取り消します。`z` でも実行できます。ゴミ箱からの復元は現在 Linux のみ対応です。 |
-| `Toggle split terminal` | 常に表示 | 埋め込み split terminal を開閉します。 |
+| `Toggle split terminal` | POSIX 環境 | 埋め込み split terminal を開閉します。Windows ネイティブではコマンドパレット上でも無効表示のままで、`t` の直接入力でも非対応メッセージを表示します。 |
 | `Select all` | 現在ディレクトリに表示中の項目が 1 件以上あるとき | 現在ディレクトリで表示中の項目をすべて選択します。 |
 | `Replace text in selected files` | ファイルがフォーカス中、または現在ディレクトリで 1 件以上のファイルが選択中のとき | 選択中のファイル、または未選択時はフォーカス中のファイルを対象に 2 フィールドの置換パレットを開きます。一致したファイル一覧がパレットに表示され、`↑↓` と `Ctrl+n` / `Ctrl+p` で移動すると右ペインに選択中ファイルの diff を表示します。`Enter` で一括置換を実行します。`Shift+↑` / `Shift+↓` で diff preview をスクロールします。 |
 | `Replace text in found files` | 常に表示 | 3 フィールドの置換パレット（filename、find、replace）を開きます。ファイル名パターンでファイルを検索し、find/replace テキストで置換をプレビューします。`Tab` / `Shift+Tab` でフィールドを切り替えます。右ペインに diff preview を表示し、`Enter` で置換を適用します。 |
@@ -473,7 +473,7 @@ paths = ["/home/user/src", "/home/user/docs"]
 
 - サポート状況は上記の「サポートOS」セクションを参照してください。
 - 既定アプリ起動、ファイルマネージャ起動、ターミナル起動などの GUI 連携は、主に Ubuntu と WSL 上の Ubuntu で確認しています。
-- 埋め込み split terminal は現状 POSIX 環境、特に Ubuntu/Linux と WSL を前提にしています。
+- 埋め込み split terminal は現状 POSIX 環境、特に Ubuntu/Linux と WSL を前提にしており、Windows ネイティブでは利用できません。Windows ネイティブで `t` を押した場合は、起動を試みずに非対応メッセージを表示します。
 - `config.toml` でターミナルエディタやターミナル起動コマンドを指定した場合は、その設定を組み込みフォールバックより優先します。
 - WSL では、優先ブリッジ動作に使う `wslview` を利用できるよう `wslu` のインストールを推奨します。
 - WSL では `wslview`、`explorer.exe`、`clip.exe` のような Windows 側ブリッジを優先し、WSLg や Linux デスクトップ向けのフォールバックも維持します。

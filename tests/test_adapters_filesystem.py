@@ -1,5 +1,7 @@
-import grp
-import pwd
+import builtins
+import os
+
+import pytest
 
 from zivo.adapters import LocalFilesystemAdapter
 
@@ -36,7 +38,7 @@ def test_local_filesystem_adapter_lists_entries_with_lightweight_directory_metad
     assert hidden_entry.permissions_mode is not None
 
     assert readme_entry.kind == "file"
-    assert readme_entry.size_bytes == len("plain\n")
+    assert readme_entry.size_bytes == readme.stat().st_size
     assert readme_entry.permissions_mode is not None
 
 
@@ -48,14 +50,14 @@ def test_local_filesystem_adapter_list_directory_skips_owner_group_resolution(
     (tmp_path / "README.md").write_text("plain\n", encoding="utf-8")
     adapter = LocalFilesystemAdapter()
 
-    def _unexpected_user_lookup(_uid: int) -> None:
-        raise AssertionError("pwd.getpwuid should not be called while listing directories")
+    original_import = builtins.__import__
 
-    def _unexpected_group_lookup(_gid: int) -> None:
-        raise AssertionError("grp.getgrgid should not be called while listing directories")
+    def _unexpected_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name in {"grp", "pwd"}:
+            raise AssertionError(f"{name} should not be imported while listing directories")
+        return original_import(name, globals, locals, fromlist, level)
 
-    monkeypatch.setattr(pwd, "getpwuid", _unexpected_user_lookup)
-    monkeypatch.setattr(grp, "getgrgid", _unexpected_group_lookup)
+    monkeypatch.setattr("builtins.__import__", _unexpected_import)
 
     entries = adapter.list_directory(str(tmp_path))
 
@@ -63,6 +65,8 @@ def test_local_filesystem_adapter_list_directory_skips_owner_group_resolution(
 
 
 def test_local_filesystem_adapter_inspect_entry_loads_detailed_metadata(tmp_path) -> None:
+    pwd = pytest.importorskip("pwd")
+    grp = pytest.importorskip("grp")
     readme = tmp_path / "README.md"
     readme.write_text("plain\n", encoding="utf-8")
     adapter = LocalFilesystemAdapter()
@@ -72,7 +76,7 @@ def test_local_filesystem_adapter_inspect_entry_loads_detailed_metadata(tmp_path
     assert entry is not None
     stat_result = readme.stat()
     assert entry.kind == "file"
-    assert entry.size_bytes == len("plain\n")
+    assert entry.size_bytes == stat_result.st_size
     assert entry.permissions_mode == stat_result.st_mode
     assert entry.modified_at is not None
     assert entry.owner == pwd.getpwuid(stat_result.st_uid).pw_name
@@ -80,6 +84,31 @@ def test_local_filesystem_adapter_inspect_entry_loads_detailed_metadata(tmp_path
     assert entry.symlink is False
 
 
+def test_local_filesystem_adapter_inspect_entry_returns_none_owner_group_when_unavailable(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("plain\n", encoding="utf-8")
+    adapter = LocalFilesystemAdapter()
+
+    original_import = builtins.__import__
+
+    def _import_with_missing_posix_modules(name, globals=None, locals=None, fromlist=(), level=0):
+        if name in {"grp", "pwd"}:
+            raise ImportError(f"No module named {name}")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr("builtins.__import__", _import_with_missing_posix_modules)
+
+    entry = adapter.inspect_entry(str(readme))
+
+    assert entry is not None
+    assert entry.owner is None
+    assert entry.group is None
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation requires extra Windows privileges")
 def test_local_filesystem_adapter_inspect_entry_marks_symlink(tmp_path) -> None:
     target = tmp_path / "README.md"
     target.write_text("plain\n", encoding="utf-8")
@@ -94,6 +123,7 @@ def test_local_filesystem_adapter_inspect_entry_marks_symlink(tmp_path) -> None:
     assert entry.kind == "file"
 
 
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation requires extra Windows privileges")
 def test_local_filesystem_adapter_includes_broken_symlink_entries(tmp_path) -> None:
     docs = tmp_path / "docs"
     docs.mkdir()
@@ -108,6 +138,7 @@ def test_local_filesystem_adapter_includes_broken_symlink_entries(tmp_path) -> N
     assert entries[1].symlink is True
 
 
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation requires extra Windows privileges")
 def test_local_filesystem_adapter_treats_directory_symlink_as_dir(tmp_path) -> None:
     docs = tmp_path / "docs"
     docs.mkdir()
@@ -139,6 +170,7 @@ def test_local_filesystem_adapter_calculates_recursive_directory_size(tmp_path) 
     assert size == len("guide") + len("deep-data")
 
 
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation requires extra Windows privileges")
 def test_local_filesystem_adapter_directory_size_ignores_symlinks(tmp_path) -> None:
     docs = tmp_path / "docs"
     docs.mkdir()
@@ -154,6 +186,7 @@ def test_local_filesystem_adapter_directory_size_ignores_symlinks(tmp_path) -> N
     assert size == len("guide")
 
 
+@pytest.mark.skipif(os.name == "nt", reason="permission semantics differ on Windows")
 def test_local_filesystem_adapter_directory_size_skips_permission_denied_descendants(
     tmp_path,
 ) -> None:

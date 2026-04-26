@@ -87,7 +87,7 @@ Overlay display:
 | Ubuntu | Supported | Primary verified environment at the moment. |
 | Ubuntu (WSL) | Supported | WSL running Ubuntu is part of the verified environments. |
 | macOS | Supported | Grant Full Disk Access to your terminal for trash operations. |
-| Windows | Not supported at this time | Native Windows runtime is not supported. |
+| Windows | Partial | Minimum startup and basic browsing are supported, but native Windows still lacks full feature parity. |
 
 ## Installation
 
@@ -152,7 +152,7 @@ sudo apt install chafa pandoc poppler-utils ripgrep wslu
 brew install chafa pandoc poppler ripgrep
 ```
 
-Windows is not supported at this time, so native Windows dependency guidance is out of scope.
+On native Windows, zivo currently focuses on minimum startup and basic browsing. POSIX-oriented features such as the embedded split terminal are still unavailable there, so native Windows dependency guidance remains intentionally limited.
 
 On macOS, grant **Full Disk Access** to your terminal application. Open **System Settings > Privacy & Security > Full Disk Access** and enable the terminal app you use to run zivo (for example Terminal.app, iTerm2, or Alacritty). Without this permission, operations that access `~/.Trash` or other protected directories will fail.
 
@@ -222,7 +222,7 @@ When a file is focused, press `e` to switch into a terminal editor in the curren
 | `.` | Toggle hidden files |
 | `s` | Cycle sort |
 | `R` | Reload directory |
-| `t` | Toggle split terminal |
+| `t` | Toggle split terminal (POSIX only) |
 | `T` | Open terminal at current directory |
 | `o` | Open new tab |
 | `w` | Close current tab |
@@ -364,7 +364,7 @@ The tab strip is only shown when two or more browser tabs are open.
 | `Reload directory` | Always | Reloads the current directory. |
 | `Toggle transfer mode` / `Close transfer mode` | Always | Switches between the normal three-pane browser and the two-pane transfer layout. Also available with `q` / `2` while transfer mode is open, and `2` from normal mode. |
 | `Undo last file operation` | Undo history is not empty | Reverses the most recent undoable rename, paste, or trash operation. Also available with `z`. Trash restore is currently Linux-only. |
-| `Toggle split terminal` | Always | Opens or closes the embedded split terminal. |
+| `Toggle split terminal` | POSIX environments | Opens or closes the embedded split terminal. Not available on native Windows. |
 | `Select all` | Current directory has at least one visible entry | Selects every currently visible entry in the current directory, respecting hidden-file visibility and any active filter. |
 | `Replace text in selected files` | A file is focused or one or more files are selected in the current directory | Opens a two-field replacement palette for the selected files, or the focused file when nothing is explicitly selected. Matching files appear in the palette, `↑↓` and `Ctrl+n` / `Ctrl+p` move between them, and the right pane shows the selected file's diff before `Enter` applies the replacement. `Shift+↑` / `Shift+↓` scrolls the diff preview. |
 | `Replace text in found files` | Always | Opens a three-field replacement palette (filename, find, replace). Type a filename pattern to search for files, then type find/replace text to preview replacements. `Tab` / `Shift+Tab` cycle between fields. The right pane shows the diff preview, and `Enter` applies the replacement. |
@@ -394,7 +394,7 @@ If the file does not exist yet, zivo creates it automatically with default value
 
 - Linux: `${XDG_CONFIG_HOME:-~/.config}/zivo/config.toml`
 - macOS: `~/Library/Application Support/zivo/config.toml`
-- Windows config path is reserved for future compatibility, but native Windows runtime is still unsupported
+- Windows: `%APPDATA%\\zivo\\config.toml` (minimum startup support; some runtime features still unavailable)
 
 The supported settings are:
 
@@ -403,7 +403,7 @@ The supported settings are:
 | `terminal` | `launch_mode` | `window` / `foreground` | Chooses how `T` opens a terminal for zivo's current directory. `window` starts a separate terminal window. `foreground` suspends zivo, opens an interactive shell in the current terminal, and returns to zivo after `exit`. |
 | `terminal` | `linux` | Array of shell-style command templates | Optional terminal launch commands for Linux. Use `{path}` as the working-directory placeholder. Invalid or empty entries are ignored. |
 | `terminal` | `macos` | Array of shell-style command templates | Optional terminal launch commands for macOS, validated the same way as Linux entries. |
-| `terminal` | `windows` | Array of shell-style command templates | Optional terminal launch commands for Windows and WSL bridge workflows. The config key is accepted even though native Windows runtime is not currently supported. |
+| `terminal` | `windows` | Array of shell-style command templates | Optional terminal launch commands for Windows and WSL bridge workflows. Native Windows startup is supported at a minimum level, but full terminal integration is still incomplete. |
 | `editor` | `command` | Shell-style string, for example `nvim -u NONE` | Optional terminal editor command used by `e`. Do not include the file path; zivo appends it automatically. Unsupported GUI editors or invalid commands are ignored. |
 | `display` | `show_hidden_files` | `true` / `false` | Default hidden-file visibility when the app starts. |
 | `display` | `show_directory_sizes` | `true` / `false` | Shows recursive directory sizes in the current pane. Defaults to `true`. Large directories can be expensive to scan. zivo also calculates sizes automatically while the main pane is sorted by `size`. |
@@ -476,7 +476,7 @@ The accepted `display.preview_syntax_theme` values are `auto` plus the Pygments 
 
 - Refer to the "Supported OS" section above for current support status.
 - GUI integration such as default-app launch, file-manager launch, and external terminal launch is currently verified mainly on Ubuntu and Ubuntu running under WSL.
-- The embedded split terminal currently targets POSIX environments, especially Ubuntu/Linux and WSL.
+- The embedded split terminal currently targets POSIX environments, especially Ubuntu/Linux and WSL, and is not available on native Windows.
 - `config.toml` can override both the preferred terminal editor and external terminal launch commands before built-in fallbacks are used.
 - On WSL, `wslu` is recommended so `wslview` is available for the preferred bridge behavior.
 - On WSL, zivo prefers Windows-side bridges such as `wslview`, `explorer.exe`, and `clip.exe` when available, while keeping Linux-side fallbacks for WSLg and desktop Linux environments.

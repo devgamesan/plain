@@ -1,5 +1,6 @@
 """Status, palette, and dialog selectors."""
 
+import os
 from pathlib import Path
 
 from zivo.models import (
@@ -211,12 +212,17 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         )
     if state.config.help_bar.browsing:
         return HelpBarState(state.config.help_bar.browsing)
+    split_terminal_hint = " | t term" if os.name == "posix" else ""
+    browsing_shortcuts = (
+        "n new-file | N new-dir | H history | "
+        f"b bookmarks{split_terminal_hint} | : palette | q quit"
+    )
     return HelpBarState(
         (
             "enter open | e edit | i info | space select | c copy | x cut | v paste | "
             "d delete | r rename | z undo",
             "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to | [ ] preview",
-            "n new-file | N new-dir | H history | b bookmarks | t term | : palette | q quit",
+            browsing_shortcuts,
         )
     )
 

@@ -1,6 +1,7 @@
 from dataclasses import replace
 from pathlib import Path
 
+import zivo.state.reducer_terminal_config as reducer_terminal_config_module
 from tests.state_test_helpers import reduce_state
 from zivo.models import (
     AppConfig,
@@ -562,7 +563,7 @@ def test_go_to_parent_directory_restores_cursor_to_previous_child() -> None:
     assert result.state.pending_browser_snapshot_request_id == 1
     assert result.state.ui_mode == "BUSY"
     assert len(result.effects) == 1
-    assert result.effects[0].path == "/home/tadashi/develop"
+    assert result.effects[0].path == str(Path("/home/tadashi/develop/zivo").parent)
     assert result.effects[0].cursor_path == "/home/tadashi/develop/zivo"
     assert result.effects[0].blocking is True
 
@@ -598,7 +599,7 @@ def test_go_to_parent_directory_uses_current_path_parent() -> None:
     result = reduce_app_state(state, GoToParentDirectory())
 
     assert len(result.effects) == 1
-    assert result.effects[0].path == "/tmp/work"
+    assert result.effects[0].path == str(Path("/tmp/work/project").parent)
     assert result.effects[0].cursor_path == "/tmp/work/project"
 
 def test_go_to_home_directory_navigates_to_home() -> None:
@@ -1328,7 +1329,10 @@ def test_open_path_in_editor_allows_non_browser_file_path() -> None:
         ),
     )
 
-def test_toggle_split_terminal_starts_embedded_session() -> None:
+def test_toggle_split_terminal_starts_embedded_session(monkeypatch) -> None:
+    monkeypatch.setattr(
+        reducer_terminal_config_module, "is_split_terminal_supported", lambda: True
+    )
     result = reduce_app_state(build_initial_app_state(), ToggleSplitTerminal())
 
     assert result.state.split_terminal.visible is True
@@ -1342,7 +1346,10 @@ def test_toggle_split_terminal_starts_embedded_session() -> None:
         ),
     )
 
-def test_toggle_split_terminal_closes_active_session() -> None:
+def test_toggle_split_terminal_closes_active_session(monkeypatch) -> None:
+    monkeypatch.setattr(
+        reducer_terminal_config_module, "is_split_terminal_supported", lambda: True
+    )
     state = replace(
         build_initial_app_state(),
         split_terminal=replace(
@@ -1374,11 +1381,34 @@ def test_focus_split_terminal_switches_focus_target() -> None:
 
     assert next_state.split_terminal.focus_target == "terminal"
 
-def test_toggle_split_terminal_opens_with_terminal_focus() -> None:
+def test_toggle_split_terminal_opens_with_terminal_focus(monkeypatch) -> None:
+    monkeypatch.setattr(
+        reducer_terminal_config_module, "is_split_terminal_supported", lambda: True
+    )
     result = reduce_app_state(build_initial_app_state(), ToggleSplitTerminal())
 
     assert result.state.split_terminal.visible is True
     assert result.state.split_terminal.focus_target == "terminal"
+
+
+def test_toggle_split_terminal_warns_when_unsupported(monkeypatch) -> None:
+    monkeypatch.setattr(
+        reducer_terminal_config_module, "is_split_terminal_supported", lambda: False
+    )
+    monkeypatch.setattr(
+        reducer_terminal_config_module,
+        "split_terminal_unavailable_message",
+        lambda: "Split terminal is not available on native Windows",
+    )
+
+    result = reduce_app_state(build_initial_app_state(), ToggleSplitTerminal())
+
+    assert result.state.split_terminal.visible is False
+    assert result.effects == ()
+    assert result.state.notification == NotificationState(
+        level="warning",
+        message="Split terminal is not available on native Windows",
+    )
 
 def test_send_split_terminal_input_emits_write_effect() -> None:
     state = replace(

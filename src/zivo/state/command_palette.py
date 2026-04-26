@@ -5,6 +5,7 @@ import platform
 from dataclasses import dataclass
 
 from zivo.archive_utils import is_supported_archive_path
+from zivo.platform_support import is_split_terminal_supported
 
 from .entry_state_helpers import select_visible_entry_states
 from .models import AppState
@@ -677,4 +678,4 @@ def _is_empty_trash_supported() -> bool:
 
 def _is_split_terminal_supported() -> bool:
     """Check if the embedded split terminal is available on this platform."""
-    return os.name == "posix" and platform.system() != "Windows"
+    return is_split_terminal_supported()

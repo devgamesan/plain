@@ -5,6 +5,10 @@ from textwrap import shorten
 from typing import Callable
 
 from zivo.models import BookmarkConfig, ExternalLaunchRequest, HelpBarConfig
+from zivo.platform_support import (
+    is_split_terminal_supported,
+    split_terminal_unavailable_message,
+)
 
 from .actions import (
     Action,
@@ -440,6 +444,16 @@ def _handle_toggle_split_terminal(
     action: ToggleSplitTerminal,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
+    if not is_split_terminal_supported():
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=split_terminal_unavailable_message(),
+                ),
+            )
+        )
     if state.split_terminal.visible:
         next_state = replace(
             state,

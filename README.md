@@ -379,7 +379,7 @@ The tab strip is only shown when two or more browser tabs are open.
 | `Move to trash` | At least one target is selected or focused | Moves the selected items, or the focused item, to trash (confirmation is enabled by default and can be configured). |
 | `Empty trash` | Always (Linux/macOS only) | Permanently deletes all items from the trash. Shows a confirmation dialog before emptying. Not available on Windows. |
 | `Open in file manager` | Always | Opens the current directory in the OS file manager. Also available with `M`. |
-| `Open terminal` | Always | Launches an external terminal rooted at zivo's current directory, using `config.toml` templates before built-in fallbacks. The launch mode can be switched between a separate window and foreground terminal handoff. Also available with `T`. |
+| `Open terminal` | Always | Launches an external terminal rooted at zivo's current directory, using `config.toml` templates before built-in fallbacks. The launch mode can be switched between a separate window and foreground terminal handoff. On Windows, `window` mode is supported and `foreground` remains unavailable for now. Also available with `T`. |
 | `Run shell command` | Always | Opens a one-line shell command dialog, runs the command in the current directory in the background, and returns the first output line or failure summary in the status bar. Also available with `!`. |
 | `Bookmark this directory` / `Remove bookmark` | Always | Saves or removes the current directory in `[bookmarks].paths`. The label reflects whether the current directory is already bookmarked. Also available with `B`. |
 | `Show hidden files` / `Hide hidden files` | Always | Toggles hidden-file visibility for the browser panes. The label reflects the current visibility state. Also available with `.`. |
@@ -394,16 +394,16 @@ If the file does not exist yet, zivo creates it automatically with default value
 
 - Linux: `${XDG_CONFIG_HOME:-~/.config}/zivo/config.toml`
 - macOS: `~/Library/Application Support/zivo/config.toml`
-- Windows: `%APPDATA%\\zivo\\config.toml` (minimum startup support; some runtime features still unavailable)
+- Windows: `%APPDATA%\\zivo\\config.toml`
 
 The supported settings are:
 
 | Section | Key | Values | Description |
 | --- | --- | --- | --- |
-| `terminal` | `launch_mode` | `window` / `foreground` | Chooses how `T` opens a terminal for zivo's current directory. `window` starts a separate terminal window. `foreground` suspends zivo, opens an interactive shell in the current terminal, and returns to zivo after `exit`. |
+| `terminal` | `launch_mode` | `window` / `foreground` | Chooses how `T` opens a terminal for zivo's current directory. `window` starts a separate terminal window. `foreground` suspends zivo, opens an interactive shell in the current terminal, and returns to zivo after `exit`. Windows currently supports `window` only. |
 | `terminal` | `linux` | Array of shell-style command templates | Optional terminal launch commands for Linux. Use `{path}` as the working-directory placeholder. Invalid or empty entries are ignored. |
 | `terminal` | `macos` | Array of shell-style command templates | Optional terminal launch commands for macOS, validated the same way as Linux entries. |
-| `terminal` | `windows` | Array of shell-style command templates | Optional terminal launch commands for Windows and WSL bridge workflows. Native Windows startup is supported at a minimum level, but full terminal integration is still incomplete. |
+| `terminal` | `windows` | Array of shell-style command templates | Optional terminal launch commands for Windows and WSL bridge workflows. Windows native `window` launch is supported; `foreground` is tracked separately and not yet implemented. |
 | `editor` | `command` | Shell-style string, for example `nvim -u NONE` | Optional terminal editor command used by `e`. Do not include the file path; zivo appends it automatically. Unsupported GUI editors or invalid commands are ignored. |
 | `display` | `show_hidden_files` | `true` / `false` | Default hidden-file visibility when the app starts. |
 | `display` | `show_directory_sizes` | `true` / `false` | Shows recursive directory sizes in the current pane. Defaults to `true`. Large directories can be expensive to scan. zivo also calculates sizes automatically while the main pane is sorted by `size`. |

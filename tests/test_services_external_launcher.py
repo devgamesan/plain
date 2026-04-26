@@ -1,4 +1,5 @@
 import io
+import re
 import sys
 from dataclasses import dataclass, field
 from types import SimpleNamespace
@@ -125,6 +126,23 @@ def test_local_external_launch_adapter_falls_back_to_explorer_on_wsl(tmp_path) -
     ]
 
 
+def test_local_external_launch_adapter_uses_cmd_start_on_windows(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("plain\n", encoding="utf-8")
+    runner = StubCommandRunner()
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Windows",
+        command_available=lambda command: command if command == "cmd.exe" else None,
+        command_runner=runner,
+    )
+
+    adapter.open_with_default_app(str(readme))
+
+    assert runner.executed == [
+        (("cmd.exe", "/c", "start", "", str(readme.resolve())), str(tmp_path.resolve()), None)
+    ]
+
+
 def test_local_external_launch_adapter_runs_terminal_editor_in_current_terminal(tmp_path) -> None:
     readme = tmp_path / "README.md"
     readme.write_text("plain\n", encoding="utf-8")
@@ -243,6 +261,21 @@ def test_local_external_launch_adapter_uses_open_on_macos(tmp_path) -> None:
     ]
 
 
+def test_local_external_launch_adapter_uses_wt_on_windows_for_terminal(tmp_path) -> None:
+    runner = StubCommandRunner()
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Windows",
+        command_available=lambda command: command if command == "wt.exe" else None,
+        command_runner=runner,
+    )
+
+    adapter.open_terminal(str(tmp_path))
+
+    assert runner.executed == [
+        (("wt.exe", "-d", str(tmp_path.resolve())), str(tmp_path), None)
+    ]
+
+
 def test_local_external_launch_adapter_prefers_configured_terminal_commands(tmp_path) -> None:
     runner = StubCommandRunner()
     adapter = LocalExternalLaunchAdapter(
@@ -289,13 +322,25 @@ def test_local_external_launch_adapter_runs_terminal_in_foreground_mode(tmp_path
     runner = StubForegroundRunner()
     adapter = LocalExternalLaunchAdapter(
         system_name_resolver=lambda: "Linux",
+        command_available=lambda command: command if command == "bash" else None,
         foreground_command_runner=runner,
-        environment_variable=lambda name: "/bin/sh" if name == "SHELL" else None,
+        environment_variable=lambda name: "bash" if name == "SHELL" else None,
     )
 
     adapter.open_terminal(str(tmp_path), launch_mode="foreground")
 
-    assert runner.executed == [(("/bin/sh", "-i"), str(tmp_path))]
+    assert runner.executed == [(("bash", "-i"), str(tmp_path))]
+
+
+def test_local_external_launch_adapter_rejects_windows_foreground_terminal_mode(tmp_path) -> None:
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Windows",
+        command_available=lambda command: command,
+        foreground_command_runner=StubForegroundRunner(),
+    )
+
+    with pytest.raises(OSError, match="not yet supported on Windows"):
+        adapter.open_terminal(str(tmp_path), launch_mode="foreground")
 
 
 def test_local_external_launch_adapter_copies_to_clipboard_on_linux() -> None:
@@ -320,6 +365,21 @@ def test_local_external_launch_adapter_uses_clip_exe_on_wsl() -> None:
         command_available=lambda command: command if command == "clip.exe" else None,
         command_runner=runner,
         environment_variable=lambda name: "Ubuntu" if name == "WSL_DISTRO_NAME" else None,
+    )
+
+    adapter.copy_to_clipboard("/tmp/zivo/docs\n/tmp/zivo/README.md")
+
+    assert runner.executed == [
+        (("clip.exe",), None, "/tmp/zivo/docs\n/tmp/zivo/README.md")
+    ]
+
+
+def test_local_external_launch_adapter_uses_clip_exe_on_windows() -> None:
+    runner = StubCommandRunner()
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Windows",
+        command_available=lambda command: command if command == "clip.exe" else None,
+        command_runner=runner,
     )
 
     adapter.copy_to_clipboard("/tmp/zivo/docs\n/tmp/zivo/README.md")
@@ -387,17 +447,19 @@ def test_local_external_launch_adapter_reports_invalid_editor_value(tmp_path) ->
         adapter.open_in_editor(str(readme))
 
 
-def test_local_external_launch_adapter_rejects_windows_native_support(tmp_path) -> None:
-    readme = tmp_path / "README.md"
-    readme.write_text("plain\n", encoding="utf-8")
+def test_local_external_launch_adapter_reads_from_windows_clipboard(monkeypatch) -> None:
+    def fake_run(*args, **kwargs):
+        assert args == (["powershell.exe", "-NoProfile", "-Command", "Get-Clipboard"],)
+        assert kwargs == {"capture_output": True, "text": True, "check": True}
+        return SimpleNamespace(stdout="clipboard text", returncode=0)
+
+    monkeypatch.setattr("zivo.adapters.external_launcher.subprocess.run", fake_run)
     adapter = LocalExternalLaunchAdapter(
         system_name_resolver=lambda: "Windows",
-        command_available=lambda command: command,
-        command_runner=StubCommandRunner(),
+        command_available=lambda command: command if command == "powershell.exe" else None,
     )
 
-    with pytest.raises(OSError, match="Windows native is unsupported"):
-        adapter.open_with_default_app(str(readme))
+    assert adapter.get_from_clipboard() == "clipboard text"
 
 
 def test_local_external_launch_adapter_uses_clipboard_fallback_when_commands_missing() -> None:
@@ -424,7 +486,10 @@ def test_live_external_launch_service_formats_open_error(tmp_path) -> None:
     )
     service = LiveExternalLaunchService(adapter=adapter)
 
-    with pytest.raises(OSError, match=f"Failed to open {missing.resolve()}: Not found: "):
+    with pytest.raises(
+        OSError,
+        match=re.escape(f"Failed to open {missing.resolve()}: Not found: "),
+    ):
         service.execute(ExternalLaunchRequest(kind="open_file", path=str(missing)))
 
 
@@ -450,8 +515,9 @@ def test_live_external_launch_service_opens_terminal_in_foreground_mode(tmp_path
     runner = StubForegroundRunner()
     adapter = LocalExternalLaunchAdapter(
         system_name_resolver=lambda: "Linux",
+        command_available=lambda command: command if command == "bash" else None,
         foreground_command_runner=runner,
-        environment_variable=lambda name: "/bin/sh" if name == "SHELL" else None,
+        environment_variable=lambda name: "bash" if name == "SHELL" else None,
     )
     service = LiveExternalLaunchService(adapter=adapter)
     path = str(tmp_path.resolve())
@@ -464,7 +530,7 @@ def test_live_external_launch_service_opens_terminal_in_foreground_mode(tmp_path
         )
     )
 
-    assert runner.executed == [(("/bin/sh", "-i"), path)]
+    assert runner.executed == [(("bash", "-i"), path)]
 
 
 def test_live_external_launch_service_copies_paths_with_expected_payload() -> None:
@@ -493,7 +559,7 @@ def test_live_external_launch_service_formats_editor_error(tmp_path) -> None:
 
     with pytest.raises(
         OSError,
-        match=f"Failed to open {missing.resolve()} in editor: Not found: ",
+        match=re.escape(f"Failed to open {missing.resolve()} in editor: Not found: "),
     ):
         service.execute(ExternalLaunchRequest(kind="open_editor", path=str(missing)))
 
@@ -510,29 +576,27 @@ def test_live_external_launch_service_formats_terminal_error_for_file(tmp_path) 
 
     with pytest.raises(
         OSError,
-        match=f"Failed to open terminal in {readme.resolve()}: Not a directory: ",
+        match=re.escape(f"Failed to open terminal in {readme.resolve()}: Not a directory: "),
     ):
         service.execute(ExternalLaunchRequest(kind="open_terminal", path=str(readme)))
 
 
-def test_live_external_launch_service_formats_windows_native_error(tmp_path) -> None:
+def test_live_external_launch_service_opens_file_on_windows(tmp_path) -> None:
     readme = tmp_path / "README.md"
     readme.write_text("plain\n", encoding="utf-8")
+    runner = StubCommandRunner()
     adapter = LocalExternalLaunchAdapter(
         system_name_resolver=lambda: "Windows",
-        command_available=lambda command: command,
-        command_runner=StubCommandRunner(),
+        command_available=lambda command: command if command == "cmd.exe" else None,
+        command_runner=runner,
     )
     service = LiveExternalLaunchService(adapter=adapter)
 
-    with pytest.raises(
-        OSError,
-        match=(
-            f"Failed to open {readme.resolve()}: "
-            "Windows native is unsupported; run zivo from WSL"
-        ),
-    ):
-        service.execute(ExternalLaunchRequest(kind="open_file", path=str(readme)))
+    service.execute(ExternalLaunchRequest(kind="open_file", path=str(readme)))
+
+    assert runner.executed == [
+        (("cmd.exe", "/c", "start", "", str(readme.resolve())), str(tmp_path.resolve()), None)
+    ]
 
 
 def test_live_external_launch_service_formats_copy_error() -> None:

@@ -134,7 +134,7 @@ class LiveFileSearchService:
                 results.append(
                     FileSearchResultState(
                         path=str(child),
-                        display_path=str(child.relative_to(root)),
+                        display_path=child.relative_to(root).as_posix(),
                     )
                 )
 

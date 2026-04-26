@@ -89,6 +89,11 @@ from zivo.ui import (
 )
 from zivo.ui.panes import MainPane
 
+skip_if_windows_split_terminal_unsupported = pytest.mark.skipif(
+    os.name == "nt",
+    reason="split terminal is unsupported on native Windows",
+)
+
 
 def _build_snapshot(
     path: str,
@@ -4711,6 +4716,7 @@ async def test_app_command_palette_open_terminal_launches_current_directory() ->
         assert app.app_state.ui_mode == "BROWSING"
 
 
+@skip_if_windows_split_terminal_unsupported
 @pytest.mark.asyncio
 async def test_app_ctrl_t_opens_split_terminal_and_focuses_it() -> None:
     path = str(Path("/tmp/zivo-split-terminal").resolve())
@@ -4749,6 +4755,7 @@ async def test_app_ctrl_t_opens_split_terminal_and_focuses_it() -> None:
         assert app.focused is split_terminal
 
 
+@skip_if_windows_split_terminal_unsupported
 @pytest.mark.asyncio
 async def test_app_split_terminal_uses_half_of_body_height_when_visible() -> None:
     path = str(Path("/tmp/zivo-split-terminal-layout").resolve())
@@ -4782,6 +4789,7 @@ async def test_app_split_terminal_uses_half_of_body_height_when_visible() -> Non
         assert abs(browser_row.size.height - split_terminal.size.height) <= 1
 
 
+@skip_if_windows_split_terminal_unsupported
 @pytest.mark.asyncio
 async def test_app_overlay_split_terminal_keeps_help_and_status_visible() -> None:
     path = str(Path("/tmp/zivo-split-terminal-overlay").resolve())
@@ -4828,6 +4836,7 @@ async def test_app_overlay_split_terminal_keeps_help_and_status_visible() -> Non
         assert help_bar.region.bottom <= status_bar.region.y
 
 
+@skip_if_windows_split_terminal_unsupported
 @pytest.mark.asyncio
 async def test_app_split_terminal_focus_routes_input_to_session() -> None:
     path = str(Path("/tmp/zivo-split-terminal-input").resolve())
@@ -4857,6 +4866,7 @@ async def test_app_split_terminal_focus_routes_input_to_session() -> None:
         session = split_terminal_service.sessions[0]
         assert session.writes == ["a", "\r"]
 
+@skip_if_windows_split_terminal_unsupported
 @pytest.mark.asyncio
 async def test_app_split_terminal_focus_sends_tab() -> None:
     path = str(Path("/tmp/zivo-split-terminal-tab").resolve())
@@ -4887,6 +4897,7 @@ async def test_app_split_terminal_focus_sends_tab() -> None:
         assert session.writes == ["\t"]
 
 
+@skip_if_windows_split_terminal_unsupported
 @pytest.mark.asyncio
 async def test_app_split_terminal_coalesces_rapid_output_updates() -> None:
     path = str(Path("/tmp/zivo-split-terminal-coalesce").resolve())
@@ -4935,6 +4946,7 @@ async def test_app_split_terminal_coalesces_rapid_output_updates() -> None:
         assert str(body.renderable).splitlines()[0].startswith("abc")
 
 
+@skip_if_windows_split_terminal_unsupported
 @pytest.mark.asyncio
 async def test_app_split_terminal_ignores_unsupported_private_sgr_sequences() -> None:
     path = str(Path("/tmp/zivo-split-terminal-private-sgr").resolve())

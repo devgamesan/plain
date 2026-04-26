@@ -1,4 +1,5 @@
 from dataclasses import replace
+from pathlib import Path
 
 from tests.state_test_helpers import reduce_state
 from zivo.models import (
@@ -617,6 +618,10 @@ def test_submit_command_palette_uses_inline_error_message_when_present() -> None
         message="Invalid regex: unterminated character set",
     )
 
+def _resolved_parent(path: str) -> str:
+    return str(Path(path).parent.resolve())
+
+
 def test_submit_command_palette_file_search_result_requests_snapshot() -> None:
     state = _reduce_state(build_initial_app_state(), BeginFileSearch())
     state = replace(
@@ -639,12 +644,12 @@ def test_submit_command_palette_file_search_result_requests_snapshot() -> None:
     assert result.state.ui_mode == "BUSY"
     assert result.state.command_palette is None
     assert result.effects == (
-        LoadBrowserSnapshotEffect(
-            request_id=1,
-            path="/home/tadashi/develop/zivo/docs",
-            cursor_path="/home/tadashi/develop/zivo/docs/README.md",
-            blocking=True,
-        ),
+            LoadBrowserSnapshotEffect(
+                request_id=1,
+                path=_resolved_parent("/home/tadashi/develop/zivo/docs/README.md"),
+                cursor_path="/home/tadashi/develop/zivo/docs/README.md",
+                blocking=True,
+            ),
     )
 
 def test_grep_search_completed_updates_palette_results() -> None:
@@ -806,12 +811,12 @@ def test_submit_command_palette_grep_result_requests_snapshot() -> None:
 
     assert result.state.ui_mode == "BUSY"
     assert result.effects == (
-        LoadBrowserSnapshotEffect(
-            request_id=1,
-            path="/home/tadashi/develop/zivo/src/zivo",
-            cursor_path="/home/tadashi/develop/zivo/src/zivo/app.py",
-            blocking=True,
-        ),
+            LoadBrowserSnapshotEffect(
+                request_id=1,
+                path=_resolved_parent("/home/tadashi/develop/zivo/src/zivo/app.py"),
+                cursor_path="/home/tadashi/develop/zivo/src/zivo/app.py",
+                blocking=True,
+            ),
     )
 
 def test_cancel_grep_command_palette_restores_current_cursor_preview() -> None:

@@ -30,6 +30,16 @@ def test_resolve_config_path_uses_xdg_directory(tmp_path) -> None:
     assert path == tmp_path / "zivo" / "config.toml"
 
 
+def test_resolve_config_path_uses_appdata_on_windows(tmp_path) -> None:
+    path = resolve_config_path(
+        system_name_resolver=lambda: "Windows",
+        environment_variable=lambda name: str(tmp_path) if name == "APPDATA" else None,
+        home_directory_resolver=lambda: Path("/unused-home"),
+    )
+
+    assert path == tmp_path / "zivo" / "config.toml"
+
+
 def test_loader_creates_default_config_when_missing(tmp_path) -> None:
     config_path = tmp_path / "config.toml"
 
@@ -62,11 +72,15 @@ def test_loader_creates_default_config_when_missing(tmp_path) -> None:
 
 def test_loader_reads_valid_config_values(tmp_path) -> None:
     config_path = tmp_path / "config.toml"
+    bookmark_a = str((tmp_path / "project").resolve())
+    bookmark_b = str((tmp_path / "notes").resolve())
+    bookmark_a_toml = bookmark_a.replace("\\", "\\\\")
+    bookmark_b_toml = bookmark_b.replace("\\", "\\\\")
     config_path.write_text(
-        """
+        f"""
         [terminal]
         launch_mode = "foreground"
-        linux = ["konsole --working-directory {path}"]
+        linux = ["konsole --working-directory {{path}}"]
 
         [editor]
         command = "nvim -u NONE"
@@ -95,7 +109,7 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
         path = "~/logs/zivo.log"
 
         [bookmarks]
-        paths = ["/tmp/project", "~/notes", "/tmp/project"]
+        paths = ["{bookmark_a_toml}", "{bookmark_b_toml}", "{bookmark_a_toml}"]
         """,
         encoding="utf-8",
     )
@@ -125,10 +139,7 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
     assert result.config.behavior.paste_conflict_action == "rename"
     assert result.config.logging.enabled is False
     assert result.config.logging.path == "~/logs/zivo.log"
-    assert result.config.bookmarks.paths == (
-        str(Path("/tmp/project").resolve()),
-        str((Path.home() / "notes").resolve()),
-    )
+    assert result.config.bookmarks.paths == (bookmark_a, bookmark_b)
 
 
 def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> None:

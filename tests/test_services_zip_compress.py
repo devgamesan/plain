@@ -29,8 +29,8 @@ def test_zip_compress_service_creates_archive_for_selected_targets(tmp_path) -> 
 
     with zipfile.ZipFile(destination_path) as archive:
         assert set(archive.namelist()) == {"docs/", "docs/readme.txt", "notes.txt"}
-        assert archive.read("docs/readme.txt").decode("utf-8") == "hello\n"
-        assert archive.read("notes.txt").decode("utf-8") == "notes\n"
+        assert archive.read("docs/readme.txt").decode("utf-8").replace("\r\n", "\n") == "hello\n"
+        assert archive.read("notes.txt").decode("utf-8").replace("\r\n", "\n") == "notes\n"
 
     assert result.destination_path == str(destination_path)
     assert result.archived_entries == 3

@@ -190,8 +190,8 @@ def test_enter_transfer_directory_loads_active_pane_snapshot() -> None:
     assert effect.request_id == 1
     assert effect.pane_id == "left"
     assert effect.path == "/home/tadashi/develop/zivo/docs"
-    assert effect.invalidate_paths[0].endswith("/home/tadashi/develop/zivo/docs")
-    assert effect.invalidate_paths[1].endswith("/home/tadashi/develop/zivo")
+    assert effect.invalidate_paths[0] == str(Path("/home/tadashi/develop/zivo/docs").resolve())
+    assert effect.invalidate_paths[1] == str(Path("/home/tadashi/develop/zivo").resolve())
 
 
 def test_focus_transfer_pane_changes_active_side() -> None:

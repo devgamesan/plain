@@ -62,10 +62,6 @@ def test_begin_create_input_sets_mode_and_kind() -> None:
     )
 
 
-def _resolved(path: str) -> str:
-    return str(Path(path).resolve())
-
-
 def test_begin_symlink_input_sets_destination_prompt() -> None:
     next_state = _reduce_state(
         build_initial_app_state(),
@@ -75,8 +71,8 @@ def test_begin_symlink_input_sets_destination_prompt() -> None:
     assert next_state.ui_mode == "SYMLINK"
     assert next_state.pending_input == PendingInputState(
         prompt="Create link at: ",
-        value=_resolved("/home/tadashi/develop/zivo/docs.link"),
-        cursor_pos=len(_resolved("/home/tadashi/develop/zivo/docs.link")),
+        value="/home/tadashi/develop/zivo/docs.link",
+        cursor_pos=len("/home/tadashi/develop/zivo/docs.link"),
         symlink_source_path="/home/tadashi/develop/zivo/docs",
     )
 
@@ -154,7 +150,7 @@ def test_submit_pending_input_rejects_duplicate_name() -> None:
 
     next_state = _reduce_state(state, SubmitPendingInput())
 
-    assert next_state.ui_mode in {"CONFIRM", "BUSY"}
+    assert next_state.ui_mode == "CONFIRM"
     assert next_state.pending_input is not None
     assert next_state.notification is None
     assert next_state.name_conflict == NameConflictState(
@@ -245,7 +241,7 @@ def test_submit_pending_input_name_conflict_enters_confirm_mode_for_rename() -> 
 
     result = reduce_app_state(state, SubmitPendingInput())
 
-    assert result.state.ui_mode in {"CONFIRM", "BUSY"}
+    assert result.state.ui_mode == "CONFIRM"
     assert result.state.notification is None
     assert result.state.name_conflict == NameConflictState(kind="rename", name="src")
     assert result.effects == ()
@@ -264,7 +260,7 @@ def test_submit_pending_input_name_conflict_enters_confirm_mode_for_create_dir()
 
     result = reduce_app_state(state, SubmitPendingInput())
 
-    assert result.state.ui_mode in {"CONFIRM", "BUSY"}
+    assert result.state.ui_mode == "CONFIRM"
     assert result.state.name_conflict == NameConflictState(kind="create_dir", name="docs")
     assert result.effects == ()
 

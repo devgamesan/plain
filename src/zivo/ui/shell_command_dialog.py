@@ -71,7 +71,11 @@ class ShellCommandDialog(Container):
 
         # 終了コードの表示
         exit_style = "green" if result.exit_code == 0 else "red"
-        exit_label = "Success" if result.exit_code == 0 else f"Failed (exit code {result.exit_code})"
+        exit_label = (
+            "Success"
+            if result.exit_code == 0
+            else f"Failed (exit code {result.exit_code})"
+        )
         text.append(f"[{exit_label}] ", style=exit_style)
         text.append("\n")
 

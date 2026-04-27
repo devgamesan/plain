@@ -88,7 +88,7 @@ from zivo.ui import (
     TabBar,
 )
 from zivo.ui.panes import MainPane
-from zivo.windows_paths import WINDOWS_DRIVES_ROOT
+from zivo.windows_paths import WINDOWS_DRIVES_ROOT, is_windows_path, paths_equal
 
 skip_if_windows_split_terminal_unsupported = pytest.mark.skipif(
     os.name == "nt",
@@ -586,11 +586,13 @@ async def _wait_for_transfer_right_table(app, timeout: float = 0.5) -> DataTable
 
 
 async def _wait_for_path(app, expected_path: str, timeout: float = 0.5) -> None:
-    resolved_expected = str(Path(expected_path).resolve())
+    resolved_expected = (
+        expected_path if is_windows_path(expected_path) else str(Path(expected_path).resolve())
+    )
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
         if (
-            app.app_state.current_path == resolved_expected
+            paths_equal(app.app_state.current_path, resolved_expected)
             and app.app_state.pending_browser_snapshot_request_id is None
         ):
             return
@@ -600,10 +602,12 @@ async def _wait_for_path(app, expected_path: str, timeout: float = 0.5) -> None:
 
 
 async def _wait_for_cursor_path(app, expected_path: str, timeout: float = 0.5) -> None:
-    resolved_expected = str(Path(expected_path).resolve())
+    resolved_expected = (
+        expected_path if is_windows_path(expected_path) else str(Path(expected_path).resolve())
+    )
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
-        if app.app_state.current_pane.cursor_path == resolved_expected:
+        if paths_equal(app.app_state.current_pane.cursor_path, resolved_expected):
             return
         if asyncio.get_running_loop().time() >= deadline:
             raise AssertionError(f"cursor path did not become {expected_path}")

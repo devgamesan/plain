@@ -578,6 +578,7 @@ def test_browsing_colon_opens_command_palette() -> None:
 
 
 
+
 def test_browsing_o_opens_new_tab() -> None:
     state = build_initial_app_state()
 

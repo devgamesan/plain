@@ -1292,6 +1292,7 @@ def test_open_path_in_editor_allows_non_browser_file_path() -> None:
     )
 
 
+
 def test_toggle_hidden_files_normalizes_cursor_and_selection() -> None:
     hidden_path = "/home/tadashi/develop/zivo/.env"
     visible_path = "/home/tadashi/develop/zivo/docs"

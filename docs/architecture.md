@@ -56,7 +56,6 @@ flowchart LR
         Archive["archive_extract.py"]
         Config["config.py"]
         Launch["external_launcher.py"]
-        Split["split_terminal.py"]
         ArchiveUtils["archive_utils.py\narchive 判定 / 展開先解決"]
     end
 
@@ -253,7 +252,6 @@ sequenceDiagram
 - `archive_extract.py`: archive 事前走査、競合検出、安全な展開、進捗通知を担当する
 - `config.py`: `config.toml` の読み込み、検証、保存、既定値レンダリングを担当する
 - `external_launcher.py`: 既定アプリ起動、terminal editor 起動、外部 terminal 起動、パスコピーを担当する
-- `split_terminal.py`: 埋め込み split terminal の PTY セッション起動、入出力、終了通知を担当する
 
 ### `src/zivo/archive_utils.py`
 

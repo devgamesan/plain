@@ -4755,6 +4755,7 @@ async def test_app_command_palette_open_terminal_launches_current_directory() ->
 
 
 
+
     path = str(Path("/tmp/zivo-open-file-manager").resolve())
     launch_service = FakeExternalLaunchService()
     loader = FakeBrowserSnapshotLoader(

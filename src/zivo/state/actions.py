@@ -223,10 +223,6 @@ from .actions_runtime import (
     RequestDirectorySizes,
     ShellCommandCompleted,
     ShellCommandFailed,
-    SplitTerminalExited,
-    SplitTerminalOutputReceived,
-    SplitTerminalStarted,
-    SplitTerminalStartFailed,
     TransferPaneSnapshotFailed,
     TransferPaneSnapshotLoaded,
     UndoCompleted,
@@ -415,10 +411,6 @@ Action = (
     | ExternalLaunchFailed
     | ShellCommandCompleted
     | ShellCommandFailed
-    | SplitTerminalStarted
-    | SplitTerminalStartFailed
-    | SplitTerminalOutputReceived
-    | SplitTerminalExited
     | ConfigSaveCompleted
     | ConfigSaveFailed
 )

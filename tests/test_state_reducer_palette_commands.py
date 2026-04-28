@@ -902,6 +902,7 @@ def test_submit_command_palette_goes_to_home_directory() -> None:
     assert isinstance(result.effects[0], LoadBrowserSnapshotEffect)
 
 
+
 def test_submit_command_palette_begins_rename_with_single_target() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
     state = _reduce_state(state, SetCommandPaletteQuery("rename"))

@@ -174,10 +174,6 @@ Screen {
     align-horizontal: center;
 }
 
-.split-terminal-overlay-layer {
-    align: center middle;
-}
-
 .dialog-layer {
     align: center middle;
 }
@@ -319,58 +315,6 @@ Screen {
     background: $boost;
     color: $text-muted;
     text-style: bold;
-}
-
-#split-terminal {
-    display: none;
-    height: 1fr;
-    min-height: 6;
-    background: $surface;
-}
-
-#split-terminal.-visible {
-    display: block;
-}
-
-#split-terminal.-focused {
-    background: $boost;
-}
-
-#split-terminal.split-terminal-right {
-    display: none;
-    width: 2.2fr;
-    min-width: 20;
-    height: 1fr;
-    min-height: 6;
-    border: round $surface;
-    background: $surface;
-}
-
-#split-terminal.split-terminal-right.-visible {
-    display: block;
-}
-
-#split-terminal.split-terminal-right.-focused {
-    background: $boost;
-}
-
-#split-terminal.split-terminal-overlay {
-    display: none;
-    width: 1fr;
-    height: 1fr;
-    min-width: 20;
-    min-height: 6;
-    margin: 1 2;
-    border: round $surface;
-    background: $surface;
-}
-
-#split-terminal.split-terminal-overlay.-visible {
-    display: block;
-}
-
-#split-terminal.split-terminal-overlay.-focused {
-    background: $boost;
 }
 
 /* File type component styles resolved via COMPONENT_CLASSES */

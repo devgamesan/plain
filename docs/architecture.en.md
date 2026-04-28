@@ -56,7 +56,6 @@ flowchart LR
         Archive["archive_extract.py"]
         Config["config.py"]
         Launch["external_launcher.py"]
-        Split["split_terminal.py"]
         ArchiveUtils["archive_utils.py\narchive detection / destination resolution"]
     end
 
@@ -253,7 +252,6 @@ sequenceDiagram
 - `archive_extract.py`: handles archive preflight scanning, conflict detection, safe extraction, and progress reporting
 - `config.py`: loads, validates, saves, and renders `config.toml`
 - `external_launcher.py`: handles default-app launch, terminal-editor launch, external-terminal launch, and path copy
-- `split_terminal.py`: starts PTY-backed split-terminal sessions, forwards I/O, and reports exit events
 
 ### `src/zivo/archive_utils.py`
 

@@ -156,11 +156,7 @@ class _RecordingApp:
     _external_launch_service: Any = field(
         default_factory=lambda: SimpleNamespace(execute=lambda request: None)
     )
-    _split_terminal_service: Any = field(
-        default_factory=lambda: SimpleNamespace(start=lambda cwd, **kwargs: None)
-    )
     _undo_service: Any = field(default_factory=lambda: SimpleNamespace(execute=lambda entry: None))
-    _split_terminal_session: Any = None
     suspend_error: BaseException | None = None
     run_worker_calls: list[dict[str, Any]] = field(default_factory=list)
     set_timer_calls: list[dict[str, Any]] = field(default_factory=list)

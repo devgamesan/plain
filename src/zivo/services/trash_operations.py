@@ -281,10 +281,9 @@ class WindowsTrashService:
         ps_script = (
             f"$shell = New-Object -ComObject Shell.Application;"
             f"$rb = $shell.NameSpace(0xa);"
-            f"$items = $rb.Items() | Where-Object {{ $_.Path -eq '{escaped_path}' }};"
-            f"$item = $items | Sort-Object ModifyDate -Descending | Select-Object -First 1;"
-            f"if ($item -eq $null) {{ exit 1 }};"
-            f"$item.InvokeVerb('estore');"
+            f"$items = @($rb.Items()) | Where-Object {{ $_ -and $_.Path -eq '{escaped_path}' }};"
+            f"if ($items.Count -eq 0) {{ exit 1 }};"
+            f"$items[0].InvokeVerb('restore');"
             f"Write-Output '{record.original_path}'"
         )
         try:

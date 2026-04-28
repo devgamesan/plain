@@ -411,7 +411,7 @@ def test_windows_trash_service_restore_succeeds(monkeypatch) -> None:
     assert "-NoProfile" in cmd
     assert "-Command" in cmd
     script_arg = cmd[cmd.index("-Command") + 1]
-    assert "InvokeVerb" in script_arg
+    assert "InvokeVerb('restore')" in script_arg
     assert "C:/Users/test/docs" in script_arg
 
 

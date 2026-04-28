@@ -1322,19 +1322,30 @@ def _load_pdf_preview(
     if pdftotext is None:
         return None
     try:
+        # Windowsではパスをダブルクォートで囲む必要がある
+        path_str = str(path)
+        if " " in path_str:
+            path_str = f'"{path_str}"'
         result = subprocess.run(
-            [pdftotext, "-q", str(path), "-"],
+            [pdftotext, "-q", path_str, "-"],
             check=True,
             capture_output=True,
         )
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, subprocess.SubprocessError, FileNotFoundError) as e:
+        import sys
+        sys.stderr.write(f"PDF preview error: {type(e).__name__}: {e}\n")
+        if hasattr(e, 'stderr') and e.stderr:
+            sys.stderr.write(f"pdftotext stderr: {e.stderr}\n")
         return None
     try:
         content = _normalize_preview_newlines(result.stdout.decode("utf-8"))
     except UnicodeDecodeError:
         content = _normalize_preview_newlines(result.stdout.decode("utf-8", errors="ignore"))
     if not content.strip():
-        return None
+        # 空のコンテンツは、画像ベースのPDFかテキストレイヤーがないPDF
+        return FilePreviewState.with_message(
+            "PDF preview: no text content found"
+        )
     return _truncate_preview_text(content, preview_max_bytes)
 
 

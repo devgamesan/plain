@@ -1,9 +1,11 @@
 """Runtime scheduling helpers for execution-oriented effects."""
 
+import sys
 import threading
 from concurrent.futures import CancelledError as FutureCancelledError
 from contextlib import nullcontext
 from functools import partial
+from pathlib import Path
 from typing import Any
 
 from textual.app import SuspendNotSupported
@@ -203,17 +205,8 @@ def run_foreground_external_launch(app: Any, effect: RunExternalLaunchEffect) ->
     suspend_context = nullcontext()
     try:
         suspend_context = app.suspend()
-    except SuspendNotSupported as error:
-        app.call_next(
-            app.dispatch_actions,
-            (
-                ExternalLaunchFailed(
-                    request_id=effect.request_id,
-                    request=effect.request,
-                    message=str(error),
-                ),
-            ),
-        )
+    except SuspendNotSupported:
+        _run_detached_external_launch(app, effect)
         return
 
     try:
@@ -243,6 +236,55 @@ def run_foreground_external_launch(app: Any, effect: RunExternalLaunchEffect) ->
             ),
         ),
     )
+
+
+def _run_detached_external_launch(app: Any, effect: RunExternalLaunchEffect) -> None:
+    import subprocess
+
+    request = effect.request
+    try:
+        adapter = getattr(app._external_launch_service, "adapter", None)
+        if adapter is None or not hasattr(adapter, "_editor_candidates"):
+            raise OSError("Editor launch not supported on this terminal")
+        path = request.path
+        line_number = request.line_number
+        commands = adapter._editor_candidates(path, line_number)
+        if not commands:
+            raise OSError("No supported terminal editor found")
+        cmd = list(commands[0])
+        cwd = str(Path(path).parent)
+        try:
+            subprocess.run(
+                cmd,
+                cwd=cwd,
+                check=True,
+                stdin=sys.stdin,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+            )
+            app.call_next(
+                app.dispatch_actions,
+                (
+                    ExternalLaunchCompleted(
+                        request_id=effect.request_id,
+                        request=effect.request,
+                    ),
+                ),
+            )
+            return
+        except subprocess.CalledProcessError as error:
+            raise OSError(str(error) or f"{cmd[0]} failed") from error
+    except OSError as error:
+        app.call_next(
+            app.dispatch_actions,
+            (
+                ExternalLaunchFailed(
+                    request_id=effect.request_id,
+                    request=effect.request,
+                    message=str(error) or "Editor launch failed",
+                ),
+            ),
+        )
 
 
 def run_copy_paths(app: Any, effect: RunExternalLaunchEffect) -> None:

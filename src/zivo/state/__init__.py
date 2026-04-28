@@ -73,6 +73,7 @@ from .models import (
     build_initial_app_state,
     build_placeholder_app_state,
     load_browser_tab,
+    resolve_parent_directory_path,
     select_browser_tabs,
 )
 from .reducer import reduce_app_state
@@ -169,6 +170,7 @@ __all__ = [
     "iter_bound_keys",
     "load_browser_tab",
     "reduce_app_state",
+    "resolve_parent_directory_path",
     "select_attribute_dialog_state",
     "select_browser_tabs",
     "select_child_entries",

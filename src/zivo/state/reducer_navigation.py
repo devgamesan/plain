@@ -4,6 +4,8 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Callable
 
+from zivo.windows_paths import comparable_path, is_windows_drives_root, is_windows_path
+
 from .actions import (
     Action,
     ActivateNextTab,
@@ -57,6 +59,7 @@ from .models import (
     NotificationState,
     PaneState,
     browser_tab_from_app_state,
+    resolve_parent_directory_path,
     select_browser_tabs,
 )
 from .reducer_common import (
@@ -234,16 +237,16 @@ def _promote_child_pane_to_current(
     promoted_cursor_path = normalize_cursor_path(promoted_entries, None)
     return replace(
         state,
-        current_path=path,
+        current_path=comparable_path(path),
         parent_pane=PaneState(
             directory_path=state.current_path,
             entries=state.current_pane.entries,
-            cursor_path=path,
+            cursor_path=comparable_path(path),
         ),
         current_pane=PaneState(
             directory_path=path,
             entries=promoted_entries,
-            cursor_path=promoted_cursor_path,
+            cursor_path=comparable_path(promoted_cursor_path),
         ),
         child_pane=PaneState(directory_path=path, entries=()),
         filter=FilterState(),
@@ -425,9 +428,8 @@ def _handle_move_cursor_and_select_range(
     if not action.visible_paths:
         return finalize(state)
     base_cursor_path = (
-        state.current_pane.cursor_path
-        if state.current_pane.cursor_path in action.visible_paths
-        else action.visible_paths[0]
+        normalize_selection_anchor_path(state.current_pane.cursor_path, action.visible_paths)
+        or comparable_path(action.visible_paths[0])
     )
     anchor_path = normalize_selection_anchor_path(
         state.current_pane.selection_anchor_path,
@@ -463,9 +465,9 @@ def _handle_jump_cursor(
     if not action.visible_paths:
         return finalize(state)
     cursor_path = (
-        action.visible_paths[0]
+        comparable_path(action.visible_paths[0])
         if action.position == "start"
-        else action.visible_paths[-1]
+        else comparable_path(action.visible_paths[-1])
     )
     next_state = replace(
         state,
@@ -486,16 +488,18 @@ def _handle_move_cursor_by_page(
 ) -> ReduceResult:
     if not action.visible_paths:
         return finalize(state)
+    current_cursor_path = normalize_selection_anchor_path(
+        state.current_pane.cursor_path,
+        action.visible_paths,
+    )
     current_index = (
-        action.visible_paths.index(state.current_pane.cursor_path)
-        if state.current_pane.cursor_path in action.visible_paths
-        else 0
+        action.visible_paths.index(current_cursor_path) if current_cursor_path is not None else 0
     )
     if action.direction == "up":
         new_index = max(0, current_index - action.page_size)
     else:  # direction == "down"
         new_index = min(len(action.visible_paths) - 1, current_index + action.page_size)
-    cursor_path = action.visible_paths[new_index]
+    cursor_path = comparable_path(action.visible_paths[new_index])
     next_state = replace(
         state,
         current_pane=replace(
@@ -519,7 +523,7 @@ def _handle_set_cursor_path(
         state,
         current_pane=replace(
             state.current_pane,
-            cursor_path=action.path,
+            cursor_path=comparable_path(action.path),
             selection_anchor_path=None,
         ),
         notification=None,
@@ -549,7 +553,14 @@ def _handle_go_to_parent_directory(
     action: GoToParentDirectory,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
-    parent_path = str(Path(state.current_path).parent)
+    if is_windows_drives_root(state.current_path):
+        return finalize(state)
+    if is_windows_path(state.current_path):
+        _, parent_path = resolve_parent_directory_path(state.current_path)
+        if parent_path is None:
+            return finalize(state)
+    else:
+        parent_path = str(Path(state.current_path).parent)
     return reduce_state(
         state,
         RequestBrowserSnapshot(

@@ -1,4 +1,5 @@
 import asyncio
+import os
 import threading
 import time
 from contextlib import nullcontext
@@ -85,6 +86,12 @@ from zivo.ui import (
     TabBar,
 )
 from zivo.ui.panes import MainPane
+from zivo.windows_paths import WINDOWS_DRIVES_ROOT, is_windows_path, paths_equal
+
+skip_if_windows_split_terminal_unsupported = pytest.mark.skipif(
+    os.name == "nt",
+    reason="split terminal is unsupported on native Windows",
+)
 
 
 def _build_snapshot(
@@ -566,11 +573,13 @@ async def _wait_for_transfer_right_table(app, timeout: float = 0.5) -> DataTable
 
 
 async def _wait_for_path(app, expected_path: str, timeout: float = 0.5) -> None:
-    resolved_expected = str(Path(expected_path).resolve())
+    resolved_expected = (
+        expected_path if is_windows_path(expected_path) else str(Path(expected_path).resolve())
+    )
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
         if (
-            app.app_state.current_path == resolved_expected
+            paths_equal(app.app_state.current_path, resolved_expected)
             and app.app_state.pending_browser_snapshot_request_id is None
         ):
             return
@@ -580,10 +589,12 @@ async def _wait_for_path(app, expected_path: str, timeout: float = 0.5) -> None:
 
 
 async def _wait_for_cursor_path(app, expected_path: str, timeout: float = 0.5) -> None:
-    resolved_expected = str(Path(expected_path).resolve())
+    resolved_expected = (
+        expected_path if is_windows_path(expected_path) else str(Path(expected_path).resolve())
+    )
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
-        if app.app_state.current_pane.cursor_path == resolved_expected:
+        if paths_equal(app.app_state.current_pane.cursor_path, resolved_expected):
             return
         if asyncio.get_running_loop().time() >= deadline:
             raise AssertionError(f"cursor path did not become {expected_path}")
@@ -1897,6 +1908,61 @@ async def test_app_left_can_move_above_initial_directory() -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_left_on_windows_drive_root_returns_to_drive_list(monkeypatch) -> None:
+    monkeypatch.setattr("zivo.windows_paths.platform.system", lambda: "Windows")
+    drive_entries = (
+        DirectoryEntryState("C:\\", "C:\\", "dir"),
+        DirectoryEntryState("D:\\", "D:\\", "dir"),
+    )
+    c_drive_entries = (
+        DirectoryEntryState("C:\\Users", "Users", "dir"),
+        DirectoryEntryState("C:\\Temp", "Temp", "dir"),
+    )
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            WINDOWS_DRIVES_ROOT: BrowserSnapshot(
+                current_path=WINDOWS_DRIVES_ROOT,
+                parent_pane=PaneState(
+                    directory_path=WINDOWS_DRIVES_ROOT,
+                    entries=(),
+                ),
+                current_pane=PaneState(
+                    directory_path=WINDOWS_DRIVES_ROOT,
+                    entries=drive_entries,
+                    cursor_path="C:\\",
+                ),
+                child_pane=PaneState(directory_path="C:\\", entries=c_drive_entries),
+            ),
+            "C:\\": BrowserSnapshot(
+                current_path="C:\\",
+                parent_pane=PaneState(
+                    directory_path=WINDOWS_DRIVES_ROOT,
+                    entries=drive_entries,
+                    cursor_path="C:\\",
+                ),
+                current_pane=PaneState(
+                    directory_path="C:\\",
+                    entries=c_drive_entries,
+                    cursor_path="C:\\Users",
+                ),
+                child_pane=PaneState(directory_path="C:\\Users", entries=()),
+            ),
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path="C:\\")
+
+    async with app.run_test() as pilot:
+        await _wait_for_path(app, "C:\\")
+        current_path_bar = await _wait_for_current_path_bar(app)
+        assert str(current_path_bar.renderable) == "Current Path: C:\\"
+
+        await pilot.press("left")
+        await _wait_for_path(app, WINDOWS_DRIVES_ROOT)
+        assert str(current_path_bar.renderable) == "Current Path: Drives"
+        assert app.app_state.current_pane.cursor_path == "C:\\"
+
+
+@pytest.mark.asyncio
 async def test_app_capital_R_keeps_cursor_when_entry_still_exists() -> None:
     path = str(Path("/tmp/zivo-reload").resolve())
     initial_entries = (
@@ -2599,11 +2665,13 @@ async def test_app_displays_browsing_help_bar() -> None:
         }
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
+    split_terminal_hint = " | t term" if os.name == "posix" else ""
     expected_help = (
         "enter open | e edit | i info | space select | c copy | x cut | v paste | "
         "d delete | r rename | z undo\n"
         "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to | [ ] preview\n"
-        "n new-file | N new-dir | H history | b bookmarks | t term | : palette | q quit"
+        "n new-file | N new-dir | H history | "
+        f"b bookmarks{split_terminal_hint} | : palette | q quit"
     )
 
     async with app.run_test():
@@ -4684,6 +4752,8 @@ async def test_app_command_palette_open_terminal_launches_current_directory() ->
             )
         ]
         assert app.app_state.ui_mode == "BROWSING"
+
+
 
 
     path = str(Path("/tmp/zivo-open-file-manager").resolve())

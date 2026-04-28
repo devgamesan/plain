@@ -21,15 +21,19 @@ ClipboardFallback = Callable[[str], None]
 ClipboardReader = Callable[[], str]
 EnvironmentVariableReader = Callable[[str], str | None]
 TextFileReader = Callable[[str], str]
-PlatformKind = Literal["linux", "wsl", "darwin"]
+PlatformKind = Literal["linux", "wsl", "darwin", "windows"]
 TERMINAL_EDITOR_NAMES = frozenset(
-    {"emacs", "helix", "hx", "kak", "micro", "nano", "nvim", "vi", "vim"}
+    {"edit", "emacs", "helix", "hx", "kak", "micro", "msedit", "nano", "nvim", "vi", "vim"}
+)
+EMBEDDED_LINE_NUMBER_EDITOR_NAMES = frozenset(
+    {"edit", "msedit"}
 )
 
 _PLATFORM_TEMPLATE_KEYS: dict[PlatformKind, tuple[str, ...]] = {
     "linux": ("linux",),
     "darwin": ("macos",),
     "wsl": ("windows", "linux"),
+    "windows": ("windows",),
 }
 
 
@@ -96,11 +100,12 @@ class LocalExternalLaunchAdapter:
         self, path: str, launch_mode: Literal["window", "foreground"] = "window"
     ) -> None:
         resolved_path = _resolve_directory_path(path)
+        platform_kind = self._platform_kind()
         if launch_mode == "foreground":
-            command = self._foreground_terminal_command()
+            command = self._foreground_terminal_command(platform_kind)
             self.foreground_command_runner(command, str(resolved_path))
             return
-        candidates = self._terminal_candidates(self._platform_kind(), str(resolved_path))
+        candidates = self._terminal_candidates(platform_kind, str(resolved_path))
         self._run_first_available(
             candidates,
             context=f"open terminal in {resolved_path}",
@@ -204,7 +209,7 @@ class LocalExternalLaunchAdapter:
                 return "wsl"
             return "linux"
         if system_name == "Windows":
-            raise OSError("Windows native is unsupported; run zivo from WSL")
+            return "windows"
         raise OSError(f"Unsupported operating system: {system_name}")
 
     def _platform_candidates(
@@ -214,6 +219,7 @@ class LocalExternalLaunchAdapter:
         linux: tuple[tuple[str, ...], ...] = (),
         wsl: tuple[tuple[str, ...], ...] = (),
         darwin: tuple[tuple[str, ...], ...] = (),
+        windows: tuple[tuple[str, ...], ...] = (),
     ) -> tuple[tuple[str, ...], ...]:
         if platform_kind == "linux":
             return linux
@@ -221,6 +227,8 @@ class LocalExternalLaunchAdapter:
             return wsl + linux
         if platform_kind == "darwin":
             return darwin
+        if platform_kind == "windows":
+            return windows
         raise OSError(f"Unsupported platform kind: {platform_kind}")
 
     def _default_app_candidates(
@@ -239,6 +247,10 @@ class LocalExternalLaunchAdapter:
                 ("explorer.exe", path),
             ),
             darwin=(("open", path),),
+            windows=(
+                ("cmd.exe", "/c", "start", "", path),
+                ("powershell.exe", "-NoProfile", "-Command", "Start-Process", path),
+            ),
         )
 
     def _editor_candidates(
@@ -261,11 +273,14 @@ class LocalExternalLaunchAdapter:
         path: str,
         line_number: int | None = None,
     ) -> tuple[tuple[str, ...], ...]:
+        is_windows = self._platform_kind() == "windows"
         commands: list[tuple[str, ...]] = []
         configured_editor_command = self.editor_command_template.command
         if configured_editor_command:
             candidate = _build_command_candidate(
-                tuple(shlex.split(configured_editor_command)), path, line_number
+                tuple(shlex.split(configured_editor_command, posix=not is_windows)),
+                path,
+                line_number,
             )
             if candidate is not None:
                 commands.append(candidate)
@@ -273,7 +288,9 @@ class LocalExternalLaunchAdapter:
         editor_command = self.environment_variable("EDITOR")
         if editor_command:
             try:
-                parsed_command = tuple(shlex.split(editor_command))
+                parsed_command = tuple(
+                    shlex.split(editor_command, posix=not is_windows)
+                )
             except ValueError as error:
                 raise OSError(f"Invalid EDITOR value: {error}") from error
             candidate = _build_command_candidate(parsed_command, path, line_number)
@@ -289,7 +306,7 @@ class LocalExternalLaunchAdapter:
         line_number: int | None = None,
     ) -> tuple[tuple[str, ...], ...]:
         if line_number is not None:
-            return (
+            commands = (
                 ("nvim", f"+{line_number}", path),
                 ("vim", f"+{line_number}", path),
                 ("nano", f"+{line_number}", path),
@@ -297,14 +314,21 @@ class LocalExternalLaunchAdapter:
                 ("micro", f"+{line_number}", path),
                 ("emacs", "-nw", f"+{line_number}", path),
             )
-        return (
-            ("nvim", path),
-            ("vim", path),
-            ("nano", path),
-            ("hx", path),
-            ("micro", path),
-            ("emacs", "-nw", path),
-        )
+        else:
+            commands = (
+                ("nvim", path),
+                ("vim", path),
+                ("nano", path),
+                ("hx", path),
+                ("micro", path),
+                ("emacs", "-nw", path),
+            )
+        if self._platform_kind() == "windows":
+            if line_number is not None:
+                commands = commands + (("edit", f"{path}:{line_number}"),)
+            else:
+                commands = commands + (("edit", path),)
+        return commands
 
     def _command_exists(self, command: str) -> bool:
         command_path = Path(command)
@@ -312,7 +336,12 @@ class LocalExternalLaunchAdapter:
             return command_path.exists()
         return self.command_available(command) is not None
 
-    def _foreground_terminal_command(self) -> tuple[str, ...]:
+    def _foreground_terminal_command(self, platform_kind: PlatformKind) -> tuple[str, ...]:
+        if platform_kind == "windows":
+            powershell = self.command_available("powershell.exe")
+            if powershell is not None:
+                return (powershell, "-NoExit", "-NoLogo")
+            return ("cmd.exe", "/k")
         shell = self.environment_variable("SHELL")
         if shell:
             try:
@@ -350,6 +379,28 @@ class LocalExternalLaunchAdapter:
                 ("cmd.exe", "/c", "start", "", "wsl.exe", "--cd", path),
             ),
             darwin=(("open", "-a", "Terminal", path),),
+            windows=(
+                ("wt.exe", "-d", path),
+                (
+                    "cmd.exe",
+                    "/c",
+                    "start",
+                    "",
+                    "powershell.exe",
+                    "-NoExit",
+                    "-Command",
+                    _windows_set_location_command(path),
+                ),
+                (
+                    "cmd.exe",
+                    "/c",
+                    "start",
+                    "",
+                    "cmd.exe",
+                    "/k",
+                    _windows_cd_command(path),
+                ),
+            ),
         )
 
     def _configured_terminal_commands(
@@ -366,15 +417,15 @@ class LocalExternalLaunchAdapter:
             "macos": self.terminal_command_templates.macos,
             "windows": self.terminal_command_templates.windows,
         }
-        templates: list[str] = []
+        template_specs: list[tuple[str, str]] = []
         for key in template_keys:
-            templates.extend(template_map[key])
+            template_specs.extend((template, key) for template in template_map[key])
 
         commands: list[tuple[str, ...]] = []
-        for template in templates:
+        for template, template_key in template_specs:
             try:
-                rendered = template.format(path=path)
-                parsed_command = tuple(shlex.split(rendered))
+                rendered = template.format(path=_render_template_path(path, template_key))
+                parsed_command = tuple(shlex.split(rendered, posix=template_key != "windows"))
             except (IndexError, KeyError, ValueError):
                 continue
             if parsed_command:
@@ -391,6 +442,10 @@ class LocalExternalLaunchAdapter:
             ),
             wsl=(("clip.exe",),),
             darwin=(("pbcopy",),),
+            windows=(
+                ("clip.exe",),
+                ("powershell.exe", "-NoProfile", "-Command", "Set-Clipboard"),
+            ),
         )
 
     def _clipboard_read_candidates(
@@ -406,6 +461,7 @@ class LocalExternalLaunchAdapter:
             ),
             wsl=(("powershell.exe", "-noprofile", "-command", "Get-Clipboard"),),
             darwin=(("pbpaste",),),
+            windows=(("powershell.exe", "-NoProfile", "-Command", "Get-Clipboard"),),
         )
 
 
@@ -492,6 +548,22 @@ def _read_text_file(path: str) -> str:
     return Path(path).read_text(encoding="utf-8")
 
 
+def _render_template_path(path: str, template_key: str) -> str:
+    if template_key == "windows":
+        return subprocess.list2cmdline([path])
+    return shlex.quote(path)
+
+
+def _windows_set_location_command(path: str) -> str:
+    escaped_path = path.replace("'", "''")
+    return f"Set-Location -LiteralPath '{escaped_path}'"
+
+
+def _windows_cd_command(path: str) -> str:
+    escaped_path = path.replace('"', '""')
+    return f'cd /d "{escaped_path}"'
+
+
 def _resolve_existing_path(path: str) -> Path:
     resolved_path = Path(path).expanduser().resolve()
     if not resolved_path.exists():
@@ -519,6 +591,9 @@ def _build_command_candidate(
     if not parsed_command or not _is_terminal_editor_command(parsed_command[0]):
         return None
     if line_number is not None:
+        editor_name = Path(parsed_command[0]).name.casefold()
+        if editor_name in EMBEDDED_LINE_NUMBER_EDITOR_NAMES:
+            return parsed_command + (f"{path}:{line_number}",)
         return parsed_command + (f"+{line_number}", path)
     return parsed_command + (path,)
 

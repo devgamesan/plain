@@ -1,3 +1,4 @@
+import os
 import shutil
 
 import pytest
@@ -7,6 +8,10 @@ from zivo.services import InvalidGrepSearchQueryError, LiveGrepSearchService
 skip_if_no_rg = pytest.mark.skipif(
     shutil.which("rg") is None,
     reason="ripgrep (rg) not available",
+)
+skip_if_windows_permission_semantics = pytest.mark.skipif(
+    shutil.which("rg") is None or os.name == "nt",
+    reason="permission-denied grep coverage is not reliable on native Windows runners",
 )
 
 
@@ -106,7 +111,7 @@ def test_live_grep_search_service_raises_invalid_query_for_bad_regex(tmp_path) -
         service.search(str(root), "re:[", show_hidden=False)
 
 
-@skip_if_no_rg
+@skip_if_windows_permission_semantics
 def test_live_grep_search_service_continues_when_some_paths_are_permission_denied(
     tmp_path,
 ) -> None:
@@ -130,7 +135,7 @@ def test_live_grep_search_service_continues_when_some_paths_are_permission_denie
     assert [result.display_label for result in results] == ["docs/README.md:1: TODO: update docs"]
 
 
-@skip_if_no_rg
+@skip_if_windows_permission_semantics
 def test_live_grep_search_service_ignores_permission_denied_without_matches(tmp_path) -> None:
     root = tmp_path / "project"
     root.mkdir()

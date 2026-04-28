@@ -11,6 +11,7 @@ from zivo.models import (
     ExtractArchiveRequest,
     RenameRequest,
 )
+from zivo.windows_paths import join_path, resolve_parent_directory_path
 
 from .reducer_path_helpers import (
     current_entry_paths,
@@ -100,7 +101,7 @@ def validate_pending_input(state, *, is_macos: bool) -> str | None:
             if existing_name_cf == name_cf and existing_path != current_target_path:
                 return f"An entry named '{name}' already exists"
     else:
-        candidate_path = str(Path(parent_path) / name)
+        candidate_path = join_path(parent_path, name)
         if candidate_path in existing_paths and candidate_path != current_target_path:
             return f"An entry named '{name}' already exists"
     return None
@@ -213,8 +214,8 @@ def pending_input_parent_and_target(state) -> tuple[str | None, str | None]:
     if state.pending_input is None:
         return (None, None)
     if state.ui_mode == "RENAME" and state.pending_input.target_path is not None:
-        target_path = Path(state.pending_input.target_path)
-        return (str(target_path.parent), str(target_path))
+        _, parent_path = resolve_parent_directory_path(state.pending_input.target_path)
+        return (parent_path, state.pending_input.target_path)
     if state.ui_mode == "CREATE":
         if state.layout_mode == "transfer":
             active_pane = _active_transfer_pane(state)
@@ -222,8 +223,8 @@ def pending_input_parent_and_target(state) -> tuple[str | None, str | None]:
                 return (active_pane.current_path, None)
         return (state.current_pane.directory_path, None)
     if state.ui_mode == "EXTRACT" and state.pending_input.extract_source_path is not None:
-        source_path = Path(state.pending_input.extract_source_path)
-        return (str(source_path.parent), None)
+        _, parent_path = resolve_parent_directory_path(state.pending_input.extract_source_path)
+        return (parent_path, None)
     if state.ui_mode == "ZIP" and state.pending_input.zip_source_paths is not None:
         return (state.current_pane.directory_path, None)
     if state.ui_mode == "SYMLINK" and state.pending_input.symlink_source_path is not None:
@@ -283,11 +284,14 @@ def complete_pending_input_path(state) -> str | None:
     if not candidates:
         return None
     rendered = tuple(
-        format_go_to_path_completion(
-            candidate,
+        _normalize_pending_input_completion(
+            format_go_to_path_completion(
+                candidate,
+                query,
+                base_path,
+                append_separator=os.path.isdir(candidate),
+            ),
             query,
-            base_path,
-            append_separator=Path(candidate).is_dir(),
         )
         for candidate in candidates
     )
@@ -295,3 +299,14 @@ def complete_pending_input_path(state) -> str | None:
         return rendered[0]
     prefix = longest_common_completion_prefix(rendered)
     return prefix if prefix and prefix != query else None
+
+
+def _normalize_pending_input_completion(completion: str, query: str) -> str:
+    stripped_query = query.strip()
+    if (
+        "\\" not in stripped_query
+        and ":" not in stripped_query[:3]
+        and not stripped_query.startswith(("/", "\\"))
+    ):
+        return completion.replace("\\", "/")
+    return completion

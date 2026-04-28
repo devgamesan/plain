@@ -83,6 +83,7 @@ from zivo.state.actions import (
     ToggleHiddenFiles,
     ToggleSelection,
 )
+from zivo.windows_paths import WINDOWS_DRIVES_ROOT
 
 
 def _reduce_state(state, action):
@@ -553,7 +554,7 @@ def test_go_to_parent_directory_restores_cursor_to_previous_child() -> None:
     assert result.state.pending_browser_snapshot_request_id == 1
     assert result.state.ui_mode == "BUSY"
     assert len(result.effects) == 1
-    assert result.effects[0].path == "/home/tadashi/develop"
+    assert result.effects[0].path == str(Path("/home/tadashi/develop/zivo").parent)
     assert result.effects[0].cursor_path == "/home/tadashi/develop/zivo"
     assert result.effects[0].blocking is True
 
@@ -589,7 +590,7 @@ def test_go_to_parent_directory_uses_current_path_parent() -> None:
     result = reduce_app_state(state, GoToParentDirectory())
 
     assert len(result.effects) == 1
-    assert result.effects[0].path == "/tmp/work"
+    assert result.effects[0].path == str(Path("/tmp/work/project").parent)
     assert result.effects[0].cursor_path == "/tmp/work/project"
 
 def test_go_to_home_directory_navigates_to_home() -> None:
@@ -603,6 +604,36 @@ def test_go_to_home_directory_navigates_to_home() -> None:
     # Home directory path will be expanded and resolved
     assert result.effects[0].blocking is True
     assert str(Path.home()) in result.effects[0].path
+
+
+def test_go_to_parent_directory_from_windows_drive_root_requests_drive_list(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr("zivo.windows_paths.platform.system", lambda: "Windows")
+    state = replace(
+        build_initial_app_state(),
+        current_path="C:\\",
+        parent_pane=PaneState(
+            directory_path=WINDOWS_DRIVES_ROOT,
+            entries=(
+                DirectoryEntryState("C:\\", "C:\\", "dir"),
+                DirectoryEntryState("D:\\", "D:\\", "dir"),
+            ),
+            cursor_path="C:\\",
+        ),
+        current_pane=PaneState(
+            directory_path="C:\\",
+            entries=(DirectoryEntryState("C:\\Users", "Users", "dir"),),
+            cursor_path="C:\\Users",
+        ),
+        child_pane=PaneState(directory_path="C:\\Users", entries=()),
+    )
+
+    result = reduce_app_state(state, GoToParentDirectory())
+
+    assert len(result.effects) == 1
+    assert result.effects[0].path == WINDOWS_DRIVES_ROOT
+    assert result.effects[0].cursor_path == "C:\\"
 
 def test_reload_directory_requests_snapshot_with_current_cursor() -> None:
     state = build_initial_app_state()
@@ -1259,6 +1290,8 @@ def test_open_path_in_editor_allows_non_browser_file_path() -> None:
             ),
         ),
     )
+
+
 
 def test_toggle_hidden_files_normalizes_cursor_and_selection() -> None:
     hidden_path = "/home/tadashi/develop/zivo/.env"

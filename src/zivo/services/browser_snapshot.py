@@ -23,6 +23,15 @@ from zivo.state.models import (
     build_initial_app_state,
     resolve_parent_directory_path,
 )
+from zivo.windows_paths import (
+    comparable_path,
+    is_posix_path,
+    is_windows_drive_root,
+    is_windows_drives_root,
+    is_windows_path,
+    list_windows_drive_paths,
+    normalize_windows_path,
+)
 
 DEFAULT_DIRECTORY_CACHE_CAPACITY = 64
 DEFAULT_TEXT_PREVIEW_CACHE_CAPACITY = 128
@@ -384,6 +393,23 @@ class LiveBrowserSnapshotLoader:
         if cursor_path is None:
             return PaneState(directory_path=current_path, entries=())
 
+        if is_windows_drive_root(cursor_path):
+            try:
+                child_entries = self._list_directory(normalize_windows_path(cursor_path))
+                return PaneState(
+                    directory_path=normalize_windows_path(cursor_path),
+                    entries=child_entries,
+                )
+            except OSError as error:
+                if _is_permission_denied_error(error):
+                    return PaneState(
+                        directory_path=normalize_windows_path(cursor_path),
+                        entries=(),
+                        mode="preview",
+                        preview_message=PREVIEW_PERMISSION_DENIED_MESSAGE,
+                    )
+                raise
+
         child_path = Path(cursor_path).expanduser().resolve()
         if child_path.is_dir():
             try:
@@ -620,6 +646,15 @@ class LiveBrowserSnapshotLoader:
                 self._directory_entries_cache.popitem(last=False)
 
     def _read_directory(self, path: str):
+        if is_windows_drives_root(path):
+            return tuple(
+                DirectoryEntryState(
+                    path=drive,
+                    name=drive,
+                    kind="dir",
+                )
+                for drive in list_windows_drive_paths()
+            )
         try:
             return self.filesystem.list_directory(path)
         except PermissionError as error:
@@ -785,6 +820,17 @@ class FakeBrowserSnapshotLoader:
             raise OSError(self.failure_messages[path])
 
         snapshot = self.snapshots.get(path)
+        if snapshot is None and is_windows_path(path):
+            normalized_path = normalize_windows_path(path)
+            snapshot = next(
+                (
+                    candidate
+                    for candidate_path, candidate in self.snapshots.items()
+                    if is_windows_path(candidate_path)
+                    and normalize_windows_path(candidate_path) == normalized_path
+                ),
+                None,
+            )
         if snapshot is not None:
             return self._resolve_snapshot(snapshot, cursor_path)
 
@@ -868,7 +914,10 @@ class FakeBrowserSnapshotLoader:
         paths: tuple[str, ...] = (),
     ) -> None:
         normalized_paths = tuple(
-            dict.fromkeys(_normalize_directory_cache_path(path) for path in paths)
+            dict.fromkeys(
+                path if is_windows_drives_root(path) else str(Path(path).expanduser().resolve())
+                for path in paths
+            )
         )
         self.invalidated_directory_listing_paths.append(normalized_paths)
 
@@ -877,23 +926,90 @@ class FakeBrowserSnapshotLoader:
         snapshot: BrowserSnapshot,
         cursor_path: str | None,
     ) -> BrowserSnapshot:
-        if cursor_path is None or not _contains_path(snapshot.current_pane.entries, cursor_path):
-            return snapshot
+        normalized_snapshot = replace(
+            snapshot,
+            current_path=comparable_path(snapshot.current_path),
+            parent_pane=replace(
+                snapshot.parent_pane,
+                cursor_path=comparable_path(snapshot.parent_pane.cursor_path),
+            ),
+            current_pane=replace(
+                snapshot.current_pane,
+                cursor_path=comparable_path(snapshot.current_pane.cursor_path),
+            ),
+        )
+        matched_cursor_path = self._match_snapshot_cursor_path(snapshot, cursor_path)
+        if matched_cursor_path is None:
+            return normalized_snapshot
 
-        current_pane = replace(snapshot.current_pane, cursor_path=cursor_path)
-        child_pane = snapshot.child_pane
-        if (snapshot.current_path, cursor_path) in self.child_panes:
-            child_pane = self.child_panes[(snapshot.current_path, cursor_path)]
-        elif child_pane.directory_path != cursor_path:
+        current_pane = replace(
+            normalized_snapshot.current_pane,
+            cursor_path=comparable_path(matched_cursor_path),
+        )
+        child_pane = normalized_snapshot.child_pane
+        child_key = self._match_child_pane_key(snapshot.current_path, matched_cursor_path)
+        if child_key is not None:
+            child_pane = self.child_panes[child_key]
+        elif child_pane.directory_path != matched_cursor_path:
             cursor_entry = next(
-                entry for entry in snapshot.current_pane.entries if entry.path == cursor_path
+                entry
+                for entry in snapshot.current_pane.entries
+                if entry.path == matched_cursor_path
             )
             if cursor_entry.kind == "dir":
-                child_pane = PaneState(directory_path=cursor_path, entries=())
+                child_pane = PaneState(directory_path=matched_cursor_path, entries=())
             else:
                 child_pane = PaneState(directory_path=snapshot.current_path, entries=())
 
-        return replace(snapshot, current_pane=current_pane, child_pane=child_pane)
+        return replace(
+            normalized_snapshot,
+            current_pane=current_pane,
+            child_pane=child_pane,
+        )
+
+    def _match_snapshot_cursor_path(
+        self,
+        snapshot: BrowserSnapshot,
+        cursor_path: str | None,
+    ) -> str | None:
+        if cursor_path is None:
+            return None
+        if _contains_path(snapshot.current_pane.entries, cursor_path):
+            return cursor_path
+        if not is_windows_path(cursor_path):
+            return None
+        normalized_cursor = normalize_windows_path(cursor_path)
+        for entry in snapshot.current_pane.entries:
+            if is_windows_path(entry.path) and (
+                normalize_windows_path(entry.path) == normalized_cursor
+            ):
+                return entry.path
+        return None
+
+    def _match_child_pane_key(
+        self,
+        current_path: str,
+        cursor_path: str,
+    ) -> tuple[str, str | None] | None:
+        direct_key = (current_path, cursor_path)
+        if direct_key in self.child_panes:
+            return direct_key
+        if not (is_windows_path(current_path) and is_windows_path(cursor_path)):
+            return None
+        normalized_current = normalize_windows_path(current_path)
+        normalized_cursor = normalize_windows_path(cursor_path)
+        for key in self.child_panes:
+            key_current, key_cursor = key
+            if key_cursor is None:
+                continue
+            if not (is_windows_path(key_current) and is_windows_path(key_cursor)):
+                continue
+            if (
+                normalize_windows_path(key_current) == normalized_current
+                and normalize_windows_path(key_cursor) == normalized_cursor
+            ):
+                return key
+        return None
 
 
 def snapshot_from_app_state(state: AppState) -> BrowserSnapshot:
@@ -939,7 +1055,17 @@ def _contains_path(entries, path: str) -> bool:
     return any(entry.path == path for entry in entries)
 
 
+def _normalize_preview_newlines(text: str) -> str:
+    return text.replace("\r\n", "\n")
+
+
 def _normalize_directory_cache_path(path: str) -> str:
+    if is_windows_drives_root(path):
+        return path
+    if is_posix_path(path):
+        return path
+    if is_windows_path(path):
+        return normalize_windows_path(path)
     return str(Path(path).expanduser().resolve())
 
 
@@ -1051,7 +1177,7 @@ def _load_text_preview(
     truncated = len(chunk) > preview_limit
     preview_bytes = chunk[:preview_limit]
     try:
-        preview_text = preview_bytes.decode("utf-8")
+        preview_text = _normalize_preview_newlines(preview_bytes.decode("utf-8"))
     except UnicodeDecodeError:
         return FilePreviewState.unsupported()
 
@@ -1107,9 +1233,11 @@ class PandocDocumentPreviewLoader:
             return None
 
         try:
-            content = result.stdout.decode("utf-8")
+            content = _normalize_preview_newlines(result.stdout.decode("utf-8"))
         except UnicodeDecodeError:
-            content = result.stdout.decode("utf-8", errors="ignore")
+            content = _normalize_preview_newlines(
+                result.stdout.decode("utf-8", errors="ignore")
+            )
         if not content.strip():
             return None
         return _truncate_preview_text(content, preview_max_bytes)
@@ -1163,9 +1291,11 @@ class ChafaImagePreviewLoader:
             return None
 
         try:
-            content = result.stdout.decode("utf-8")
+            content = _normalize_preview_newlines(result.stdout.decode("utf-8"))
         except UnicodeDecodeError:
-            content = result.stdout.decode("utf-8", errors="ignore")
+            content = _normalize_preview_newlines(
+                result.stdout.decode("utf-8", errors="ignore")
+            )
         if not content.strip():
             return None
         return FilePreviewState.with_content(content, False, content_kind="image")
@@ -1192,19 +1322,30 @@ def _load_pdf_preview(
     if pdftotext is None:
         return None
     try:
+        # Windowsではパスをダブルクォートで囲む必要がある
+        path_str = str(path)
+        if " " in path_str:
+            path_str = f'"{path_str}"'
         result = subprocess.run(
-            [pdftotext, "-q", str(path), "-"],
+            [pdftotext, "-q", path_str, "-"],
             check=True,
             capture_output=True,
         )
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, subprocess.SubprocessError, FileNotFoundError) as e:
+        import sys
+        sys.stderr.write(f"PDF preview error: {type(e).__name__}: {e}\n")
+        if hasattr(e, 'stderr') and e.stderr:
+            sys.stderr.write(f"pdftotext stderr: {e.stderr}\n")
         return None
     try:
-        content = result.stdout.decode("utf-8")
+        content = _normalize_preview_newlines(result.stdout.decode("utf-8"))
     except UnicodeDecodeError:
-        content = result.stdout.decode("utf-8", errors="ignore")
+        content = _normalize_preview_newlines(result.stdout.decode("utf-8", errors="ignore"))
     if not content.strip():
-        return None
+        # 空のコンテンツは、画像ベースのPDFかテキストレイヤーがないPDF
+        return FilePreviewState.with_message(
+            "PDF preview: no text content found"
+        )
     return _truncate_preview_text(content, preview_max_bytes)
 
 
@@ -1247,7 +1388,7 @@ def _load_grep_context_preview(
                 # Collect context lines
                 if current_line >= start_line:
                     try:
-                        line_text = line_bytes.decode("utf-8")
+                        line_text = _normalize_preview_newlines(line_bytes.decode("utf-8"))
                         lines.append(line_text)
                         last_line = current_line
                     except UnicodeDecodeError:

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from zivo.models import TrashRestoreRecord
-from zivo.services.trash_operations import LinuxTrashService, MacOsTrashService
+from zivo.services.trash_operations import LinuxTrashService, MacOsTrashService, WindowsTrashService
 
 
 def test_linux_trash_service_captures_restorable_metadata(tmp_path, monkeypatch) -> None:
@@ -272,3 +272,181 @@ def test_macos_capture_returns_none_when_no_new_entry(
     record = service.capture_restorable_trash(str(original_path), lambda: None)
 
     assert record is None
+
+
+def test_windows_trash_service_captures_restorable_metadata(tmp_path, monkeypatch) -> None:
+    original_path = "C:/Users/test/docs"
+    sent_to_trash: list[str] = []
+
+    def fake_powershell_stdout(lines: list[str]) -> MagicMock:
+        return MagicMock(returncode=0, stdout="\n".join(lines), stderr="")
+
+    call_count = 0
+
+    def mock_subprocess_run(cmd, *args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return fake_powershell_stdout([
+                "C:/Users/test/existing1",
+                "C:/Users/test/existing2",
+            ])
+        return fake_powershell_stdout([
+            "C:/Users/test/existing1",
+            "C:/Users/test/existing2",
+            original_path,
+        ])
+
+    monkeypatch.setattr(
+        "zivo.services.trash_operations.subprocess.run",
+        mock_subprocess_run,
+    )
+
+    service = WindowsTrashService()
+    record = service.capture_restorable_trash(
+        original_path,
+        lambda: sent_to_trash.append(original_path),
+    )
+
+    assert sent_to_trash == [original_path]
+    assert record is not None
+    assert record.original_path == original_path
+    assert record.trashed_path == "docs"
+    assert record.metadata_path == ""
+
+
+def test_windows_trash_service_capture_returns_none_when_no_new_items(
+    tmp_path, monkeypatch,
+) -> None:
+    sent_to_trash: list[str] = []
+
+    def fake_powershell_stdout(lines: list[str]) -> MagicMock:
+        return MagicMock(returncode=0, stdout="\n".join(lines), stderr="")
+
+    def mock_subprocess_run(cmd, *args, **kwargs):
+        return fake_powershell_stdout([
+            "C:/Users/test/docs",
+            "C:/Users/test/other",
+        ])
+
+    monkeypatch.setattr(
+        "zivo.services.trash_operations.subprocess.run",
+        mock_subprocess_run,
+    )
+
+    service = WindowsTrashService()
+    record = service.capture_restorable_trash(
+        "C:/Users/test/docs",
+        lambda: sent_to_trash.append("C:/Users/test/docs"),
+    )
+
+    assert sent_to_trash == ["C:/Users/test/docs"]
+    assert record is None
+
+
+def test_windows_trash_service_capture_handles_powershell_failure(
+    monkeypatch,
+) -> None:
+    sent_to_trash: list[str] = []
+
+    mock_run = MagicMock(return_value=MagicMock(returncode=1, stderr="error"))
+    monkeypatch.setattr("zivo.services.trash_operations.subprocess.run", mock_run)
+
+    service = WindowsTrashService()
+    record = service.capture_restorable_trash(
+        "C:/Users/test/docs",
+        lambda: sent_to_trash.append("C:/Users/test/docs"),
+    )
+
+    assert sent_to_trash == ["C:/Users/test/docs"]
+    assert record is None
+
+
+def test_windows_empty_trash_powershell_success(monkeypatch) -> None:
+    mock_run = MagicMock(return_value=MagicMock(returncode=0, stderr=""))
+    monkeypatch.setattr("zivo.services.trash_operations.subprocess.run", mock_run)
+
+    count, error = WindowsTrashService().empty_trash()
+
+    assert count == 1
+    assert error == ""
+    mock_run.assert_called_once_with(
+        ["powershell.exe", "-NoProfile", "-Command", "Clear-RecycleBin -Force"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def test_windows_empty_trash_powershell_failure(monkeypatch) -> None:
+    mock_run = MagicMock(
+        return_value=MagicMock(returncode=1, stderr="access denied")
+    )
+    monkeypatch.setattr("zivo.services.trash_operations.subprocess.run", mock_run)
+
+    count, error = WindowsTrashService().empty_trash()
+
+    assert count == 0
+    assert error == "Failed to empty Recycle Bin"
+
+
+def test_windows_trash_service_restore_succeeds(monkeypatch) -> None:
+    original_path = "C:/Users/test/docs"
+    record = TrashRestoreRecord(
+        original_path=original_path,
+        trashed_path="docs",
+        metadata_path="",
+    )
+
+    mock_run = MagicMock(
+        return_value=MagicMock(returncode=0, stdout="", stderr=""),
+    )
+    monkeypatch.setattr("zivo.services.trash_operations.subprocess.run", mock_run)
+
+    result = WindowsTrashService().restore(record)
+
+    assert result == original_path
+    cmd = mock_run.call_args[0][0]
+    assert cmd[0] == "powershell.exe"
+    assert "-NoProfile" in cmd
+    assert "-Command" in cmd
+    script_arg = cmd[cmd.index("-Command") + 1]
+    assert "GetDetailsOf" in script_arg
+    assert "InvokeVerb('undelete')" in script_arg
+    assert "'C:/Users/test/docs'" in script_arg
+
+
+def test_windows_trash_service_restore_raises_when_not_found(monkeypatch) -> None:
+    record = TrashRestoreRecord(
+        original_path="C:/Users/test/missing",
+        trashed_path="missing",
+        metadata_path="",
+    )
+
+    mock_run = MagicMock(return_value=MagicMock(returncode=1, stdout="", stderr=""))
+    monkeypatch.setattr("zivo.services.trash_operations.subprocess.run", mock_run)
+
+    with pytest.raises(
+        OSError,
+        match="Failed to restore 'C:/Users/test/missing' from Recycle Bin: "
+        "item not found",
+    ):
+        WindowsTrashService().restore(record)
+
+
+def test_windows_trash_service_restore_raises_when_verb_fails(monkeypatch) -> None:
+    record = TrashRestoreRecord(
+        original_path="C:/Users/test/stuck",
+        trashed_path="stuck",
+        metadata_path="",
+    )
+
+    mock_run = MagicMock(return_value=MagicMock(returncode=2, stdout="", stderr=""))
+    monkeypatch.setattr("zivo.services.trash_operations.subprocess.run", mock_run)
+
+    with pytest.raises(
+        OSError,
+        match="Failed to restore 'C:/Users/test/stuck' from Recycle Bin: "
+        "restore verb had no effect",
+    ):
+        WindowsTrashService().restore(record)

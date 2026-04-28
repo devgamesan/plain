@@ -98,22 +98,31 @@ def schedule_browser_snapshot(app: Any, effect: LoadBrowserSnapshotEffect) -> No
 
 
 def schedule_child_pane_snapshot(app: Any, effect: LoadChildPaneSnapshotEffect) -> None:
+    pending_effect = getattr(app, "_pending_child_pane_effect", None)
+    if getattr(app, "_child_pane_timer", None) is not None and pending_effect is not None:
+        start_child_pane_snapshot(app, pending_effect, require_pending_match=False)
     cancel_timer(app, "_child_pane_timer")
     debounce_seconds = _child_pane_debounce_seconds(effect)
-    if debounce_seconds <= 0:
-        start_child_pane_snapshot(app, effect)
-        return
     timer = app.set_timer(
         debounce_seconds,
         partial(start_child_pane_snapshot, app, effect),
         name=f"child-pane-snapshot-debounce:{effect.request_id}",
     )
+    setattr(app, "_pending_child_pane_effect", effect)
     setattr(app, "_child_pane_timer", timer)
 
 
-def start_child_pane_snapshot(app: Any, effect: LoadChildPaneSnapshotEffect) -> None:
+def start_child_pane_snapshot(
+    app: Any,
+    effect: LoadChildPaneSnapshotEffect,
+    *,
+    require_pending_match: bool = True,
+) -> None:
     setattr(app, "_child_pane_timer", None)
-    if app._app_state.pending_child_pane_request_id != effect.request_id:
+    pending_effect = getattr(app, "_pending_child_pane_effect", None)
+    if pending_effect == effect:
+        setattr(app, "_pending_child_pane_effect", None)
+    if require_pending_match and app._app_state.pending_child_pane_request_id != effect.request_id:
         return
     cancel_event = threading.Event()
     set_active_tracking(app, CHILD_PANE_TRACKING, effect.request_id, cancel_event)

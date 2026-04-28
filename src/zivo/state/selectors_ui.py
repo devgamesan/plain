@@ -14,6 +14,7 @@ from zivo.models import (
     ShellCommandDialogState,
     StatusBarState,
 )
+from zivo.platform_support import is_split_terminal_supported
 
 from .models import AppState
 from .reducer_config import (
@@ -205,12 +206,17 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         )
     if state.config.help_bar.browsing:
         return HelpBarState(state.config.help_bar.browsing)
+    split_terminal_hint = " | t term" if is_split_terminal_supported() else ""
+    browsing_shortcuts = (
+        "n new-file | N new-dir | H history | "
+        f"b bookmarks{split_terminal_hint} | : palette | q quit"
+    )
     return HelpBarState(
         (
             "enter open | e edit | i info | space select | c copy | x cut | v paste | "
             "d delete | r rename | z undo",
             "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to | [ ] preview",
-            "n new-file | N new-dir | H history | b bookmarks | t term | : palette | q quit",
+            browsing_shortcuts,
         )
     )
 

@@ -62,7 +62,7 @@ def _handle_begin_delete_targets(state, action, reduce_state):
 
 def _handle_begin_empty_trash(state, action, reduce_state):
     platform_kind = detect_platform()
-    if platform_kind not in ("linux", "darwin"):
+    if platform_kind not in ("linux", "darwin", "windows"):
         return finalize(
             replace(
                 state,

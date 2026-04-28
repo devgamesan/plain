@@ -108,7 +108,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
     )
     shell = ThreePaneShellData(
         tab_bar=select_tab_bar_state(state),
-        current_path=state.current_path,
+        current_path=state.current_pane.directory_path,
         parent_entries=select_parent_entries(state),
         current_entries=(
             _select_current_pane_entries(

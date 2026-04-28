@@ -5,10 +5,12 @@ on:
     branches:
       - main
       - develop
+      - feat/windows
   pull_request:
     branches:
       - main
       - develop
+      - feat/windows
 
 jobs:
   lint-and-test:
@@ -16,7 +18,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
       - uses: actions/checkout@v6
@@ -33,14 +35,43 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install ripgrep
 
+      - name: Install system dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ripgrep -y
+
       - name: Install dependencies
         run: uv sync --dev
 
       - name: Prepare temp directory
-        run: mkdir -p "$RUNNER_TEMP/zivo-tmp"
+        run: >
+          uv run python -c "from pathlib import Path; import os;
+          Path(os.environ['RUNNER_TEMP'], 'zivo-tmp').mkdir(parents=True, exist_ok=True)"
 
       - name: Lint
         run: uv run ruff check .
 
-      - name: Test
-        run: TMPDIR="$RUNNER_TEMP/zivo-tmp" uv run pytest
+      - name: Test (Linux/macOS)
+        if: runner.os != 'Windows'
+        env:
+          TMPDIR: ${{ runner.temp }}/zivo-tmp
+          TMP: ${{ runner.temp }}/zivo-tmp
+          TEMP: ${{ runner.temp }}/zivo-tmp
+        run: uv run pytest
+
+      - name: Test (Windows regression subset)
+        if: runner.os == 'Windows'
+        env:
+          TMPDIR: ${{ runner.temp }}/zivo-tmp
+          TMP: ${{ runner.temp }}/zivo-tmp
+          TEMP: ${{ runner.temp }}/zivo-tmp
+        run: >
+          uv run pytest
+          tests/test_adapters_file_operations.py
+          tests/test_services_clipboard_operations.py
+          tests/test_services_file_mutations.py
+          tests/test_services_archive_extract.py
+          tests/test_services_zip_compress.py
+          tests/test_services_file_search.py
+          tests/test_services_grep_search.py
+          tests/test_services_text_replace.py
+          tests/test_services_config.py

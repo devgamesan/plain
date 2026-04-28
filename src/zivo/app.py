@@ -68,6 +68,7 @@ from zivo.state import (
     dispatch_key_input,
     iter_bound_keys,
     reduce_app_state,
+    resolve_parent_directory_path,
     select_shell_data,
 )
 from zivo.state.actions import (
@@ -174,7 +175,7 @@ class zivoApp(App[None]):
         super().__init__()
         self._app_config = app_config or AppConfig()
         self.theme = self._app_config.display.theme
-        self._initial_path = str(Path(initial_path or Path.cwd()).expanduser().resolve())
+        self._initial_path = resolve_parent_directory_path(str(initial_path or Path.cwd()))[0]
         self._app_state: AppState = build_placeholder_app_state(
             self._initial_path,
             config=self._app_config,

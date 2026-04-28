@@ -1,9 +1,9 @@
 """Search-related command palette reducers."""
 
 from dataclasses import replace
-from pathlib import Path
 
 from zivo.models.external_launch import ExternalLaunchRequest
+from zivo.windows_paths import resolve_parent_directory_path
 
 from .actions import (
     CycleSelectedFilesGrepField,
@@ -236,7 +236,7 @@ def handle_submit_file_search_palette(
     return request_palette_snapshot(
         state,
         reduce_state,
-        path=str(Path(selected_result.path).parent),
+        path=resolve_parent_directory_path(selected_result.path)[1] or selected_result.path,
         cursor_path=selected_result.path,
     )
 
@@ -261,7 +261,7 @@ def handle_submit_grep_search_palette(
     return request_palette_snapshot(
         state,
         reduce_state,
-        path=str(Path(selected_result.path).parent),
+        path=resolve_parent_directory_path(selected_result.path)[1] or selected_result.path,
         cursor_path=selected_result.path,
     )
 

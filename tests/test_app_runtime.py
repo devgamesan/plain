@@ -777,7 +777,7 @@ def test_run_foreground_external_launch_maps_suspend_failures() -> None:
         ExternalLaunchFailed(
             request_id=8,
             request=request,
-            message="suspend unavailable",
+            message="Editor launch not supported on this terminal",
         ),
     )
 

@@ -1,5 +1,14 @@
+import os
+
+import pytest
+
 from zivo.models import PasteConflictPrompt, PasteRequest
 from zivo.services import LiveClipboardOperationService
+
+skip_if_windows_symlink_privilege_required = pytest.mark.skipif(
+    os.name == "nt",
+    reason="symlink creation requires extra Windows privileges",
+)
 
 
 def test_clipboard_service_requests_resolution_when_destination_exists(tmp_path) -> None:
@@ -44,6 +53,7 @@ def test_clipboard_service_rename_copies_into_same_directory(tmp_path) -> None:
     assert (tmp_path / "README copy.md").read_text(encoding="utf-8") == "plain\n"
 
 
+@skip_if_windows_symlink_privilege_required
 def test_clipboard_service_copy_preserves_symlink_entry(tmp_path) -> None:
     source_dir = tmp_path / "source"
     source_dir.mkdir()
@@ -121,6 +131,7 @@ def test_clipboard_service_overwrite_replaces_existing_file(tmp_path) -> None:
     assert existing.read_text(encoding="utf-8") == "new\n"
 
 
+@skip_if_windows_symlink_privilege_required
 def test_clipboard_service_overwrite_replaces_symlink_entry_not_target(tmp_path) -> None:
     source_dir = tmp_path / "source"
     source_dir.mkdir()
@@ -173,6 +184,7 @@ def test_clipboard_service_cut_moves_source(tmp_path) -> None:
     assert (destination / "note.txt").read_text(encoding="utf-8") == "move\n"
 
 
+@skip_if_windows_symlink_privilege_required
 def test_clipboard_service_cut_moves_symlink_without_following_target(tmp_path) -> None:
     source_dir = tmp_path / "source"
     source_dir.mkdir()

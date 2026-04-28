@@ -13,7 +13,7 @@ CONFIG_PREVIEW_SYNTAX_THEMES = SUPPORTED_PREVIEW_SYNTAX_THEMES
 CONFIG_PREVIEW_MAX_KIB = (64, 128, 256, 512, 1024)
 CONFIG_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 CONFIG_PASTE_ACTIONS = ("prompt", "overwrite", "skip", "rename")
-CONFIG_EDITOR_COMMANDS = (None, "nvim", "vim", "nano", "hx", "micro", "emacs -nw")
+CONFIG_EDITOR_COMMANDS = (None, "nvim", "vim", "nano", "hx", "micro", "emacs -nw", "edit")
 CONFIG_FILE_SEARCH_MAX_RESULTS = (None, 100, 500, 1000, 5000, 10000)
 
 
@@ -513,6 +513,6 @@ def _format_bool(value: bool) -> str:
 def _format_editor_command_value(command: str | None) -> str:
     if command is None:
         return "system default"
-    if command in {"nvim", "vim", "nano", "hx", "micro", "emacs -nw"}:
+    if command in {"nvim", "vim", "nano", "hx", "micro", "emacs -nw", "edit"}:
         return command
     return "custom (raw config only)"

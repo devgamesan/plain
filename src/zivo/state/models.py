@@ -20,6 +20,7 @@ from zivo.models import (
     UndoEntry,
 )
 from zivo.models.shell_data import EntryKind, NotificationLevel
+from zivo.windows_paths import resolve_parent_directory_path as resolve_parent_directory_path_impl
 
 UiMode = Literal[
     "BROWSING",
@@ -646,11 +647,7 @@ def load_browser_tab(state: AppState, index: int) -> AppState:
 def resolve_parent_directory_path(path: str) -> tuple[str, str | None]:
     """Return the resolved path and its distinct parent, if one exists."""
 
-    resolved_path = Path(path).expanduser().resolve()
-    parent_path = resolved_path.parent
-    if parent_path == resolved_path:
-        return str(resolved_path), None
-    return str(resolved_path), str(parent_path)
+    return resolve_parent_directory_path_impl(path)
 
 
 def build_initial_app_state(
@@ -752,7 +749,13 @@ def build_placeholder_app_state(
 ) -> AppState:
     """Return an empty browser state used before the first snapshot loads."""
 
-    resolved_path, parent_path = resolve_parent_directory_path(current_path)
+    if current_path == "/":
+        resolved_path = str(Path(current_path).expanduser().resolve())
+        parent_path = resolved_path if Path(resolved_path).parent == Path(resolved_path) else str(
+            Path(resolved_path).parent
+        )
+    else:
+        resolved_path, parent_path = resolve_parent_directory_path(current_path)
     state = AppState(
         current_path=resolved_path,
         config=config or AppConfig(),

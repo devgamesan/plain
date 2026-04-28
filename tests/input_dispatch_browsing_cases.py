@@ -1,5 +1,7 @@
 # ruff: noqa: F403,F405
 
+import os
+
 from .input_dispatch_helpers import *
 
 
@@ -575,6 +577,8 @@ def test_browsing_colon_opens_command_palette() -> None:
     assert actions == (SetNotification(None), BeginCommandPalette())
 
 
+
+
 def test_browsing_o_opens_new_tab() -> None:
     state = build_initial_app_state()
 
@@ -746,7 +750,7 @@ def test_go_to_path_palette_tab_appends_separator_for_single_candidate() -> None
 
     actions = dispatch_key_input(state, key="tab")
 
-    assert actions == (SetNotification(None), SetCommandPaletteQuery("docs/"))
+    assert actions == (SetNotification(None), SetCommandPaletteQuery(f"docs{os.sep}"))
 
 
 def test_go_to_path_palette_tab_warns_without_candidates() -> None:

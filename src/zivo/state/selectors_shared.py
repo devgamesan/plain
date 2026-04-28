@@ -634,14 +634,14 @@ def _format_permissions_detail_label(entry: DirectoryEntryState) -> str:
 def _format_editor_command_value(command: str | None) -> str:
     if command is None:
         return "system default"
-    if command in {"nvim", "vim", "nano", "hx", "micro", "emacs -nw"}:
+    if command in {"nvim", "vim", "nano", "hx", "micro", "emacs -nw", "edit"}:
         return command
     return "custom (raw config only)"
 
 
 def _format_custom_editor_hint(command: str | None) -> str:
-    if command is None or command in {"nvim", "vim", "nano", "hx", "micro", "emacs -nw"}:
-        return "Editor presets: system default, nvim, vim, nano, hx, micro, emacs -nw"
+    if command is None or command in {"nvim", "vim", "nano", "hx", "micro", "emacs -nw", "edit"}:
+        return "Editor presets: system default, nvim, vim, nano, hx, micro, emacs -nw, edit"
     return f"Custom editor command: {command}"
 
 

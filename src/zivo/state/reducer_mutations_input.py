@@ -5,6 +5,7 @@ from pathlib import Path
 
 from zivo.archive_utils import default_extract_destination, default_zip_destination
 from zivo.models import CreateSymlinkRequest, RenameRequest
+from zivo.windows_paths import basename, join_path
 
 from .actions import (
     BeginCreateInput,
@@ -107,8 +108,8 @@ def _handle_begin_zip_compress_input(state, action, reduce_state):
 
 
 def _default_symlink_destination(base_path: str, source_path: str) -> str:
-    source_name = Path(source_path).name
-    return str(Path(base_path) / f"{source_name}.link")
+    source_name = basename(source_path)
+    return join_path(base_path, f"{source_name}.link")
 
 
 def _handle_begin_symlink_input(state, action, reduce_state):

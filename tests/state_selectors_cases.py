@@ -1,3 +1,4 @@
+import os
 from dataclasses import replace
 from stat import S_IFREG
 
@@ -127,8 +128,9 @@ def test_select_current_entries_hides_hidden_by_default() -> None:
 def test_build_placeholder_app_state_keeps_parent_pane_empty_at_root() -> None:
     state = build_placeholder_app_state("/")
 
-    assert state.current_path == "/"
-    assert state.parent_pane.directory_path == "/"
+    expected_root = "C:\\" if os.name == "nt" else "/"
+    assert state.current_path == expected_root
+    assert state.parent_pane.directory_path == expected_root
     assert state.parent_pane.entries == ()
     assert state.parent_pane.cursor_path is None
 
@@ -1266,18 +1268,23 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     state = build_initial_app_state()
 
     help_state = select_help_bar_state(state)
+    split_terminal_hint = " | t term" if os.name == "posix" else ""
 
     assert help_state.lines == (
         "enter open | e edit | i info | space select | c copy | x cut | v paste | "
         "d delete | r rename | z undo",
         "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to | [ ] preview",
-        "n new-file | N new-dir | H history | b bookmarks | t term | : palette | q quit",
+        (
+            "n new-file | N new-dir | H history | "
+            f"b bookmarks{split_terminal_hint} | : palette | q quit"
+        ),
     )
     assert help_state.text == (
         "enter open | e edit | i info | space select | c copy | x cut | v paste | "
         "d delete | r rename | z undo\n"
         "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to | [ ] preview\n"
-        "n new-file | N new-dir | H history | b bookmarks | t term | : palette | q quit"
+        "n new-file | N new-dir | H history | "
+        f"b bookmarks{split_terminal_hint} | : palette | q quit"
     )
 
 
@@ -1304,6 +1311,22 @@ def test_select_help_bar_for_busy_mode() -> None:
     help_state = select_help_bar_state(state)
 
     assert help_state.text == "processing..."
+
+
+def test_select_help_bar_for_split_terminal_focus() -> None:
+    state = replace(
+        build_initial_app_state(),
+        split_terminal=replace(
+            build_initial_app_state().split_terminal,
+            visible=True,
+            status="running",
+            focus_target="terminal",
+        ),
+    )
+
+    help_state = select_help_bar_state(state)
+
+    assert help_state.text == "type in terminal | ctrl+q close"
 
 
 def test_select_command_palette_state_marks_selected_and_enabled_items() -> None:
@@ -1948,7 +1971,8 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
     assert "  Sets the application theme used by the panes, dialogs, and status UI." in dialog.lines
     assert "  Changing this here previews the theme immediately before saving." in dialog.lines
     assert "  Current behavior: `textual-dark`." in dialog.lines
-    assert "Editor presets: system default, nvim, vim, nano, hx, micro, emacs -nw" in dialog.lines
+    hint = "Editor presets: system default, nvim, vim, nano, hx, micro, emacs -nw, edit"
+    assert hint in dialog.lines
     assert "Terminal launch templates: edit config.toml with e" in dialog.lines
     assert dialog.options == (
         "↑↓/Ctrl+n/p choose",

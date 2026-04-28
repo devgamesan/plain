@@ -5,6 +5,11 @@ from pathlib import Path
 from typing import Callable
 
 from zivo.archive_utils import is_supported_archive_path
+from zivo.windows_paths import (
+    is_windows_drives_root,
+    is_windows_path,
+    list_windows_drive_paths,
+)
 
 from .actions import (
     Action,
@@ -219,7 +224,7 @@ def _handle_set_go_to_path_query(state: AppState, next_palette, query: str) -> R
     else:
         base_path = state.current_path
     matches = list_matching_directory_paths(query, base_path)
-    has_trailing_separator = query.endswith("/")
+    has_trailing_separator = query.endswith(("/", "\\"))
     return finalize(
         replace(
             state,
@@ -1011,7 +1016,16 @@ def _handle_begin_go_to_path(
     reduce_state: ReducerFn,
 ) -> ReduceResult:
     del action, reduce_state
-    return finalize(enter_palette(state, source="go_to_path"))
+    next_state = enter_palette(state, source="go_to_path")
+    if is_windows_drives_root(state.current_path) or is_windows_path(state.current_path):
+        next_state = replace(
+            next_state,
+            command_palette=replace(
+                next_state.command_palette,
+                go_to_path_candidates=list_windows_drive_paths(),
+            ),
+        )
+    return finalize(next_state)
 
 
 def _handle_cancel_command_palette(

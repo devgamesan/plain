@@ -11,7 +11,7 @@ VALID_LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 VALID_PASTE_ACTIONS = frozenset({"overwrite", "skip", "rename", "prompt"})
 VALID_PREVIEW_MAX_KIB = frozenset({64, 128, 256, 512, 1024})
 VALID_TERMINAL_EDITOR_NAMES = frozenset(
-    {"emacs", "helix", "hx", "kak", "micro", "nano", "nvim", "vi", "vim"}
+    {"edit", "emacs", "helix", "hx", "kak", "micro", "msedit", "nano", "nvim", "vi", "vim"}
 )
 VALIDATION_PATH = "/tmp/zivo"
 

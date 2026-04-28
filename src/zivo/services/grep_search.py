@@ -190,9 +190,9 @@ class LiveGrepSearchService:
     @staticmethod
     def _relative_display_path(root: Path, path: Path) -> str:
         try:
-            return str(path.relative_to(root))
+            return path.relative_to(root).as_posix()
         except ValueError:
-            return str(path)
+            return path.as_posix()
 
     @staticmethod
     def _is_nonfatal_ripgrep_error(return_code: int, stderr_text: str, query: str) -> bool:

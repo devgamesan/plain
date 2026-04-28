@@ -5,6 +5,8 @@ import platform
 from dataclasses import dataclass
 
 from zivo.archive_utils import is_supported_archive_path
+from zivo.platform_support import is_split_terminal_supported
+from zivo.windows_paths import display_path
 
 from .entry_state_helpers import select_visible_entry_states
 from .models import AppState
@@ -581,6 +583,10 @@ def _matches_query(item: CommandPaletteItem, query: str) -> bool:
 
 def _display_path(path: str) -> str:
     """Replace home directory prefix with ~ for display."""
+
+    rendered = display_path(path)
+    if rendered != path:
+        return rendered
     home = os.path.expanduser("~")
     if path.startswith(home + "/"):
         return "~" + path[len(home):]
@@ -666,4 +672,9 @@ def _transfer_single_target_entry(state: AppState):
 
 def _is_empty_trash_supported() -> bool:
     """Check if empty trash is supported on current platform."""
-    return platform.system() in ("Linux", "Darwin")
+    return platform.system() in ("Linux", "Darwin", "Windows")
+
+
+def _is_split_terminal_supported() -> bool:
+    """Check if the embedded split terminal is available on this platform."""
+    return is_split_terminal_supported()

@@ -20,7 +20,7 @@ MutationHandler = Callable[[AppState, Action, ReducerFn], ReduceResult | None]
 _UNDO_STACK_LIMIT = 20
 
 
-def detect_platform() -> Literal["linux", "darwin"] | None:
+def detect_platform() -> Literal["linux", "darwin", "windows"] | None:
     """Detect the current platform."""
     import platform as platform_module
 
@@ -29,6 +29,8 @@ def detect_platform() -> Literal["linux", "darwin"] | None:
         return "linux"
     if system == "Darwin":
         return "darwin"
+    if system == "Windows":
+        return "windows"
     return None
 
 

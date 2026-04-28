@@ -319,12 +319,6 @@ def notification_for_external_launch(
     )
 
 
-def split_terminal_exit_message(exit_code: int | None) -> str:
-    if exit_code is None:
-        return "Split terminal closed"
-    return f"Split terminal closed (exit {exit_code})"
-
-
 def notification_for_paste_summary(summary: PasteSummary) -> NotificationState:
     verb = "Copied" if summary.mode == "copy" else "Moved"
     if summary.failure_count and summary.success_count:

@@ -5,10 +5,6 @@ from textwrap import shorten
 from typing import Callable
 
 from zivo.models import BookmarkConfig, ExternalLaunchRequest, HelpBarConfig
-from zivo.platform_support import (
-    is_split_terminal_supported,
-    split_terminal_unavailable_message,
-)
 
 from .actions import (
     Action,
@@ -22,7 +18,6 @@ from .actions import (
     DismissConfigEditor,
     ExternalLaunchCompleted,
     ExternalLaunchFailed,
-    FocusSplitTerminal,
     MoveConfigEditorCursor,
     OpenPathInEditor,
     OpenPathWithDefaultApp,
@@ -30,27 +25,18 @@ from .actions import (
     RemoveBookmark,
     ResetHelpBarConfig,
     SaveConfigEditor,
-    SendSplitTerminalInput,
     SetShellCommandValue,
     SetTerminalHeight,
     ShellCommandCompleted,
     ShellCommandFailed,
-    SplitTerminalExited,
-    SplitTerminalOutputReceived,
-    SplitTerminalStarted,
-    SplitTerminalStartFailed,
     SubmitShellCommand,
-    ToggleSplitTerminal,
 )
 from .effects import (
-    CloseSplitTerminalEffect,
     ReduceResult,
     RunConfigSaveEffect,
     RunShellCommandEffect,
-    StartSplitTerminalEffect,
-    WriteSplitTerminalInputEffect,
 )
-from .models import AppState, NotificationState, ShellCommandState, SplitTerminalState
+from .models import AppState, NotificationState, ShellCommandState
 from .reducer_common import (
     ReducerFn,
     apply_config_to_runtime_state,
@@ -59,7 +45,6 @@ from .reducer_common import (
     move_config_cursor_visual,
     notification_for_external_launch,
     run_external_launch_request,
-    split_terminal_exit_message,
     sync_child_pane,
 )
 from .selectors import select_target_paths
@@ -416,7 +401,7 @@ def _handle_open_terminal_at_path(
         ExternalLaunchRequest(
             kind="open_terminal",
             path=action.path,
-            terminal_launch_mode=state.config.terminal.launch_mode,
+            terminal_launch_mode=action.launch_mode,
         ),
     )
 
@@ -437,85 +422,6 @@ def _handle_copy_paths_to_clipboard(
     return run_external_launch_request(
         replace(state, notification=None),
         ExternalLaunchRequest(kind="copy_paths", paths=target_paths),
-    )
-
-
-def _handle_toggle_split_terminal(
-    state: AppState,
-    action: ToggleSplitTerminal,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    if not is_split_terminal_supported():
-        return finalize(
-            replace(
-                state,
-                notification=NotificationState(
-                    level="warning",
-                    message=split_terminal_unavailable_message(),
-                ),
-            )
-        )
-    if state.split_terminal.visible:
-        next_state = replace(
-            state,
-            split_terminal=SplitTerminalState(),
-            notification=None,
-        )
-        session_id = state.split_terminal.session_id
-        if session_id is None:
-            return finalize(next_state)
-        return finalize(next_state, CloseSplitTerminalEffect(session_id=session_id))
-
-    session_id = state.next_request_id
-    next_state = replace(
-        state,
-        notification=None,
-        next_request_id=session_id + 1,
-        split_terminal=SplitTerminalState(
-            visible=True,
-            focus_target="terminal",
-            status="starting",
-            cwd=state.current_path,
-            session_id=session_id,
-        ),
-    )
-    return finalize(
-        next_state,
-        StartSplitTerminalEffect(session_id=session_id, cwd=state.current_path),
-    )
-
-
-def _handle_focus_split_terminal(
-    state: AppState,
-    action: FocusSplitTerminal,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    if not state.split_terminal.visible or state.split_terminal.status != "running":
-        return finalize(state)
-    return finalize(
-        replace(
-            state,
-            notification=None,
-            split_terminal=replace(state.split_terminal, focus_target=action.target),
-        )
-    )
-
-
-def _handle_send_split_terminal_input(
-    state: AppState,
-    action: SendSplitTerminalInput,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    session_id = state.split_terminal.session_id
-    if (
-        not state.split_terminal.visible
-        or state.split_terminal.status != "running"
-        or session_id is None
-    ):
-        return finalize(state)
-    return finalize(
-        state,
-        WriteSplitTerminalInputEffect(session_id=session_id, data=action.data),
     )
 
 
@@ -583,69 +489,6 @@ def _handle_shell_command_failed(
             ui_mode="BROWSING",
             notification=NotificationState(level="error", message=action.message),
             pending_shell_command_request_id=None,
-        )
-    )
-
-
-def _handle_split_terminal_started(
-    state: AppState,
-    action: SplitTerminalStarted,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    if state.split_terminal.session_id != action.session_id:
-        return finalize(state)
-    return finalize(
-        replace(
-            state,
-            split_terminal=replace(
-                state.split_terminal,
-                status="running",
-                cwd=action.cwd,
-            ),
-            notification=NotificationState(level="info", message="Split terminal opened"),
-        )
-    )
-
-
-def _handle_split_terminal_start_failed(
-    state: AppState,
-    action: SplitTerminalStartFailed,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    if state.split_terminal.session_id != action.session_id:
-        return finalize(state)
-    return finalize(
-        replace(
-            state,
-            split_terminal=SplitTerminalState(),
-            notification=NotificationState(level="error", message=action.message),
-        )
-    )
-
-
-def _handle_split_terminal_output_received(
-    state: AppState,
-    action: SplitTerminalOutputReceived,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    return finalize(state)
-
-
-def _handle_split_terminal_exited(
-    state: AppState,
-    action: SplitTerminalExited,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    if state.split_terminal.session_id != action.session_id:
-        return finalize(state)
-    return finalize(
-        replace(
-            state,
-            split_terminal=SplitTerminalState(),
-            notification=NotificationState(
-                level="info",
-                message=split_terminal_exit_message(action.exit_code),
-            ),
         )
     )
 
@@ -733,17 +576,10 @@ _TERMINAL_CONFIG_HANDLERS: dict[type[Action], _TerminalConfigHandler] = {
     OpenPathInEditor: _handle_open_path_in_editor,
     OpenTerminalAtPath: _handle_open_terminal_at_path,
     CopyPathsToClipboard: _handle_copy_paths_to_clipboard,
-    ToggleSplitTerminal: _handle_toggle_split_terminal,
-    FocusSplitTerminal: _handle_focus_split_terminal,
-    SendSplitTerminalInput: _handle_send_split_terminal_input,
     ExternalLaunchCompleted: _handle_external_launch_completed,
     ExternalLaunchFailed: _handle_external_launch_failed,
     ShellCommandCompleted: _handle_shell_command_completed,
     ShellCommandFailed: _handle_shell_command_failed,
-    SplitTerminalStarted: _handle_split_terminal_started,
-    SplitTerminalStartFailed: _handle_split_terminal_start_failed,
-    SplitTerminalOutputReceived: _handle_split_terminal_output_received,
-    SplitTerminalExited: _handle_split_terminal_exited,
     ConfigSaveCompleted: _handle_config_save_completed,
     ConfigSaveFailed: _handle_config_save_failed,
     SetTerminalHeight: _handle_set_terminal_height,

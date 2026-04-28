@@ -8,8 +8,7 @@
  mdurl              0.1.2    MIT License                                    https://github.com/executablebooks/mdurl           
  packaging          26.0     Apache-2.0 OR BSD-2-Clause                     https://github.com/pypa/packaging                  
  platformdirs       4.9.4    MIT                                            https://github.com/tox-dev/platformdirs            
- pluggy             1.6.0    MIT License                                    UNKNOWN                                            
- pyte               0.8.2    GNU Lesser General Public License v3 (LGPLv3)  https://github.com/selectel/pyte                   
+ pluggy             1.6.0    MIT License                                    UNKNOWN
  pytest             9.0.2    MIT                                            https://docs.pytest.org/en/latest/                 
  pytest-asyncio     1.3.0    Apache-2.0                                     https://github.com/pytest-dev/pytest-asyncio       
  rich               14.3.3   MIT License                                    https://github.com/Textualize/rich                 

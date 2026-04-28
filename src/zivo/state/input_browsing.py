@@ -1,10 +1,5 @@
 """Browsing-mode key bindings and dispatcher."""
 
-from zivo.platform_support import (
-    is_split_terminal_supported,
-    split_terminal_unavailable_message,
-)
-
 from .actions import (
     Action,
     ActivateNextTab,
@@ -52,7 +47,6 @@ from .actions import (
     ShowAttributes,
     ToggleHiddenFiles,
     ToggleSelectionAndAdvance,
-    ToggleSplitTerminal,
     ToggleTransferMode,
     UndoLastOperation,
 )
@@ -97,7 +91,7 @@ BROWSING_KEYMAP = {
     "right": "enter_directory",
     "l": "enter_directory",
     "enter": "enter_or_open",
-    "t": "toggle_split_terminal",
+    "t": "open_terminal",
     "f": "begin_file_search",
     "g": "begin_grep_search",
     "a": "select_all",
@@ -118,7 +112,7 @@ BROWSING_KEYMAP = {
     "{": "go_back",
     "}": "go_forward",
     "M": "open_file_manager",
-    "T": "open_terminal",
+    "T": "open_terminal_window",
     "home": "jump_cursor_start",
     "end": "jump_cursor_end",
     "pageup": "cursor_pageup",
@@ -332,18 +326,16 @@ def handle_create_dir(_state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
     return supported(BeginCreateInput("dir"))
 
 
-def handle_open_terminal(state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
+def handle_open_terminal_foreground(state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
+    return supported(OpenTerminalAtPath(state.current_path, launch_mode="foreground"))
+
+
+def handle_open_terminal_window(state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
     return supported(OpenTerminalAtPath(state.current_path))
 
 
 def handle_open_file_manager(state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
     return supported(OpenPathWithDefaultApp(state.current_path))
-
-
-def handle_toggle_split_terminal(_state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
-    if not is_split_terminal_supported():
-        return warn(split_terminal_unavailable_message())
-    return supported(ToggleSplitTerminal())
 
 
 def handle_cursor_up(state: AppState, ctx: BrowsingCtx) -> DispatchedActions:
@@ -456,7 +448,8 @@ BROWSING_PARAM_DISPATCH: dict[str, BrowsingHandler] = {
     "cut_targets": handle_cut_targets,
     "create_file": handle_create_file,
     "create_dir": handle_create_dir,
-    "open_terminal": handle_open_terminal,
+    "open_terminal": handle_open_terminal_foreground,
+    "open_terminal_window": handle_open_terminal_window,
     "open_file_manager": handle_open_file_manager,
     "preview_pageup": noop_browsing_handler,
     "preview_pagedown": noop_browsing_handler,
@@ -474,7 +467,6 @@ BROWSING_COMPLEX_DISPATCH: dict[str, BrowsingHandler] = {
     "permanent_delete_targets": handle_permanent_delete_targets,
     "open_in_editor": handle_open_in_editor,
     "enter_directory": handle_enter_directory,
-    "toggle_split_terminal": handle_toggle_split_terminal,
 }
 
 BROWSING_COMMAND_DISPATCH: dict[str, BrowsingHandler] = {

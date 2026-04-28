@@ -204,29 +204,6 @@ class RunTextReplaceApplyEffect:
 
 
 @dataclass(frozen=True)
-class StartSplitTerminalEffect:
-    """Start a new embedded split-terminal session."""
-
-    session_id: int
-    cwd: str
-
-
-@dataclass(frozen=True)
-class WriteSplitTerminalInputEffect:
-    """Write input into the active embedded split-terminal session."""
-
-    session_id: int
-    data: str
-
-
-@dataclass(frozen=True)
-class CloseSplitTerminalEffect:
-    """Close the active embedded split-terminal session."""
-
-    session_id: int
-
-
-@dataclass(frozen=True)
 class RunConfigSaveEffect:
     """Persist the current config editor draft to disk."""
 
@@ -264,9 +241,6 @@ Effect = (
     | RunGrepSearchEffect
     | RunTextReplacePreviewEffect
     | RunTextReplaceApplyEffect
-    | StartSplitTerminalEffect
-    | WriteSplitTerminalInputEffect
-    | CloseSplitTerminalEffect
     | RunConfigSaveEffect
     | RunShellCommandEffect
 )

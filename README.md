@@ -17,7 +17,6 @@ zivo aims to be usable by everyone without complex configuration, plugin install
 - **Clear 3-pane layout**: Parent, current, and right panes displayed side by side, with text, image, and document preview for focused files
 - **Transfer mode**: Put two directories side by side to copy or move files with ease
 - **Tabbed browsing**: Keep multiple browser workspaces open inside one TUI and switch between them quickly
-- **Embedded terminal**: Seamlessly switch between browsing and shell with `t`
 - **Powerful search**: Jump directly to files with recursive file search and grep search
 - **Terminal editor integration**: Launch your preferred terminal editor in the current directory
 - **External app integration**: Open files directly with their default applications
@@ -37,17 +36,6 @@ zivo aims to be usable by everyone without complex configuration, plugin install
   ![](docs/resources/screen-text-preview.png)
 
 - Multiple tabs let you keep separate working directories open in one zivo session. You can open a new tab, switch to the next or previous tab, and close the current tab without leaving the TUI.
-
-- An embedded terminal can be opened below the browser panes, to the right, or as an overlay above the browser area. `t` switches quickly between the browser and terminal, and the terminal starts in the current directory so you can move between browsing and shell work without changing directories manually. See [Notes](#notes) for limitations.
-
-Bottom display:
-  ![](docs/resources/screen-split-terminal.png)
-
-Right display:
-  ![](docs/resources/screen-split-terminal-right.png)
-
-Overlay display:
-  ![](docs/resources/screen-split-terminal-overlay.png)
 
 - Recursive file search makes it easy to jump to the file you want. Just type part of the name to instantly filter through thousands of files and reach your target without drilling through the directory tree manually. Search results also support file preview, making it easy to find what you are looking for.
 
@@ -183,6 +171,8 @@ When a file is focused, press `e` to switch into a terminal editor in the curren
 
 ### Normal Mode
 
+You can open an external terminal directly from zivo. Press `t` to suspend zivo and open an interactive shell in the current terminal at zivo's current directory. When you exit the shell, zivo resumes automatically—no need to manually change directories or manage multiple terminal windows. Alternatively, press `T` to launch a separate terminal window.
+
 | Key | Action |
 | --- | ------ |
 | `j` / `↓` | Move down |
@@ -222,8 +212,8 @@ When a file is focused, press `e` to switch into a terminal editor in the curren
 | `.` | Toggle hidden files |
 | `s` | Cycle sort |
 | `R` | Reload directory |
-| `t` | Toggle split terminal (POSIX only; native Windows shows an unavailable warning) |
-| `T` | Open terminal at current directory |
+| `t` | Open terminal in foreground (suspend zivo, open shell in current terminal, resume on exit; not available on native Windows) |
+| `T` | Open terminal at current directory (separate window) |
 | `o` | Open new tab |
 | `w` | Close current tab |
 | `tab` | Switch to next tab |
@@ -267,14 +257,6 @@ When a file is focused, press `e` to switch into a terminal editor in the curren
 | `H` | Show history |
 | `:` | Open a transfer-mode command palette with transfer-available commands only |
 | `Tab` / `Shift+Tab` | Switch browser tabs, same as normal mode |
-
-### Split Terminal Mode
-
-| Key | Action |
-| --- | ------ |
-| Any printable character | Send to terminal |
-| `Cmd+v` (macOS) / `Ctrl+shift+v` (Linux) | Paste from clipboard |
-| `Ctrl+q` | Close split terminal |
 
 ### Input Dialogs
 
@@ -363,8 +345,7 @@ The tab strip is only shown when two or more browser tabs are open.
 | `Go to home directory` | Always | Navigates to the home directory. |
 | `Reload directory` | Always | Reloads the current directory. |
 | `Toggle transfer mode` / `Close transfer mode` | Always | Switches between the normal three-pane browser and the two-pane transfer layout. Also available with `q` / `2` while transfer mode is open, and `2` from normal mode. |
-| `Undo last file operation` | Undo history is not empty | Reverses the most recent undoable rename, paste, or trash operation. Also available with `z`. Trash restore is currently supported on Linux and macOS, but not on Windows. |
-| `Toggle split terminal` | POSIX environments | Opens or closes the embedded split terminal. It stays disabled in the command palette on native Windows, and direct `t` input shows an unavailable warning. |
+| `Undo last file operation` | Undo history is not empty | Reverses the most recent undoable rename, paste, or trash operation. Also available with `z`. Trash restore is supported on Linux and macOS, but not on Windows. |
 | `Select all` | Current directory has at least one visible entry | Selects every currently visible entry in the current directory, respecting hidden-file visibility and any active filter. |
 | `Replace text in selected files` | A file is focused or one or more files are selected in the current directory | Opens a two-field replacement palette for the selected files, or the focused file when nothing is explicitly selected. Matching files appear in the palette, `↑↓` and `Ctrl+n` / `Ctrl+p` move between them, and the right pane shows the selected file's diff before `Enter` applies the replacement. `Shift+↑` / `Shift+↓` scrolls the diff preview. |
 | `Replace text in found files` | Always | Opens a three-field replacement palette (filename, find, replace). Type a filename pattern to search for files, then type find/replace text to preview replacements. `Tab` / `Shift+Tab` cycle between fields. The right pane shows the diff preview, and `Enter` applies the replacement. |
@@ -379,7 +360,7 @@ The tab strip is only shown when two or more browser tabs are open.
 | `Move to trash` | At least one target is selected or focused | Moves the selected items, or the focused item, to trash (confirmation is enabled by default and can be configured). On Windows this uses the Recycle Bin via `send2trash`, but undo restore is not available there. |
 | `Empty trash` | Always (Linux/macOS only) | Permanently deletes all items from the trash. Shows a confirmation dialog before emptying. Windows support is not available yet. |
 | `Open in file manager` | Always | Opens the current directory in the OS file manager. Also available with `M`. |
-| `Open terminal` | Always | Launches an external terminal rooted at zivo's current directory, using `config.toml` templates before built-in fallbacks. The launch mode can be switched between a separate window and foreground terminal handoff. On Windows, `window` mode is supported and `foreground` is rejected with guidance to switch back to `window`. Also available with `T`. |
+| `Open terminal` | Always | Launches an external terminal rooted at zivo's current directory, using `config.toml` templates before built-in fallbacks. Also available with `T` and `t`. |
 | `Run shell command` | Always | Opens a one-line shell command dialog, runs the command in the current directory in the background, and returns the first output line or failure summary in the status bar. On Windows, zivo prefers `powershell.exe`, then `pwsh`, then `cmd.exe`, so command syntax follows the selected Windows shell rather than POSIX `sh`. Also available with `!`. |
 | `Bookmark this directory` / `Remove bookmark` | Always | Saves or removes the current directory in `[bookmarks].paths`. The label reflects whether the current directory is already bookmarked. Also available with `B`. |
 | `Show hidden files` / `Hide hidden files` | Always | Toggles hidden-file visibility for the browser panes. The label reflects the current visibility state. Also available with `.`. |
@@ -400,7 +381,6 @@ The supported settings are:
 
 | Section | Key | Values | Description |
 | --- | --- | --- | --- |
-| `terminal` | `launch_mode` | `window` / `foreground` | Chooses how `T` opens a terminal for zivo's current directory. `window` starts a separate terminal window. `foreground` suspends zivo, opens an interactive shell in the current terminal, and returns to zivo after `exit`. Windows currently supports `window` only and rejects `foreground` at runtime. |
 | `terminal` | `linux` | Array of shell-style command templates | Optional terminal launch commands for Linux. Use `{path}` as the working-directory placeholder. Invalid or empty entries are ignored. |
 | `terminal` | `macos` | Array of shell-style command templates | Optional terminal launch commands for macOS, validated the same way as Linux entries. |
 | `terminal` | `windows` | Array of shell-style command templates | Optional terminal launch commands for Windows and WSL bridge workflows. Windows native `window` launch is supported; `foreground` remains unavailable there. |
@@ -411,14 +391,13 @@ The supported settings are:
 | `display` | `enable_image_preview` | `true` / `false` | Shows image-file previews in the right pane through `chafa`. Defaults to `true`. When `chafa` is missing, zivo shows a dependency message instead of failing. |
 | `display` | `enable_pdf_preview` | `true` / `false` | Enables PDF preview conversion through `pdftotext`. Defaults to `true`. When disabled, PDF files fall back to the usual unsupported-file message. |
 | `display` | `enable_office_preview` | `true` / `false` | Enables `pandoc`-based preview conversion for `docx`, `xlsx`, and `pptx` files. Defaults to `true`. When disabled, those formats fall back to the usual unsupported-file message. |
-| `display` | `show_help_bar` | `true` / `false` | Shows the help bar at the bottom of the screen. Defaults to `true`. The help bar is always shown when the command palette or split terminal is open, regardless of this setting. |
+| `display` | `show_help_bar` | `true` / `false` | Shows the help bar at the bottom of the screen. Defaults to `true`. The help bar is always shown when the command palette is open, regardless of this setting. |
 | `display` | `theme` | Any built-in Textual theme, for example `textual-dark`, `textual-light`, `dracula`, or `tokyo-night` | Default UI theme applied on startup. In the settings editor, theme changes are previewed immediately and are persisted when you save. |
 | `display` | `preview_syntax_theme` | `auto` or a supported Pygments style, for example `one-dark`, `xcode`, `nord`, or `gruvbox-dark` | Syntax-highlighting colors used by the right-pane text preview. `auto` keeps the current light/dark-based default selection. In the settings editor, changes are previewed immediately when a text preview is visible. |
 | `display` | `preview_max_kib` | `64` / `128` / `256` / `512` / `1024` | Maximum amount of text read for right-pane file previews and preview sampling. Defaults to `64`. Larger values allow deeper previews at the cost of more I/O. |
 | `display` | `default_sort_field` | `name` / `modified` / `size` | Default sort field for the main pane. |
 | `display` | `default_sort_descending` | `true` / `false` | Starts the main-pane sort in descending order when enabled. |
 | `display` | `directories_first` | `true` / `false` | Keeps directories grouped before files in the main pane. |
-| `display` | `split_terminal_position` | `bottom` / `right` / `overlay` | Chooses where the embedded terminal opens. `overlay` keeps the help bar and status message visible while placing the terminal over the browser area with a margin. |
 | `behavior` | `confirm_delete` | `true` / `false` | Shows a confirmation dialog before moving items to trash. Permanent delete via `D` / `Shift+Delete` always asks for confirmation. |
 | `behavior` | `paste_conflict_action` | `prompt` / `overwrite` / `skip` / `rename` | Chooses the default paste-conflict behavior. `prompt` keeps the conflict dialog enabled. |
 | `logging` | `enabled` | `true` / `false` | Enables file output for startup failures and unhandled exceptions. |
@@ -476,17 +455,12 @@ The accepted `display.preview_syntax_theme` values are `auto` plus the Pygments 
 
 - Refer to the "Supported OS" section above for current support status.
 - GUI integration such as default-app launch, file-manager launch, and external terminal launch is currently verified mainly on Ubuntu and Ubuntu running under WSL.
-- The embedded split terminal currently targets POSIX environments, especially Ubuntu/Linux and WSL, and is not available on native Windows. On native Windows, direct `t` input shows a warning instead of attempting startup.
 - `config.toml` can override both the preferred terminal editor and external terminal launch commands before built-in fallbacks are used.
 - On WSL, `wslu` is recommended so `wslview` is available for the preferred bridge behavior.
 - On WSL, zivo prefers Windows-side bridges such as `wslview`, `explorer.exe`, and `clip.exe` when available, while keeping Linux-side fallbacks for WSLg and desktop Linux environments.
 - Behavior and keybindings may change in future revisions.
 - File mutations operate on the selected directory entry. If the selected item is a symlink, zivo mutates the symlink itself instead of silently following and mutating the link target.
 - Command palette symlink creation stores a relative target by default and supports `Tab` path completion in the destination input.
-- The embedded split terminal uses [pyte](https://pyte.readthedocs.io/) for terminal emulation, which has the following limitations:
-  - TUI applications that use an alternate screen buffer (e.g. lazygit, htop, vim) generally do not work correctly.
-  - Certain escape sequences (DCS, OSC, and private SGR) are stripped during output sanitization, so features relying on them are unavailable.
-  - Mouse events are not forwarded, so mouse-driven applications cannot be used.
 
 ## Related Documents
 

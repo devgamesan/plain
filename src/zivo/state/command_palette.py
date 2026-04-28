@@ -277,12 +277,6 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             enabled=True,
         ),
         CommandPaletteItem(
-            id="toggle_split_terminal",
-            label="Toggle split terminal",
-            shortcut="t",
-            enabled=_is_split_terminal_supported(),
-        ),
-        CommandPaletteItem(
             id="select_all",
             label="Select all",
             shortcut="a",

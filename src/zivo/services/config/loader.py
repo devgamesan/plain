@@ -34,9 +34,7 @@ from .shared import (
     VALID_PREVIEW_MAX_KIB,
     VALID_PREVIEW_SYNTAX_THEMES,
     VALID_SORT_FIELDS,
-    VALID_SPLIT_TERMINAL_POSITIONS,
     VALID_TERMINAL_EDITOR_NAMES,
-    VALID_TERMINAL_LAUNCH_MODES,
     VALID_THEMES,
     VALIDATION_PATH,
 )
@@ -111,15 +109,6 @@ def load_terminal_config(section: object, warnings: list[str]) -> TerminalConfig
     if validated is None:
         return TerminalConfig()
     return TerminalConfig(
-        launch_mode=read_enum(
-            validated,
-            key="launch_mode",
-            default="window",
-            valid_values=VALID_TERMINAL_LAUNCH_MODES,
-            valid_display="window, foreground",
-            section_name="terminal",
-            warnings=warnings,
-        ),
         linux=load_command_templates(validated, "linux", warnings),
         macos=load_command_templates(validated, "macos", warnings),
         windows=load_command_templates(validated, "windows", warnings),
@@ -233,15 +222,6 @@ def load_display_config(section: object, warnings: list[str]) -> DisplayConfig:
             default=config.default_sort_field,
             valid_values=VALID_SORT_FIELDS,
             valid_display="name, modified, size",
-            section_name="display",
-            warnings=warnings,
-        ),
-        split_terminal_position=read_enum(
-            validated,
-            key="split_terminal_position",
-            default=config.split_terminal_position,
-            valid_values=VALID_SPLIT_TERMINAL_POSITIONS,
-            valid_display="bottom, right, overlay",
             section_name="display",
             warnings=warnings,
         ),

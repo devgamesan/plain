@@ -1,4 +1,3 @@
-import os
 from dataclasses import replace
 from pathlib import Path
 
@@ -25,7 +24,6 @@ from zivo.state import (
     RunAttributeInspectionEffect,
     RunConfigSaveEffect,
     RunExternalLaunchEffect,
-    StartSplitTerminalEffect,
     TransferPaneState,
     build_initial_app_state,
     reduce_app_state,
@@ -903,47 +901,6 @@ def test_submit_command_palette_goes_to_home_directory() -> None:
     assert len(result.effects) == 1
     assert isinstance(result.effects[0], LoadBrowserSnapshotEffect)
 
-def test_submit_command_palette_toggles_split_terminal() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("split terminal"))
-
-    result = reduce_app_state(state, SubmitCommandPalette())
-
-    if os.name != "posix":
-        assert result.state.ui_mode == "PALETTE"
-        assert result.state.command_palette is not None
-        assert result.state.split_terminal.visible is False
-        assert result.effects == ()
-        assert result.state.notification == NotificationState(
-            level="warning",
-            message="Toggle split terminal is not available yet",
-        )
-        return
-
-    assert result.state.ui_mode == "BROWSING"
-    assert result.state.command_palette is None
-    assert result.state.split_terminal.visible is True
-    assert len(result.effects) == 1
-    assert isinstance(result.effects[0], StartSplitTerminalEffect)
-
-
-def test_submit_command_palette_toggle_split_terminal_stays_disabled_when_unsupported(
-    monkeypatch,
-) -> None:
-    monkeypatch.setattr(command_palette_module, "is_split_terminal_supported", lambda: False)
-    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("split terminal"))
-
-    result = reduce_app_state(state, SubmitCommandPalette())
-
-    assert result.state.ui_mode == "PALETTE"
-    assert result.state.command_palette is not None
-    assert result.state.split_terminal.visible is False
-    assert result.effects == ()
-    assert result.state.notification == NotificationState(
-        level="warning",
-        message="Toggle split terminal is not available yet",
-    )
 
 def test_submit_command_palette_begins_rename_with_single_target() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())

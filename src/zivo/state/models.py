@@ -58,15 +58,12 @@ FindReplaceFieldId = Literal["filename", "find", "replace"]
 GrepReplaceFieldId = Literal["keyword", "replace", "filename", "include", "exclude"]
 GrepReplaceSelectedFieldId = Literal["keyword", "replace"]
 SelectedFilesGrepFieldId = Literal["keyword"]
-SplitTerminalStatus = Literal["closed", "starting", "running"]
-SplitTerminalFocusTarget = Literal["browser", "terminal"]
 DirectorySizeStatus = Literal["pending", "ready", "failed"]
 CurrentPaneProjectionMode = Literal["full", "viewport"]
 LayoutMode = Literal["browser", "transfer"]
 TransferPaneId = Literal["left", "right"]
 ConfigFieldId = Literal[
     "editor.command",
-    "terminal.launch_mode",
     "display.show_hidden_files",
     "display.show_directory_sizes",
     "display.enable_text_preview",
@@ -81,7 +78,6 @@ ConfigFieldId = Literal[
     "display.directories_first",
     "display.grep_preview_context_lines",
     "display.show_help_bar",
-    "display.split_terminal_position",
     "behavior.confirm_delete",
     "behavior.paste_conflict_action",
     "logging.level",
@@ -460,18 +456,6 @@ class CommandPaletteState:
 
 
 @dataclass(frozen=True)
-class SplitTerminalState:
-    """Embedded split-terminal session state."""
-
-    visible: bool = False
-    focus_target: SplitTerminalFocusTarget = "browser"
-    status: SplitTerminalStatus = "closed"
-    cwd: str | None = None
-    session_id: int | None = None
-    output: str = ""
-
-
-@dataclass(frozen=True)
 class BrowserSnapshot:
     """Pane snapshot payload returned from async loaders."""
 
@@ -544,7 +528,6 @@ class AppState:
     pending_input: PendingInputState | None = None
     pending_key_sequence: PendingKeySequenceState | None = None
     command_palette: CommandPaletteState | None = None
-    split_terminal: SplitTerminalState = SplitTerminalState()
     paste_conflict: PasteConflictState | None = None
     delete_confirmation: DeleteConfirmationState | None = None
     empty_trash_confirmation: EmptyTrashConfirmationState | None = None

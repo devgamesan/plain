@@ -2,8 +2,6 @@
 
 import os
 
-import zivo.state.input_browsing as input_browsing_module
-
 from .input_dispatch_helpers import *
 
 
@@ -578,37 +576,6 @@ def test_browsing_colon_opens_command_palette() -> None:
 
     assert actions == (SetNotification(None), BeginCommandPalette())
 
-
-def test_browsing_lowercase_t_toggles_split_terminal(monkeypatch) -> None:
-    state = build_initial_app_state()
-    monkeypatch.setattr(input_browsing_module, "is_split_terminal_supported", lambda: True)
-
-    actions = dispatch_key_input(state, key="t")
-
-    assert actions == (SetNotification(None), ToggleSplitTerminal())
-
-
-def test_browsing_lowercase_t_warns_when_split_terminal_is_unsupported(
-    monkeypatch,
-) -> None:
-    state = build_initial_app_state()
-    monkeypatch.setattr(input_browsing_module, "is_split_terminal_supported", lambda: False)
-    monkeypatch.setattr(
-        input_browsing_module,
-        "split_terminal_unavailable_message",
-        lambda: "Split terminal is not available on native Windows",
-    )
-
-    actions = dispatch_key_input(state, key="t")
-
-    assert actions == (
-        SetNotification(
-            NotificationState(
-                level="warning",
-                message="Split terminal is not available on native Windows",
-            )
-        ),
-    )
 
 
 def test_browsing_o_opens_new_tab() -> None:

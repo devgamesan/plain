@@ -35,10 +35,6 @@ def render_terminal_section(config: AppConfig) -> str:
     windows = render_command_array(config.terminal.windows)
     return (
         "[terminal]\n"
-        '# launch_mode = "window"\n'
-        "# window: launch a separate terminal window.\n"
-        "# foreground: suspend zivo and use the terminal in the foreground until exit.\n"
-        "# Windows currently supports window mode only; foreground is rejected there.\n"
         "# Optional OS-specific terminal launch templates.\n"
         "# Use {path} for the working directory.\n"
         "# Examples:\n"
@@ -48,7 +44,6 @@ def render_terminal_section(config: AppConfig) -> str:
         '# ]\n'
         '# macos = ["open -a Terminal {path}"]\n'
         '# windows = ["wt -d {path}"]\n'
-        f'launch_mode = "{config.terminal.launch_mode}"\n'
         f"linux = [{linux}]\n"
         f"macos = [{macos}]\n"
         f"windows = [{windows}]"
@@ -83,8 +78,7 @@ def render_display_section(config: AppConfig) -> str:
         f'default_sort_field = "{config.display.default_sort_field}"\n'
         f"default_sort_descending = {render_bool(config.display.default_sort_descending)}\n"
         f"directories_first = {render_bool(config.display.directories_first)}\n"
-        f"grep_preview_context_lines = {config.display.grep_preview_context_lines}\n"
-        f'split_terminal_position = "{config.display.split_terminal_position}"'
+        f"grep_preview_context_lines = {config.display.grep_preview_context_lines}"
     )
 
 

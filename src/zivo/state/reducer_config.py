@@ -13,9 +13,7 @@ CONFIG_PREVIEW_SYNTAX_THEMES = SUPPORTED_PREVIEW_SYNTAX_THEMES
 CONFIG_PREVIEW_MAX_KIB = (64, 128, 256, 512, 1024)
 CONFIG_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 CONFIG_PASTE_ACTIONS = ("prompt", "overwrite", "skip", "rename")
-CONFIG_TERMINAL_LAUNCH_MODES = ("window", "foreground")
 CONFIG_EDITOR_COMMANDS = (None, "nvim", "vim", "nano", "hx", "micro", "emacs -nw")
-CONFIG_SPLIT_TERMINAL_POSITIONS = ("bottom", "right", "overlay")
 CONFIG_FILE_SEARCH_MAX_RESULTS = (None, 100, 500, 1000, 5000, 10000)
 
 
@@ -31,18 +29,6 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
             editor=replace(
                 config.editor,
                 command=cycle_editor_command(config.editor.command, delta),
-            ),
-        )
-    if field_id == "terminal.launch_mode":
-        return replace(
-            config,
-            terminal=replace(
-                config.terminal,
-                launch_mode=cycle_choice(
-                    CONFIG_TERMINAL_LAUNCH_MODES,
-                    config.terminal.launch_mode,
-                    delta,
-                ),
             ),
         )
     if field_id == "display.show_hidden_files":
@@ -175,18 +161,6 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
                 ),
             ),
         )
-    if field_id == "display.split_terminal_position":
-        return replace(
-            config,
-            display=replace(
-                config.display,
-                split_terminal_position=cycle_choice(
-                    CONFIG_SPLIT_TERMINAL_POSITIONS,
-                    config.display.split_terminal_position,
-                    delta,
-                ),
-            ),
-        )
     if field_id == "behavior.confirm_delete":
         return replace(
             config,
@@ -251,7 +225,6 @@ def cycle_editor_command(current: str | None, delta: int) -> str | None:
 def config_editor_field_ids() -> tuple[str, ...]:
     return (
         "editor.command",
-        "terminal.launch_mode",
         "display.show_hidden_files",
         "display.theme",
         "display.show_directory_sizes",
@@ -266,7 +239,6 @@ def config_editor_field_ids() -> tuple[str, ...]:
         "display.default_sort_descending",
         "display.directories_first",
         "display.grep_preview_context_lines",
-        "display.split_terminal_position",
         "behavior.confirm_delete",
         "behavior.paste_conflict_action",
         "logging.level",
@@ -277,7 +249,6 @@ def config_editor_field_ids() -> tuple[str, ...]:
 def config_editor_labels() -> tuple[str, ...]:
     return (
         "Editor command",
-        "Terminal launch mode",
         "Show hidden files",
         "Theme",
         "Show directory sizes",
@@ -292,7 +263,6 @@ def config_editor_labels() -> tuple[str, ...]:
         "Default sort descending",
         "Directories first",
         "Grep preview context lines",
-        "Split terminal position",
         "Confirm delete",
         "Paste conflict action",
         "Log level",
@@ -319,13 +289,6 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
             )
         lines.append("Custom commands can only be edited in the raw config file with `e`.")
         return tuple(lines)
-    if field_id == "terminal.launch_mode":
-        return (
-            "Controls how the external terminal command is launched.",
-            "window opens a separate terminal app; foreground hands the current terminal over.",
-            "Windows currently supports window mode only; foreground fails there.",
-            f"Current behavior: `{config.terminal.launch_mode}`.",
-        )
     if field_id == "display.show_hidden_files":
         return (
             "Controls whether dotfiles and other hidden entries appear in browser panes.",
@@ -416,12 +379,6 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
             "Increase this to show more context in grep preview results.",
             f"Current behavior: {config.display.grep_preview_context_lines} context lines.",
         )
-    if field_id == "display.split_terminal_position":
-        return (
-            "Controls where the embedded split terminal appears.",
-            "bottom docks below the browser, right docks beside it, overlay floats on top.",
-            f"Current behavior: `{config.display.split_terminal_position}`.",
-        )
     if field_id == "behavior.confirm_delete":
         return (
             "Controls whether delete and move-to-trash actions ask for confirmation first.",
@@ -455,12 +412,14 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
 
 
 CONFIG_EDITOR_CATEGORIES: tuple[tuple[str, tuple[int, ...]], ...] = (
-    ("External", (0, 1)),
-    ("Display", (3, 8, 2, 4, 5, 6, 7, 9, 10, 14, 15)),
+    ("External", (0,)),
+    ("Theme", (2, 8)),
+    ("Preview", (4, 5, 6, 7, 9, 14)),
+    ("Display", (1, 3, 10, 15)),
+    ("File Search", (18,)),
     ("Sorting", (11, 12, 13)),
-    ("Behavior", (16, 17)),
-    ("Logging", (18,)),
-    ("File Search", (19,)),
+    ("Behavior", (16,)),
+    ("Logging", (17,)),
 )
 
 

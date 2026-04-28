@@ -4,13 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "zivo"
-version = "0.17.0"
+version = "0.17.1"
 description = "zivo is a simple and intuitive TUI file manager that lets you browse, search, and operate files without memorizing commands — a Zero-friction Interface for Viewing & Operations."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.12"
 dependencies = [
-  "pyte>=0.8.2",
   "send2trash>=1.8.3",
   "textual>=0.70,<1.0",
 ]

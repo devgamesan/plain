@@ -1,6 +1,7 @@
 import builtins
 import importlib
 import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -89,18 +90,50 @@ def test_local_filesystem_adapter_inspect_entry_returns_none_owner_group_when_un
     tmp_path,
     monkeypatch,
 ) -> None:
-    filesystem_module = importlib.import_module("zivo.adapters.filesystem")
+    helper_module = importlib.import_module("zivo.adapters.filesystem_attributes")
     readme = tmp_path / "README.md"
     readme.write_text("plain\n", encoding="utf-8")
     adapter = LocalFilesystemAdapter()
-    monkeypatch.setattr(filesystem_module, "_resolve_user_name", lambda _uid: None)
-    monkeypatch.setattr(filesystem_module, "_resolve_group_name", lambda _gid: None)
+    monkeypatch.setattr(helper_module, "_resolve_user_name", lambda _uid: None)
+    monkeypatch.setattr(helper_module, "_resolve_group_name", lambda _gid: None)
 
     entry = adapter.inspect_entry(str(readme))
 
     assert entry is not None
     assert entry.owner is None
     assert entry.group is None
+
+
+def test_resolve_owner_group_returns_safe_none_on_native_windows() -> None:
+    helper_module = importlib.import_module("zivo.adapters.filesystem_attributes")
+    helper_module._select_file_attribute_resolver.cache_clear()
+    stat_result = SimpleNamespace(st_uid=123, st_gid=456)
+
+    owner, group = helper_module.resolve_owner_group(
+        stat_result,
+        system_name="Windows",
+    )
+
+    assert owner is None
+    assert group is None
+
+
+def test_resolve_owner_group_treats_wsl_as_unix_lookup(monkeypatch) -> None:
+    helper_module = importlib.import_module("zivo.adapters.filesystem_attributes")
+    helper_module._select_file_attribute_resolver.cache_clear()
+    stat_result = SimpleNamespace(st_uid=123, st_gid=456)
+    monkeypatch.setattr(helper_module, "_resolve_user_name", lambda uid: f"user-{uid}")
+    monkeypatch.setattr(helper_module, "_resolve_group_name", lambda gid: f"group-{gid}")
+
+    owner, group = helper_module.resolve_owner_group(
+        stat_result,
+        system_name="Linux",
+        environment_variable=lambda name: "Ubuntu" if name == "WSL_DISTRO_NAME" else None,
+        text_file_reader=lambda _path: "",
+    )
+
+    assert owner == "user-123"
+    assert group == "group-456"
 
 
 @pytest.mark.skipif(os.name == "nt", reason="symlink creation requires extra Windows privileges")

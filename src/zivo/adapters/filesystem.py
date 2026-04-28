@@ -4,11 +4,12 @@ import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
-from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
 
 from zivo.state.models import DirectoryEntryState
+
+from .filesystem_attributes import resolve_owner_group
 
 
 class DirectoryReader(Protocol):
@@ -135,8 +136,7 @@ def _build_directory_entry_details(path: Path) -> DirectoryEntryState | None:
             )
         return None
     kind = "dir" if path.is_dir() else "file"
-    owner = _resolve_user_name(stat_result.st_uid)
-    group = _resolve_group_name(stat_result.st_gid)
+    owner, group = resolve_owner_group(stat_result)
     return DirectoryEntryState(
         path=str(path),
         name=path.name,
@@ -184,27 +184,3 @@ def _calculate_directory_size(
 
 class DirectorySizeCancelled(RuntimeError):
     """Raised internally to abort a recursive size walk."""
-
-
-@lru_cache(maxsize=256)
-def _resolve_user_name(uid: int) -> str | None:
-    try:
-        import pwd
-    except ImportError:
-        return None
-    try:
-        return pwd.getpwuid(uid).pw_name
-    except (KeyError, OSError):
-        return None
-
-
-@lru_cache(maxsize=256)
-def _resolve_group_name(gid: int) -> str | None:
-    try:
-        import grp
-    except ImportError:
-        return None
-    try:
-        return grp.getgrgid(gid).gr_name
-    except (KeyError, OSError):
-        return None

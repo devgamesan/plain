@@ -75,7 +75,7 @@ zivo aims to be usable by everyone without complex configuration, plugin install
 | Ubuntu | Supported | Primary verified environment at the moment. |
 | Ubuntu (WSL) | Supported | WSL running Ubuntu is part of the verified environments. |
 | macOS | Supported | Grant Full Disk Access to your terminal for trash operations. |
-| Windows | Supported | Drive navigation, file operations, clipboard, shell commands, external terminal, and most features. `zivo-cd` and trash restore undo are not yet available on Windows. |
+| Windows | Supported | Drive navigation, file operations, clipboard, shell commands, external terminal, undo, and most features. `zivo-cd` is not yet available on Windows. |
 
 ## Installation
 
@@ -356,7 +356,7 @@ The tab strip is only shown when two or more browser tabs are open.
 | `Go to home directory` | Always | Navigates to the home directory. |
 | `Reload directory` | Always | Reloads the current directory. |
 | `Toggle transfer mode` / `Close transfer mode` | Always | Switches between the normal three-pane browser and the two-pane transfer layout. Also available with `q` / `2` while transfer mode is open, and `2` from normal mode. |
-| `Undo last file operation` | Undo history is not empty | Reverses the most recent undoable rename, paste, or trash operation. Also available with `z`. Trash restore is supported on Linux and macOS, but not on Windows. |
+| `Undo last file operation` | Undo history is not empty | Reverses the most recent undoable rename, paste, or trash operation. Also available with `z`. |
 | `Select all` | Current directory has at least one visible entry | Selects every currently visible entry in the current directory, respecting hidden-file visibility and any active filter. |
 | `Replace text in selected files` | A file is focused or one or more files are selected in the current directory | Opens a two-field replacement palette for the selected files, or the focused file when nothing is explicitly selected. Matching files appear in the palette, `↑↓` and `Ctrl+n` / `Ctrl+p` move between them, and the right pane shows the selected file's diff before `Enter` applies the replacement. `Shift+↑` / `Shift+↓` scrolls the diff preview. |
 | `Replace text in found files` | Always | Opens a three-field replacement palette (filename, find, replace). Type a filename pattern to search for files, then type find/replace text to preview replacements. `Tab` / `Shift+Tab` cycle between fields. The right pane shows the diff preview, and `Enter` applies the replacement. |
@@ -368,7 +368,7 @@ The tab strip is only shown when two or more browser tabs are open.
 | `Extract archive` | Exactly one supported archive file is selected or focused | Starts archive extraction for `.zip`, `.tar`, `.tar.gz`, or `.tar.bz2`. The destination input accepts absolute and relative paths. Relative paths are resolved from the archive file's parent directory, and the default value is a same-name directory next to the archive. Existing destination paths are confirmed before extraction, and the status bar shows entry-count progress while the extraction runs. |
 | `Open in editor` | Exactly one file is selected or focused | Opens the focused file in a terminal editor, using `editor.command` -> `$EDITOR` -> built-in defaults. |
 | `Copy path` | At least one target is selected or focused | Copies the selected path list, or the focused path when nothing is selected, to the system clipboard. Also available with `C`. |
-| `Move to trash` | At least one target is selected or focused | Moves the selected items, or the focused item, to trash (confirmation is enabled by default and can be configured). On Windows this uses the Recycle Bin via `send2trash`, but undo restore is not available there. |
+| `Move to trash` | At least one target is selected or focused | Moves the selected items, or the focused item, to trash (confirmation is enabled by default and can be configured). On Windows this uses the Recycle Bin via `send2trash`. |
 | `Empty trash` | Always | Permanently deletes all items from the trash. Shows a confirmation dialog before emptying. On Windows this uses PowerShell's `Clear-RecycleBin` to empty the Recycle Bin. |
 | `Open in file manager` | Always | Opens the current directory in the OS file manager. Also available with `M`. |
 | `Open terminal` | Always | Launches an external terminal rooted at zivo's current directory, using `config.toml` templates before built-in fallbacks. Also available with `T` and `t`. |

@@ -6,8 +6,6 @@ from typing import Literal
 from zivo.theme_support import AUTO_PREVIEW_SYNTAX_THEME, DEFAULT_APP_THEME
 
 ConfigSortField = Literal["name", "modified", "size"]
-SplitTerminalPosition = Literal["bottom", "right", "overlay"]
-TerminalLaunchMode = Literal["window", "foreground"]
 ConfigTheme = str
 PreviewSyntaxTheme = str
 PreviewMaxKiB = Literal[64, 128, 256, 512, 1024]
@@ -19,7 +17,6 @@ PasteConflictAction = Literal["overwrite", "skip", "rename", "prompt"]
 class TerminalConfig:
     """Terminal launch command templates keyed by target platform."""
 
-    launch_mode: TerminalLaunchMode = "window"
     linux: tuple[str, ...] = ()
     macos: tuple[str, ...] = ()
     windows: tuple[str, ...] = ()
@@ -50,7 +47,6 @@ class DisplayConfig:
     default_sort_descending: bool = False
     directories_first: bool = True
     grep_preview_context_lines: int = 3
-    split_terminal_position: SplitTerminalPosition = "bottom"
 
 
 @dataclass(frozen=True)
@@ -99,7 +95,6 @@ class HelpBarConfig:
     confirm_delete: tuple[str, ...] = ()
     detail: tuple[str, ...] = ()
     busy: tuple[str, ...] = ()
-    split_terminal: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

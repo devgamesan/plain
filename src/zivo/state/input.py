@@ -13,7 +13,6 @@ from .input_dialogs import (
     dispatch_shell_command_input,
 )
 from .input_palette import dispatch_command_palette_input
-from .input_terminal import TERMINAL_KEYMAP, dispatch_split_terminal_input, terminal_has_focus
 from .input_transfer import TRANSFER_KEYMAP, dispatch_transfer_input
 from .models import AppState
 
@@ -26,6 +25,7 @@ CONFLICT_KEYMAP = {
     "r": "rename",
 }
 _MULTI_KEY_COMMAND_DISPATCH: dict[tuple[str, ...], BrowsingHandler] = {}
+TERMINAL_KEYMAP: dict[str, str] = {}
 
 
 def iter_bound_keys() -> tuple[str, ...]:
@@ -61,8 +61,6 @@ def dispatch_key_input(
     """データドリブンなキーディスパッチ."""
     character = _normalize_input_character(state, key=key, character=character)
 
-    if terminal_has_focus(state):
-        return dispatch_split_terminal_input(state, key=key, character=character)
     if state.ui_mode == "FILTER":
         return dispatch_filter_input(state, key=key, character=character)
     if state.ui_mode == "CONFIRM":
@@ -98,9 +96,6 @@ def _normalize_input_character(
     resolved_character = _resolve_printable_character(key=key, character=character)
     if resolved_character is None:
         return None
-
-    if terminal_has_focus(state):
-        return resolved_character
 
     if state.ui_mode in {"PALETTE", "RENAME", "CREATE", "EXTRACT", "ZIP", "SYMLINK", "SHELL"}:
         return resolved_character

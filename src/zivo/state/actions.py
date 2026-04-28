@@ -122,7 +122,6 @@ from .actions_navigation import (
     EnterCursorDirectory,
     EnterTransferDirectory,
     ExitCurrentPath,
-    FocusSplitTerminal,
     FocusTransferPane,
     GoBack,
     GoForward,
@@ -146,12 +145,10 @@ from .actions_navigation import (
     ReloadDirectory,
     RemoveBookmark,
     SelectAllVisibleTransferEntries,
-    SendSplitTerminalInput,
     SetCursorPath,
     SetSort,
     ShowAttributes,
     ToggleHiddenFiles,
-    ToggleSplitTerminal,
     ToggleTransferMode,
     ToggleTransferSelectionAndAdvance,
     TransferCopyToOppositePane,
@@ -343,9 +340,6 @@ Action = (
     | CopyPathsToClipboard
     | AddBookmark
     | RemoveBookmark
-    | ToggleSplitTerminal
-    | FocusSplitTerminal
-    | SendSplitTerminalInput
     | ToggleHiddenFiles
     | SetSort
     | ToggleTransferMode

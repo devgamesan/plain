@@ -50,7 +50,6 @@ from .selectors_ui import (
     select_input_bar_state,
     select_input_dialog_state,
     select_shell_command_dialog_state,
-    select_split_terminal_state,
     select_status_bar_state,
 )
 
@@ -79,7 +78,6 @@ __all__ = [
     "select_shell_command_dialog_state",
     "select_shell_data",
     "select_single_target_entry",
-    "select_split_terminal_state",
     "select_status_bar_state",
     "select_tab_bar_state",
     "select_target_file_paths",
@@ -129,7 +127,6 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         current_pane_update=current_pane_update,
         current_summary=current_pane.summary,
         current_context_input=select_input_bar_state(state),
-        split_terminal=select_split_terminal_state(state),
         help=select_help_bar_state(state),
         command_palette=select_command_palette_state(state),
         status=select_status_bar_state(state),

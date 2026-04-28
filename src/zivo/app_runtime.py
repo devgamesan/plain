@@ -8,10 +8,6 @@ from textual.worker import Worker, WorkerState
 from zivo.app_runtime_actions import complete_worker_actions, failed_worker_actions
 from zivo.app_runtime_core import TrackingConfig, clear_tracking_for_request
 from zivo.app_runtime_execution import (
-    close_split_terminal,
-    close_split_terminal_effect,
-    handle_split_terminal_exit,
-    handle_split_terminal_output,
     report_archive_extract_progress,
     report_zip_compress_progress,
     run_copy_paths,
@@ -27,8 +23,6 @@ from zivo.app_runtime_execution import (
     schedule_undo,
     schedule_zip_compress,
     schedule_zip_compress_preparation,
-    start_split_terminal,
-    write_split_terminal_input,
 )
 from zivo.app_runtime_search import (
     CHILD_PANE_TRACKING,
@@ -58,7 +52,6 @@ from zivo.app_runtime_search import (
     start_grep_search_worker,
 )
 from zivo.state import (
-    CloseSplitTerminalEffect,
     Effect,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
@@ -81,8 +74,6 @@ from zivo.state import (
     RunUndoEffect,
     RunZipCompressEffect,
     RunZipCompressPreparationEffect,
-    StartSplitTerminalEffect,
-    WriteSplitTerminalInputEffect,
 )
 
 TRACKING_CONFIGS: tuple[TrackingConfig, ...] = (
@@ -103,11 +94,8 @@ __all__ = [
     "cancel_pending_grep_search",
     "cancel_pending_runtime_work",
     "clear_effect_tracking",
-    "close_split_terminal",
     "complete_worker_actions",
     "failed_worker_actions",
-    "handle_split_terminal_exit",
-    "handle_split_terminal_output",
     "handle_worker_state_changed",
     "report_archive_extract_progress",
     "report_zip_compress_progress",
@@ -123,9 +111,7 @@ __all__ = [
     "start_child_pane_snapshot",
     "start_file_search_worker",
     "start_grep_search_worker",
-    "start_split_terminal",
     "sync_runtime_state",
-    "write_split_terminal_input",
 ]
 
 
@@ -184,9 +170,6 @@ EFFECT_SCHEDULERS = (
     (RunGrepSearchEffect, schedule_grep_search),
     (RunTextReplacePreviewEffect, schedule_text_replace_preview),
     (RunTextReplaceApplyEffect, schedule_text_replace_apply),
-    (StartSplitTerminalEffect, start_split_terminal),
-    (WriteSplitTerminalInputEffect, write_split_terminal_input),
-    (CloseSplitTerminalEffect, close_split_terminal_effect),
 )
 
 

@@ -74,7 +74,6 @@ from zivo.state.actions import (
     ResolvePasteConflict,
     SaveConfigEditor,
     SelectAllVisibleEntries,
-    SendSplitTerminalInput,
     SetCommandPaletteQuery,
     SetFilterQuery,
     SetFindReplaceField,
@@ -88,22 +87,8 @@ from zivo.state.actions import (
     SubmitPendingInput,
     ToggleHiddenFiles,
     ToggleSelectionAndAdvance,
-    ToggleSplitTerminal,
     UndoLastOperation,
 )
-
-
-def _focused_split_terminal_state():
-    state = build_initial_app_state()
-    return replace(
-        state,
-        split_terminal=replace(
-            state.split_terminal,
-            visible=True,
-            status="running",
-            focus_target="terminal",
-        ),
-    )
 
 
 def _reduce_go_to_path_state(

@@ -79,7 +79,6 @@ from .actions import (
     TextReplacePreviewCompleted,
     TextReplacePreviewFailed,
     ToggleHiddenFiles,
-    ToggleSplitTerminal,
     ToggleTransferMode,
     TransferCopyToOppositePane,
     TransferMoveToOppositePane,
@@ -413,10 +412,6 @@ def _run_reload_directory_command(state: AppState, reduce_state: ReducerFn) -> R
             ),
         )
     return reduce_state(state, ReloadDirectory())
-
-
-def _run_toggle_split_terminal_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
-    return reduce_state(state, ToggleSplitTerminal())
 
 
 def _run_select_all_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
@@ -757,8 +752,6 @@ def _run_palette_command_item(
         return reduce_state(next_state, TransferCopyToOppositePane())
     if item_id == "transfer_move_to_opposite_pane":
         return reduce_state(next_state, TransferMoveToOppositePane())
-    if item_id == "toggle_split_terminal":
-        return _run_toggle_split_terminal_command(next_state, reduce_state)
     if item_id == "select_all":
         return _run_select_all_command(next_state, reduce_state)
     if item_id == "replace_text":

@@ -47,7 +47,6 @@ from .actions import (
     ShowAttributes,
     ToggleHiddenFiles,
     ToggleSelectionAndAdvance,
-    ToggleSplitTerminal,
     ToggleTransferMode,
     UndoLastOperation,
 )
@@ -92,7 +91,7 @@ BROWSING_KEYMAP = {
     "right": "enter_directory",
     "l": "enter_directory",
     "enter": "enter_or_open",
-    "t": "toggle_split_terminal",
+    "t": "open_terminal",
     "f": "begin_file_search",
     "g": "begin_grep_search",
     "a": "select_all",
@@ -113,7 +112,7 @@ BROWSING_KEYMAP = {
     "{": "go_back",
     "}": "go_forward",
     "M": "open_file_manager",
-    "T": "open_terminal",
+    "T": "open_terminal_window",
     "home": "jump_cursor_start",
     "end": "jump_cursor_end",
     "pageup": "cursor_pageup",
@@ -327,7 +326,11 @@ def handle_create_dir(_state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
     return supported(BeginCreateInput("dir"))
 
 
-def handle_open_terminal(state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
+def handle_open_terminal_foreground(state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
+    return supported(OpenTerminalAtPath(state.current_path, launch_mode="foreground"))
+
+
+def handle_open_terminal_window(state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
     return supported(OpenTerminalAtPath(state.current_path))
 
 
@@ -416,7 +419,6 @@ BROWSING_SIMPLE_DISPATCH: dict[str, type[Action]] = {
     "begin_history_search": BeginHistorySearch,
     "begin_go_to_path": BeginGoToPath,
     "go_to_home_directory": GoToHomeDirectory,
-    "toggle_split_terminal": ToggleSplitTerminal,
     "reload_directory": ReloadDirectory,
     "go_back": GoBack,
     "go_forward": GoForward,
@@ -446,7 +448,8 @@ BROWSING_PARAM_DISPATCH: dict[str, BrowsingHandler] = {
     "cut_targets": handle_cut_targets,
     "create_file": handle_create_file,
     "create_dir": handle_create_dir,
-    "open_terminal": handle_open_terminal,
+    "open_terminal": handle_open_terminal_foreground,
+    "open_terminal_window": handle_open_terminal_window,
     "open_file_manager": handle_open_file_manager,
     "preview_pageup": noop_browsing_handler,
     "preview_pagedown": noop_browsing_handler,

@@ -7,7 +7,6 @@ from textual.css.query import NoMatches
 from textual.widgets import DataTable
 
 from zivo.models import ThreePaneShellData
-from zivo.services import SplitTerminalSession
 from zivo.state.models import AppState
 from zivo.ui import (
     AttributeDialog,
@@ -21,34 +20,12 @@ from zivo.ui import (
     MainPane,
     ShellCommandDialog,
     SidePane,
-    SplitTerminalPane,
     StatusBar,
     TabBar,
 )
 
 
-def build_split_terminal_layer(
-    shell: ThreePaneShellData,
-    *,
-    terminal_position: str = "bottom",
-) -> Container:
-    children: tuple[Any, ...] = ()
-    if terminal_position == "overlay":
-        children = (
-            SplitTerminalPane(
-                shell.split_terminal,
-                id="split-terminal",
-                classes="split-terminal-overlay",
-            ),
-        )
-    return Container(
-        *children,
-        id="split-terminal-layer",
-        classes="overlay-layer split-terminal-overlay-layer",
-    )
-
-
-def build_body(shell: ThreePaneShellData, *, terminal_position: str = "bottom") -> Vertical:
+def build_body(shell: ThreePaneShellData) -> Vertical:
     if shell.layout_mode == "transfer" and shell.transfer_left and shell.transfer_right:
         parent_pane = SidePane(
             "Parent Directory",
@@ -107,21 +84,9 @@ def build_body(shell: ThreePaneShellData, *, terminal_position: str = "bottom") 
                 classes="pane side-pane",
             ),
         ]
-    if terminal_position == "right":
-        browser_row_children.append(
-            SplitTerminalPane(
-                shell.split_terminal,
-                id="split-terminal",
-                classes="split-terminal-right",
-            )
-        )
     body_children: list[Any] = [
         Horizontal(*browser_row_children, id="browser-row"),
     ]
-    if terminal_position not in {"right", "overlay"}:
-        body_children.append(
-            SplitTerminalPane(shell.split_terminal, id="split-terminal")
-        )
     return Vertical(*body_children, id="body")
 
 
@@ -140,7 +105,6 @@ async def refresh_shell(
     app: Any,
     app_state: AppState,
     shell: ThreePaneShellData,
-    split_terminal_session: SplitTerminalSession | None,
     *,
     theme_changed: bool = False,
 ) -> None:
@@ -150,11 +114,9 @@ async def refresh_shell(
         parent_pane = app.query_one("#parent-pane", SidePane)
         current_pane = app.query_one("#current-pane", MainPane)
         child_pane = app.query_one("#child-pane", ChildPane)
-        split_terminal = app.query_one("#split-terminal", SplitTerminalPane)
         command_palette = app.query_one("#command-palette", CommandPalette)
         help_bar = app.query_one("#help-bar", HelpBar)
         status_bar = app.query_one("#status-bar", StatusBar)
-        split_terminal_layer = app.query_one("#split-terminal-layer", Container)
         command_palette_layer = app.query_one("#command-palette-layer", Container)
         conflict_dialog_layer = app.query_one("#conflict-dialog-layer", Container)
         attribute_dialog_layer = app.query_one("#attribute-dialog-layer", Container)
@@ -171,10 +133,8 @@ async def refresh_shell(
             "#current-path-bar",
             "#tab-bar",
             "#body",
-            "#split-terminal-layer",
             "#command-palette",
             "#command-palette-layer",
-            "#split-terminal",
             "#help-bar",
             "#status-bar",
             "#conflict-dialog",
@@ -195,14 +155,7 @@ async def refresh_shell(
                 pass
         await app.mount(TabBar(shell.tab_bar, id="tab-bar"))
         await app.mount(CurrentPathBar(shell.current_path, id="current-path-bar"))
-        terminal_position = app_state.config.display.split_terminal_position
-        await app.mount(build_body(shell, terminal_position=terminal_position))
-        await app.mount(
-            build_split_terminal_layer(
-                shell,
-                terminal_position=terminal_position,
-            )
-        )
+        await app.mount(build_body(shell))
         await app.mount(
             Container(
                 CommandPalette(shell.command_palette, id="command-palette"),
@@ -250,18 +203,16 @@ async def refresh_shell(
         return
 
     if _body_needs_layout_rebuild(app, shell):
-        terminal_position = app_state.config.display.split_terminal_position
         body = app.query_one("#body", Vertical)
         await body.remove()
         await app.mount(
-            build_body(shell, terminal_position=terminal_position),
+            build_body(shell),
             after="#current-path-bar",
         )
         await refresh_shell(
             app,
             app_state,
             shell,
-            split_terminal_session,
             theme_changed=theme_changed,
         )
         return
@@ -316,15 +267,9 @@ async def refresh_shell(
         current_pane.set_context_input(shell.current_context_input)
     await parent_pane.set_entries(shell.parent_entries)
     await child_pane.set_state(shell.child_pane)
-    terminal_position = app_state.config.display.split_terminal_position
     if app_state.layout_mode == "transfer":
         parent_pane.display = False
         child_pane.display = False
-    elif terminal_position == "right":
-        child_pane.display = not app_state.split_terminal.visible
-    split_terminal_layer.display = (
-        terminal_position == "overlay" and shell.split_terminal.visible
-    )
     if theme_changed:
         def _refresh_themed_panes() -> None:
             parent_pane.refresh_styles()
@@ -332,15 +277,12 @@ async def refresh_shell(
             child_pane.refresh_styles()
 
         app.call_after_refresh(_refresh_themed_panes)
-    split_terminal.set_state(shell.split_terminal)
-    resize_split_terminal_session(app, app_state, split_terminal_session)
     command_palette_layer.display = shell.command_palette is not None
     command_palette.set_state(shell.command_palette)
     help_bar.set_state(shell.help)
     help_bar.display = (
         app_state.show_help_bar
         or shell.command_palette is not None
-        or app_state.split_terminal.visible
     )
     status_bar.set_state(shell.status)
     conflict_dialog_layer.display = shell.conflict_dialog is not None
@@ -355,9 +297,7 @@ async def refresh_shell(
     input_dialog.set_state(shell.input_dialog)
 
     if app_state.ui_mode == "BROWSING":
-        if app_state.split_terminal.visible and app_state.split_terminal.focus_target == "terminal":
-            app.set_focus(split_terminal)
-        elif app_state.layout_mode == "transfer" and app_state.active_transfer_pane == "right":
+        if app_state.layout_mode == "transfer" and app_state.active_transfer_pane == "right":
             try:
                 app.set_focus(app.query_one("#transfer-right-pane-table", DataTable))
             except NoMatches:
@@ -367,21 +307,6 @@ async def refresh_shell(
                 app.set_focus(current_pane.query_one("#current-pane-table"))
             except NoMatches:
                 pass
-
-
-def resize_split_terminal_session(
-    app: Any,
-    app_state: AppState,
-    split_terminal_session: SplitTerminalSession | None,
-) -> None:
-    if split_terminal_session is None or not app_state.split_terminal.visible:
-        return
-    try:
-        split_terminal = app.query_one("#split-terminal", SplitTerminalPane)
-    except NoMatches:
-        return
-    columns, rows = split_terminal.terminal_dimensions()
-    split_terminal_session.resize(columns=columns, rows=rows)
 
 
 def _body_needs_layout_rebuild(app: Any, shell: ThreePaneShellData) -> bool:

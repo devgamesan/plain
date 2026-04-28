@@ -23,9 +23,7 @@ from zivo.app_runtime import (
 )
 from zivo.app_shell import (
     build_body,
-    build_split_terminal_layer,
     refresh_shell,
-    resize_split_terminal_session,
 )
 from zivo.models import (
     AppConfig,
@@ -53,13 +51,10 @@ from zivo.services import (
     LiveFileSearchService,
     LiveGrepSearchService,
     LiveShellCommandService,
-    LiveSplitTerminalService,
     LiveTextReplaceService,
     LiveUndoService,
     LiveZipCompressService,
     ShellCommandService,
-    SplitTerminalService,
-    SplitTerminalSession,
     TextReplaceService,
     UndoService,
     ZipCompressService,
@@ -82,7 +77,6 @@ from zivo.state.actions import (
     ExitCurrentPath,
     RequestBrowserSnapshot,
     SetTerminalHeight,
-    SplitTerminalExited,
 )
 from zivo.ui import (
     AttributeDialog,
@@ -95,7 +89,6 @@ from zivo.ui import (
     InputDialog,
     MainPane,
     ShellCommandDialog,
-    SplitTerminalPane,
     StatusBar,
 )
 
@@ -188,7 +181,6 @@ class zivoApp(App[None]):
         grep_search_service: GrepSearchService | None = None,
         text_replace_service: TextReplaceService | None = None,
         shell_command_service: ShellCommandService | None = None,
-        split_terminal_service: SplitTerminalService | None = None,
         undo_service: UndoService | None = None,
         *,
         app_config: AppConfig | None = None,
@@ -231,10 +223,8 @@ class zivoApp(App[None]):
         self._grep_search_service = grep_search_service or LiveGrepSearchService()
         self._text_replace_service = text_replace_service or LiveTextReplaceService()
         self._shell_command_service = shell_command_service or LiveShellCommandService()
-        self._split_terminal_service = split_terminal_service or LiveSplitTerminalService()
         self._undo_service = undo_service or LiveUndoService()
         self._pending_workers: dict[str, Effect] = {}
-        self._split_terminal_session: SplitTerminalSession | None = None
         self._child_pane_timer: Timer | None = None
         self._active_child_pane_cancel_event: threading.Event | None = None
         self._active_child_pane_request_id: int | None = None
@@ -257,10 +247,6 @@ class zivoApp(App[None]):
         shell = select_shell_data(self._app_state)
         yield CurrentPathBar(shell.current_path, id="current-path-bar")
         yield self._build_body(shell)
-        yield build_split_terminal_layer(
-            shell,
-            terminal_position=self._app_state.config.display.split_terminal_position,
-        )
         yield Container(
             CommandPalette(shell.command_palette, id="command-palette"),
             id="command-palette-layer",
@@ -305,11 +291,6 @@ class zivoApp(App[None]):
         except NoMatches:
             return
 
-        is_right_and_terminal_visible = (
-            self._app_state.config.display.split_terminal_position == "right"
-            and self._app_state.split_terminal.visible
-        )
-
         if self._app_state.layout_mode == "transfer":
             parent_pane.display = False
             child_pane.display = False
@@ -322,9 +303,7 @@ class zivoApp(App[None]):
         else:
             parent_pane.display = False
 
-        if is_right_and_terminal_visible:
-            child_pane.display = False
-        elif width >= self._PANE_VISIBILITY_NARROW_THRESHOLD:
+        if width >= self._PANE_VISIBILITY_NARROW_THRESHOLD:
             child_pane.display = True
         else:
             child_pane.display = False
@@ -466,15 +445,6 @@ class zivoApp(App[None]):
         ))
         self.call_after_refresh(self._sync_overlay_layout)
 
-    def on_unmount(self) -> None:
-        """Ensure the embedded terminal session is stopped when the app exits."""
-
-        cancel_pending_runtime_work(self)
-        if self._split_terminal_session is None:
-            return
-        self._split_terminal_session.close()
-        self._split_terminal_session = None
-
     async def on_key(self, event: events.Key) -> None:
         """Normalize keyboard input into reducer actions."""
 
@@ -553,7 +523,6 @@ class zivoApp(App[None]):
     def _build_body(self, shell: ThreePaneShellData) -> Vertical:
         return build_body(
             shell,
-            terminal_position=self._app_state.config.display.split_terminal_position,
         )
 
     async def _dispatch_key_press(
@@ -581,11 +550,7 @@ class zivoApp(App[None]):
         sync_runtime_state(self, previous_state, self._app_state)
         next_theme = _active_app_theme(self._app_state)
         theme_changed = previous_theme != next_theme
-        layout_changed = (
-            previous_state.config.display.split_terminal_position
-            != self._app_state.config.display.split_terminal_position
-            or previous_state.layout_mode != self._app_state.layout_mode
-        )
+        layout_changed = previous_state.layout_mode != self._app_state.layout_mode
         if theme_changed:
             self.theme = next_theme
         if previous_state.config != self._app_state.config:
@@ -635,36 +600,6 @@ class zivoApp(App[None]):
         self._app_state = state
         return changed, tuple(effects)
 
-    async def on_zivo_app_split_terminal_output(
-        self,
-        message: SplitTerminalOutput,
-    ) -> None:
-        split_terminal_state = self._app_state.split_terminal
-        if (
-            not split_terminal_state.visible
-            or split_terminal_state.session_id != message.session_id
-        ):
-            return
-        try:
-            split_terminal = self.query_one("#split-terminal", SplitTerminalPane)
-        except NoMatches:
-            return
-        split_terminal.append_output(message.data)
-
-    async def on_zivo_app_split_terminal_exited_message(
-        self,
-        message: SplitTerminalExitedMessage,
-    ) -> None:
-        self._split_terminal_session = None
-        await self.dispatch_actions(
-            (
-                SplitTerminalExited(
-                    session_id=message.session_id,
-                    exit_code=message.exit_code,
-                ),
-            )
-        )
-
     async def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
         await handle_worker_state_changed(self, event)
 
@@ -674,17 +609,12 @@ class zivoApp(App[None]):
         await self.dispatch_actions((SetTerminalHeight(height=event.size.height),))
         self._sync_overlay_layout(event.size.width)
 
-        if self._split_terminal_session is None or not self._app_state.split_terminal.visible:
-            return
-        self.call_after_refresh(self._resize_split_terminal_session)
-
     async def _refresh_shell(self, *, theme_changed: bool = False) -> None:
         try:
             await refresh_shell(
                 self,
                 self._app_state,
                 select_shell_data(self._app_state),
-                self._split_terminal_session,
                 theme_changed=theme_changed,
             )
             self.call_after_refresh(self._sync_overlay_layout)
@@ -699,13 +629,6 @@ class zivoApp(App[None]):
         self._update_config_dialog_geometry()
         self._update_input_dialog_geometry()
         self._update_split_terminal_overlay_geometry()
-
-    def _resize_split_terminal_session(self) -> None:
-        resize_split_terminal_session(
-            self,
-            self._app_state,
-            self._split_terminal_session,
-        )
 
 
 def create_app(
@@ -722,7 +645,6 @@ def create_app(
     grep_search_service: GrepSearchService | None = None,
     text_replace_service: TextReplaceService | None = None,
     shell_command_service: ShellCommandService | None = None,
-    split_terminal_service: SplitTerminalService | None = None,
     undo_service: UndoService | None = None,
     *,
     app_config: AppConfig | None = None,
@@ -751,7 +673,6 @@ def create_app(
         grep_search_service=grep_search_service,
         text_replace_service=text_replace_service,
         shell_command_service=shell_command_service,
-        split_terminal_service=split_terminal_service,
         undo_service=undo_service,
         app_config=app_config,
         config_path=config_path,

@@ -3,9 +3,8 @@
 from dataclasses import dataclass
 from typing import Literal
 
-from .config import TerminalLaunchMode
-
 ExternalLaunchKind = Literal["open_file", "open_editor", "open_terminal", "copy_paths"]
+TerminalLaunchMode = Literal["window", "foreground"]
 
 
 @dataclass(frozen=True)

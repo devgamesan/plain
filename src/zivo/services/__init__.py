@@ -81,12 +81,6 @@ from .shell_command import (
     LiveShellCommandService,
     ShellCommandService,
 )
-from .split_terminal import (
-    FakeSplitTerminalService,
-    LiveSplitTerminalService,
-    SplitTerminalService,
-    SplitTerminalSession,
-)
 from .text_replace import (
     FakeTextReplaceService,
     InvalidTextReplaceQueryError,
@@ -153,11 +147,7 @@ __all__ = [
     "PREVIEW_PERMISSION_DENIED_MESSAGE",
     "LiveConfigSaveService",
     "LiveShellCommandService",
-    "LiveSplitTerminalService",
     "LiveZipCompressService",
-    "FakeSplitTerminalService",
-    "SplitTerminalService",
-    "SplitTerminalSession",
     "TextReplaceService",
     "configure_file_logging",
     "default_extract_destination",

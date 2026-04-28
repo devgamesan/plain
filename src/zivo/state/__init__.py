@@ -1,7 +1,6 @@
 """State management primitives."""
 
 from .effects import (
-    CloseSplitTerminalEffect,
     Effect,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
@@ -25,8 +24,6 @@ from .effects import (
     RunUndoEffect,
     RunZipCompressEffect,
     RunZipCompressPreparationEffect,
-    StartSplitTerminalEffect,
-    WriteSplitTerminalInputEffect,
 )
 from .input import dispatch_key_input, iter_bound_keys
 from .models import (
@@ -66,9 +63,6 @@ from .models import (
     ReplacePreviewResultState,
     ShellCommandState,
     SortState,
-    SplitTerminalFocusTarget,
-    SplitTerminalState,
-    SplitTerminalStatus,
     SymlinkOverwriteConfirmationState,
     TransferPaneId,
     TransferPaneState,
@@ -96,7 +90,6 @@ from .selectors import (
     select_parent_entries,
     select_shell_command_dialog_state,
     select_shell_data,
-    select_split_terminal_state,
     select_status_bar_state,
     select_tab_bar_state,
     select_target_paths,
@@ -111,7 +104,6 @@ __all__ = [
     "BrowserSnapshot",
     "BrowserTabState",
     "ClipboardState",
-    "CloseSplitTerminalEffect",
     "CommandPaletteSource",
     "CommandPaletteState",
     "ConfigEditorState",
@@ -164,16 +156,11 @@ __all__ = [
     "RunZipCompressPreparationEffect",
     "ShellCommandState",
     "SortState",
-    "SplitTerminalFocusTarget",
-    "SplitTerminalState",
-    "SplitTerminalStatus",
     "SymlinkOverwriteConfirmationState",
     "TransferPaneId",
     "TransferPaneState",
-    "StartSplitTerminalEffect",
     "UiMode",
     "UndoEntry",
-    "WriteSplitTerminalInputEffect",
     "ZipCompressConfirmationState",
     "ZipCompressProgressState",
     "build_initial_app_state",
@@ -196,7 +183,6 @@ __all__ = [
     "select_parent_entries",
     "select_shell_command_dialog_state",
     "select_shell_data",
-    "select_split_terminal_state",
     "select_status_bar_state",
     "select_tab_bar_state",
     "select_target_paths",

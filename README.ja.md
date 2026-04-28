@@ -148,15 +148,12 @@ brew install chafa pandoc poppler ripgrep
 
 Windows では、ドライブルート（`C:\` など）で `←` を押すとドライブ一覧に戻り、zivo を離れずにドライブを切り替えられます。
 
-依存ツールは `winget` でインストールできます。
+依存ツールは各公式サイトからインストールしてください。
 
-```bash
-winget install pandoc ripgrep
-```
-
-画像 preview（`chafa`）は winget では提供されていません。`scoop install chafa` または [chafa releases page](https://github.com/hpjansson/chafa/releases) から手動でインストールしてください。
-
-PDF preview には `pdftotext` が必要です。`scoop install poppler` または [poppler for Windows](https://github.com/oschwartz10612/poppler-windows/releases) から手動でインストールしてください。
+- ドキュメント preview: [pandoc 3.8.3+](https://pandoc.org/installing.html)
+- 画像 preview: [chafa](https://github.com/hpjansson/chafa/releases) または `scoop install chafa`
+- PDF preview (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows/releases)
+- grep 検索: [ripgrep](https://github.com/BurntSushi/ripgrep/releases)
 
 macOS では、使用しているターミナルアプリに **フルディスクアクセス** 権限を付与してください。**システム設定 > プライバシーとセキュリティ > フルディスクアクセス** を開き、zivo を実行するターミナルアプリ（Terminal.app、iTerm2、Alacritty など）を有効にしてください。この権限がない場合、`~/.Trash` などの保護されたディレクトリにアクセスする操作が失敗します。
 

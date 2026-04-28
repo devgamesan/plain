@@ -144,15 +144,12 @@ brew install chafa pandoc poppler ripgrep
 
 On Windows, drive roots such as `C:\` support pressing `←` to return to the drive list so you can switch between drives without leaving zivo.
 
-Install the required dependencies with `winget`:
+Install the required dependencies from their official websites:
 
-```bash
-winget install pandoc ripgrep
-```
-
-Image preview (`chafa`) is not available via winget; install it with `scoop install chafa` or download from the [chafa releases page](https://github.com/hpjansson/chafa/releases).
-
-PDF preview requires `pdftotext`. Install `poppler` via `scoop install poppler` or download from the [poppler for Windows](https://github.com/oschwartz10612/poppler-windows/releases) page.
+- Document preview: [pandoc 3.8.3+](https://pandoc.org/installing.html)
+- Image preview: [chafa](https://github.com/hpjansson/chafa/releases) or via `scoop install chafa`
+- PDF preview (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows/releases)
+- Grep search: [ripgrep](https://github.com/BurntSushi/ripgrep/releases)
 
 On macOS, grant **Full Disk Access** to your terminal application. Open **System Settings > Privacy & Security > Full Disk Access** and enable the terminal app you use to run zivo (for example Terminal.app, iTerm2, or Alacritty). Without this permission, operations that access `~/.Trash` or other protected directories will fail.
 

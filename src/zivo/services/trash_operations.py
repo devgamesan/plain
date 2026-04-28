@@ -262,38 +262,64 @@ class WindowsTrashService:
         new_paths = sorted(after - before)
 
         resolved_original = str(Path(path).expanduser().resolve(strict=False))
-        if resolved_original in new_paths or not new_paths:
-            match = resolved_original if resolved_original in new_paths else None
+        lower_original = resolved_original.lower()
+        lower_new = [p.lower() for p in new_paths]
+        if lower_original in lower_new:
+            match = resolved_original
+        elif not new_paths:
+            match = None
         else:
             match = new_paths[-1]
 
         if match is None:
             return None
 
+        name = Path(match).name
+
         return TrashRestoreRecord(
             original_path=match,
-            trashed_path="",
+            trashed_path=name,
             metadata_path="",
         )
 
     def restore(self, record: TrashRestoreRecord) -> str:
         escaped_path = record.original_path.replace("'", "''")
+        escaped_name = record.trashed_path.replace("'", "''")
         ps_script = (
             f"$shell = New-Object -ComObject Shell.Application;"
             f"$rb = $shell.NameSpace(0xa);"
             f"$items = $rb.Items();"
-            f"$target = '{escaped_path}'.ToLower();"
+            f"$targetPath = '{escaped_path}'.ToLower();"
+            f"$targetName = '{escaped_name}'.ToLower();"
             f"$count = $items.Count;"
-            f"$found = $false;"
+            f"$bestItem = $null;"
+            f"$bestTime = [DateTime]::MinValue;"
             f"for ($i = 0; $i -lt $count; $i++) {{"
             f"  $item = $items.Item($i);"
-            f"  if ($item.Path.ToLower() -eq $target) {{"
-            f"    $item.InvokeVerb('undelete');"
-            f"    $found = $true;"
+            f"  if ($item.Path.ToLower() -eq $targetPath) {{"
+            f"    if ($targetName -eq '' -or $item.Name.ToLower() -eq $targetName) {{"
+            f"      $modTime = $item.ModifyDate;"
+            f"      if ($bestItem -eq $null -or $modTime -gt $bestTime) {{"
+            f"        $bestItem = $item;"
+            f"        $bestTime = $modTime;"
+            f"      }}"
+            f"    }}"
+            f"  }}"
+            f"}}"
+            f"if ($bestItem -eq $null) {{ exit 1 }};"
+            f"$bestItem.InvokeVerb('undelete');"
+            f"$checkItems = $rb.Items();"
+            f"for ($i = 0; $i -lt $checkItems.Count; $i++) {{"
+            f"  if ($checkItems.Item($i).Path.ToLower() -eq $targetPath) {{"
+            f"    $bestItem.InvokeVerb('restore');"
             f"    break;"
             f"  }}"
             f"}}"
-            f"if (-not $found) {{ exit 1 }}"
+            f"for ($i = 0; $i -lt $checkItems.Count; $i++) {{"
+            f"  if ($checkItems.Item($i).Path.ToLower() -eq $targetPath) {{"
+            f"    exit 2"
+            f"  }}"
+            f"}}"
         )
         try:
             result = subprocess.run(
@@ -307,9 +333,15 @@ class WindowsTrashService:
                 f"Failed to restore '{record.original_path}' from Recycle Bin: "
                 "PowerShell not available"
             )
-        if result.returncode != 0:
+        if result.returncode == 1:
             raise OSError(
-                f"Failed to restore '{record.original_path}' from Recycle Bin"
+                f"Failed to restore '{record.original_path}' from Recycle Bin: "
+                "item not found"
+            )
+        if result.returncode == 2:
+            raise OSError(
+                f"Failed to restore '{record.original_path}' from Recycle Bin: "
+                "restore verb had no effect"
             )
         return record.original_path
 

@@ -311,7 +311,7 @@ def test_windows_trash_service_captures_restorable_metadata(tmp_path, monkeypatc
     assert sent_to_trash == [original_path]
     assert record is not None
     assert record.original_path == original_path
-    assert record.trashed_path == ""
+    assert record.trashed_path == "docs"
     assert record.metadata_path == ""
 
 
@@ -394,12 +394,12 @@ def test_windows_trash_service_restore_succeeds(monkeypatch) -> None:
     original_path = "C:/Users/test/docs"
     record = TrashRestoreRecord(
         original_path=original_path,
-        trashed_path="",
+        trashed_path="docs",
         metadata_path="",
     )
 
     mock_run = MagicMock(
-        return_value=MagicMock(returncode=0, stdout=original_path, stderr=""),
+        return_value=MagicMock(returncode=0, stdout="", stderr=""),
     )
     monkeypatch.setattr("zivo.services.trash_operations.subprocess.run", mock_run)
 
@@ -412,13 +412,13 @@ def test_windows_trash_service_restore_succeeds(monkeypatch) -> None:
     assert "-Command" in cmd
     script_arg = cmd[cmd.index("-Command") + 1]
     assert "InvokeVerb('undelete')" in script_arg
-    assert "C:/Users/test/docs" in script_arg
+    assert "'C:/Users/test/docs'" in script_arg
 
 
 def test_windows_trash_service_restore_raises_when_not_found(monkeypatch) -> None:
     record = TrashRestoreRecord(
         original_path="C:/Users/test/missing",
-        trashed_path="",
+        trashed_path="missing",
         metadata_path="",
     )
 
@@ -427,6 +427,25 @@ def test_windows_trash_service_restore_raises_when_not_found(monkeypatch) -> Non
 
     with pytest.raises(
         OSError,
-        match="Failed to restore 'C:/Users/test/missing' from Recycle Bin",
+        match="Failed to restore 'C:/Users/test/missing' from Recycle Bin: "
+        "item not found",
+    ):
+        WindowsTrashService().restore(record)
+
+
+def test_windows_trash_service_restore_raises_when_verb_fails(monkeypatch) -> None:
+    record = TrashRestoreRecord(
+        original_path="C:/Users/test/stuck",
+        trashed_path="stuck",
+        metadata_path="",
+    )
+
+    mock_run = MagicMock(return_value=MagicMock(returncode=2, stdout="", stderr=""))
+    monkeypatch.setattr("zivo.services.trash_operations.subprocess.run", mock_run)
+
+    with pytest.raises(
+        OSError,
+        match="Failed to restore 'C:/Users/test/stuck' from Recycle Bin: "
+        "restore verb had no effect",
     ):
         WindowsTrashService().restore(record)

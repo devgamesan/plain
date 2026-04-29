@@ -480,6 +480,7 @@ The accepted `display.preview_syntax_theme` values are `auto` plus the Pygments 
 
 - Implementation structure: [docs/architecture.en.md](docs/architecture.en.md)
 - Performance notes: [docs/performance.en.md](docs/performance.en.md)
+- Release checklist: [docs/release-checklist.md](docs/release-checklist.md)
 
 ## License
 

@@ -475,6 +475,7 @@ paths = ["/home/user/src", "/home/user/docs"]
 
 - 実装構造: [docs/architecture.md](docs/architecture.md)
 - 性能確認メモ: [docs/performance.md](docs/performance.md)
+- リリースチェックリスト: [docs/release-checklist.md](docs/release-checklist.md)
 
 ## ライセンス
 

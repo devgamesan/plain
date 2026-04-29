@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -181,10 +182,19 @@ IMAGE_PREVIEW_DEPENDENCY_MESSAGE = "Preview unavailable: install `chafa` for ima
 GREP_PREVIEW_ERROR_MESSAGE = "Preview unavailable: failed to load context"
 
 GrepContextCacheKey = tuple[str, int, int, int, int, int]
+_ANSI_CONTROL_SEQUENCE_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
 
 
 def _normalize_preview_newlines(text: str) -> str:
     return text.replace("\r\n", "\n")
+
+
+def _strip_non_sgr_ansi(text: str) -> str:
+    def _replace(match: re.Match[str]) -> str:
+        sequence = match.group(0)
+        return sequence if sequence.endswith("m") else ""
+
+    return _ANSI_CONTROL_SEQUENCE_RE.sub(_replace, text)
 
 
 @dataclass(frozen=True)
@@ -369,6 +379,7 @@ class ChafaImagePreviewLoader:
             content = _normalize_preview_newlines(
                 result.stdout.decode("utf-8", errors="ignore")
             )
+        content = _strip_non_sgr_ansi(content)
         if not content.strip():
             return None
         return FilePreviewState.with_content(content, False, content_kind="image")
@@ -489,6 +500,13 @@ def _load_text_preview(
         return FilePreviewState.error()
 
     if b"\x00" in chunk[:preview_limit]:
+        if _has_image_signature(path, header=chunk[:32]):
+            if not enable_image_preview:
+                return FilePreviewState.unavailable()
+            loader = image_preview_loader or ChafaImagePreviewLoader()
+            preview = loader.load_preview(path, preview_columns=max(1, preview_columns))
+            if preview is not None:
+                return preview
         return FilePreviewState.unsupported()
 
     truncated = len(chunk) > preview_limit
@@ -496,6 +514,13 @@ def _load_text_preview(
     try:
         preview_text = _normalize_preview_newlines(preview_bytes.decode("utf-8"))
     except UnicodeDecodeError:
+        if _has_image_signature(path, header=chunk[:32]):
+            if not enable_image_preview:
+                return FilePreviewState.unavailable()
+            loader = image_preview_loader or ChafaImagePreviewLoader()
+            preview = loader.load_preview(path, preview_columns=max(1, preview_columns))
+            if preview is not None:
+                return preview
         return FilePreviewState.unsupported()
 
     return FilePreviewState.with_content(preview_text, truncated)
@@ -633,6 +658,31 @@ def _is_pdf_preview_candidate(path: Path) -> bool:
 
 def _is_image_preview_candidate(path: Path) -> bool:
     return path.suffix.casefold() in IMAGE_PREVIEW_EXTENSIONS
+
+
+def _has_image_signature(path: Path, *, header: bytes | None = None) -> bool:
+    if header is None:
+        try:
+            with path.open("rb") as handle:
+                header = handle.read(32)
+        except OSError:
+            return False
+    if header.startswith(b"\x89PNG\r\n\x1a\n"):
+        return True
+    if header.startswith((b"\xff\xd8\xff", b"GIF87a", b"GIF89a", b"BM")):
+        return True
+    if header.startswith((b"II*\x00", b"MM\x00*")):
+        return True
+    if header.startswith(b"RIFF") and header[8:12] == b"WEBP":
+        return True
+    if len(header) >= 12 and header[4:12] in {
+        b"ftypavif",
+        b"ftypavis",
+        b"ftypmif1",
+        b"ftypmsf1",
+    }:
+        return True
+    return False
 
 
 def _is_office_preview_candidate(path: Path) -> bool:

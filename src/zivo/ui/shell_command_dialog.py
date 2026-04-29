@@ -46,7 +46,7 @@ class ShellCommandDialog(Container):
         self.query_one("#shell-command-dialog-title", Static).update(state.title)
         self.query_one("#shell-command-dialog-cwd", Static).update(f"Directory: {state.cwd}")
         self.query_one("#shell-command-dialog-input", Static).update(
-            self._render_input(state.prompt, state.command)
+            self._render_input(state.prompt, state.command, state.cursor_pos)
         )
         self.query_one("#shell-command-dialog-result", Static).update(
             self._render_result(state.result)
@@ -56,10 +56,25 @@ class ShellCommandDialog(Container):
         )
 
     @staticmethod
-    def _render_input(prompt: str, command: str) -> Text:
+    def _render_input(prompt: str, command: str, cursor_pos: int = 0) -> Text:
         text = Text()
         text.append(prompt, style="bold")
-        text.append(command or "_", style="underline")
+
+        if not command:
+            text.append("_", style="underline")
+            return text
+
+        # カーソル位置の文字に下線を引く
+        for i, char in enumerate(command):
+            if i == cursor_pos:
+                text.append(char, style="underline")
+            else:
+                text.append(char)
+
+        # カーソルが末尾の場合、アンダースコアを追加
+        if cursor_pos >= len(command):
+            text.append("_", style="underline")
+
         return text
 
     @staticmethod

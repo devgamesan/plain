@@ -121,6 +121,7 @@ class SetShellCommandValue:
     """Update the pending shell command input."""
 
     command: str
+    cursor_pos: int = 0
 
 
 @dataclass(frozen=True)
@@ -164,5 +165,26 @@ class SetFilterQuery:
 @dataclass(frozen=True)
 class PasteIntoPendingInput:
     """Paste clipboard text into the pending input value."""
+
+    text: str
+
+
+@dataclass(frozen=True)
+class MoveShellCommandCursor:
+    """Move the shell command cursor by a relative delta."""
+
+    delta: int
+
+
+@dataclass(frozen=True)
+class SetShellCommandCursor:
+    """Set the shell command cursor to an absolute position."""
+
+    cursor_pos: int
+
+
+@dataclass(frozen=True)
+class PasteIntoShellCommand:
+    """Paste clipboard text into the shell command input at the cursor position."""
 
     text: str

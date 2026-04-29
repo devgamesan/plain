@@ -740,6 +740,7 @@ def select_shell_command_dialog_state(state: AppState) -> ShellCommandDialogStat
             cwd=state.shell_command.cwd,
             prompt="Command: ",
             command=state.shell_command.command,
+            cursor_pos=state.shell_command.cursor_pos,
             options=("esc close",),
             result=state.shell_command.result,
         )
@@ -750,6 +751,7 @@ def select_shell_command_dialog_state(state: AppState) -> ShellCommandDialogStat
         cwd=state.shell_command.cwd,
         prompt="Command: ",
         command=state.shell_command.command,
+        cursor_pos=state.shell_command.cursor_pos,
         options=("enter run", "esc cancel"),
         result=None,
     )

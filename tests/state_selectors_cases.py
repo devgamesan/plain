@@ -11,6 +11,7 @@ from zivo.models import (
     DisplayConfig,
     EditorConfig,
     ExtractArchiveRequest,
+    GuiEditorConfig,
     PasteConflict,
     PasteRequest,
     UndoDeletePathStep,
@@ -1949,7 +1950,7 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=2,
+            cursor_index=3,
             dirty=True,
         ),
     )
@@ -1961,6 +1962,7 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
     assert "Path: /tmp/zivo/config.toml" in dialog.lines
     assert "  ── External ──" in dialog.lines
     assert "  Editor command: system default" in dialog.lines
+    assert "  GUI editor: VS Code" in dialog.lines
     assert "  ── Display ──" in dialog.lines
     assert "> Theme: textual-dark" in dialog.lines
     assert "  Preview syntax theme: auto" in dialog.lines
@@ -1976,6 +1978,10 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
     assert "  Current behavior: `textual-dark`." in dialog.lines
     hint = "Editor presets: system default, nvim, vim, nano, hx, micro, emacs -nw, edit"
     assert hint in dialog.lines
+    assert (
+        "GUI editor presets: VS Code, VSCodium, Cursor, Sublime Text, Zed, "
+        "JetBrains IDEA, PyCharm, WebStorm, Kate"
+    ) in dialog.lines
     assert "Terminal launch templates: edit config.toml with e" in dialog.lines
     assert dialog.options == (
         "↑↓/Ctrl+n/p choose",
@@ -2018,6 +2024,32 @@ def test_select_config_dialog_state_shows_custom_editor_command_hint() -> None:
     )
     assert "  Custom commands can only be edited in the raw config file with `e`." in dialog.lines
 
+def test_select_config_dialog_state_shows_custom_gui_editor_hint() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/zivo/config.toml",
+            draft=AppConfig(
+                gui_editor=GuiEditorConfig(
+                    command="my-editor --line {line} {path}",
+                    fallback_command="my-editor {path}",
+                ),
+            ),
+            cursor_index=1,
+        ),
+    )
+
+    dialog = select_config_dialog_state(state)
+
+    assert dialog is not None
+    assert "> GUI editor: custom (raw config only)" in dialog.lines
+    assert "  Current behavior: custom raw GUI editor templates are preserved." in dialog.lines
+    assert (
+        "  Custom GUI editor templates can only be edited in the raw config file with `e`."
+        in dialog.lines
+    )
+
 
 def test_select_config_dialog_state_formats_directories_first_detail() -> None:
     state = replace(
@@ -2026,7 +2058,7 @@ def test_select_config_dialog_state_formats_directories_first_detail() -> None:
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=AppConfig(display=DisplayConfig(directories_first=False)),
-            cursor_index=14,
+            cursor_index=15,
         ),
     )
 

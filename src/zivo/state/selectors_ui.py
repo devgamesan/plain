@@ -19,6 +19,7 @@ from zivo.platform_support import is_split_terminal_supported
 from .models import AppState
 from .reducer_config import (
     CONFIG_EDITOR_CATEGORIES,
+    CONFIG_GUI_EDITOR_PRESETS,
     config_editor_field_description,
     config_editor_labels,
     format_config_field_value,
@@ -710,6 +711,8 @@ def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
     lines_list.extend([
         "",
         _format_custom_editor_hint(config.editor.command),
+        "GUI editor presets: "
+        + ", ".join(name for name, _config in CONFIG_GUI_EDITOR_PRESETS),
         "Terminal launch templates: edit config.toml with e",
         f"  Linux templates: {len(config.terminal.linux)}",
         f"  macOS templates: {len(config.terminal.macos)}",

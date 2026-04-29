@@ -55,6 +55,7 @@ def test_loader_creates_default_config_when_missing(tmp_path) -> None:
     assert '#   "gnome-terminal --working-directory={path}",' in written
     assert '# command = "nvim -u NONE"' in written
     assert "[gui_editor]" in written
+    assert "# Examples: code, codium, cursor, subl, zed, idea, pycharm, webstorm, kate." in written
     assert 'command = "code --goto {path}:{line}:{column}"' in written
     assert 'fallback_command = "code {path}"' in written
     assert 'theme = "textual-dark"' in written

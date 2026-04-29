@@ -69,6 +69,9 @@ def render_gui_editor_section(config: AppConfig) -> str:
         "[gui_editor]\n"
         "# Optional GUI editor templates for `O` and search-result Ctrl+o.\n"
         "# Use {path}, {line}, and {column}. Defaults target VS Code.\n"
+        "# The config editor can switch between common presets;\n"
+        "# custom templates are preserved here.\n"
+        "# Examples: code, codium, cursor, subl, zed, idea, pycharm, webstorm, kate.\n"
         '# command = "code --goto {path}:{line}:{column}"\n'
         '# fallback_command = "code {path}"\n'
         f"command = {render_toml_string(config.gui_editor.command)}\n"

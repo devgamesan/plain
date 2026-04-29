@@ -2,7 +2,7 @@
 
 from dataclasses import replace
 
-from zivo.models import AppConfig
+from zivo.models import AppConfig, GuiEditorConfig
 from zivo.theme_support import SUPPORTED_APP_THEMES, SUPPORTED_PREVIEW_SYNTAX_THEMES
 
 from .models import SortState
@@ -15,6 +15,71 @@ CONFIG_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 CONFIG_PASTE_ACTIONS = ("prompt", "overwrite", "skip", "rename")
 CONFIG_EDITOR_COMMANDS = (None, "nvim", "vim", "nano", "hx", "micro", "emacs -nw", "edit")
 CONFIG_FILE_SEARCH_MAX_RESULTS = (None, 100, 500, 1000, 5000, 10000)
+CONFIG_GUI_EDITOR_PRESETS: tuple[tuple[str, GuiEditorConfig], ...] = (
+    (
+        "VS Code",
+        GuiEditorConfig(
+            command="code --goto {path}:{line}:{column}",
+            fallback_command="code {path}",
+        ),
+    ),
+    (
+        "VSCodium",
+        GuiEditorConfig(
+            command="codium --goto {path}:{line}:{column}",
+            fallback_command="codium {path}",
+        ),
+    ),
+    (
+        "Cursor",
+        GuiEditorConfig(
+            command="cursor --goto {path}:{line}:{column}",
+            fallback_command="cursor {path}",
+        ),
+    ),
+    (
+        "Sublime Text",
+        GuiEditorConfig(
+            command="subl {path}:{line}:{column}",
+            fallback_command="subl {path}",
+        ),
+    ),
+    (
+        "Zed",
+        GuiEditorConfig(
+            command="zed {path}:{line}:{column}",
+            fallback_command="zed {path}",
+        ),
+    ),
+    (
+        "JetBrains IDEA",
+        GuiEditorConfig(
+            command="idea --line {line} {path}",
+            fallback_command="idea {path}",
+        ),
+    ),
+    (
+        "PyCharm",
+        GuiEditorConfig(
+            command="pycharm --line {line} {path}",
+            fallback_command="pycharm {path}",
+        ),
+    ),
+    (
+        "WebStorm",
+        GuiEditorConfig(
+            command="webstorm --line {line} {path}",
+            fallback_command="webstorm {path}",
+        ),
+    ),
+    (
+        "Kate",
+        GuiEditorConfig(
+            command="kate --line {line} --column {column} {path}",
+            fallback_command="kate {path}",
+        ),
+    ),
+)
 
 
 def normalize_config_editor_cursor(cursor_index: int) -> int:
@@ -31,6 +96,8 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
                 command=cycle_editor_command(config.editor.command, delta),
             ),
         )
+    if field_id == "gui_editor.preset":
+        return replace(config, gui_editor=cycle_gui_editor_preset(config.gui_editor, delta))
     if field_id == "display.show_hidden_files":
         return replace(
             config,
@@ -222,9 +289,19 @@ def cycle_editor_command(current: str | None, delta: int) -> str | None:
     return CONFIG_EDITOR_COMMANDS[(current_index + delta) % len(CONFIG_EDITOR_COMMANDS)]
 
 
+def cycle_gui_editor_preset(current: GuiEditorConfig, delta: int) -> GuiEditorConfig:
+    current_index = _gui_editor_preset_index(current)
+    if current_index is None:
+        selected_index = 0 if delta >= 0 else len(CONFIG_GUI_EDITOR_PRESETS) - 1
+    else:
+        selected_index = (current_index + delta) % len(CONFIG_GUI_EDITOR_PRESETS)
+    return CONFIG_GUI_EDITOR_PRESETS[selected_index][1]
+
+
 def config_editor_field_ids() -> tuple[str, ...]:
     return (
         "editor.command",
+        "gui_editor.preset",
         "display.show_hidden_files",
         "display.theme",
         "display.show_directory_sizes",
@@ -249,6 +326,7 @@ def config_editor_field_ids() -> tuple[str, ...]:
 def config_editor_labels() -> tuple[str, ...]:
     return (
         "Editor command",
+        "GUI editor",
         "Show hidden files",
         "Theme",
         "Show directory sizes",
@@ -288,6 +366,20 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
                 f"Current behavior: custom raw command `{config.editor.command}` is preserved."
             )
         lines.append("Custom commands can only be edited in the raw config file with `e`.")
+        return tuple(lines)
+    if field_id == "gui_editor.preset":
+        lines = [
+            "How GUI editor launches are built for `O` and search-result Ctrl+o.",
+            "Choosing a preset updates both positioned and fallback GUI editor templates.",
+        ]
+        preset_name = _gui_editor_preset_name(config.gui_editor)
+        if preset_name is None:
+            lines.append("Current behavior: custom raw GUI editor templates are preserved.")
+        else:
+            lines.append(f"Current behavior: `{preset_name}` is selected.")
+        lines.append(
+            "Custom GUI editor templates can only be edited in the raw config file with `e`."
+        )
         return tuple(lines)
     if field_id == "display.show_hidden_files":
         return (
@@ -412,14 +504,14 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
 
 
 CONFIG_EDITOR_CATEGORIES: tuple[tuple[str, tuple[int, ...]], ...] = (
-    ("External", (0,)),
-    ("Theme", (2, 8)),
-    ("Preview", (4, 5, 6, 7, 9, 14)),
-    ("Display", (1, 3, 10, 15)),
-    ("File Search", (18,)),
-    ("Sorting", (11, 12, 13)),
-    ("Behavior", (16,)),
-    ("Logging", (17,)),
+    ("External", (0, 1)),
+    ("Theme", (3, 9)),
+    ("Preview", (5, 6, 7, 8, 10, 15)),
+    ("Display", (2, 4, 11, 16)),
+    ("File Search", (19,)),
+    ("Sorting", (12, 13, 14)),
+    ("Behavior", (17,)),
+    ("Logging", (18,)),
 )
 
 
@@ -463,6 +555,8 @@ def format_config_field_value(field_index: int, config: AppConfig) -> str:
     field_id = config_editor_field_ids()[field_index]
     if field_id == "editor.command":
         return _format_editor_command_value(config.editor.command)
+    if field_id == "gui_editor.preset":
+        return _format_gui_editor_value(config.gui_editor)
     if field_id == "terminal.launch_mode":
         return config.terminal.launch_mode
     if field_id == "display.show_hidden_files":
@@ -516,3 +610,24 @@ def _format_editor_command_value(command: str | None) -> str:
     if command in {"nvim", "vim", "nano", "hx", "micro", "emacs -nw", "edit"}:
         return command
     return "custom (raw config only)"
+
+
+def _format_gui_editor_value(config: GuiEditorConfig) -> str:
+    preset_name = _gui_editor_preset_name(config)
+    if preset_name is None:
+        return "custom (raw config only)"
+    return preset_name
+
+
+def _gui_editor_preset_name(config: GuiEditorConfig) -> str | None:
+    current_index = _gui_editor_preset_index(config)
+    if current_index is None:
+        return None
+    return CONFIG_GUI_EDITOR_PRESETS[current_index][0]
+
+
+def _gui_editor_preset_index(config: GuiEditorConfig) -> int | None:
+    for index, (_name, preset_config) in enumerate(CONFIG_GUI_EDITOR_PRESETS):
+        if config == preset_config:
+            return index
+    return None

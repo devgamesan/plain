@@ -4351,7 +4351,7 @@ async def test_app_config_dialog_save_updates_theme(monkeypatch) -> None:
 
         assert app.theme == "textual-dark"
 
-        for _ in range(1):
+        for _ in range(2):
             await pilot.press("down")
         await pilot.press("enter")
         await _wait_for_app_theme(app, "textual-light")
@@ -4414,7 +4414,7 @@ async def test_app_config_dialog_dismiss_restores_theme_preview() -> None:
         await pilot.press("enter")
         await _wait_for_config_dialog(app)
 
-        for _ in range(1):
+        for _ in range(2):
             await pilot.press("down")
         await pilot.press("enter")
         await _wait_for_app_theme(app, "textual-light")
@@ -4478,7 +4478,7 @@ async def test_app_config_dialog_theme_preview_updates_auto_syntax_theme() -> No
         await pilot.press("c", "o", "n", "f", "i", "g")
         await pilot.press("enter")
         await _wait_for_config_dialog(app)
-        for _ in range(1):
+        for _ in range(2):
             await pilot.press("down")
         await pilot.press("enter")
         await _wait_for_app_theme(app, "textual-light")

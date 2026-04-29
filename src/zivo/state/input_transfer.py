@@ -12,6 +12,7 @@ from .actions import (
     BeginHistorySearch,
     BeginRenameInput,
     ClearTransferSelection,
+    CloseCurrentTab,
     CopyTargets,
     CutTargets,
     EnterTransferDirectory,
@@ -22,6 +23,7 @@ from .actions import (
     MoveTransferCursor,
     MoveTransferCursorAndSelectRange,
     MoveTransferCursorByPage,
+    OpenNewTab,
     PasteClipboardToTransferPane,
     SelectAllVisibleTransferEntries,
     ToggleHiddenFiles,
@@ -41,8 +43,10 @@ TRANSFER_KEYMAP = {
     "N",
     "c",
     "d",
+    "o",
     "r",
     "v",
+    "w",
     "x",
     "~",
     "[",
@@ -166,6 +170,11 @@ def dispatch_transfer_input(
     if key == "p":
         return supported(ToggleTransferMode())
 
+    if key == "o":
+        return supported(OpenNewTab())
+    if key == "w":
+        return supported(CloseCurrentTab())
+
     if key == "N":
         return supported(BeginCreateInput("dir"))
 
@@ -229,9 +238,9 @@ def dispatch_transfer_input(
         return supported(PasteClipboardToTransferPane())
 
     return warn(
-        "Use 1-9/0 for tabs, [], space, c copy, x cut, v paste, y copy-to-pane, "
+        "Use [], space, c copy, x cut, v paste, y copy-to-pane, "
         "m move-to-pane, d delete, r rename, z undo, b bookmarks, H history, "
-        ". hidden, or p/Esc to close"
+        ". hidden, o new-tab, w close-tab, or p/Esc to close"
     )
 
 

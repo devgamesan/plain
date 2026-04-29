@@ -467,6 +467,7 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
     has_single_target = _transfer_single_target_entry(state) is not None
     has_visible_entries = bool(_transfer_visible_entries(state))
     can_paste = state.clipboard.mode != "none" and bool(state.clipboard.paths)
+    tab_count = len(state.browser_tabs) or 1
 
     return (
         CommandPaletteItem(
@@ -510,6 +511,30 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
             label="Undo last file operation",
             shortcut="z",
             enabled=bool(state.undo_stack),
+        ),
+        CommandPaletteItem(
+            id="new_tab",
+            label="New tab",
+            shortcut="o",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="next_tab",
+            label="Next tab",
+            shortcut="tab",
+            enabled=tab_count > 1,
+        ),
+        CommandPaletteItem(
+            id="previous_tab",
+            label="Previous tab",
+            shortcut="shift+tab",
+            enabled=tab_count > 1,
+        ),
+        CommandPaletteItem(
+            id="close_current_tab",
+            label="Close current tab",
+            shortcut="w",
+            enabled=tab_count > 1,
         ),
         CommandPaletteItem(
             id="copy_targets",

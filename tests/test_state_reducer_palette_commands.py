@@ -38,6 +38,7 @@ from zivo.state.actions import (
     CancelCommandPalette,
     DismissAttributeDialog,
     MoveCommandPaletteCursor,
+    OpenNewTab,
     SetCommandPaletteQuery,
     SetCursorPath,
     ShowAttributes,
@@ -312,6 +313,71 @@ def test_submit_history_palette_in_transfer_mode_navigates_active_pane() -> None
         and e.path == "/tmp/c"
         for e in result.effects
     )
+
+
+def test_submit_command_palette_opens_new_tab_in_transfer_mode() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        layout_mode="transfer",
+        active_transfer_pane="left",
+        transfer_left=TransferPaneState(
+            pane=PaneState(directory_path="/tmp/a", entries=(), cursor_path="/tmp/a"),
+            current_path="/tmp/a",
+        ),
+        transfer_right=TransferPaneState(
+            pane=PaneState(directory_path="/tmp/b", entries=(), cursor_path="/tmp/b"),
+            current_path="/tmp/b",
+        ),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="commands",
+            query="",
+            cursor_index=7,  # new_tab
+        ),
+    )
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.command_palette is None
+    assert len(result.state.browser_tabs) == 2
+    assert result.state.active_tab_index == 1
+    # New tab should preserve transfer mode state
+    assert result.state.layout_mode == "transfer"
+    assert result.state.transfer_left is not None
+    assert result.state.transfer_right is not None
+
+
+def test_submit_command_palette_closes_current_tab_in_transfer_mode() -> None:
+    state = build_initial_app_state()
+    # Create a second tab first
+    state = reduce_app_state(state, OpenNewTab()).state
+    initial_tab_count = len(state.browser_tabs)
+
+    state = replace(
+        state,
+        layout_mode="transfer",
+        active_transfer_pane="left",
+        transfer_left=TransferPaneState(
+            pane=PaneState(directory_path="/tmp/a", entries=(), cursor_path="/tmp/a"),
+            current_path="/tmp/a",
+        ),
+        transfer_right=TransferPaneState(
+            pane=PaneState(directory_path="/tmp/b", entries=(), cursor_path="/tmp/b"),
+            current_path="/tmp/b",
+        ),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="commands",
+            query="",
+            cursor_index=10,  # close_current_tab
+        ),
+    )
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.command_palette is None
+    assert len(result.state.browser_tabs) == initial_tab_count - 1
 
 
 def test_submit_command_palette_select_all_in_transfer_mode() -> None:

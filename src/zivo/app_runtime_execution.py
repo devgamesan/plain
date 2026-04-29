@@ -1,16 +1,17 @@
 """Runtime scheduling helpers for execution-oriented effects."""
 
+import sys
 import threading
 from concurrent.futures import CancelledError as FutureCancelledError
 from contextlib import nullcontext
 from functools import partial
+from pathlib import Path
 from typing import Any
 
 from textual.app import SuspendNotSupported
 
 from zivo.app_runtime_core import WorkerSpec, run_worker
 from zivo.state import (
-    CloseSplitTerminalEffect,
     RunArchiveExtractEffect,
     RunArchivePreparationEffect,
     RunAttributeInspectionEffect,
@@ -22,15 +23,11 @@ from zivo.state import (
     RunUndoEffect,
     RunZipCompressEffect,
     RunZipCompressPreparationEffect,
-    StartSplitTerminalEffect,
-    WriteSplitTerminalInputEffect,
 )
 from zivo.state.actions import (
     ArchiveExtractProgress,
     ExternalLaunchCompleted,
     ExternalLaunchFailed,
-    SplitTerminalStarted,
-    SplitTerminalStartFailed,
     ZipCompressProgress,
 )
 
@@ -204,77 +201,12 @@ def schedule_external_launch(app: Any, effect: RunExternalLaunchEffect) -> None:
     )
 
 
-def start_split_terminal(app: Any, effect: StartSplitTerminalEffect) -> None:
-    try:
-        session = app._split_terminal_service.start(
-            effect.cwd,
-            on_output=partial(handle_split_terminal_output, app, effect.session_id),
-            on_exit=partial(handle_split_terminal_exit, app, effect.session_id),
-        )
-    except OSError as error:
-        app.call_next(
-            app.dispatch_actions,
-            (
-                SplitTerminalStartFailed(
-                    session_id=effect.session_id,
-                    message=str(error) or "Failed to open split terminal",
-                ),
-            ),
-        )
-        return
-
-    app._split_terminal_session = session
-    app.call_next(
-        app.dispatch_actions,
-        (
-            SplitTerminalStarted(session_id=effect.session_id, cwd=effect.cwd),
-        ),
-    )
-
-
-def write_split_terminal_input(app: Any, effect: WriteSplitTerminalInputEffect) -> None:
-    if app._app_state.split_terminal.session_id != effect.session_id:
-        return
-    if app._split_terminal_session is None:
-        return
-    try:
-        app._split_terminal_session.write(effect.data)
-    except OSError as error:
-        app.call_next(
-            app.dispatch_actions,
-            (
-                SplitTerminalStartFailed(
-                    session_id=effect.session_id,
-                    message=str(error) or "Failed to write to split terminal",
-                ),
-            ),
-        )
-
-
-def close_split_terminal(app: Any) -> None:
-    if app._split_terminal_session is None:
-        return
-    try:
-        app._split_terminal_session.close()
-    finally:
-        app._split_terminal_session = None
-
-
 def run_foreground_external_launch(app: Any, effect: RunExternalLaunchEffect) -> None:
     suspend_context = nullcontext()
     try:
         suspend_context = app.suspend()
-    except SuspendNotSupported as error:
-        app.call_next(
-            app.dispatch_actions,
-            (
-                ExternalLaunchFailed(
-                    request_id=effect.request_id,
-                    request=effect.request,
-                    message=str(error),
-                ),
-            ),
-        )
+    except SuspendNotSupported:
+        _run_detached_external_launch(app, effect)
         return
 
     try:
@@ -306,6 +238,55 @@ def run_foreground_external_launch(app: Any, effect: RunExternalLaunchEffect) ->
     )
 
 
+def _run_detached_external_launch(app: Any, effect: RunExternalLaunchEffect) -> None:
+    import subprocess
+
+    request = effect.request
+    try:
+        adapter = getattr(app._external_launch_service, "adapter", None)
+        if adapter is None or not hasattr(adapter, "_editor_candidates"):
+            raise OSError("Editor launch not supported on this terminal")
+        path = request.path
+        line_number = request.line_number
+        commands = adapter._editor_candidates(path, line_number)
+        if not commands:
+            raise OSError("No supported terminal editor found")
+        cmd = list(commands[0])
+        cwd = str(Path(path).parent)
+        try:
+            subprocess.run(
+                cmd,
+                cwd=cwd,
+                check=True,
+                stdin=sys.stdin,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+            )
+            app.call_next(
+                app.dispatch_actions,
+                (
+                    ExternalLaunchCompleted(
+                        request_id=effect.request_id,
+                        request=effect.request,
+                    ),
+                ),
+            )
+            return
+        except subprocess.CalledProcessError as error:
+            raise OSError(str(error) or f"{cmd[0]} failed") from error
+    except OSError as error:
+        app.call_next(
+            app.dispatch_actions,
+            (
+                ExternalLaunchFailed(
+                    request_id=effect.request_id,
+                    request=effect.request,
+                    message=str(error) or "Editor launch failed",
+                ),
+            ),
+        )
+
+
 def run_copy_paths(app: Any, effect: RunExternalLaunchEffect) -> None:
     try:
         app._external_launch_service.execute(effect.request)
@@ -331,28 +312,6 @@ def run_copy_paths(app: Any, effect: RunExternalLaunchEffect) -> None:
             ),
         ),
     )
-
-
-def handle_split_terminal_output(app: Any, session_id: int, data: str) -> None:
-    message = app.SplitTerminalOutput(session_id=session_id, data=data)
-    try:
-        if app._thread_id == threading.get_ident():
-            app.post_message(message)
-            return
-        app.call_from_thread(app.post_message, message)
-    except (RuntimeError, FutureCancelledError):
-        return
-
-
-def handle_split_terminal_exit(app: Any, session_id: int, exit_code: int | None) -> None:
-    message = app.SplitTerminalExitedMessage(session_id=session_id, exit_code=exit_code)
-    try:
-        if app._thread_id == threading.get_ident():
-            app.post_message(message)
-            return
-        app.call_from_thread(app.post_message, message)
-    except (RuntimeError, FutureCancelledError):
-        return
 
 
 def report_archive_extract_progress(
@@ -417,7 +376,3 @@ def schedule_external_launch_effect(app: Any, effect: RunExternalLaunchEffect) -
         app.call_next(run_foreground_external_launch, app, effect)
         return
     schedule_external_launch(app, effect)
-
-
-def close_split_terminal_effect(app: Any, effect: CloseSplitTerminalEffect) -> None:
-    close_split_terminal(app)

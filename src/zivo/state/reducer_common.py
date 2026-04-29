@@ -11,7 +11,6 @@ from .reducer_config import (
     CONFIG_PREVIEW_MAX_KIB,
     CONFIG_PREVIEW_SYNTAX_THEMES,
     CONFIG_SORT_FIELDS,
-    CONFIG_SPLIT_TERMINAL_POSITIONS,
     CONFIG_THEMES,
     apply_config_to_runtime_state,
     config_editor_field_ids,
@@ -82,7 +81,6 @@ from .reducer_requests import (
     run_undo_request,
     run_zip_compress_prepare_request,
     run_zip_compress_request,
-    split_terminal_exit_message,
 )
 
 _is_macos = _platform_module.system() == "Darwin"
@@ -95,7 +93,6 @@ __all__ = [
     "CONFIG_PREVIEW_MAX_KIB",
     "CONFIG_PREVIEW_SYNTAX_THEMES",
     "CONFIG_SORT_FIELDS",
-    "CONFIG_SPLIT_TERMINAL_POSITIONS",
     "CONFIG_THEMES",
     "REGEX_FILE_SEARCH_PREFIX",
     "REGEX_GREP_SEARCH_PREFIX",
@@ -156,7 +153,6 @@ __all__ = [
     "select_range_paths",
     "single_target_entry",
     "single_target_path",
-    "split_terminal_exit_message",
     "sync_child_pane",
     "upsert_directory_size_entries",
     "validate_pending_input",

@@ -50,9 +50,6 @@ test_select_help_bar_for_paste_conflict_uses_generic_guidance = (
 test_select_help_bar_for_permanent_delete_confirmation = (
     cases.test_select_help_bar_for_permanent_delete_confirmation
 )
-test_select_help_bar_for_split_terminal_focus = (
-    cases.test_select_help_bar_for_split_terminal_focus
-)
 test_select_help_bar_state_for_bookmarks_palette = (
     cases.test_select_help_bar_state_for_bookmarks_palette
 )
@@ -95,12 +92,6 @@ test_select_input_bar_state_formats_zip_mode = (
 test_select_input_bar_state_keeps_active_filter_visible_after_confirm = (
     cases.test_select_input_bar_state_keeps_active_filter_visible_after_confirm
 )
-test_select_split_terminal_state_builds_terminal_view = (
-    cases.test_select_split_terminal_state_builds_terminal_view
-)
 test_select_status_bar_exposes_notification_level = (
     cases.test_select_status_bar_exposes_notification_level
-)
-test_select_status_bar_shows_split_terminal_focus_when_idle = (
-    cases.test_select_status_bar_shows_split_terminal_focus_when_idle
 )

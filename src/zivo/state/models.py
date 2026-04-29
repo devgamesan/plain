@@ -20,6 +20,7 @@ from zivo.models import (
     UndoEntry,
 )
 from zivo.models.shell_data import EntryKind, NotificationLevel
+from zivo.windows_paths import resolve_parent_directory_path as resolve_parent_directory_path_impl
 
 UiMode = Literal[
     "BROWSING",
@@ -57,15 +58,12 @@ FindReplaceFieldId = Literal["filename", "find", "replace"]
 GrepReplaceFieldId = Literal["keyword", "replace", "filename", "include", "exclude"]
 GrepReplaceSelectedFieldId = Literal["keyword", "replace"]
 SelectedFilesGrepFieldId = Literal["keyword"]
-SplitTerminalStatus = Literal["closed", "starting", "running"]
-SplitTerminalFocusTarget = Literal["browser", "terminal"]
 DirectorySizeStatus = Literal["pending", "ready", "failed"]
 CurrentPaneProjectionMode = Literal["full", "viewport"]
 LayoutMode = Literal["browser", "transfer"]
 TransferPaneId = Literal["left", "right"]
 ConfigFieldId = Literal[
     "editor.command",
-    "terminal.launch_mode",
     "display.show_hidden_files",
     "display.show_directory_sizes",
     "display.enable_text_preview",
@@ -80,7 +78,6 @@ ConfigFieldId = Literal[
     "display.directories_first",
     "display.grep_preview_context_lines",
     "display.show_help_bar",
-    "display.split_terminal_position",
     "behavior.confirm_delete",
     "behavior.paste_conflict_action",
     "logging.level",
@@ -459,18 +456,6 @@ class CommandPaletteState:
 
 
 @dataclass(frozen=True)
-class SplitTerminalState:
-    """Embedded split-terminal session state."""
-
-    visible: bool = False
-    focus_target: SplitTerminalFocusTarget = "browser"
-    status: SplitTerminalStatus = "closed"
-    cwd: str | None = None
-    session_id: int | None = None
-    output: str = ""
-
-
-@dataclass(frozen=True)
 class BrowserSnapshot:
     """Pane snapshot payload returned from async loaders."""
 
@@ -543,7 +528,6 @@ class AppState:
     pending_input: PendingInputState | None = None
     pending_key_sequence: PendingKeySequenceState | None = None
     command_palette: CommandPaletteState | None = None
-    split_terminal: SplitTerminalState = SplitTerminalState()
     paste_conflict: PasteConflictState | None = None
     delete_confirmation: DeleteConfirmationState | None = None
     empty_trash_confirmation: EmptyTrashConfirmationState | None = None
@@ -663,11 +647,7 @@ def load_browser_tab(state: AppState, index: int) -> AppState:
 def resolve_parent_directory_path(path: str) -> tuple[str, str | None]:
     """Return the resolved path and its distinct parent, if one exists."""
 
-    resolved_path = Path(path).expanduser().resolve()
-    parent_path = resolved_path.parent
-    if parent_path == resolved_path:
-        return str(resolved_path), None
-    return str(resolved_path), str(parent_path)
+    return resolve_parent_directory_path_impl(path)
 
 
 def build_initial_app_state(
@@ -769,7 +749,13 @@ def build_placeholder_app_state(
 ) -> AppState:
     """Return an empty browser state used before the first snapshot loads."""
 
-    resolved_path, parent_path = resolve_parent_directory_path(current_path)
+    if current_path == "/":
+        resolved_path = str(Path(current_path).expanduser().resolve())
+        parent_path = resolved_path if Path(resolved_path).parent == Path(resolved_path) else str(
+            Path(resolved_path).parent
+        )
+    else:
+        resolved_path, parent_path = resolve_parent_directory_path(current_path)
     state = AppState(
         current_path=resolved_path,
         config=config or AppConfig(),

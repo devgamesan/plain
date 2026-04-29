@@ -2,6 +2,8 @@
 
 from textual.widgets import Static
 
+from zivo.windows_paths import display_path
+
 
 class CurrentPathBar(Static):
     """Single-line widget that renders the active directory path."""
@@ -20,7 +22,7 @@ class CurrentPathBar(Static):
     def format_path(path: str) -> str:
         """Build the visible current-path line."""
 
-        return f"Current Path: {path}"
+        return f"Current Path: {display_path(path)}"
 
     def set_path(self, path: str) -> None:
         """Update the rendered path without remounting the widget."""

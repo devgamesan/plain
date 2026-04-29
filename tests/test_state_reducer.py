@@ -9,7 +9,6 @@ from zivo.models import (
 )
 from zivo.state import (
     BrowserSnapshot,
-    CloseSplitTerminalEffect,
     ConfigEditorState,
     CurrentPaneDeltaState,
     DirectoryEntryState,
@@ -26,8 +25,6 @@ from zivo.state import (
     RunConfigSaveEffect,
     RunDirectorySizeEffect,
     RunExternalLaunchEffect,
-    StartSplitTerminalEffect,
-    WriteSplitTerminalInputEffect,
     build_initial_app_state,
     reduce_app_state,
     select_browser_tabs,
@@ -35,6 +32,7 @@ from zivo.state import (
 from zivo.state.actions import (
     ActivateNextTab,
     ActivatePreviousTab,
+    ActivateTabByIndex,
     AddBookmark,
     BeginFilterInput,
     BeginHistorySearch,
@@ -58,7 +56,6 @@ from zivo.state.actions import (
     EnterCursorDirectory,
     ExternalLaunchCompleted,
     ExternalLaunchFailed,
-    FocusSplitTerminal,
     GoBack,
     GoForward,
     GoToHomeDirectory,
@@ -77,7 +74,6 @@ from zivo.state.actions import (
     RequestBrowserSnapshot,
     RequestDirectorySizes,
     SaveConfigEditor,
-    SendSplitTerminalInput,
     SetCursorPath,
     SetFilterQuery,
     SetNotification,
@@ -85,13 +81,10 @@ from zivo.state.actions import (
     SetSort,
     SetTerminalHeight,
     SetUiMode,
-    SplitTerminalExited,
-    SplitTerminalOutputReceived,
-    SplitTerminalStarted,
     ToggleHiddenFiles,
     ToggleSelection,
-    ToggleSplitTerminal,
 )
+from zivo.windows_paths import WINDOWS_DRIVES_ROOT
 
 
 def _reduce_state(state, action):
@@ -562,7 +555,7 @@ def test_go_to_parent_directory_restores_cursor_to_previous_child() -> None:
     assert result.state.pending_browser_snapshot_request_id == 1
     assert result.state.ui_mode == "BUSY"
     assert len(result.effects) == 1
-    assert result.effects[0].path == "/home/tadashi/develop"
+    assert result.effects[0].path == str(Path("/home/tadashi/develop/zivo").parent)
     assert result.effects[0].cursor_path == "/home/tadashi/develop/zivo"
     assert result.effects[0].blocking is True
 
@@ -598,7 +591,7 @@ def test_go_to_parent_directory_uses_current_path_parent() -> None:
     result = reduce_app_state(state, GoToParentDirectory())
 
     assert len(result.effects) == 1
-    assert result.effects[0].path == "/tmp/work"
+    assert result.effects[0].path == str(Path("/tmp/work/project").parent)
     assert result.effects[0].cursor_path == "/tmp/work/project"
 
 def test_go_to_home_directory_navigates_to_home() -> None:
@@ -612,6 +605,36 @@ def test_go_to_home_directory_navigates_to_home() -> None:
     # Home directory path will be expanded and resolved
     assert result.effects[0].blocking is True
     assert str(Path.home()) in result.effects[0].path
+
+
+def test_go_to_parent_directory_from_windows_drive_root_requests_drive_list(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr("zivo.windows_paths.platform.system", lambda: "Windows")
+    state = replace(
+        build_initial_app_state(),
+        current_path="C:\\",
+        parent_pane=PaneState(
+            directory_path=WINDOWS_DRIVES_ROOT,
+            entries=(
+                DirectoryEntryState("C:\\", "C:\\", "dir"),
+                DirectoryEntryState("D:\\", "D:\\", "dir"),
+            ),
+            cursor_path="C:\\",
+        ),
+        current_pane=PaneState(
+            directory_path="C:\\",
+            entries=(DirectoryEntryState("C:\\Users", "Users", "dir"),),
+            cursor_path="C:\\Users",
+        ),
+        child_pane=PaneState(directory_path="C:\\Users", entries=()),
+    )
+
+    result = reduce_app_state(state, GoToParentDirectory())
+
+    assert len(result.effects) == 1
+    assert result.effects[0].path == WINDOWS_DRIVES_ROOT
+    assert result.effects[0].cursor_path == "C:\\"
 
 def test_reload_directory_requests_snapshot_with_current_cursor() -> None:
     state = build_initial_app_state()
@@ -719,7 +742,7 @@ def test_open_terminal_at_path_emits_external_launch_effect() -> None:
 
     result = reduce_app_state(
         state,
-        OpenTerminalAtPath("/home/tadashi/develop/zivo"),
+        OpenTerminalAtPath("/home/tadashi/develop/zivo", launch_mode="foreground"),
     )
 
     assert result.state.next_request_id == 2
@@ -729,7 +752,7 @@ def test_open_terminal_at_path_emits_external_launch_effect() -> None:
             request=ExternalLaunchRequest(
                 kind="open_terminal",
                 path="/home/tadashi/develop/zivo",
-                terminal_launch_mode="window",
+                terminal_launch_mode="foreground",
             ),
         ),
     )
@@ -755,24 +778,7 @@ def test_move_config_editor_cursor_clamps_to_visible_settings() -> None:
     next_state = _reduce_state(state, MoveConfigEditorCursor(delta=99))
 
     assert next_state.config_editor is not None
-    assert next_state.config_editor.cursor_index == 19
-
-def test_cycle_config_editor_terminal_launch_mode_updates_draft() -> None:
-    state = replace(
-        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
-        ui_mode="CONFIG",
-        config_editor=ConfigEditorState(
-            path="/tmp/zivo/config.toml",
-            draft=build_initial_app_state().config,
-            cursor_index=1,
-        ),
-    )
-
-    next_state = _reduce_state(state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.terminal.launch_mode == "foreground"
-    assert next_state.config_editor.dirty is True
+    assert next_state.config_editor.cursor_index == 17
 
 def test_cycle_config_editor_editor_command_updates_draft_and_dirty_state() -> None:
     state = replace(
@@ -798,7 +804,7 @@ def test_cycle_config_editor_value_updates_draft_and_dirty_state() -> None:
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=2,
+            cursor_index=1,
         ),
     )
 
@@ -806,48 +812,6 @@ def test_cycle_config_editor_value_updates_draft_and_dirty_state() -> None:
 
     assert next_state.config_editor is not None
     assert next_state.config_editor.draft.display.show_hidden_files is True
-    assert next_state.config_editor.dirty is True
-
-def test_cycle_config_editor_split_terminal_position_updates_draft() -> None:
-    original_state = build_initial_app_state(config_path="/tmp/zivo/config.toml")
-    state = replace(
-        original_state,
-        ui_mode="CONFIG",
-            config_editor=ConfigEditorState(
-                path="/tmp/zivo/config.toml",
-                draft=original_state.config,
-                cursor_index=16,
-            ),
-        )
-
-    next_state = _reduce_state(state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.display.split_terminal_position == "right"
-    assert next_state.config_editor.dirty is True
-
-def test_cycle_config_editor_split_terminal_position_reaches_overlay() -> None:
-    original_state = build_initial_app_state(config_path="/tmp/zivo/config.toml")
-    state = replace(
-        original_state,
-        ui_mode="CONFIG",
-            config_editor=ConfigEditorState(
-                path="/tmp/zivo/config.toml",
-                draft=replace(
-                    original_state.config,
-                    display=replace(
-                        original_state.config.display,
-                        split_terminal_position="right",
-                    ),
-                ),
-                cursor_index=16,
-            ),
-        )
-
-    next_state = _reduce_state(state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.display.split_terminal_position == "overlay"
     assert next_state.config_editor.dirty is True
 
 def test_cycle_config_editor_theme_updates_draft_and_dirty_state() -> None:
@@ -858,7 +822,7 @@ def test_cycle_config_editor_theme_updates_draft_and_dirty_state() -> None:
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=original_state.config,
-            cursor_index=3,
+            cursor_index=2,
         ),
     )
 
@@ -881,7 +845,7 @@ def test_cycle_config_editor_theme_supports_all_builtin_themes() -> None:
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=themed_config,
-            cursor_index=3,
+            cursor_index=2,
         ),
     )
 
@@ -898,7 +862,7 @@ def test_cycle_config_editor_directory_size_visibility_updates_draft_and_dirty_s
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=4,
+            cursor_index=3,
         ),
     )
 
@@ -915,7 +879,7 @@ def test_cycle_config_editor_text_preview_updates_draft_and_dirty_state() -> Non
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=5,
+            cursor_index=4,
         ),
     )
 
@@ -932,7 +896,7 @@ def test_cycle_config_editor_image_preview_updates_draft_and_dirty_state() -> No
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=6,
+            cursor_index=5,
         ),
     )
 
@@ -949,7 +913,7 @@ def test_cycle_config_editor_pdf_preview_updates_draft_and_dirty_state() -> None
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=7,
+            cursor_index=6,
         ),
     )
 
@@ -966,7 +930,7 @@ def test_cycle_config_editor_office_preview_updates_draft_and_dirty_state() -> N
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=8,
+            cursor_index=7,
         ),
     )
 
@@ -983,7 +947,7 @@ def test_cycle_config_editor_preview_syntax_theme_updates_draft_and_dirty_state(
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=9,
+            cursor_index=8,
         ),
     )
 
@@ -1000,7 +964,7 @@ def test_cycle_config_editor_preview_max_kib_updates_draft_and_dirty_state() -> 
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=10,
+            cursor_index=9,
         ),
     )
 
@@ -1226,7 +1190,7 @@ def test_cycle_config_editor_file_search_max_results_updates_draft() -> None:
             config_editor=ConfigEditorState(
                 path="/tmp/zivo/config.toml",
                 draft=original_state.config,
-                cursor_index=20,  # file_search.max_results
+                cursor_index=18,  # file_search.max_results
             ),
         )
 
@@ -1328,133 +1292,7 @@ def test_open_path_in_editor_allows_non_browser_file_path() -> None:
         ),
     )
 
-def test_toggle_split_terminal_starts_embedded_session() -> None:
-    result = reduce_app_state(build_initial_app_state(), ToggleSplitTerminal())
 
-    assert result.state.split_terminal.visible is True
-    assert result.state.split_terminal.status == "starting"
-    assert result.state.split_terminal.cwd == "/home/tadashi/develop/zivo"
-    assert result.state.split_terminal.session_id == 1
-    assert result.effects == (
-        StartSplitTerminalEffect(
-            session_id=1,
-            cwd="/home/tadashi/develop/zivo",
-        ),
-    )
-
-def test_toggle_split_terminal_closes_active_session() -> None:
-    state = replace(
-        build_initial_app_state(),
-        split_terminal=replace(
-            build_initial_app_state().split_terminal,
-            visible=True,
-            status="running",
-            session_id=7,
-            output="prompt> ",
-        ),
-    )
-
-    result = reduce_app_state(state, ToggleSplitTerminal())
-
-    assert result.state.split_terminal.visible is False
-    assert result.effects == (CloseSplitTerminalEffect(session_id=7),)
-
-def test_focus_split_terminal_switches_focus_target() -> None:
-    state = replace(
-        build_initial_app_state(),
-        split_terminal=replace(
-            build_initial_app_state().split_terminal,
-            visible=True,
-            status="running",
-            session_id=3,
-        ),
-    )
-
-    next_state = _reduce_state(state, FocusSplitTerminal("terminal"))
-
-    assert next_state.split_terminal.focus_target == "terminal"
-
-def test_toggle_split_terminal_opens_with_terminal_focus() -> None:
-    result = reduce_app_state(build_initial_app_state(), ToggleSplitTerminal())
-
-    assert result.state.split_terminal.visible is True
-    assert result.state.split_terminal.focus_target == "terminal"
-
-def test_send_split_terminal_input_emits_write_effect() -> None:
-    state = replace(
-        build_initial_app_state(),
-        split_terminal=replace(
-            build_initial_app_state().split_terminal,
-            visible=True,
-            status="running",
-            session_id=5,
-        ),
-    )
-
-    result = reduce_app_state(state, SendSplitTerminalInput("ls\n"))
-
-    assert result.effects == (
-        WriteSplitTerminalInputEffect(session_id=5, data="ls\n"),
-    )
-
-def test_split_terminal_started_marks_session_running() -> None:
-    state = replace(
-        build_initial_app_state(),
-        split_terminal=replace(
-            build_initial_app_state().split_terminal,
-            visible=True,
-            status="starting",
-            session_id=5,
-        ),
-    )
-
-    next_state = _reduce_state(
-        state,
-        SplitTerminalStarted(session_id=5, cwd="/home/tadashi/develop/zivo"),
-    )
-
-    assert next_state.split_terminal.status == "running"
-    assert next_state.notification == NotificationState(
-        level="info",
-        message="Split terminal opened",
-    )
-
-def test_split_terminal_output_received_does_not_mutate_reducer_state() -> None:
-    state = replace(
-        build_initial_app_state(),
-        split_terminal=replace(
-            build_initial_app_state().split_terminal,
-            visible=True,
-            status="running",
-            session_id=5,
-            output="hello",
-        ),
-    )
-
-    next_state = _reduce_state(state, SplitTerminalOutputReceived(session_id=5, data=" world"))
-
-    assert next_state == state
-
-def test_split_terminal_exited_resets_state_and_notifies() -> None:
-    state = replace(
-        build_initial_app_state(),
-        split_terminal=replace(
-            build_initial_app_state().split_terminal,
-            visible=True,
-            status="running",
-            focus_target="terminal",
-            session_id=5,
-            output="prompt",
-        ),
-    )
-
-    next_state = _reduce_state(state, SplitTerminalExited(session_id=5, exit_code=0))
-
-    assert next_state.split_terminal.visible is False
-    assert next_state.notification == NotificationState(
-        level="info",
-        message="Split terminal closed (exit 0)",
-    )
 
 def test_toggle_hidden_files_normalizes_cursor_and_selection() -> None:
     hidden_path = "/home/tadashi/develop/zivo/.env"
@@ -2742,6 +2580,24 @@ def test_activate_tabs_restores_per_tab_filter_state() -> None:
     state = _reduce_state(state, ActivateNextTab())
     assert state.active_tab_index == 1
     assert state.filter.query == "read"
+
+
+def test_activate_tab_by_index_selects_requested_tab() -> None:
+    state = _reduce_state(build_initial_app_state(), OpenNewTab())
+    state = _reduce_state(state, SetFilterQuery("read"))
+
+    state = _reduce_state(state, ActivateTabByIndex(0))
+
+    assert state.active_tab_index == 0
+    assert state.filter.query == ""
+
+
+def test_activate_tab_by_index_ignores_out_of_range_index() -> None:
+    state = _reduce_state(build_initial_app_state(), OpenNewTab())
+
+    next_state = _reduce_state(state, ActivateTabByIndex(9))
+
+    assert next_state == state
 
 def test_close_current_tab_warns_when_only_one_tab_remains() -> None:
     next_state = _reduce_state(build_initial_app_state(), CloseCurrentTab())

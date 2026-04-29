@@ -12,9 +12,9 @@ from zivo.models import (
     InputBarState,
     InputDialogState,
     ShellCommandDialogState,
-    SplitTerminalViewState,
     StatusBarState,
 )
+from zivo.platform_support import is_split_terminal_supported
 
 from .models import AppState
 from .reducer_config import (
@@ -64,11 +64,6 @@ def _format_attribute_permissions_label(state: AppState) -> str:
 def select_status_bar_state(state: AppState) -> StatusBarState:
     """Return a status bar model derived from app state."""
 
-    if state.notification is None and state.split_terminal.visible:
-        return StatusBarState(
-            message="Split terminal active",
-            message_level="info",
-        )
     return StatusBarState(
         message=state.notification.message if state.notification else None,
         message_level=state.notification.level if state.notification else None,
@@ -78,10 +73,6 @@ def select_status_bar_state(state: AppState) -> StatusBarState:
 def select_help_bar_state(state: AppState) -> HelpBarState:
     """Return the help content for the active mode."""
 
-    if state.split_terminal.visible:
-        if state.config.help_bar.split_terminal:
-            return HelpBarState(state.config.help_bar.split_terminal)
-        return HelpBarState(("type in terminal | ctrl+q close",))
     if state.ui_mode == "CONFIRM":
         if state.delete_confirmation is not None:
             if (
@@ -208,19 +199,25 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             return HelpBarState(state.config.help_bar.transfer)
         return HelpBarState(
             (
-                "[ ] focus | y copy-to-pane | m move-to-pane | Esc close",
+                "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close",
                 "Space select | c copy | x cut | v paste | d delete | r rename",
-                "z undo | . hidden | N new-dir | b bookmarks | H history | G go-to | : palette",
+                "z undo | . hidden | N new-dir | o new-tab | w close-tab",
+                "b bookmarks | H history | G go-to | : palette",
             )
         )
     if state.config.help_bar.browsing:
         return HelpBarState(state.config.help_bar.browsing)
+    split_terminal_hint = " | t term" if is_split_terminal_supported() else ""
+    browsing_shortcuts = (
+        "n new-file | N new-dir | H history | "
+        f"b bookmarks{split_terminal_hint} | p transfer | : palette | q quit"
+    )
     return HelpBarState(
         (
             "enter open | e edit | i info | space select | c copy | x cut | v paste | "
             "d delete | r rename | z undo",
             "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to | [ ] preview",
-            "n new-file | N new-dir | H history | b bookmarks | t term | : palette | q quit",
+            browsing_shortcuts,
         )
     )
 
@@ -509,30 +506,6 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
         ),
         empty_message="No matching commands",
         has_more_items=len(items) > len(visible_items),
-    )
-
-
-def select_split_terminal_state(state: AppState) -> SplitTerminalViewState:
-    """Return display data for the embedded split terminal pane."""
-
-    split_terminal = state.split_terminal
-    if not split_terminal.visible:
-        return SplitTerminalViewState(
-            visible=False,
-            status="closed",
-            body="",
-            focused=False,
-        )
-
-    if split_terminal.status == "starting":
-        body = "Starting shell..."
-    else:
-        body = "Shell ready."
-    return SplitTerminalViewState(
-        visible=True,
-        status=split_terminal.status,
-        body=body,
-        focused=split_terminal.focus_target == "terminal",
     )
 
 

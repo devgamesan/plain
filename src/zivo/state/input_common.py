@@ -3,6 +3,8 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from zivo.windows_paths import paths_equal
+
 from .actions import Action, SetNotification
 from .models import AppState, DirectoryEntryState, NotificationState
 from .selectors import select_visible_current_entry_states
@@ -30,7 +32,7 @@ def visible_paths(state: AppState) -> tuple[str, ...]:
 def current_entry(state: AppState) -> DirectoryEntryState | None:
     cursor_path = state.current_pane.cursor_path
     for entry in select_visible_current_entry_states(state):
-        if entry.path == cursor_path:
+        if paths_equal(entry.path, cursor_path):
             return entry
     return None
 

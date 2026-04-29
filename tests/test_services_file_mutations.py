@@ -5,6 +5,11 @@ import pytest
 
 from zivo.models import CreatePathRequest, CreateSymlinkRequest, DeleteRequest, RenameRequest
 from zivo.services import LiveFileMutationService
+from zivo.services.trash_operations import WindowsTrashService
+
+
+def _absolute(path: str) -> str:
+    return os.path.abspath(os.path.expanduser(path))
 
 
 @dataclass
@@ -73,6 +78,19 @@ def test_file_mutation_service_trashes_single_path() -> None:
     assert result.removed_paths == ("/tmp/zivo/docs",)
 
 
+def test_file_mutation_service_does_not_create_trash_restore_record_on_windows() -> None:
+    adapter = StubFileOperationAdapter()
+    service = LiveFileMutationService(
+        adapter=adapter,
+        trash_service=WindowsTrashService(),
+    )
+
+    result = service.execute(DeleteRequest(paths=("C:/Users/test/docs",), mode="trash"))
+
+    assert adapter.trashed_paths == ["C:/Users/test/docs"]
+    assert result.trash_records == ()
+
+
 def test_file_mutation_service_renames_single_path() -> None:
     adapter = StubFileOperationAdapter()
     service = LiveFileMutationService(adapter=adapter)
@@ -81,11 +99,12 @@ def test_file_mutation_service_renames_single_path() -> None:
         RenameRequest(source_path="/tmp/zivo/docs", new_name="docs-old")
     )
 
-    assert adapter.moved_paths == [("/tmp/zivo/docs", "/tmp/zivo/docs-old")]
-    assert result.path == "/tmp/zivo/docs-old"
+    assert adapter.moved_paths == [(_absolute("/tmp/zivo/docs"), _absolute("/tmp/zivo/docs-old"))]
+    assert result.path == _absolute("/tmp/zivo/docs-old")
     assert result.message == "Renamed to docs-old"
 
 
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation requires extra Windows privileges")
 def test_file_mutation_service_renames_symlink_without_following_target(tmp_path) -> None:
     target = tmp_path / "target.txt"
     target.write_text("secret\n", encoding="utf-8")
@@ -106,7 +125,7 @@ def test_file_mutation_service_renames_symlink_without_following_target(tmp_path
 
 
 def test_file_mutation_service_raises_rename_error() -> None:
-    adapter = StubFileOperationAdapter(failing_paths={"/tmp/zivo/docs-old"})
+    adapter = StubFileOperationAdapter(failing_paths={_absolute("/tmp/zivo/docs-old")})
     service = LiveFileMutationService(adapter=adapter)
 
     with pytest.raises(OSError, match="rename failed"):
@@ -121,8 +140,8 @@ def test_file_mutation_service_creates_file() -> None:
         CreatePathRequest(parent_dir="/tmp/zivo", name="README.md", kind="file")
     )
 
-    assert adapter.created_files == ["/tmp/zivo/README.md"]
-    assert result.path == "/tmp/zivo/README.md"
+    assert adapter.created_files == [_absolute("/tmp/zivo/README.md")]
+    assert result.path == _absolute("/tmp/zivo/README.md")
     assert result.message == "Created file README.md"
 
 
@@ -132,8 +151,8 @@ def test_file_mutation_service_creates_directory() -> None:
 
     result = service.execute(CreatePathRequest(parent_dir="/tmp/zivo", name="docs", kind="dir"))
 
-    assert adapter.created_directories == ["/tmp/zivo/docs"]
-    assert result.path == "/tmp/zivo/docs"
+    assert adapter.created_directories == [_absolute("/tmp/zivo/docs")]
+    assert result.path == _absolute("/tmp/zivo/docs")
     assert result.message == "Created directory docs"
 
 
@@ -148,11 +167,14 @@ def test_file_mutation_service_creates_symlink() -> None:
         )
     )
 
-    assert adapter.created_symlinks == [("/tmp/zivo/docs", "/tmp/zivo/docs.link", False)]
-    assert result.path == "/tmp/zivo/docs.link"
+    assert adapter.created_symlinks == [
+        (_absolute("/tmp/zivo/docs"), _absolute("/tmp/zivo/docs.link"), False)
+    ]
+    assert result.path == _absolute("/tmp/zivo/docs.link")
     assert result.message == "Created symlink docs.link"
 
 
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation requires extra Windows privileges")
 def test_file_mutation_service_creates_relative_symlink_on_disk(tmp_path) -> None:
     target = tmp_path / "docs"
     target.mkdir()
@@ -169,6 +191,7 @@ def test_file_mutation_service_creates_relative_symlink_on_disk(tmp_path) -> Non
     assert result.path == str(destination)
 
 
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation requires extra Windows privileges")
 def test_file_mutation_service_overwrites_existing_symlink_destination(tmp_path) -> None:
     target = tmp_path / "docs"
     target.mkdir()
@@ -191,7 +214,7 @@ def test_file_mutation_service_overwrites_existing_symlink_destination(tmp_path)
 
 
 def test_file_mutation_service_raises_create_file_error() -> None:
-    adapter = StubFileOperationAdapter(failing_paths={"/tmp/zivo/README.md"})
+    adapter = StubFileOperationAdapter(failing_paths={_absolute("/tmp/zivo/README.md")})
     service = LiveFileMutationService(adapter=adapter)
 
     with pytest.raises(OSError, match="file creation failed"):
@@ -199,7 +222,7 @@ def test_file_mutation_service_raises_create_file_error() -> None:
 
 
 def test_file_mutation_service_raises_create_directory_error() -> None:
-    adapter = StubFileOperationAdapter(failing_paths={"/tmp/zivo/docs"})
+    adapter = StubFileOperationAdapter(failing_paths={_absolute("/tmp/zivo/docs")})
     service = LiveFileMutationService(adapter=adapter)
 
     with pytest.raises(OSError, match="directory creation failed"):
@@ -227,6 +250,7 @@ def test_file_mutation_service_raises_when_all_deletes_fail() -> None:
         service.execute(DeleteRequest(paths=("/tmp/zivo/docs",), mode="trash"))
 
 
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation requires extra Windows privileges")
 def test_file_mutation_service_trashes_symlink_without_following_target(tmp_path) -> None:
     target = tmp_path / "target.txt"
     target.write_text("secret\n", encoding="utf-8")
@@ -275,6 +299,7 @@ def test_file_mutation_service_raises_when_all_permanent_deletes_fail() -> None:
         service.execute(DeleteRequest(paths=("/tmp/zivo/docs",), mode="permanent"))
 
 
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation requires extra Windows privileges")
 def test_file_mutation_service_permanently_deletes_symlink_without_following_target(
     tmp_path,
 ) -> None:

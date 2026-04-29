@@ -17,6 +17,11 @@ from zivo.models import (
     RenameRequest,
     UndoEntry,
 )
+from zivo.windows_paths import (
+    is_windows_drives_root,
+    is_windows_path,
+    normalize_windows_path,
+)
 
 from .actions import Action
 from .effects import (
@@ -32,7 +37,7 @@ from .effects import (
     RunZipCompressEffect,
     RunZipCompressPreparationEffect,
 )
-from .models import HistoryState, NotificationState
+from .models import HistoryState, NotificationState, resolve_parent_directory_path
 
 ReducerFn = Callable[[object, Action], ReduceResult]
 
@@ -237,11 +242,25 @@ def browser_snapshot_invalidation_paths(
     path: str,
     *extra_paths: str | None,
 ) -> tuple[str, ...]:
-    resolved_path = str(Path(path).expanduser().resolve())
-    paths = [resolved_path, str(Path(resolved_path).parent)]
+    def _normalize(path_value: str) -> str:
+        if is_windows_path(path_value):
+            return normalize_windows_path(path_value)
+        return str(Path(path_value).expanduser().resolve())
+
+    if is_windows_drives_root(path):
+        paths = [path]
+    else:
+        resolved_path = _normalize(path)
+        _, parent_path = resolve_parent_directory_path(resolved_path)
+        paths = [resolved_path]
+        if parent_path is not None:
+            paths.append(parent_path)
     for extra_path in extra_paths:
         if extra_path is not None:
-            paths.append(str(Path(extra_path).expanduser().resolve()))
+            if is_windows_drives_root(extra_path):
+                paths.append(extra_path)
+            else:
+                paths.append(_normalize(extra_path))
     return tuple(dict.fromkeys(paths))
 
 
@@ -298,12 +317,6 @@ def notification_for_external_launch(
         level="info",
         message=f"Copied {len(request.paths)} {noun} to system clipboard",
     )
-
-
-def split_terminal_exit_message(exit_code: int | None) -> str:
-    if exit_code is None:
-        return "Split terminal closed"
-    return f"Split terminal closed (exit {exit_code})"
 
 
 def notification_for_paste_summary(summary: PasteSummary) -> NotificationState:

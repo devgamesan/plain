@@ -3,6 +3,11 @@ import pytest
 from zivo.adapters import LocalFileOperationAdapter
 from zivo.adapters import file_operations as file_operations_module
 
+skip_if_windows_symlink_privilege_required = pytest.mark.skipif(
+    file_operations_module.os.name == "nt",
+    reason="symlink creation requires extra Windows privileges",
+)
+
 
 def test_local_file_operation_adapter_copies_file_contents(tmp_path) -> None:
     source = tmp_path / "source.txt"
@@ -30,6 +35,7 @@ def test_local_file_operation_adapter_copies_directory_recursively(tmp_path) -> 
     assert (destination / "guide.txt").read_text(encoding="utf-8") == "guide\n"
 
 
+@skip_if_windows_symlink_privilege_required
 def test_local_file_operation_adapter_copies_symlink_without_following_target(tmp_path) -> None:
     source_dir = tmp_path / "source"
     source_dir.mkdir()
@@ -48,6 +54,7 @@ def test_local_file_operation_adapter_copies_symlink_without_following_target(tm
     assert destination.read_text(encoding="utf-8") == "secret\n"
 
 
+@skip_if_windows_symlink_privilege_required
 def test_local_file_operation_adapter_copies_nested_symlinks_without_following_target(
     tmp_path,
 ) -> None:
@@ -100,6 +107,7 @@ def test_local_file_operation_adapter_rejects_move_to_same_path(tmp_path) -> Non
         adapter.move_path(str(source), str(source))
 
 
+@skip_if_windows_symlink_privilege_required
 def test_local_file_operation_adapter_moves_symlink_without_following_target(tmp_path) -> None:
     target = tmp_path / "target.txt"
     target.write_text("secret\n", encoding="utf-8")
@@ -166,6 +174,7 @@ def test_local_file_operation_adapter_generates_unique_file_and_directory_names(
     assert renamed_directory == str(tmp_path / "docs copy")
 
 
+@skip_if_windows_symlink_privilege_required
 def test_local_file_operation_adapter_path_exists_recognizes_broken_symlink(tmp_path) -> None:
     broken = tmp_path / "broken.txt"
     broken.symlink_to(tmp_path / "missing-target.txt")
@@ -191,6 +200,7 @@ def test_local_file_operation_adapter_send_to_trash_uses_send2trash(tmp_path, mo
     assert trashed == [str(target.absolute())]
 
 
+@skip_if_windows_symlink_privilege_required
 def test_local_file_operation_adapter_send_to_trash_keeps_symlink_identity(
     tmp_path, monkeypatch
 ) -> None:

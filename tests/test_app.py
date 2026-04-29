@@ -1,4 +1,5 @@
 import asyncio
+import os
 import threading
 import time
 from contextlib import nullcontext
@@ -47,7 +48,6 @@ from zivo.services import (
     FakeFileSearchService,
     FakeGrepSearchService,
     FakeShellCommandService,
-    FakeSplitTerminalService,
     FakeTextReplaceService,
     FakeUndoService,
     LiveExternalLaunchService,
@@ -81,12 +81,17 @@ from zivo.ui import (
     InputDialog,
     ShellCommandDialog,
     SidePane,
-    SplitTerminalPane,
     StatusBar,
     SummaryBar,
     TabBar,
 )
 from zivo.ui.panes import MainPane
+from zivo.windows_paths import WINDOWS_DRIVES_ROOT, is_windows_path, paths_equal
+
+skip_if_windows_split_terminal_unsupported = pytest.mark.skipif(
+    os.name == "nt",
+    reason="split terminal is unsupported on native Windows",
+)
 
 
 def _build_snapshot(
@@ -301,17 +306,6 @@ async def _wait_for_config_dialog(app, timeout: float = 0.5) -> ConfigDialog:
     while True:
         try:
             return app.query_one("#config-dialog", ConfigDialog)
-        except NoMatches:
-            if asyncio.get_running_loop().time() >= deadline:
-                raise
-            await asyncio.sleep(0.01)
-
-
-async def _wait_for_split_terminal(app, timeout: float = 0.5) -> SplitTerminalPane:
-    deadline = asyncio.get_running_loop().time() + timeout
-    while True:
-        try:
-            return app.query_one("#split-terminal", SplitTerminalPane)
         except NoMatches:
             if asyncio.get_running_loop().time() >= deadline:
                 raise
@@ -579,11 +573,13 @@ async def _wait_for_transfer_right_table(app, timeout: float = 0.5) -> DataTable
 
 
 async def _wait_for_path(app, expected_path: str, timeout: float = 0.5) -> None:
-    resolved_expected = str(Path(expected_path).resolve())
+    resolved_expected = (
+        expected_path if is_windows_path(expected_path) else str(Path(expected_path).resolve())
+    )
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
         if (
-            app.app_state.current_path == resolved_expected
+            paths_equal(app.app_state.current_path, resolved_expected)
             and app.app_state.pending_browser_snapshot_request_id is None
         ):
             return
@@ -593,10 +589,12 @@ async def _wait_for_path(app, expected_path: str, timeout: float = 0.5) -> None:
 
 
 async def _wait_for_cursor_path(app, expected_path: str, timeout: float = 0.5) -> None:
-    resolved_expected = str(Path(expected_path).resolve())
+    resolved_expected = (
+        expected_path if is_windows_path(expected_path) else str(Path(expected_path).resolve())
+    )
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
-        if app.app_state.current_pane.cursor_path == resolved_expected:
+        if paths_equal(app.app_state.current_pane.cursor_path, resolved_expected):
             return
         if asyncio.get_running_loop().time() >= deadline:
             raise AssertionError(f"cursor path did not become {expected_path}")
@@ -1910,6 +1908,61 @@ async def test_app_left_can_move_above_initial_directory() -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_left_on_windows_drive_root_returns_to_drive_list(monkeypatch) -> None:
+    monkeypatch.setattr("zivo.windows_paths.platform.system", lambda: "Windows")
+    drive_entries = (
+        DirectoryEntryState("C:\\", "C:\\", "dir"),
+        DirectoryEntryState("D:\\", "D:\\", "dir"),
+    )
+    c_drive_entries = (
+        DirectoryEntryState("C:\\Users", "Users", "dir"),
+        DirectoryEntryState("C:\\Temp", "Temp", "dir"),
+    )
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            WINDOWS_DRIVES_ROOT: BrowserSnapshot(
+                current_path=WINDOWS_DRIVES_ROOT,
+                parent_pane=PaneState(
+                    directory_path=WINDOWS_DRIVES_ROOT,
+                    entries=(),
+                ),
+                current_pane=PaneState(
+                    directory_path=WINDOWS_DRIVES_ROOT,
+                    entries=drive_entries,
+                    cursor_path="C:\\",
+                ),
+                child_pane=PaneState(directory_path="C:\\", entries=c_drive_entries),
+            ),
+            "C:\\": BrowserSnapshot(
+                current_path="C:\\",
+                parent_pane=PaneState(
+                    directory_path=WINDOWS_DRIVES_ROOT,
+                    entries=drive_entries,
+                    cursor_path="C:\\",
+                ),
+                current_pane=PaneState(
+                    directory_path="C:\\",
+                    entries=c_drive_entries,
+                    cursor_path="C:\\Users",
+                ),
+                child_pane=PaneState(directory_path="C:\\Users", entries=()),
+            ),
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path="C:\\")
+
+    async with app.run_test() as pilot:
+        await _wait_for_path(app, "C:\\")
+        current_path_bar = await _wait_for_current_path_bar(app)
+        assert str(current_path_bar.renderable) == "Current Path: C:\\"
+
+        await pilot.press("left")
+        await _wait_for_path(app, WINDOWS_DRIVES_ROOT)
+        assert str(current_path_bar.renderable) == "Current Path: Drives"
+        assert app.app_state.current_pane.cursor_path == "C:\\"
+
+
+@pytest.mark.asyncio
 async def test_app_capital_R_keeps_cursor_when_entry_still_exists() -> None:
     path = str(Path("/tmp/zivo-reload").resolve())
     initial_entries = (
@@ -2612,11 +2665,13 @@ async def test_app_displays_browsing_help_bar() -> None:
         }
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
+    split_terminal_hint = " | t term" if os.name == "posix" else ""
     expected_help = (
         "enter open | e edit | i info | space select | c copy | x cut | v paste | "
         "d delete | r rename | z undo\n"
         "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to | [ ] preview\n"
-        "n new-file | N new-dir | H history | b bookmarks | t term | : palette | q quit"
+        "n new-file | N new-dir | H history | "
+        f"b bookmarks{split_terminal_hint} | p transfer | : palette | q quit"
     )
 
     async with app.run_test():
@@ -2648,7 +2703,7 @@ async def test_app_transfer_mode_refreshes_left_cursor_and_focuses_right_pane() 
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 3)
 
-        await pilot.press("2")
+        await pilot.press("p")
         right_table = await _wait_for_transfer_right_table(app)
         left_table = app.query_one("#current-pane-table", DataTable)
         left_pane = app.query_one("#current-pane", MainPane)
@@ -2689,14 +2744,15 @@ async def test_app_displays_transfer_help_bar() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
-        "[ ] focus | y copy-to-pane | m move-to-pane | Esc close\n"
+        "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close\n"
         "Space select | c copy | x cut | v paste | d delete | r rename\n"
-        "z undo | . hidden | N new-dir | b bookmarks | H history | G go-to | : palette"
+        "z undo | . hidden | N new-dir | o new-tab | w close-tab\n"
+        "b bookmarks | H history | G go-to | : palette"
     )
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("2")
+        await pilot.press("p")
         help_bar = await _wait_for_help_bar_text(app, expected_help)
 
         assert str(help_bar.renderable) == expected_help
@@ -2718,7 +2774,7 @@ async def test_app_opens_command_palette_from_transfer_mode_with_colon() -> None
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("2")
+        await pilot.press("p")
         await pilot.press(":")
         palette = await _wait_for_command_palette(app)
 
@@ -4161,7 +4217,7 @@ async def test_app_config_dialog_save_updates_theme(monkeypatch) -> None:
 
         assert app.theme == "textual-dark"
 
-        for _ in range(2):
+        for _ in range(1):
             await pilot.press("down")
         await pilot.press("enter")
         await _wait_for_app_theme(app, "textual-light")
@@ -4224,7 +4280,7 @@ async def test_app_config_dialog_dismiss_restores_theme_preview() -> None:
         await pilot.press("enter")
         await _wait_for_config_dialog(app)
 
-        for _ in range(2):
+        for _ in range(1):
             await pilot.press("down")
         await pilot.press("enter")
         await _wait_for_app_theme(app, "textual-light")
@@ -4288,7 +4344,7 @@ async def test_app_config_dialog_theme_preview_updates_auto_syntax_theme() -> No
         await pilot.press("c", "o", "n", "f", "i", "g")
         await pilot.press("enter")
         await _wait_for_config_dialog(app)
-        for _ in range(2):
+        for _ in range(1):
             await pilot.press("down")
         await pilot.press("enter")
         await _wait_for_app_theme(app, "textual-light")
@@ -4494,16 +4550,11 @@ async def test_app_config_save_refreshes_live_external_launch_service() -> None:
 
         assert isinstance(app._external_launch_service, LiveExternalLaunchService)
         assert app._external_launch_service.adapter.editor_command_template.command is None
-        assert (
-            app._external_launch_service.adapter.terminal_command_templates.launch_mode
-            == "window"
-        )
 
         app._app_state = replace(app.app_state, pending_config_save_request_id=7)
         saved_config = replace(
             app.app_state.config,
             editor=EditorConfig(command="nvim -u NONE"),
-            terminal=replace(app.app_state.config.terminal, launch_mode="foreground"),
         )
         await app.dispatch_actions(
             (
@@ -4518,10 +4569,6 @@ async def test_app_config_save_refreshes_live_external_launch_service() -> None:
         assert isinstance(app._external_launch_service, LiveExternalLaunchService)
         assert (
             app._external_launch_service.adapter.editor_command_template.command == "nvim -u NONE"
-        )
-        assert (
-            app._external_launch_service.adapter.terminal_command_templates.launch_mode
-            == "foreground"
         )
 
 
@@ -4708,267 +4755,8 @@ async def test_app_command_palette_open_terminal_launches_current_directory() ->
         assert app.app_state.ui_mode == "BROWSING"
 
 
-@pytest.mark.asyncio
-async def test_app_ctrl_t_opens_split_terminal_and_focuses_it() -> None:
-    path = str(Path("/tmp/zivo-split-terminal").resolve())
-    loader = FakeBrowserSnapshotLoader(
-        snapshots={
-            path: _build_snapshot(
-                path,
-                (
-                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
-                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
-                ),
-                child_path=f"{path}/docs",
-            )
-        }
-    )
-    split_terminal_service = FakeSplitTerminalService()
-    app = create_app(
-        snapshot_loader=loader,
-        split_terminal_service=split_terminal_service,
-        initial_path=path,
-    )
-
-    async with app.run_test() as pilot:
-        await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("t")
-        await asyncio.sleep(0.05)
-
-        split_terminal = await _wait_for_split_terminal(app)
-
-        assert split_terminal.display is True
-        assert split_terminal_service.started_cwds == [path]
-        assert app.app_state.split_terminal.visible is True
-        assert app.app_state.split_terminal.status == "running"
-
-        assert app.app_state.split_terminal.focus_target == "terminal"
-        assert app.focused is split_terminal
 
 
-@pytest.mark.asyncio
-async def test_app_split_terminal_uses_half_of_body_height_when_visible() -> None:
-    path = str(Path("/tmp/zivo-split-terminal-layout").resolve())
-    loader = FakeBrowserSnapshotLoader(
-        snapshots={
-            path: _build_snapshot(
-                path,
-                (
-                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
-                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
-                ),
-                child_path=f"{path}/docs",
-            )
-        }
-    )
-    split_terminal_service = FakeSplitTerminalService()
-    app = create_app(
-        snapshot_loader=loader,
-        split_terminal_service=split_terminal_service,
-        initial_path=path,
-    )
-
-    async with app.run_test(size=(100, 30)) as pilot:
-        await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("t")
-        await asyncio.sleep(0.05)
-
-        split_terminal = await _wait_for_split_terminal(app)
-        browser_row = app.query_one("#browser-row")
-
-        assert abs(browser_row.size.height - split_terminal.size.height) <= 1
-
-
-@pytest.mark.asyncio
-async def test_app_overlay_split_terminal_keeps_help_and_status_visible() -> None:
-    path = str(Path("/tmp/zivo-split-terminal-overlay").resolve())
-    loader = FakeBrowserSnapshotLoader(
-        snapshots={
-            path: _build_snapshot(
-                path,
-                (
-                    DirectoryEntryState(f"{path}/docs", "docs", "dir"),
-                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
-                ),
-                child_path=f"{path}/docs",
-            )
-        }
-    )
-    split_terminal_service = FakeSplitTerminalService()
-    app = create_app(
-        snapshot_loader=loader,
-        split_terminal_service=split_terminal_service,
-        app_config=AppConfig(
-            display=DisplayConfig(split_terminal_position="overlay"),
-        ),
-        initial_path=path,
-    )
-
-    async with app.run_test(size=(100, 30)) as pilot:
-        await _wait_for_snapshot_loaded(app, path)
-        child_pane = app.query_one("#child-pane", ChildPane)
-        body = app.query_one("#body")
-        help_bar = app.query_one("#help-bar", HelpBar)
-        status_bar = app.query_one("#status-bar", StatusBar)
-
-        await pilot.press("t")
-        await asyncio.sleep(0.05)
-
-        split_terminal = await _wait_for_split_terminal(app)
-        split_terminal_layer = app.query_one("#split-terminal-layer")
-
-        assert split_terminal.display is True
-        assert split_terminal_layer.display is True
-        assert child_pane.display is True
-        assert split_terminal.region.y > body.region.y
-        assert split_terminal.region.bottom < help_bar.region.y
-        assert help_bar.region.bottom <= status_bar.region.y
-
-
-@pytest.mark.asyncio
-async def test_app_split_terminal_focus_routes_input_to_session() -> None:
-    path = str(Path("/tmp/zivo-split-terminal-input").resolve())
-    loader = FakeBrowserSnapshotLoader(
-        snapshots={
-            path: _build_snapshot(
-                path,
-                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
-                child_path=f"{path}/docs",
-            )
-        }
-    )
-    split_terminal_service = FakeSplitTerminalService()
-    app = create_app(
-        snapshot_loader=loader,
-        split_terminal_service=split_terminal_service,
-        initial_path=path,
-    )
-
-    async with app.run_test() as pilot:
-        await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("t")
-        await asyncio.sleep(0.05)
-        await pilot.press("a", "enter")
-        await asyncio.sleep(0.05)
-
-        session = split_terminal_service.sessions[0]
-        assert session.writes == ["a", "\r"]
-
-@pytest.mark.asyncio
-async def test_app_split_terminal_focus_sends_tab() -> None:
-    path = str(Path("/tmp/zivo-split-terminal-tab").resolve())
-    loader = FakeBrowserSnapshotLoader(
-        snapshots={
-            path: _build_snapshot(
-                path,
-                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
-                child_path=f"{path}/docs",
-            )
-        }
-    )
-    split_terminal_service = FakeSplitTerminalService()
-    app = create_app(
-        snapshot_loader=loader,
-        split_terminal_service=split_terminal_service,
-        initial_path=path,
-    )
-
-    async with app.run_test() as pilot:
-        await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("t")
-        await asyncio.sleep(0.05)
-        await pilot.press("tab")
-        await asyncio.sleep(0.05)
-
-        session = split_terminal_service.sessions[0]
-        assert session.writes == ["\t"]
-
-
-@pytest.mark.asyncio
-async def test_app_split_terminal_coalesces_rapid_output_updates() -> None:
-    path = str(Path("/tmp/zivo-split-terminal-coalesce").resolve())
-    loader = FakeBrowserSnapshotLoader(
-        snapshots={
-            path: _build_snapshot(
-                path,
-                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
-                child_path=f"{path}/docs",
-            )
-        }
-    )
-    split_terminal_service = FakeSplitTerminalService()
-    app = create_app(
-        snapshot_loader=loader,
-        split_terminal_service=split_terminal_service,
-        initial_path=path,
-    )
-
-    async with app.run_test(size=(72, 16)) as pilot:
-        await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("t")
-        await asyncio.sleep(0.05)
-
-        session = split_terminal_service.sessions[0]
-        body = app.query_one("#split-terminal-body", Static)
-        update_calls: list[str] = []
-        original_update = body.update
-
-        def tracked_update(content=""):
-            update_calls.append(str(content))
-            return original_update(content)
-
-        body.update = tracked_update  # type: ignore[method-assign]
-
-        session.emit_output("a")
-        session.emit_output("b")
-        session.emit_output("c")
-        await asyncio.sleep(0.01)
-
-        assert update_calls == []
-
-        await asyncio.sleep(0.05)
-
-        assert len(update_calls) == 1
-        assert str(body.renderable).splitlines()[0].startswith("abc")
-
-
-@pytest.mark.asyncio
-async def test_app_split_terminal_ignores_unsupported_private_sgr_sequences() -> None:
-    path = str(Path("/tmp/zivo-split-terminal-private-sgr").resolve())
-    loader = FakeBrowserSnapshotLoader(
-        snapshots={
-            path: _build_snapshot(
-                path,
-                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
-                child_path=f"{path}/docs",
-            )
-        }
-    )
-    split_terminal_service = FakeSplitTerminalService()
-    app = create_app(
-        snapshot_loader=loader,
-        split_terminal_service=split_terminal_service,
-        initial_path=path,
-    )
-
-    async with app.run_test(size=(72, 16)) as pilot:
-        await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("t")
-        await asyncio.sleep(0.05)
-
-        session = split_terminal_service.sessions[0]
-        session.emit_output("\x1b[?1049h\x1b[2J\x1b[Hvim\x1b[?4m")
-        await asyncio.sleep(0.05)
-
-        body = app.query_one("#split-terminal-body", Static)
-        renderable = body.renderable
-
-        assert app.app_state.split_terminal.visible is True
-        assert str(renderable).splitlines()[0].startswith("vim")
-
-
-@pytest.mark.asyncio
-async def test_app_command_palette_open_in_file_manager_launches_current_directory() -> None:
     path = str(Path("/tmp/zivo-open-file-manager").resolve())
     launch_service = FakeExternalLaunchService()
     loader = FakeBrowserSnapshotLoader(

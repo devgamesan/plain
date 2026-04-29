@@ -3,6 +3,8 @@
 import logging
 from dataclasses import replace
 
+from zivo.windows_paths import paths_equal
+
 from .actions import (
     Action,
     ClearPendingKeySequence,
@@ -261,7 +263,7 @@ def _find_current_cursor_index(visible_entries, cursor_path: str | None) -> int 
     if cursor_path is None:
         return None
     for index, entry in enumerate(visible_entries):
-        if entry.path == cursor_path:
+        if paths_equal(entry.path, cursor_path):
             return index
     return None
 

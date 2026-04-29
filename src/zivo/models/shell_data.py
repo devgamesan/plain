@@ -123,16 +123,6 @@ class StatusBarState:
 
 
 @dataclass(frozen=True)
-class SplitTerminalViewState:
-    """Display state for the embedded split terminal pane."""
-
-    visible: bool
-    status: str
-    body: str
-    focused: bool = False
-
-
-@dataclass(frozen=True)
 class TabItemState:
     """Single tab item rendered in the tab bar."""
 
@@ -267,7 +257,6 @@ class ThreePaneShellData:
     current_pane_update: CurrentPaneUpdateHint
     current_summary: CurrentSummaryState
     current_context_input: InputBarState | None
-    split_terminal: SplitTerminalViewState
     help: HelpBarState
     command_palette: CommandPaletteViewState | None
     status: StatusBarState
@@ -347,12 +336,6 @@ def build_dummy_shell_data() -> ThreePaneShellData:
             sort_label="name asc dirs:on",
         ),
         current_context_input=None,
-        split_terminal=SplitTerminalViewState(
-            visible=False,
-            status="closed",
-            body="",
-            focused=False,
-        ),
         help=HelpBarState(
             (
                 "Enter open | e edit | / filter | : palette | ctrl+f find | ctrl+g grep | q quit",

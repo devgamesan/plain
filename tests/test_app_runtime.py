@@ -26,8 +26,6 @@ from zivo.app_runtime import (
     start_child_pane_snapshot,
     start_file_search_worker,
     start_grep_search_worker,
-    start_split_terminal,
-    write_split_terminal_input,
 )
 from zivo.models import AppConfig, ExternalLaunchRequest, UndoDeletePathStep, UndoEntry, UndoResult
 from zivo.services import InvalidFileSearchQueryError
@@ -44,8 +42,6 @@ from zivo.state import (
     RunFileSearchEffect,
     RunGrepSearchEffect,
     RunUndoEffect,
-    StartSplitTerminalEffect,
-    WriteSplitTerminalInputEffect,
     build_initial_app_state,
 )
 from zivo.state.actions import (
@@ -56,7 +52,6 @@ from zivo.state.actions import (
     ExternalLaunchFailed,
     FileSearchCompleted,
     FileSearchFailed,
-    SplitTerminalStartFailed,
     UndoCompleted,
 )
 
@@ -161,11 +156,7 @@ class _RecordingApp:
     _external_launch_service: Any = field(
         default_factory=lambda: SimpleNamespace(execute=lambda request: None)
     )
-    _split_terminal_service: Any = field(
-        default_factory=lambda: SimpleNamespace(start=lambda cwd, **kwargs: None)
-    )
     _undo_service: Any = field(default_factory=lambda: SimpleNamespace(execute=lambda entry: None))
-    _split_terminal_session: Any = None
     suspend_error: BaseException | None = None
     run_worker_calls: list[dict[str, Any]] = field(default_factory=list)
     set_timer_calls: list[dict[str, Any]] = field(default_factory=list)
@@ -786,7 +777,7 @@ def test_run_foreground_external_launch_maps_suspend_failures() -> None:
         ExternalLaunchFailed(
             request_id=8,
             request=request,
-            message="suspend unavailable",
+            message="Editor launch not supported on this terminal",
         ),
     )
 
@@ -811,44 +802,3 @@ def test_run_foreground_external_launch_maps_os_errors_to_failure_actions() -> N
         ),
     )
 
-
-def test_start_split_terminal_maps_start_failures() -> None:
-    app = _RecordingApp(
-        _split_terminal_service=_FailingSplitTerminalService("pty unavailable"),
-    )
-
-    start_split_terminal(
-        app,
-        StartSplitTerminalEffect(session_id=4, cwd="/tmp/project"),
-    )
-
-    assert app._split_terminal_session is None
-    assert _scheduled_actions(app) == (
-        SplitTerminalStartFailed(
-            session_id=4,
-            message="pty unavailable",
-        ),
-    )
-
-
-def test_write_split_terminal_input_maps_write_failures() -> None:
-    state = build_initial_app_state()
-    app = _RecordingApp(
-        _app_state=replace(
-            state,
-            split_terminal=replace(state.split_terminal, session_id=4),
-        ),
-        _split_terminal_session=_FailingSplitTerminalSession("write failed"),
-    )
-
-    write_split_terminal_input(
-        app,
-        WriteSplitTerminalInputEffect(session_id=4, data="ls"),
-    )
-
-    assert _scheduled_actions(app) == (
-        SplitTerminalStartFailed(
-            session_id=4,
-            message="write failed",
-        ),
-    )

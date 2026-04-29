@@ -336,38 +336,6 @@ class ShellCommandFailed:
 
 
 @dataclass(frozen=True)
-class SplitTerminalStarted:
-    """Mark the split terminal session as ready."""
-
-    session_id: int
-    cwd: str
-
-
-@dataclass(frozen=True)
-class SplitTerminalStartFailed:
-    """Apply an embedded split-terminal startup error."""
-
-    session_id: int
-    message: str
-
-
-@dataclass(frozen=True)
-class SplitTerminalOutputReceived:
-    """Append output from the active split terminal session."""
-
-    session_id: int
-    data: str
-
-
-@dataclass(frozen=True)
-class SplitTerminalExited:
-    """Apply embedded split-terminal process exit."""
-
-    session_id: int
-    exit_code: int | None
-
-
-@dataclass(frozen=True)
 class ConfigSaveCompleted:
     """Apply a successful config save."""
 

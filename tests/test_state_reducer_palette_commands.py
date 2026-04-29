@@ -1,6 +1,8 @@
 from dataclasses import replace
 from pathlib import Path
 
+import zivo.state.command_palette as command_palette_module
+import zivo.state.reducer_palette as reducer_palette_module
 from tests.state_test_helpers import reduce_state
 from zivo.models import (
     AppConfig,
@@ -22,7 +24,6 @@ from zivo.state import (
     RunAttributeInspectionEffect,
     RunConfigSaveEffect,
     RunExternalLaunchEffect,
-    StartSplitTerminalEffect,
     TransferPaneState,
     build_initial_app_state,
     reduce_app_state,
@@ -37,12 +38,14 @@ from zivo.state.actions import (
     CancelCommandPalette,
     DismissAttributeDialog,
     MoveCommandPaletteCursor,
+    OpenNewTab,
     SetCommandPaletteQuery,
     SetCursorPath,
     ShowAttributes,
     SubmitCommandPalette,
     ToggleTransferMode,
 )
+from zivo.windows_paths import WINDOWS_DRIVES_ROOT
 
 
 def _reduce_state(state, action):
@@ -130,7 +133,7 @@ def test_submit_command_palette_runs_create_symlink_flow() -> None:
     assert next_state.pending_input is not None
     assert next_state.pending_input.prompt == "Create link at: "
     assert next_state.pending_input.symlink_source_path == "/home/tadashi/develop/zivo/docs"
-    assert next_state.pending_input.value.endswith("/docs.link")
+    assert next_state.pending_input.value.endswith(("/docs.link", "\\docs.link"))
 
 def test_submit_command_palette_begins_extract_archive_flow() -> None:
     archive_path = "/home/tadashi/develop/zivo/archive.zip"
@@ -225,6 +228,22 @@ def test_begin_go_to_path_enters_palette_mode() -> None:
     assert next_state.ui_mode == "PALETTE"
     assert next_state.command_palette == CommandPaletteState(source="go_to_path")
 
+
+def test_begin_go_to_path_on_windows_prefills_drive_candidates(monkeypatch) -> None:
+    monkeypatch.setattr(
+        reducer_palette_module,
+        "list_windows_drive_paths",
+        lambda: ("C:\\", "D:\\"),
+    )
+
+    next_state = _reduce_state(
+        replace(build_initial_app_state(), current_path="C:\\"),
+        BeginGoToPath(),
+    )
+
+    assert next_state.command_palette is not None
+    assert next_state.command_palette.go_to_path_candidates == ("C:\\", "D:\\")
+
 def test_submit_history_palette_navigates_to_selected_directory() -> None:
     state = build_initial_app_state()
     state = replace(
@@ -294,6 +313,71 @@ def test_submit_history_palette_in_transfer_mode_navigates_active_pane() -> None
         and e.path == "/tmp/c"
         for e in result.effects
     )
+
+
+def test_submit_command_palette_opens_new_tab_in_transfer_mode() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        layout_mode="transfer",
+        active_transfer_pane="left",
+        transfer_left=TransferPaneState(
+            pane=PaneState(directory_path="/tmp/a", entries=(), cursor_path="/tmp/a"),
+            current_path="/tmp/a",
+        ),
+        transfer_right=TransferPaneState(
+            pane=PaneState(directory_path="/tmp/b", entries=(), cursor_path="/tmp/b"),
+            current_path="/tmp/b",
+        ),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="commands",
+            query="",
+            cursor_index=7,  # new_tab
+        ),
+    )
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.command_palette is None
+    assert len(result.state.browser_tabs) == 2
+    assert result.state.active_tab_index == 1
+    # New tab should preserve transfer mode state
+    assert result.state.layout_mode == "transfer"
+    assert result.state.transfer_left is not None
+    assert result.state.transfer_right is not None
+
+
+def test_submit_command_palette_closes_current_tab_in_transfer_mode() -> None:
+    state = build_initial_app_state()
+    # Create a second tab first
+    state = reduce_app_state(state, OpenNewTab()).state
+    initial_tab_count = len(state.browser_tabs)
+
+    state = replace(
+        state,
+        layout_mode="transfer",
+        active_transfer_pane="left",
+        transfer_left=TransferPaneState(
+            pane=PaneState(directory_path="/tmp/a", entries=(), cursor_path="/tmp/a"),
+            current_path="/tmp/a",
+        ),
+        transfer_right=TransferPaneState(
+            pane=PaneState(directory_path="/tmp/b", entries=(), cursor_path="/tmp/b"),
+            current_path="/tmp/b",
+        ),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="commands",
+            query="",
+            cursor_index=10,  # close_current_tab
+        ),
+    )
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.command_palette is None
+    assert len(result.state.browser_tabs) == initial_tab_count - 1
 
 
 def test_submit_command_palette_select_all_in_transfer_mode() -> None:
@@ -417,6 +501,27 @@ def test_set_command_palette_query_resolves_relative_go_to_path_candidates(tmp_p
         str(tmp_path / "projects" / "zivo"),
     )
 
+def test_set_command_palette_query_shows_root_directory_candidates_for_slash() -> None:
+    state = _reduce_state(
+        replace(build_initial_app_state(), current_path="/tmp"),
+        BeginGoToPath(),
+    )
+
+    next_state = _reduce_state(state, SetCommandPaletteQuery("/"))
+    expected_candidates = tuple(
+        sorted(
+            (
+                str(child.resolve())
+                for child in Path("/").iterdir()
+                if child.is_dir()
+            ),
+            key=lambda path: (Path(path).name.casefold(), path),
+        )
+    )
+
+    assert next_state.command_palette is not None
+    assert next_state.command_palette.go_to_path_candidates == expected_candidates
+
 def test_submit_go_to_path_palette_requests_snapshot(tmp_path) -> None:
     state = _reduce_state(
         replace(build_initial_app_state(), current_path=str(tmp_path)),
@@ -505,6 +610,23 @@ def test_submit_go_to_path_palette_with_invalid_directory_shows_error() -> None:
         level="error",
         message="Path does not exist or is not a directory",
     )
+
+
+def test_set_command_palette_query_updates_windows_drive_candidates(monkeypatch) -> None:
+    monkeypatch.setattr("zivo.windows_paths.platform.system", lambda: "Windows")
+    monkeypatch.setattr(
+        "zivo.state.reducer_path_helpers.list_windows_drive_paths",
+        lambda: ("C:\\", "D:\\"),
+    )
+    state = _reduce_state(
+        replace(build_initial_app_state(), current_path=WINDOWS_DRIVES_ROOT),
+        BeginGoToPath(),
+    )
+
+    next_state = _reduce_state(state, SetCommandPaletteQuery("d"))
+
+    assert next_state.command_palette is not None
+    assert next_state.command_palette.go_to_path_candidates == ("D:\\",)
     state = _reduce_state(
         build_initial_app_state(config_path="/tmp/zivo/config.toml"),
         BeginCommandPalette(),
@@ -866,17 +988,7 @@ def test_submit_command_palette_goes_to_home_directory() -> None:
     assert len(result.effects) == 1
     assert isinstance(result.effects[0], LoadBrowserSnapshotEffect)
 
-def test_submit_command_palette_toggles_split_terminal() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("split terminal"))
 
-    result = reduce_app_state(state, SubmitCommandPalette())
-
-    assert result.state.ui_mode == "BROWSING"
-    assert result.state.command_palette is None
-    assert result.state.split_terminal.visible is True
-    assert len(result.effects) == 1
-    assert isinstance(result.effects[0], StartSplitTerminalEffect)
 
 def test_submit_command_palette_begins_rename_with_single_target() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
@@ -898,6 +1010,15 @@ def test_submit_command_palette_deletes_targets() -> None:
     assert result.state.ui_mode == "CONFIRM"
     assert result.state.command_palette is None
     assert result.state.delete_confirmation is not None
+
+
+def test_command_palette_shows_empty_trash_on_windows(monkeypatch) -> None:
+    monkeypatch.setattr(command_palette_module.platform, "system", lambda: "Windows")
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+
+    items = command_palette_module.get_command_palette_items(state)
+
+    assert "Empty trash" in [item.label for item in items]
 
 def test_submit_command_palette_uses_selected_paths_for_copy_path() -> None:
     initial_state = build_initial_app_state()

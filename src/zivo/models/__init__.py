@@ -17,7 +17,6 @@ from .config import (
     PreviewMaxKiB,
     PreviewSyntaxTheme,
     TerminalConfig,
-    TerminalLaunchMode,
 )
 from .external_launch import ExternalLaunchKind, ExternalLaunchRequest
 from .file_operations import (
@@ -78,7 +77,6 @@ from .shell_data import (
     InputDialogState,
     PaneEntry,
     ShellCommandDialogState,
-    SplitTerminalViewState,
     StatusBarState,
     TabBarState,
     TabItemState,
@@ -138,7 +136,6 @@ __all__ = [
     "PasteConflictAction",
     "PreviewMaxKiB",
     "PreviewSyntaxTheme",
-    "SplitTerminalViewState",
     "PasteConflict",
     "PasteConflictPrompt",
     "PasteAppliedChange",
@@ -165,7 +162,6 @@ __all__ = [
     "TabBarState",
     "TabItemState",
     "TerminalConfig",
-    "TerminalLaunchMode",
     "ThreePaneShellData",
     "TransferPaneViewState",
     "build_dummy_shell_data",

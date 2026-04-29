@@ -5,6 +5,13 @@ from pathlib import Path
 from typing import Callable
 
 from zivo.models import PasteRequest
+from zivo.windows_paths import (
+    comparable_path,
+    is_posix_path,
+    is_windows_drives_root,
+    is_windows_path,
+    paths_equal,
+)
 
 from .actions import (
     Action,
@@ -28,7 +35,14 @@ from .actions import (
 )
 from .effects import LoadTransferPaneEffect, ReduceResult
 from .entry_state_helpers import select_visible_entry_states
-from .models import AppState, NotificationState, PaneState, TransferPaneId, TransferPaneState
+from .models import (
+    AppState,
+    NotificationState,
+    PaneState,
+    TransferPaneId,
+    TransferPaneState,
+    resolve_parent_directory_path,
+)
 from .reducer_common import finalize, move_cursor, run_paste_request, select_range_paths
 from .reducer_requests import browser_snapshot_invalidation_paths, build_history_after_snapshot_load
 
@@ -210,10 +224,13 @@ def _handle_move_transfer_cursor_by_page(
     if not action.visible_paths:
         return finalize(state)
     transfer = _require_transfer_pane(state, state.active_transfer_pane)
-    current_index = (
-        action.visible_paths.index(transfer.pane.cursor_path)
-        if transfer.pane.cursor_path in action.visible_paths
-        else 0
+    current_index = next(
+        (
+            index
+            for index, path in enumerate(action.visible_paths)
+            if paths_equal(path, transfer.pane.cursor_path)
+        ),
+        0,
     )
     if action.direction == "up":
         next_index = max(0, current_index - action.page_size)
@@ -226,7 +243,7 @@ def _handle_move_transfer_cursor_by_page(
                 transfer,
                 pane=replace(
                     transfer.pane,
-                    cursor_path=action.visible_paths[next_index],
+                    cursor_path=comparable_path(action.visible_paths[next_index]),
                     selection_anchor_path=None,
                 ),
             ),
@@ -243,15 +260,21 @@ def _handle_move_transfer_cursor_and_select_range(
     if not action.visible_paths:
         return finalize(state)
     transfer = _require_transfer_pane(state, state.active_transfer_pane)
-    base_cursor_path = (
-        transfer.pane.cursor_path
-        if transfer.pane.cursor_path in action.visible_paths
-        else action.visible_paths[0]
+    base_cursor_path = next(
+        (
+            comparable_path(path)
+            for path in action.visible_paths
+            if paths_equal(path, transfer.pane.cursor_path)
+        ),
+        comparable_path(action.visible_paths[0]),
     )
-    anchor_path = (
-        transfer.pane.selection_anchor_path
-        if transfer.pane.selection_anchor_path in action.visible_paths
-        else base_cursor_path
+    anchor_path = next(
+        (
+            comparable_path(path)
+            for path in action.visible_paths
+            if paths_equal(path, transfer.pane.selection_anchor_path)
+        ),
+        base_cursor_path,
     )
     cursor_path = move_cursor(base_cursor_path, action.visible_paths, action.delta)
     if cursor_path is None:
@@ -363,11 +386,16 @@ def _handle_enter_transfer_directory(
     entry = _transfer_cursor_entry(state, transfer)
     if entry is None or entry.kind != "dir":
         return finalize(state)
+    invalidate_paths = (
+        (entry.path, transfer.current_path)
+        if is_posix_path(entry.path)
+        else browser_snapshot_invalidation_paths(entry.path)
+    )
     return request_transfer_pane_snapshot(
         state,
         state.active_transfer_pane,
         entry.path,
-        invalidate_paths=browser_snapshot_invalidation_paths(entry.path),
+        invalidate_paths=invalidate_paths,
     )
 
 
@@ -378,7 +406,14 @@ def _handle_go_to_transfer_parent(
 ) -> ReduceResult:
     del action, reduce_state
     transfer = _require_transfer_pane(state, state.active_transfer_pane)
-    parent_path = str(Path(transfer.current_path).parent)
+    if is_windows_drives_root(transfer.current_path):
+        return finalize(state)
+    if is_windows_path(transfer.current_path):
+        _, parent_path = resolve_parent_directory_path(transfer.current_path)
+        if parent_path is None:
+            return finalize(state)
+    else:
+        parent_path = str(Path(transfer.current_path).parent)
     return request_transfer_pane_snapshot(
         state,
         state.active_transfer_pane,

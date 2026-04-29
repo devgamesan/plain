@@ -10,22 +10,18 @@ from textual.app import App, ComposeResult, ScreenStackError
 from textual.binding import Binding
 from textual.containers import Container, Vertical
 from textual.css.query import NoMatches
-from textual.message import Message
 from textual.timer import Timer
 from textual.worker import Worker
 
 from zivo.adapters import LocalExternalLaunchAdapter
 from zivo.app_runtime import (
-    cancel_pending_runtime_work,
     handle_worker_state_changed,
     schedule_effects,
     sync_runtime_state,
 )
 from zivo.app_shell import (
     build_body,
-    build_split_terminal_layer,
     refresh_shell,
-    resize_split_terminal_session,
 )
 from zivo.models import (
     AppConfig,
@@ -53,13 +49,10 @@ from zivo.services import (
     LiveFileSearchService,
     LiveGrepSearchService,
     LiveShellCommandService,
-    LiveSplitTerminalService,
     LiveTextReplaceService,
     LiveUndoService,
     LiveZipCompressService,
     ShellCommandService,
-    SplitTerminalService,
-    SplitTerminalSession,
     TextReplaceService,
     UndoService,
     ZipCompressService,
@@ -75,6 +68,7 @@ from zivo.state import (
     dispatch_key_input,
     iter_bound_keys,
     reduce_app_state,
+    resolve_parent_directory_path,
     select_shell_data,
 )
 from zivo.state.actions import (
@@ -82,7 +76,6 @@ from zivo.state.actions import (
     ExitCurrentPath,
     RequestBrowserSnapshot,
     SetTerminalHeight,
-    SplitTerminalExited,
 )
 from zivo.ui import (
     AttributeDialog,
@@ -95,7 +88,6 @@ from zivo.ui import (
     InputDialog,
     MainPane,
     ShellCommandDialog,
-    SplitTerminalPane,
     StatusBar,
 )
 
@@ -146,22 +138,6 @@ def _preview_scroll_delta(state: AppState, key: str) -> int | None:
 class zivoApp(App[None]):
     """Three-pane shell with reducer-driven file operations."""
 
-    class SplitTerminalOutput(Message):
-        """Forward PTY output from background threads into the app loop."""
-
-        def __init__(self, session_id: int, data: str) -> None:
-            self.session_id = session_id
-            self.data = data
-            super().__init__()
-
-    class SplitTerminalExitedMessage(Message):
-        """Forward PTY exit notifications into the app loop."""
-
-        def __init__(self, session_id: int, exit_code: int | None) -> None:
-            self.session_id = session_id
-            self.exit_code = exit_code
-            super().__init__()
-
     TITLE = "zivo"
     SUB_TITLE = "Three-pane shell"
     BINDINGS = [
@@ -188,7 +164,6 @@ class zivoApp(App[None]):
         grep_search_service: GrepSearchService | None = None,
         text_replace_service: TextReplaceService | None = None,
         shell_command_service: ShellCommandService | None = None,
-        split_terminal_service: SplitTerminalService | None = None,
         undo_service: UndoService | None = None,
         *,
         app_config: AppConfig | None = None,
@@ -200,7 +175,7 @@ class zivoApp(App[None]):
         super().__init__()
         self._app_config = app_config or AppConfig()
         self.theme = self._app_config.display.theme
-        self._initial_path = str(Path(initial_path or Path.cwd()).expanduser().resolve())
+        self._initial_path = resolve_parent_directory_path(str(initial_path or Path.cwd()))[0]
         self._app_state: AppState = build_placeholder_app_state(
             self._initial_path,
             config=self._app_config,
@@ -231,10 +206,8 @@ class zivoApp(App[None]):
         self._grep_search_service = grep_search_service or LiveGrepSearchService()
         self._text_replace_service = text_replace_service or LiveTextReplaceService()
         self._shell_command_service = shell_command_service or LiveShellCommandService()
-        self._split_terminal_service = split_terminal_service or LiveSplitTerminalService()
         self._undo_service = undo_service or LiveUndoService()
         self._pending_workers: dict[str, Effect] = {}
-        self._split_terminal_session: SplitTerminalSession | None = None
         self._child_pane_timer: Timer | None = None
         self._active_child_pane_cancel_event: threading.Event | None = None
         self._active_child_pane_request_id: int | None = None
@@ -257,10 +230,6 @@ class zivoApp(App[None]):
         shell = select_shell_data(self._app_state)
         yield CurrentPathBar(shell.current_path, id="current-path-bar")
         yield self._build_body(shell)
-        yield build_split_terminal_layer(
-            shell,
-            terminal_position=self._app_state.config.display.split_terminal_position,
-        )
         yield Container(
             CommandPalette(shell.command_palette, id="command-palette"),
             id="command-palette-layer",
@@ -305,11 +274,6 @@ class zivoApp(App[None]):
         except NoMatches:
             return
 
-        is_right_and_terminal_visible = (
-            self._app_state.config.display.split_terminal_position == "right"
-            and self._app_state.split_terminal.visible
-        )
-
         if self._app_state.layout_mode == "transfer":
             parent_pane.display = False
             child_pane.display = False
@@ -322,9 +286,7 @@ class zivoApp(App[None]):
         else:
             parent_pane.display = False
 
-        if is_right_and_terminal_visible:
-            child_pane.display = False
-        elif width >= self._PANE_VISIBILITY_NARROW_THRESHOLD:
+        if width >= self._PANE_VISIBILITY_NARROW_THRESHOLD:
             child_pane.display = True
         else:
             child_pane.display = False
@@ -434,29 +396,6 @@ class zivoApp(App[None]):
             row_region.y,
         )
 
-    def _update_split_terminal_overlay_geometry(self) -> None:
-        """Constrain the overlay terminal above the help and status bars."""
-
-        try:
-            split_terminal_layer = self.query_one("#split-terminal-layer", Container)
-            body = self.query_one("#body")
-            help_bar = self.query_one("#help-bar", HelpBar)
-        except NoMatches:
-            return
-
-        body_region = body.region
-        help_bar_region = help_bar.region
-        overlay_height = help_bar_region.y - body_region.y
-        if body_region.width <= 0 or overlay_height <= 0:
-            return
-
-        split_terminal_layer.styles.width = body_region.width
-        split_terminal_layer.styles.height = overlay_height
-        split_terminal_layer.styles.offset = (
-            body_region.x,
-            body_region.y,
-        )
-
     async def on_mount(self) -> None:
         """Load the initial directory snapshot after the UI mounts."""
 
@@ -465,15 +404,6 @@ class zivoApp(App[None]):
             RequestBrowserSnapshot(self._initial_path, blocking=True),
         ))
         self.call_after_refresh(self._sync_overlay_layout)
-
-    def on_unmount(self) -> None:
-        """Ensure the embedded terminal session is stopped when the app exits."""
-
-        cancel_pending_runtime_work(self)
-        if self._split_terminal_session is None:
-            return
-        self._split_terminal_session.close()
-        self._split_terminal_session = None
 
     async def on_key(self, event: events.Key) -> None:
         """Normalize keyboard input into reducer actions."""
@@ -509,7 +439,7 @@ class zivoApp(App[None]):
             event.prevent_default()
 
     async def on_paste(self, event: events.Paste) -> None:
-        """Handle clipboard paste in input dialog and split terminal modes."""
+        """Handle clipboard paste in input dialog modes."""
 
         if self._app_state.ui_mode in {"RENAME", "CREATE", "EXTRACT", "ZIP", "SYMLINK"}:
             if self._app_state.pending_input is not None:
@@ -520,21 +450,6 @@ class zivoApp(App[None]):
                 )
                 event.stop()
                 event.prevent_default()
-            return
-
-        st = self._app_state.split_terminal
-        if (
-            st.visible
-            and st.status == "running"
-            and st.focus_target == "terminal"
-        ):
-            from zivo.state.actions import SendSplitTerminalInput
-
-            await self.dispatch_actions(
-                (SendSplitTerminalInput(event.text),)
-            )
-            event.stop()
-            event.prevent_default()
 
     async def action_dispatch_bound_key(self, key: str) -> None:
         """Handle priority key bindings through the central dispatcher."""
@@ -553,7 +468,6 @@ class zivoApp(App[None]):
     def _build_body(self, shell: ThreePaneShellData) -> Vertical:
         return build_body(
             shell,
-            terminal_position=self._app_state.config.display.split_terminal_position,
         )
 
     async def _dispatch_key_press(
@@ -581,11 +495,7 @@ class zivoApp(App[None]):
         sync_runtime_state(self, previous_state, self._app_state)
         next_theme = _active_app_theme(self._app_state)
         theme_changed = previous_theme != next_theme
-        layout_changed = (
-            previous_state.config.display.split_terminal_position
-            != self._app_state.config.display.split_terminal_position
-            or previous_state.layout_mode != self._app_state.layout_mode
-        )
+        layout_changed = previous_state.layout_mode != self._app_state.layout_mode
         if theme_changed:
             self.theme = next_theme
         if previous_state.config != self._app_state.config:
@@ -593,10 +503,6 @@ class zivoApp(App[None]):
         if layout_changed:
             try:
                 await self.query_one("#body").remove()
-            except NoMatches:
-                pass
-            try:
-                await self.query_one("#split-terminal-layer").remove()
             except NoMatches:
                 pass
         if changed or theme_changed or layout_changed:
@@ -635,48 +541,14 @@ class zivoApp(App[None]):
         self._app_state = state
         return changed, tuple(effects)
 
-    async def on_zivo_app_split_terminal_output(
-        self,
-        message: SplitTerminalOutput,
-    ) -> None:
-        split_terminal_state = self._app_state.split_terminal
-        if (
-            not split_terminal_state.visible
-            or split_terminal_state.session_id != message.session_id
-        ):
-            return
-        try:
-            split_terminal = self.query_one("#split-terminal", SplitTerminalPane)
-        except NoMatches:
-            return
-        split_terminal.append_output(message.data)
-
-    async def on_zivo_app_split_terminal_exited_message(
-        self,
-        message: SplitTerminalExitedMessage,
-    ) -> None:
-        self._split_terminal_session = None
-        await self.dispatch_actions(
-            (
-                SplitTerminalExited(
-                    session_id=message.session_id,
-                    exit_code=message.exit_code,
-                ),
-            )
-        )
-
     async def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
         await handle_worker_state_changed(self, event)
 
     async def on_resize(self, event: events.Resize) -> None:
-        """Keep the split-terminal PTY dimensions roughly aligned with the viewport."""
+        """Update the terminal height on resize."""
 
         await self.dispatch_actions((SetTerminalHeight(height=event.size.height),))
         self._sync_overlay_layout(event.size.width)
-
-        if self._split_terminal_session is None or not self._app_state.split_terminal.visible:
-            return
-        self.call_after_refresh(self._resize_split_terminal_session)
 
     async def _refresh_shell(self, *, theme_changed: bool = False) -> None:
         try:
@@ -684,7 +556,6 @@ class zivoApp(App[None]):
                 self,
                 self._app_state,
                 select_shell_data(self._app_state),
-                self._split_terminal_session,
                 theme_changed=theme_changed,
             )
             self.call_after_refresh(self._sync_overlay_layout)
@@ -698,14 +569,6 @@ class zivoApp(App[None]):
         self._update_command_palette_geometry()
         self._update_config_dialog_geometry()
         self._update_input_dialog_geometry()
-        self._update_split_terminal_overlay_geometry()
-
-    def _resize_split_terminal_session(self) -> None:
-        resize_split_terminal_session(
-            self,
-            self._app_state,
-            self._split_terminal_session,
-        )
 
 
 def create_app(
@@ -722,7 +585,6 @@ def create_app(
     grep_search_service: GrepSearchService | None = None,
     text_replace_service: TextReplaceService | None = None,
     shell_command_service: ShellCommandService | None = None,
-    split_terminal_service: SplitTerminalService | None = None,
     undo_service: UndoService | None = None,
     *,
     app_config: AppConfig | None = None,
@@ -751,7 +613,6 @@ def create_app(
         grep_search_service=grep_search_service,
         text_replace_service=text_replace_service,
         shell_command_service=shell_command_service,
-        split_terminal_service=split_terminal_service,
         undo_service=undo_service,
         app_config=app_config,
         config_path=config_path,

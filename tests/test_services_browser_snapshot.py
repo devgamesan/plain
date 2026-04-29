@@ -306,7 +306,7 @@ def test_pandoc_document_preview_loader_returns_none_when_pandoc_is_missing(
     loader = PandocDocumentPreviewLoader()
 
     monkeypatch.setattr(
-        "zivo.services.browser_snapshot.shutil.which",
+        "zivo.services.previews.core.shutil.which",
         lambda name: None,
     )
 
@@ -321,7 +321,7 @@ def test_pandoc_document_preview_loader_uses_pandoc_command(tmp_path, monkeypatc
     loader = PandocDocumentPreviewLoader()
 
     monkeypatch.setattr(
-        "zivo.services.browser_snapshot.shutil.which",
+        "zivo.services.previews.core.shutil.which",
         lambda name: "/opt/homebrew/bin/pandoc",
     )
 
@@ -339,7 +339,7 @@ def test_pandoc_document_preview_loader_uses_pandoc_command(tmp_path, monkeypatc
         ]
         return _CompletedProcess()
 
-    monkeypatch.setattr("zivo.services.browser_snapshot.subprocess.run", _run)
+    monkeypatch.setattr("zivo.services.previews.core.subprocess.run", _run)
 
     preview = loader.load_preview(slides, preview_max_bytes=64 * 1024)
 
@@ -357,7 +357,7 @@ def test_live_browser_snapshot_loader_uses_pdftotext_for_pdf_preview(
     loader = LiveBrowserSnapshotLoader()
 
     monkeypatch.setattr(
-        "zivo.services.browser_snapshot.shutil.which",
+        "zivo.services.previews.core.shutil.which",
         lambda name: "/usr/bin/pdftotext",
     )
 
@@ -365,7 +365,7 @@ def test_live_browser_snapshot_loader_uses_pdftotext_for_pdf_preview(
         stdout = b"PDF text\n"
 
     monkeypatch.setattr(
-        "zivo.services.browser_snapshot.subprocess.run",
+        "zivo.services.previews.core.subprocess.run",
         lambda *args, **kwargs: _CompletedProcess(),
     )
 
@@ -387,7 +387,7 @@ def test_live_browser_snapshot_loader_skips_pdf_preview_when_disabled(
     loader = LiveBrowserSnapshotLoader()
 
     monkeypatch.setattr(
-        "zivo.services.browser_snapshot.shutil.which",
+        "zivo.services.previews.core.shutil.which",
         lambda name: "/usr/bin/pdftotext",
     )
 

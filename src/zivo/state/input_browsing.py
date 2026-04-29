@@ -4,6 +4,7 @@ from .actions import (
     Action,
     ActivateNextTab,
     ActivatePreviousTab,
+    ActivateTabByIndex,
     AddBookmark,
     BeginBookmarkSearch,
     BeginCommandPalette,
@@ -47,7 +48,6 @@ from .actions import (
     ShowAttributes,
     ToggleHiddenFiles,
     ToggleSelectionAndAdvance,
-    ToggleSplitTerminal,
     ToggleTransferMode,
     UndoLastOperation,
 )
@@ -79,7 +79,7 @@ BROWSING_KEYMAP = {
     "h": "go_to_parent",
     "R": "reload_directory",
     "q": "exit_current_path",
-    "2": "toggle_transfer_mode",
+    "p": "toggle_transfer_mode",
     "r": "begin_rename",
     "!": "begin_shell_command",
     ":": "begin_command_palette",
@@ -92,7 +92,7 @@ BROWSING_KEYMAP = {
     "right": "enter_directory",
     "l": "enter_directory",
     "enter": "enter_or_open",
-    "t": "toggle_split_terminal",
+    "t": "open_terminal",
     "f": "begin_file_search",
     "g": "begin_grep_search",
     "a": "select_all",
@@ -113,7 +113,7 @@ BROWSING_KEYMAP = {
     "{": "go_back",
     "}": "go_forward",
     "M": "open_file_manager",
-    "T": "open_terminal",
+    "T": "open_terminal_window",
     "home": "jump_cursor_start",
     "end": "jump_cursor_end",
     "pageup": "cursor_pageup",
@@ -147,6 +147,10 @@ def dispatch_browsing_input(
             multi_key_command_dispatch=multi_key_command_dispatch,
         )
 
+    direct_tab_actions = dispatch_direct_tab_input(state, key=key)
+    if direct_tab_actions:
+        return direct_tab_actions
+
     command = BROWSING_KEYMAP.get(key)
     if command is not None:
         handler = BROWSING_COMMAND_DISPATCH.get(command)
@@ -168,6 +172,17 @@ def dispatch_browsing_input(
 
 def noop_browsing_handler(_state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
     return ()
+
+
+def dispatch_direct_tab_input(state: AppState, *, key: str) -> DispatchedActions:
+    if len(key) != 1 or not key.isdigit():
+        return ()
+
+    tab_number = 10 if key == "0" else int(key)
+    tab_count = len(state.browser_tabs) if state.browser_tabs else 1
+    if tab_number > tab_count:
+        return warn(f"Tab {tab_number} is not open")
+    return supported(ActivateTabByIndex(tab_number - 1))
 
 
 def simple(action_cls: type[Action]) -> BrowsingHandler:
@@ -327,7 +342,11 @@ def handle_create_dir(_state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
     return supported(BeginCreateInput("dir"))
 
 
-def handle_open_terminal(state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
+def handle_open_terminal_foreground(state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
+    return supported(OpenTerminalAtPath(state.current_path, launch_mode="foreground"))
+
+
+def handle_open_terminal_window(state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
     return supported(OpenTerminalAtPath(state.current_path))
 
 
@@ -416,7 +435,6 @@ BROWSING_SIMPLE_DISPATCH: dict[str, type[Action]] = {
     "begin_history_search": BeginHistorySearch,
     "begin_go_to_path": BeginGoToPath,
     "go_to_home_directory": GoToHomeDirectory,
-    "toggle_split_terminal": ToggleSplitTerminal,
     "reload_directory": ReloadDirectory,
     "go_back": GoBack,
     "go_forward": GoForward,
@@ -446,7 +464,8 @@ BROWSING_PARAM_DISPATCH: dict[str, BrowsingHandler] = {
     "cut_targets": handle_cut_targets,
     "create_file": handle_create_file,
     "create_dir": handle_create_dir,
-    "open_terminal": handle_open_terminal,
+    "open_terminal": handle_open_terminal_foreground,
+    "open_terminal_window": handle_open_terminal_window,
     "open_file_manager": handle_open_file_manager,
     "preview_pageup": noop_browsing_handler,
     "preview_pagedown": noop_browsing_handler,

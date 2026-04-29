@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
-from .models import SortField, SplitTerminalFocusTarget, TransferPaneId
+from .models import SortField, TransferPaneId
 
 
 @dataclass(frozen=True)
@@ -19,6 +19,13 @@ class ActivateNextTab:
 @dataclass(frozen=True)
 class ActivatePreviousTab:
     """Activate the previous browser tab."""
+
+
+@dataclass(frozen=True)
+class ActivateTabByIndex:
+    """Activate a browser tab by its zero-based index."""
+
+    index: int
 
 
 @dataclass(frozen=True)
@@ -123,6 +130,7 @@ class OpenTerminalAtPath:
     """Open a new terminal rooted at the supplied directory path."""
 
     path: str
+    launch_mode: Literal["window", "foreground"] = "window"
 
 
 @dataclass(frozen=True)
@@ -147,25 +155,6 @@ class RemoveBookmark:
     """Remove the supplied directory path from bookmarks."""
 
     path: str
-
-
-@dataclass(frozen=True)
-class ToggleSplitTerminal:
-    """Open or close the embedded split terminal."""
-
-
-@dataclass(frozen=True)
-class FocusSplitTerminal:
-    """Move input focus between the browser and split terminal."""
-
-    target: SplitTerminalFocusTarget
-
-
-@dataclass(frozen=True)
-class SendSplitTerminalInput:
-    """Write input bytes into the active split terminal session."""
-
-    data: str
 
 
 @dataclass(frozen=True)

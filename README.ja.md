@@ -6,7 +6,9 @@
 ![Release](https://img.shields.io/github/v/release/devgamesan/zivo)
 ![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)
 
-[English README](README.md)
+---
+[English](README.md) | [日本語](README.ja.md)
+---
 
 zivo は、操作を覚えなくても直感的に使える TUI ファイルマネージャです。ファイルの閲覧、検索、操作をコマンドを暗記することなく行えます — Zero-friction Interface for Viewing & Operations。
 
@@ -17,14 +19,13 @@ zivo は、複雑な設定やプラグイン導入、スクリプトの作成な
 - **見やすい 3 ペイン**: 親・現在・右ペインを並べ、テキスト・画像・ドキュメントをその場でプレビュー
 - **Transfer モード**: 2 ディレクトリを並べて、ファイルのコピーや移動を簡単に操作可能
 - **タブ対応**: 1つの TUI の中で複数のブラウズ状態を開いたまま切り替え可能
-- **埋め込みターミナル**: `t` でシェル操作とシームレスに行き来
 - **強力な検索**: 再帰ファイル検索と grep 検索で目的のファイルに即座にジャンプ
 - **ターミナルエディタ連携**: カレントディレクトリで既定のターミナルエディタを起動可能
 - **外部アプリで開く**: ファイルを既定のアプリケーションでそのままオープン可能
 
 ## 特徴
 
-- 親 / 現在 / 右ペインを並べたシンプルな 3 ペイン表示です。カーソルがディレクトリ上にあるときは右ペインに子要素一覧を表示し、一般的なテキストファイル上にあるときは右ペインに構文色分け付きのテキストプレビューを表示します。一般的な画像形式は `chafa` による文字ベース preview として表示でき、`pdf`、`docx`、`xlsx`、`pptx` も右ペインでプレビューできます。ディレクトリ移動、複数選択、コピー、カット、貼り付け、直前の可逆ファイル操作の Undo、ゴミ箱への移動、ファイル削除、パスのコピー、リネーム、新規作成、アーカイブの展開、zip 圧縮、選択ファイル群に対する文字列置換プレビュー、ファイル検索、grep 検索、1 行シェルコマンド実行をキーボードだけで操作できます。よく使う操作は画面下部のヘルプバーに常時表示しています。
+- 親 / 現在 / 右ペインを並べたシンプルな 3 ペイン表示です。カーソルがディレクトリ上にあるときは右ペインに子要素一覧を表示し、一般的なテキストファイル上にあるときは右ペインに構文色分け付きのテキストプレビューを表示します。一般的な画像形式は `chafa` による文字ベースプレビューとして表示でき、`pdf`、`docx`、`xlsx`、`pptx` も右ペインでプレビューできます。ディレクトリ移動、複数選択、コピー、カット、貼り付け、直前の可逆ファイル操作の Undo、ゴミ箱への移動、ファイル削除、パスのコピー、リネーム、新規作成、アーカイブの展開、zip 圧縮、選択ファイル群に対する文字列置換プレビュー、ファイル検索、grep 検索、1 行シェルコマンド実行をキーボードだけで操作できます。よく使う操作は画面下部のヘルプバーに常時表示しています。
 
   ![](docs/resources/screen-entire-screen.png)
 
@@ -32,26 +33,26 @@ zivo は、複雑な設定やプラグイン導入、スクリプトの作成な
 
   ![](docs/resources/screen-command-palette.png)
 
-- テキストファイルの冒頭のプレビュー表示が可能です。これにより、ファイルを開かなくてもファイルの概要を確認することができます。テキストプレビューはファイル先頭 64 KiB までです。
+- テキストファイル、pdf、docx、xlsx、pptx の冒頭のプレビュー表示が可能です。これにより、ファイルを開かなくてもファイルの概要を確認することができます。プレビューはファイル先頭 64 KiB までです。
 
   ![](docs/resources/screen-text-preview.png)
 
-- 複数タブを使うと、別々の作業ディレクトリを 1 つの zivo セッション内で開いたまま保てます。新規タブ作成、前後タブへの切り替え、現在タブのクローズを TUI のままで行えます。
+- 画像は chafa による文字ベースプレビューとして表示できます。
 
-- 3 ペインの下、右側、またはブラウザ領域の前面に埋め込みターミナルを開けます。`t` でブラウザとターミナルをすばやく切り替えられます。ターミナルはカレントディレクトリで開かれるため、ディレクトリ移動の必要がなく、ブラウザでの閲覧とターミナルでの操作をシームレスに行き来できます。制限事項は[注意事項](#注意事項)を参照してください。
+  ![](docs/resources/screen-image-preview.png)
 
-Bottom表示:
-  ![](docs/resources/screen-split-terminal.png)
 
-Right表示:
-  ![](docs/resources/screen-split-terminal-right.png)
+- 複数タブを使うと、別々の作業ディレクトリを 1 つの zivo セッション内で開いたまま維持できます。新規タブ作成、前後タブへの切り替え、現在タブのクローズを TUI のままで行えます。
 
-Overlay表示:
-  ![](docs/resources/screen-split-terminal-overlay.png)
+  ![](docs/resources/screen-tabs.png)
 
 - 左右にディレクトリを並べてコピー・移動できる 2 ペイン転送レイアウトにも切り替えられます。
 
- ![](docs/resources/screen-transfer-mode.png)
+  ![](docs/resources/screen-transfer-mode.png)
+
+- `!` を押すと、現在のディレクトリで1行シェルコマンドを実行できます。コマンドの実行結果をステータスバーに表示し、zivo のセッションを維持したまま軽微な作業を行いたい場合に便利です。
+
+  ![](docs/resources/screen-oneline-shell.png)
 
 - ファイル検索機能により、簡単に目的のファイルにジャンプすることができます。膨大なファイルの中から、名前の一部を入力するだけで目的のファイルを即座にフィルタリングし、階層を深く辿ることなく、最短ルートでファイルにアクセスできます。また、検索結果のファイルのプレビュー表示が可能であり、目的のファイルを簡単に見つけられます。
 
@@ -60,6 +61,10 @@ Overlay表示:
 - カレントディレクトリ配下を対象とした再帰 grep 検索が可能です。検索結果から該当ファイルへジャンプできます。差分箇所の前後数行をプレビューでき、目的のファイルを簡単に見つけることができます。パレットには `Filter: Filename`、`Include extensions`、`Exclude extensions` があり、開く前にファイル名や拡張子で対象を絞り込めます。また、ターミナルエディタで該当箇所を直接開くこともできます。
 
   ![](docs/resources/screen-grep-command.png)
+
+- 選択したファイルおよび検索でヒットしたファイルに対して、文字列置換のプレビューと実行が可能です。右ペインに diff プレビューを表示し、置換前後の変更を確認してから一括置換を実行できます。選択ファイル、ファイル検索結果、grep 検索結果など、複数の方法で置換対象ファイルを指定できます。また、filename や拡張子で対象を絞り込んだり、keyword で grep 検索してから置換したりできます。誤操作を防ぐため、置換前にプレビューで必ず確認できます。
+
+  ![](docs/resources/screen-grep-replace.png)
 
 - フィルタ入力、ソート切り替えをサポートしています。次は、`.py`という文字列でフィルタして、最終更新時刻で降順でソートした例です。
 
@@ -77,6 +82,8 @@ Overlay表示:
 
   ![](docs/resources/screen-terminal-editor.png)
 
+- `t` を押すと、zivo が一時停止し、現在のターミナルで対話シェルをフォアグラウンドで開きます。`exit` でシェルを終了すると zivo が自動で再開するため、別ウィンドウやターミナル multiplexer の管理が不要です。一時的なコマンド実行やディレクトリ操作を、zivo のセッションを維持したまま行いたい場合に便利です。
+
 - 複数のテーマからお好みの見た目を選択することが可能です。
 
   ![](docs/resources/screen-theme1.png)  
@@ -91,7 +98,7 @@ Overlay表示:
 | Ubuntu | サポート | 現時点で主要な動作確認対象です。 |
 | Ubuntu (WSL) | サポート | WSL 上の Ubuntu を動作確認対象としています。 |
 | macOS | サポート | ゴミ箱操作にはターミナルへのフルディスクアクセス権限が必要です。 |
-| Windows | 現時点では未サポート | Windows ネイティブ実行は未サポートです。 |
+| Windows | サポート | ドライブ移動、ファイル操作、クリップボード、シェルコマンド、外部ターミナル、undo などほとんどの機能を利用できます。`zivo-cd` は Windows では未対応です。 |
 
 ## インストール
 
@@ -129,14 +136,14 @@ uv tool install --from . zivo
 
 zivo 本体の起動は `uv` だけで行えますが、一部の機能は `PATH` 上の外部コマンドに依存します。利用する OS / 環境ごとに必要なものは次のとおりです。
 
-| 機能 | Ubuntu / Debian | Ubuntu (WSL) | macOS |
-| --- | --- | --- | --- |
-| ドキュメント preview (`docx` / `xlsx` / `pptx`) | `pandoc` 3.8.3+ | `pandoc` 3.8.3+ | `pandoc` 3.8.3+ |
-| 画像 preview (`png` / `jpg` / `gif` / `webp` など) | `chafa` | `chafa` | `chafa` |
-| PDF preview (`pdf`) | `poppler-utils` | `poppler-utils` | `poppler` |
-| grep 検索 (`g`) | `ripgrep` | `ripgrep` | `ripgrep` |
-| パスコピー (`C`) | X11: `xclip` / Wayland: `wl-clipboard` | 通常は不要 (`clip.exe`)、必要なら `xclip` / `wl-clipboard` | 不要 (`pbcopy` 組み込み) |
-| GUI 連携コマンド | 不要 | `wslu` 推奨 | 不要 |
+| 機能 | Ubuntu / Debian | Ubuntu (WSL) | macOS | Windows |
+| --- | --- | --- | --- | --- |
+| ドキュメントプレビュー (`docx` / `xlsx` / `pptx`) | `pandoc` 3.8.3+ | `pandoc` 3.8.3+ | `pandoc` 3.8.3+ | `pandoc` 3.8.3+ |
+| 画像プレビュー (`png` / `jpg` / `gif` / `webp` など) | `chafa` | `chafa` | `chafa` | `chafa` |
+| PDFプレビュー (`pdf`) | `poppler-utils` | `poppler-utils` | `poppler` | `poppler` (pdftotext) |
+| grep 検索 (`g`) | `ripgrep` | `ripgrep` | `ripgrep` | `ripgrep` |
+| パスコピー (`C`) | X11: `xclip` / Wayland: `wl-clipboard` | 通常は不要 (`clip.exe`)、必要なら `xclip` / `wl-clipboard` | 不要 (`pbcopy` 組み込み) | 組み込み |
+| GUI 連携コマンド | 不要 | `wslu` 推奨 | 不要 | 組み込み |
 
 **注**: 一部のディストリビューションでは、パッケージマネージャー経由でpandoc 3.8.3以上が提供されない場合があります。インストールされたバージョンが3.8.3より古い場合は、公式pandocウェブサイトから最新版を手動でインストールしてください：https://pandoc.org/installing.html
 
@@ -156,7 +163,16 @@ sudo apt install chafa pandoc poppler-utils ripgrep wslu
 brew install chafa pandoc poppler ripgrep
 ```
 
-Windows は現時点では未サポートのため、Windows ネイティブ実行向けの依存ツール案内は対象外です。
+### Windows
+
+Windows では、ドライブルート（`C:\` など）で `←` を押すとドライブ一覧に戻り、zivo を離れずにドライブを切り替えられます。
+
+依存ツールは各公式サイトからインストールしてください。
+
+- ドキュメントプレビュー: [pandoc](https://pandoc.org/)
+- 画像プレビュー: [chafa](https://hpjansson.org/chafa/)
+- PDFプレビュー (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
+- grep 検索: [ripgrep](https://github.com/BurntSushi/ripgrep)
 
 macOS では、使用しているターミナルアプリに **フルディスクアクセス** 権限を付与してください。**システム設定 > プライバシーとセキュリティ > フルディスクアクセス** を開き、zivo を実行するターミナルアプリ（Terminal.app、iTerm2、Alacritty など）を有効にしてください。この権限がない場合、`~/.Trash` などの保護されたディレクトリにアクセスする操作が失敗します。
 
@@ -173,6 +189,8 @@ eval "$(zivo init bash)"  # bash 用
 eval "$(zivo init zsh)"   # zsh 用
 ```
 
+**注**: シェル統合 (`zivo-cd`) は現在 Windows ではサポートされていません。Windows では通常の `zivo` を使用してください。
+
 これにより `zivo-cd` というシェル関数が定義されます。終了後に親シェルを最後のディレクトリへ `cd` させたいときは、`zivo` ではなく `zivo-cd` で起動します。
 
 ```bash
@@ -186,6 +204,8 @@ zivo-cd
 ## キーバインディング
 
 ### 通常モード
+
+zivo から直接外部ターミナルを開けます。`t` を押すと zivo が一時停止し、現在のターミナルで zivo のカレントディレクトリを起点に対話シェルを開きます。シェルを終了すると zivo が自動で再開するため、ディレクトリ移動や複数ターミナルの管理が不要です。または `T` で別ウィンドウでターミナルを開きます。
 
 | キー | 動作 |
 | --- | ------ |
@@ -226,12 +246,13 @@ zivo-cd
 | `.` | 隠しファイル表示を切り替え |
 | `s` | ソート順を循環切り替え |
 | `R` | ディレクトリを再読み込み |
-| `t` | 分割ターミナルを切り替え |
-| `T` | 現在のディレクトリでターミナルを開く |
+| `t` | ターミナルをフォアグラウンドで開く（zivo を一時停止し、現在のターミナルでシェルを開く。exit で zivo に戻る） |
+| `T` | 現在のディレクトリでターミナルを開く（別ウィンドウ） |
 | `o` | 新しいタブを開く |
 | `w` | 現在のタブを閉じる |
 | `tab` | 次のタブへ切り替える |
 | `shift+tab` | 前のタブへ切り替える |
+| `1`〜`0` | 数字キーで対応するタブへ切り替える（1が最初のタブ、0が10番目のタブ） |
 | `M` | 現在のディレクトリをファイルマネージャで開く |
 | `:` | コマンドパレットを開く |
 | `q` | 終了 |
@@ -270,15 +291,11 @@ zivo-cd
 | `b` | ブックマークを表示 |
 | `H` | 履歴を表示 |
 | `:` | Transferモードで使えるコマンドだけを並べたコマンドパレットを開く |
-| `Tab` / `Shift+Tab` | 通常モードと同じくブラウザタブを切り替え |
-
-### 分割ターミナルモード
-
-| キー | 動作 |
-| --- | ------ |
-| 印字可能文字 | ターミナルに送信 |
-| `Cmd+v`（macOS）/ `Ctrl+shift+v`（Linux） | クリップボードから貼り付け |
-| `Ctrl+q` | 分割ターミナルを閉じる |
+| `o` | 新しいタブを開く |
+| `w` | 現在のタブを閉じる |
+| `tab` | 次のタブへ切り替える |
+| `shift+tab` | 前のタブへ切り替える |
+| `1`〜`0` | 数字キーで対応するタブへ切り替える（1が最初のタブ、0が10番目のタブ） |
 
 ### 入力ダイアログ
 
@@ -318,7 +335,7 @@ zivo-cd
 | --- | ------ |
 | 文字入力 / `↑` / `↓` / `Ctrl+n` / `Ctrl+p` / `k` / `j` / `Enter` / `Esc` | コマンドを絞り込み、選択、実行、キャンセル。`Find files` と `Grep search` では `j` / `k` は文字入力として扱われ、結果のナビゲーションには `↑` / `↓` または `Ctrl+n` / `Ctrl+p` を使用します。 |
 
-`Replace text` のプレビューが右ペインに表示されている間は、`Shift+↑` / `Shift+↓` でそのプレビューをスクロールできます。
+`Replace text` のプレビューが右ペインに表示されている間は、`Shift+↑` / `Shift+↓` でそのプレビューをスクロールできます。（この説明は `Replace text in selected files`、`Replace text in found files`、`Replace text in grep results`、`Grep and replace in selected files` すべてに適用されます）
 
 ### 設定エディタモード
 
@@ -366,28 +383,27 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 | `Go to path` | 常に表示 | 特定のパスへ移動するための入力を開き、一致するディレクトリ候補表示と `Tab` 補完を使えます。 |
 | `Go to home directory` | 常に表示 | ホームディレクトリへ移動します。 |
 | `Reload directory` | 常に表示 | 現在ディレクトリを再読み込みします。 |
-| `Toggle transfer mode` / `Close transfer mode` | 常に表示 | 通常の 3 ペインブラウザと 2 ペイン転送レイアウトを切り替えます。転送モード中は `q` / `2`、通常モードからは `2` でも実行できます。 |
-| `Undo last file operation` | Undo 履歴があるとき | 直前の Undo 対象リネーム、貼り付け、ゴミ箱移動を取り消します。`z` でも実行できます。ゴミ箱からの復元は現在 Linux のみ対応です。 |
-| `Toggle split terminal` | 常に表示 | 埋め込み split terminal を開閉します。 |
+| `Toggle transfer mode` / `Close transfer mode` | 常に表示 | 通常の 3 ペインブラウザと 2 ペイン転送レイアウトを切り替えます。転送モード中は `p` / `Esc`、通常モードからは `p` でも実行できます。 |
+| `Undo last file operation` | Undo 履歴があるとき | 直前の Undo 対象リネーム、貼り付け、ゴミ箱移動を取り消します。`z` でも実行できます。 |
 | `Select all` | 現在ディレクトリに表示中の項目が 1 件以上あるとき | 現在ディレクトリで表示中の項目をすべて選択します。 |
-| `Replace text in selected files` | ファイルがフォーカス中、または現在ディレクトリで 1 件以上のファイルが選択中のとき | 選択中のファイル、または未選択時はフォーカス中のファイルを対象に 2 フィールドの置換パレットを開きます。一致したファイル一覧がパレットに表示され、`↑↓` と `Ctrl+n` / `Ctrl+p` で移動すると右ペインに選択中ファイルの diff を表示します。`Enter` で一括置換を実行します。`Shift+↑` / `Shift+↓` で diff preview をスクロールします。 |
-| `Replace text in found files` | 常に表示 | 3 フィールドの置換パレット（filename、find、replace）を開きます。ファイル名パターンでファイルを検索し、find/replace テキストで置換をプレビューします。`Tab` / `Shift+Tab` でフィールドを切り替えます。右ペインに diff preview を表示し、`Enter` で置換を適用します。 |
-| `Replace text in grep results` | 常に表示 | 5 フィールドの置換パレット（keyword、replace、filename filter、include extensions、exclude extensions）を開きます。keyword は grep 検索語と置換対象テキストを兼ねます。keyword を入力して grep 検索し、replacement を入力して変更をプレビューします。filename と拡張子フィルターで対象ファイルを絞り込めます。`Tab` / `Shift+Tab` でフィールドを切り替えます。右ペインに diff preview を表示し、`Enter` で置換を適用します。 |
-| `Grep and replace in selected files` | ファイルがフォーカス中、または現在ディレクトリで 1 件以上のファイルが選択中のとき | 選択中のファイル、または未選択時はフォーカス中のファイルを対象に 2 フィールドの置換パレット（keyword、replace）を開きます。keyword で grep 検索し、一致した行がパレットに表示されます。`Tab` / `Shift+Tab` でフィールドを切り替え、右ペインに diff preview を表示し、`Enter` で置換を適用します。 |
+| `Replace text in selected files` | ファイルがフォーカス中、または現在ディレクトリで 1 件以上のファイルが選択中のとき | 選択中のファイル、または未選択時はフォーカス中のファイルを対象に 2 フィールドの置換パレットを開きます。一致したファイル一覧がパレットに表示され、`↑↓` と `Ctrl+n` / `Ctrl+p` で移動すると右ペインに選択中ファイルの diff を表示します。`Enter` で一括置換を実行します。`Shift+↑` / `Shift+↓` で diff プレビューをスクロールします。 |
+| `Replace text in found files` | 常に表示 | 3 フィールドの置換パレット（filename、find、replace）を開きます。ファイル名パターンでファイルを検索し、find/replace テキストで置換をプレビューします。`Tab` / `Shift+Tab` でフィールドを切り替えます。右ペインに diff プレビューを表示し、`Enter` で置換を適用します。 |
+| `Replace text in grep results` | 常に表示 | 5 フィールドの置換パレット（keyword、replace、filename filter、include extensions、exclude extensions）を開きます。keyword は grep 検索語と置換対象テキストを兼ねます。keyword を入力して grep 検索し、replacement を入力して変更をプレビューします。filename と拡張子フィルターで対象ファイルを絞り込めます。`Tab` / `Shift+Tab` でフィールドを切り替えます。右ペインに diff プレビューを表示し、`Enter` で置換を適用します。 |
+| `Grep and replace in selected files` | ファイルがフォーカス中、または現在ディレクトリで 1 件以上のファイルが選択中のとき | 選択中のファイル、または未選択時はフォーカス中のファイルを対象に 2 フィールドの置換パレット（keyword、replace）を開きます。keyword で grep 検索し、一致した行がパレットに表示されます。`Tab` / `Shift+Tab` でフィールドを切り替え、右ペインに diff プレビューを表示し、`Enter` で置換を適用します。 |
 | `Show attributes` | 単一対象が選択中またはフォーカス中のとき | 読み取り専用の属性ダイアログを開きます。`i` でも実行できます。 |
 | `Rename` | 単一対象が選択中またはフォーカス中のとき | 単一対象のリネーム入力を開始します。 |
 | `Compress as zip` | 対象が 1 件以上あるとき | 選択中の項目、または未選択時はフォーカス中の項目を zip 圧縮します。 |
 | `Extract archive` | 単一の対応アーカイブファイルが選択中またはフォーカス中のとき | `.zip` / `.tar` / `.tar.gz` / `.tar.bz2` の展開を開始します。展開先入力は絶対パスと相対パスの両方に対応し、相対パスはアーカイブ親ディレクトリ基準で解決されます。初期値はアーカイブと同じ階層にある同名ディレクトリの絶対パスです。既存パスとの衝突がある場合は事前確認し、展開中は status bar に entry 件数ベースの進捗を表示します。 |
 | `Open in editor` | 単一ファイルが選択中またはフォーカス中のとき | フォーカス中のファイルを `editor.command` -> `$EDITOR` -> 組み込み既定値の順でターミナルエディタで開きます。 |
 | `Copy path` | 対象が 1 件以上あるとき | 選択中のパス一覧、または未選択時はフォーカス中のパスをシステムクリップボードへコピーします。`C` でも実行できます。 |
-| `Move to trash` | 対象が 1 件以上あるとき | 選択中の項目、またはフォーカス項目をゴミ箱へ移動します（既定では確認あり、設定で変更可能）。 |
-| `Empty trash` | 常に表示（Linux/macOSのみ） | ゴミ箱内のすべての項目を完全に削除します。実行前に確認ダイアログを表示します。Windows では利用できません。 |
+| `Move to trash` | 対象が 1 件以上あるとき | 選択中の項目、またはフォーカス項目をゴミ箱へ移動します（既定では確認あり、設定で変更可能）。Windows では `send2trash` 経由で Recycle Bin を使います。 |
+| `Empty trash` | 常に表示 | ゴミ箱内のすべての項目を完全に削除します。実行前に確認ダイアログを表示します。Windows では PowerShell の `Clear-RecycleBin` を使用してごみ箱を空にします。 |
 | `Open in file manager` | 常に表示 | 現在ディレクトリを OS のファイルマネージャで開きます。`M` でも実行できます。 |
-| `Open terminal` | 常に表示 | `config.toml` の設定を優先しつつ、zivo の current directory を起点に外部ターミナルを起動します。別ウィンドウ起動と前面起動を設定で切り替えられます。`T` でも実行できます。 |
-| `Run shell command` | 常に表示 | 1 行シェルコマンド入力ダイアログを開き、現在ディレクトリでバックグラウンド実行します。完了後は先頭の出力行、または失敗要約を status bar に表示します。`!` でも実行できます。 |
+| `Open terminal` | 常に表示 | `config.toml` の設定を優先しつつ、zivo の current directory を起点に外部ターミナルを起動します。`T` と `t` でも実行できます。 |
+| `Run shell command` | 常に表示 | 1 行シェルコマンド入力ダイアログを開き、現在ディレクトリでバックグラウンド実行します。完了後は先頭の出力行、または失敗要約を status bar に表示します。Windows では `powershell.exe`、次に `pwsh`、最後に `cmd.exe` を優先するため、構文は選ばれた Windows shell に従います。`!` でも実行できます。 |
 | `Bookmark this directory` / `Remove bookmark` | 常に表示 | 現在ディレクトリを `[bookmarks].paths` に追加または削除します。ラベルは現在状態を反映し、`B` でも切り替えられます。 |
 | `Show hidden files` / `Hide hidden files` | 常に表示 | ブラウザ 3 ペインの隠しファイル表示を切り替えます。ラベルは現在状態を反映し、`.` でも切り替えられます。 |
-| `Edit config` | 常に表示 | 起動時設定を編集するオーバーレイを開きます。優先ターミナルエディタ、外部ターミナル起動モード、隠しファイル表示、ディレクトリサイズ表示、テキスト preview 表示、画像 preview 表示、PDF preview 表示、Office preview 表示、テーマ、ソート、貼り付け競合時の既定動作、削除確認の有無などを編集できます。オーバーレイ内には選択中の設定が何を変えるかの説明も表示されるため、README を見返さなくても挙動を判断できます。テーマ変更はその場で即時プレビューされます。`↑` / `↓` または `Ctrl+n` / `Ctrl+p` で項目移動し、`←` / `→` / `Enter` で値変更、`s` で `config.toml` 保存、`e` で生の設定ファイルをターミナルエディタで開けます。 |
+| `Edit config` | 常に表示 | 起動時設定を編集するオーバーレイを開きます。優先ターミナルエディタ、外部ターミナル起動モード、隠しファイル表示、ディレクトリサイズ表示、テキストプレビュー表示、画像プレビュー表示、PDF プレビュー表示、Office プレビュー表示、テーマ、ソート、貼り付け競合時の既定動作、削除確認の有無などを編集できます。オーバーレイ内には選択中の設定が何を変えるかの説明も表示されるため、README を見返さなくても挙動を判断できます。テーマ変更はその場で即時プレビューされます。`↑` / `↓` または `Ctrl+n` / `Ctrl+p` で項目移動し、`←` / `→` / `Enter` で値変更、`s` で `config.toml` 保存、`e` で生の設定ファイルをターミナルエディタで開けます。 |
 | `Create file` | 常に表示 | 現在ディレクトリで新規ファイル作成の入力を開始します。 |
 | `Create directory` | 常に表示 | 現在ディレクトリで新規ディレクトリ作成の入力を開始します。 |
 
@@ -397,26 +413,25 @@ zivo は起動時にユーザー設定用の `config.toml` を読み込みます
 
 - Linux: `${XDG_CONFIG_HOME:-~/.config}/zivo/config.toml`
 - macOS: `~/Library/Application Support/zivo/config.toml`
-- Windows 向けの設定パスも予約していますが、Windows ネイティブ実行自体は引き続き非対応です
+- Windows: `%APPDATA%\\zivo\\config.toml`
 
 設定できる項目は次のとおりです。
 
 | セクション | キー | 値 | 説明 |
 | --- | --- | --- | --- |
-| `terminal` | `launch_mode` | `window` / `foreground` | `T` で zivo の current directory に対してターミナルをどう開くかを選びます。`window` は別ウィンドウで起動し、`foreground` は zivo を一時停止して現在の端末で対話シェルを開き、`exit` 後に zivo へ戻ります。 |
 | `terminal` | `linux` | shell 形式コマンド文字列の配列 | Linux 向けの任意ターミナル起動コマンドです。作業ディレクトリは `{path}` で埋め込みます。空文字や不正なエントリは無視されます。 |
 | `terminal` | `macos` | shell 形式コマンド文字列の配列 | macOS 向けの任意ターミナル起動コマンドです。検証ルールは Linux と同じです。 |
-| `terminal` | `windows` | shell 形式コマンド文字列の配列 | Windows / WSL ブリッジ向けの任意ターミナル起動コマンドです。Windows ネイティブ実行は未対応ですが設定キー自体は受け付けます。 |
+| `terminal` | `windows` | shell 形式コマンド文字列の配列 | Windows / WSL 向けの任意ターミナル起動コマンドです。 |
 | `editor` | `command` | shell 形式の文字列。例: `nvim -u NONE` | `e` で起動するターミナルエディタです。ファイルパスは自動で末尾に付与されるため、設定値には含めません。GUI エディタや不正なコマンドは無視されます。 |
 | `display` | `show_hidden_files` | `true` / `false` | 起動時の隠しファイル表示状態です。 |
 | `display` | `show_directory_sizes` | `true` / `false` | ペイン内に再帰ディレクトリサイズを表示します。既定値は `true` です。大きいディレクトリでは計算コストがかかる場合があります。中央ペインを `size` ソートしている間は、この設定が `false` でも自動計算されます。 |
-| `display` | `enable_text_preview` | `true` / `false` | 右ペインのテキストファイル preview を表示します。既定値は `true` です。grep 結果のコンテキスト preview も同じ設定に従います。 |
-| `display` | `enable_image_preview` | `true` / `false` | `chafa` を使った画像 preview を右ペインで表示します。既定値は `true` です。`chafa` が未導入の場合は失敗ではなく依存不足メッセージを表示します。 |
-| `display` | `enable_pdf_preview` | `true` / `false` | `pdftotext` を使った PDF preview を有効にします。既定値は `true` です。無効にすると PDF は通常の非対応メッセージへ戻ります。 |
-| `display` | `enable_office_preview` | `true` / `false` | `docx` / `xlsx` / `pptx` の preview を `pandoc` 変換で有効にします。既定値は `true` です。無効にすると、これらの形式は通常の非対応メッセージへ戻ります。 |
-| `display` | `show_help_bar` | `true` / `false` | 画面下部のヘルプバーを表示します。既定値は `true` です。コマンドパレットや分割ターミナルが開いている場合は、この設定に関係なく常に表示されます。 |
+| `display` | `enable_text_preview` | `true` / `false` | 右ペインのテキストファイルプレビューを表示します。既定値は `true` です。grep 結果のコンテキストプレビューも同じ設定に従います。 |
+| `display` | `enable_image_preview` | `true` / `false` | `chafa` を使った画像プレビューを右ペインで表示します。既定値は `true` です。`chafa` が未導入の場合は失敗ではなく依存不足メッセージを表示します。 |
+| `display` | `enable_pdf_preview` | `true` / `false` | `pdftotext` を使った PDF プレビューを有効にします。既定値は `true` です。無効にすると PDF は通常の非対応メッセージへ戻ります。 |
+| `display` | `enable_office_preview` | `true` / `false` | `docx` / `xlsx` / `pptx` のプレビューを `pandoc` 変換で有効にします。既定値は `true` です。無効にすると、これらの形式は通常の非対応メッセージへ戻ります。 |
+| `display` | `show_help_bar` | `true` / `false` | 画面下部のヘルプバーを表示します。既定値は `true` です。コマンドパレットが開いている場合は、この設定に関係なく常に表示されます。 |
 | `display` | `theme` | `textual-dark` / `textual-light` | 起動時の UI テーマです。設定エディタでは変更内容が即座にプレビューされ、`s` で保存するとこの値が永続化されます。 |
-| `display` | `preview_syntax_theme` | `auto` またはサポートされている Pygments style | 右ペインのテキスト preview に使うシンタックスハイライト配色です。`auto` を選ぶと、現在の light/dark に応じた既定配色を使います。設定エディタで右ペインにテキスト preview が出ている場合は、その場で即時プレビューされます。 |
+| `display` | `preview_syntax_theme` | `auto` またはサポートされている Pygments style | 右ペインのテキストプレビューに使うシンタックスハイライト配色です。`auto` を選ぶと、現在の light/dark に応じた既定配色を使います。設定エディタで右ペインにテキストプレビューが出ている場合は、その場で即時プレビューされます。 |
 | `display` | `default_sort_field` | `name` / `modified` / `size` | 中央ペインの初期ソート項目です。 |
 | `display` | `default_sort_descending` | `true` / `false` | `true` のとき、起動時のソートを降順にします。 |
 | `display` | `directories_first` | `true` / `false` | 中央ペインでディレクトリをファイルより先にまとめて表示します。 |
@@ -473,22 +488,18 @@ paths = ["/home/user/src", "/home/user/docs"]
 
 - サポート状況は上記の「サポートOS」セクションを参照してください。
 - 既定アプリ起動、ファイルマネージャ起動、ターミナル起動などの GUI 連携は、主に Ubuntu と WSL 上の Ubuntu で確認しています。
-- 埋め込み split terminal は現状 POSIX 環境、特に Ubuntu/Linux と WSL を前提にしています。
 - `config.toml` でターミナルエディタやターミナル起動コマンドを指定した場合は、その設定を組み込みフォールバックより優先します。
 - WSL では、優先ブリッジ動作に使う `wslview` を利用できるよう `wslu` のインストールを推奨します。
 - WSL では `wslview`、`explorer.exe`、`clip.exe` のような Windows 側ブリッジを優先し、WSLg や Linux デスクトップ向けのフォールバックも維持します。
 - 挙動やキーバインドは今後見直す可能性があります。
 - ファイル操作は、選択したディレクトリエントリ自体に対して行われます。選択中の項目が symlink の場合も、リンク先を暗黙に辿って変更せず、symlink エントリ自体を操作します。
 - コマンドパレットから symlink を作成する場合、既定では相対ターゲットを保存し、保存先入力では `Tab` によるパス補完を利用できます。
-- 埋め込み split terminal は [pyte](https://pyte.readthedocs.io/) によるターミナルエミュレーションを使用するため、以下の制限があります:
-  - 代替スクリーンバッファを使うTUIアプリケーション（lazygit, htop, vim など）は正常に動作しません。
-  - DCS・OSC・プライベートSGRシーケンスなど一部のエスケープシーケンスは出力サニタイズで除去されるため、これらに依存する機能は利用できません。
-  - マウスイベントは転送されないため、マウス操作を前提とするアプリケーションは使用できません。
 
 ## 関連ドキュメント
 
 - 実装構造: [docs/architecture.md](docs/architecture.md)
 - 性能確認メモ: [docs/performance.md](docs/performance.md)
+- リリースチェックリスト: [docs/release-checklist.md](docs/release-checklist.md)
 
 ## ライセンス
 

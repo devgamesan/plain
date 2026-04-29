@@ -5,6 +5,8 @@ import platform
 from dataclasses import dataclass
 
 from zivo.archive_utils import is_supported_archive_path
+from zivo.platform_support import is_split_terminal_supported
+from zivo.windows_paths import display_path
 
 from .entry_state_helpers import select_visible_entry_states
 from .models import AppState
@@ -207,13 +209,13 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         CommandPaletteItem(
             id="go_back",
             label="Go back",
-            shortcut="[",
+            shortcut="{",
             enabled=bool(state.history.back),
         ),
         CommandPaletteItem(
             id="go_forward",
             label="Go forward",
-            shortcut="]",
+            shortcut="}",
             enabled=bool(state.history.forward),
         ),
         CommandPaletteItem(
@@ -271,13 +273,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 if state.layout_mode == "transfer"
                 else "Toggle transfer mode"
             ),
-            shortcut="2",
-            enabled=True,
-        ),
-        CommandPaletteItem(
-            id="toggle_split_terminal",
-            label="Toggle split terminal",
-            shortcut="t",
+            shortcut="p",
             enabled=True,
         ),
         CommandPaletteItem(
@@ -471,6 +467,7 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
     has_single_target = _transfer_single_target_entry(state) is not None
     has_visible_entries = bool(_transfer_visible_entries(state))
     can_paste = state.clipboard.mode != "none" and bool(state.clipboard.paths)
+    tab_count = len(state.browser_tabs) or 1
 
     return (
         CommandPaletteItem(
@@ -506,7 +503,7 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
         CommandPaletteItem(
             id="toggle_transfer_mode",
             label="Close transfer mode",
-            shortcut="2",
+            shortcut="p",
             enabled=True,
         ),
         CommandPaletteItem(
@@ -514,6 +511,30 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
             label="Undo last file operation",
             shortcut="z",
             enabled=bool(state.undo_stack),
+        ),
+        CommandPaletteItem(
+            id="new_tab",
+            label="New tab",
+            shortcut="o",
+            enabled=True,
+        ),
+        CommandPaletteItem(
+            id="next_tab",
+            label="Next tab",
+            shortcut="tab",
+            enabled=tab_count > 1,
+        ),
+        CommandPaletteItem(
+            id="previous_tab",
+            label="Previous tab",
+            shortcut="shift+tab",
+            enabled=tab_count > 1,
+        ),
+        CommandPaletteItem(
+            id="close_current_tab",
+            label="Close current tab",
+            shortcut="w",
+            enabled=tab_count > 1,
         ),
         CommandPaletteItem(
             id="copy_targets",
@@ -587,6 +608,10 @@ def _matches_query(item: CommandPaletteItem, query: str) -> bool:
 
 def _display_path(path: str) -> str:
     """Replace home directory prefix with ~ for display."""
+
+    rendered = display_path(path)
+    if rendered != path:
+        return rendered
     home = os.path.expanduser("~")
     if path.startswith(home + "/"):
         return "~" + path[len(home):]
@@ -672,4 +697,9 @@ def _transfer_single_target_entry(state: AppState):
 
 def _is_empty_trash_supported() -> bool:
     """Check if empty trash is supported on current platform."""
-    return platform.system() in ("Linux", "Darwin")
+    return platform.system() in ("Linux", "Darwin", "Windows")
+
+
+def _is_split_terminal_supported() -> bool:
+    """Check if the embedded split terminal is available on this platform."""
+    return is_split_terminal_supported()

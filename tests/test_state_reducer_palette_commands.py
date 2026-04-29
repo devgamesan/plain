@@ -435,6 +435,27 @@ def test_set_command_palette_query_resolves_relative_go_to_path_candidates(tmp_p
         str(tmp_path / "projects" / "zivo"),
     )
 
+def test_set_command_palette_query_shows_root_directory_candidates_for_slash() -> None:
+    state = _reduce_state(
+        replace(build_initial_app_state(), current_path="/tmp"),
+        BeginGoToPath(),
+    )
+
+    next_state = _reduce_state(state, SetCommandPaletteQuery("/"))
+    expected_candidates = tuple(
+        sorted(
+            (
+                str(child.resolve())
+                for child in Path("/").iterdir()
+                if child.is_dir()
+            ),
+            key=lambda path: (Path(path).name.casefold(), path),
+        )
+    )
+
+    assert next_state.command_palette is not None
+    assert next_state.command_palette.go_to_path_candidates == expected_candidates
+
 def test_submit_go_to_path_palette_requests_snapshot(tmp_path) -> None:
     state = _reduce_state(
         replace(build_initial_app_state(), current_path=str(tmp_path)),

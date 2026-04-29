@@ -315,6 +315,8 @@ def _uses_windows_path_rules(base_path: str, query: str) -> bool:
     normalized_query = query.strip().replace("/", "\\")
     if not normalized_query:
         return False
+    if query.strip().startswith("/"):
+        return False
     if normalized_query.startswith("\\"):
         return True
     return bool(ntpath.splitdrive(normalized_query)[0])

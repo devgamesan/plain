@@ -10,6 +10,7 @@ from zivo.state.actions import (
     BeginHistorySearch,
     BeginRenameInput,
     ClearTransferSelection,
+    CloseCurrentTab,
     CopyTargets,
     CutTargets,
     FocusTransferPane,
@@ -142,6 +143,24 @@ def test_transfer_mode_uses_non_function_keys_for_copy_and_move() -> None:
     assert dispatch_key_input(state, key="m") == (
         SetNotification(None),
         TransferMoveToOppositePane(),
+    )
+
+
+def test_transfer_mode_opens_new_tab_with_o() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+
+    assert dispatch_key_input(state, key="o") == (
+        SetNotification(None),
+        OpenNewTab(),
+    )
+
+
+def test_transfer_mode_closes_current_tab_with_w() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+
+    assert dispatch_key_input(state, key="w") == (
+        SetNotification(None),
+        CloseCurrentTab(),
     )
 
 

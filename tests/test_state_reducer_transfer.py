@@ -222,9 +222,10 @@ def test_transfer_mode_is_scoped_to_browser_tab() -> None:
     new_tab_state = _reduce_state(state, OpenNewTab())
 
     assert new_tab_state.active_tab_index == 1
-    assert new_tab_state.layout_mode == "browser"
-    assert new_tab_state.transfer_left is None
-    assert new_tab_state.transfer_right is None
+    # New tab preserves transfer mode state
+    assert new_tab_state.layout_mode == "transfer"
+    assert new_tab_state.transfer_left is not None
+    assert new_tab_state.transfer_right is not None
 
     previous_tab_state = _reduce_state(new_tab_state, ActivatePreviousTab())
 

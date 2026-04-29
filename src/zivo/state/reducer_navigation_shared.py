@@ -82,6 +82,47 @@ def activate_tab(
 
 def build_new_tab_state(state: AppState) -> BrowserTabState:
     active_tab = browser_tab_from_app_state(state)
+    
+    # If in transfer mode, copy the transfer state to the new tab
+    if active_tab.layout_mode == "transfer":
+        return replace(
+            active_tab,
+            current_pane=replace(
+                active_tab.current_pane,
+                selected_paths=frozenset(),
+                selection_anchor_path=None,
+            ),
+            filter=FilterState(),
+            history=HistoryState(visited_all=(active_tab.current_path,)),
+            current_pane_delta=CurrentPaneDeltaState(),
+            pending_browser_snapshot_request_id=None,
+            pending_child_pane_request_id=None,
+            # Preserve transfer mode state
+            layout_mode="transfer",
+            active_transfer_pane=active_tab.active_transfer_pane,
+            transfer_left=replace(
+                active_tab.transfer_left,
+                pane=replace(
+                    active_tab.transfer_left.pane,
+                    selected_paths=frozenset(),
+                    selection_anchor_path=None,
+                ),
+                current_pane_delta=CurrentPaneDeltaState(),
+                pending_snapshot_request_id=None,
+            ) if active_tab.transfer_left else None,
+            transfer_right=replace(
+                active_tab.transfer_right,
+                pane=replace(
+                    active_tab.transfer_right.pane,
+                    selected_paths=frozenset(),
+                    selection_anchor_path=None,
+                ),
+                current_pane_delta=CurrentPaneDeltaState(),
+                pending_snapshot_request_id=None,
+            ) if active_tab.transfer_right else None,
+        )
+    
+    # Browser mode: create a new tab in browser mode
     return replace(
         active_tab,
         current_pane=replace(

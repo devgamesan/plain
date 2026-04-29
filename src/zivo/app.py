@@ -1,6 +1,8 @@
 """Application assembly for zivo."""
 
+import re
 import threading
+import time
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal
@@ -10,6 +12,7 @@ from textual.app import App, ComposeResult, ScreenStackError
 from textual.binding import Binding
 from textual.containers import Container, Vertical
 from textual.css.query import NoMatches
+from textual.keys import Keys
 from textual.timer import Timer
 from textual.worker import Worker
 
@@ -118,6 +121,14 @@ _REPLACE_PREVIEW_SCROLL_SOURCES = frozenset(
         "grep_replace_selected",
     }
 )
+_TEXTUAL_TERMINAL_RESPONSE_FILTERS_INSTALLED = False
+_TERMINAL_DEVICE_ATTRIBUTES_RESPONSE_RE = re.compile(r"\x1b\[(?:\?[\d;]*|[\d;]*)c\Z")
+_TERMINAL_WINDOW_RESPONSE_RE = re.compile(r"\x1b\[(?:4|6|8);[\d;]+t\Z")
+_TERMINAL_COLOR_RESPONSE_RE = re.compile(r"\x1b\]1[01];.*(?:\x07|\x1b\\)\Z", re.DOTALL)
+_ESCAPE = "\x1b"
+_OSC_INTRODUCER = "]"
+_OSC_TERMINATOR = "\\"
+_OSC_BEL = "\x07"
 
 
 def _preview_scroll_delta(state: AppState, key: str) -> int | None:
@@ -140,6 +151,7 @@ class zivoApp(App[None]):
 
     TITLE = "zivo"
     SUB_TITLE = "Three-pane shell"
+    TERMINAL_RESPONSE_ESCAPE_TIMEOUT_SECONDS = 0.05
     BINDINGS = [
         Binding("ctrl+p", "dispatch_bound_key('ctrl+p')", show=False, priority=True),
         Binding("ctrl+n", "dispatch_bound_key('ctrl+n')", show=False, priority=True),
@@ -173,6 +185,7 @@ class zivoApp(App[None]):
         current_pane_projection_mode: Literal["full", "viewport"] = "viewport",
     ) -> None:
         super().__init__()
+        _install_textual_terminal_response_filters()
         self._app_config = app_config or AppConfig()
         self.theme = self._app_config.display.theme
         self._initial_path = resolve_parent_directory_path(str(initial_path or Path.cwd()))[0]
@@ -219,6 +232,9 @@ class zivoApp(App[None]):
         self._active_grep_search_request_id: int | None = None
         self._active_directory_size_cancel_event: threading.Event | None = None
         self._active_directory_size_request_id: int | None = None
+        self._pending_terminal_response_escape = False
+        self._swallowing_terminal_response = False
+        self._terminal_response_escape_deadline = 0.0
 
     @property
     def app_state(self) -> AppState:
@@ -476,6 +492,8 @@ class zivoApp(App[None]):
         *,
         character: str | None = None,
     ) -> bool:
+        if self._should_swallow_terminal_response_key(key):
+            return True
         actions = dispatch_key_input(
             self._app_state,
             key=key,
@@ -485,6 +503,40 @@ class zivoApp(App[None]):
             return False
         await self.dispatch_actions(actions)
         return True
+
+    def _should_swallow_terminal_response_key(self, key: str) -> bool:
+        now = time.monotonic()
+        if (
+            self._pending_terminal_response_escape
+            and now > self._terminal_response_escape_deadline
+        ):
+            self._pending_terminal_response_escape = False
+            self._swallowing_terminal_response = False
+
+        if self._swallowing_terminal_response:
+            if len(key) == 1:
+                if _is_terminal_response_final_byte(key):
+                    self._swallowing_terminal_response = False
+                    self._pending_terminal_response_escape = False
+                return True
+            self._swallowing_terminal_response = False
+            self._pending_terminal_response_escape = False
+            return False
+
+        if self._pending_terminal_response_escape:
+            if len(key) == 1 and key in {"[", "]", "O", "P", "^", "_", "X"}:
+                self._swallowing_terminal_response = True
+                return True
+            self._pending_terminal_response_escape = False
+
+        if key == "escape":
+            self._pending_terminal_response_escape = True
+            self._terminal_response_escape_deadline = (
+                now + self.TERMINAL_RESPONSE_ESCAPE_TIMEOUT_SECONDS
+            )
+            self._swallowing_terminal_response = False
+
+        return False
 
     async def dispatch_actions(self, actions: Sequence[Action]) -> None:
         """Apply reducer actions, refresh the UI, and schedule any effects."""
@@ -628,3 +680,107 @@ def _initial_sort_state(config: AppConfig) -> SortState:
         descending=config.display.default_sort_descending,
         directories_first=config.display.directories_first,
     )
+
+
+def _is_terminal_response_final_byte(key: str) -> bool:
+    if len(key) != 1:
+        return False
+    codepoint = ord(key)
+    return 0x40 <= codepoint <= 0x7E
+
+
+def _install_textual_terminal_response_filters() -> None:
+    global _TEXTUAL_TERMINAL_RESPONSE_FILTERS_INSTALLED
+    if _TEXTUAL_TERMINAL_RESPONSE_FILTERS_INSTALLED:
+        return
+
+    import textual._xterm_parser as xterm_parser
+
+    original_feed = xterm_parser.XTermParser.feed
+    original = xterm_parser.XTermParser._sequence_to_key_events
+
+    def _filter_terminal_response_chunk(self, data: str) -> str:
+        pending_escape = getattr(self, "_zivo_pending_escape", False)
+        in_osc = getattr(self, "_zivo_in_osc", False)
+        osc_saw_escape = getattr(self, "_zivo_osc_saw_escape", False)
+
+        if not data:
+            if pending_escape and not in_osc:
+                data = _ESCAPE
+            else:
+                data = ""
+            pending_escape = False
+            in_osc = False
+            osc_saw_escape = False
+            self._zivo_pending_escape = pending_escape
+            self._zivo_in_osc = in_osc
+            self._zivo_osc_saw_escape = osc_saw_escape
+            return data
+
+        filtered: list[str] = []
+        index = 0
+
+        if pending_escape:
+            pending_escape = False
+            if data.startswith(_OSC_INTRODUCER):
+                in_osc = True
+                index = 1
+            else:
+                filtered.append(_ESCAPE)
+
+        while index < len(data):
+            character = data[index]
+            if in_osc:
+                if osc_saw_escape:
+                    osc_saw_escape = False
+                    if character == _OSC_TERMINATOR:
+                        in_osc = False
+                    index += 1
+                    continue
+                if character == _OSC_BEL:
+                    in_osc = False
+                    index += 1
+                    continue
+                if character == _ESCAPE:
+                    osc_saw_escape = True
+                index += 1
+                continue
+
+            if character == _ESCAPE:
+                next_index = index + 1
+                if next_index >= len(data):
+                    pending_escape = True
+                    index += 1
+                    continue
+                if data[next_index] == _OSC_INTRODUCER:
+                    in_osc = True
+                    index += 2
+                    continue
+
+            filtered.append(character)
+            index += 1
+
+        self._zivo_pending_escape = pending_escape
+        self._zivo_in_osc = in_osc
+        self._zivo_osc_saw_escape = osc_saw_escape
+        return "".join(filtered)
+
+    def _wrapped_feed(self, data: str):
+        filtered = _filter_terminal_response_chunk(self, data)
+        if data and not filtered:
+            return ()
+        return original_feed(self, filtered)
+
+    def _wrapped(self, sequence: str):
+        if (
+            _TERMINAL_DEVICE_ATTRIBUTES_RESPONSE_RE.fullmatch(sequence)
+            or _TERMINAL_WINDOW_RESPONSE_RE.fullmatch(sequence)
+            or _TERMINAL_COLOR_RESPONSE_RE.fullmatch(sequence)
+        ):
+            yield events.Key(Keys.Ignore, sequence)
+            return
+        yield from original(self, sequence)
+
+    xterm_parser.XTermParser.feed = _wrapped_feed
+    xterm_parser.XTermParser._sequence_to_key_events = _wrapped
+    _TEXTUAL_TERMINAL_RESPONSE_FILTERS_INSTALLED = True

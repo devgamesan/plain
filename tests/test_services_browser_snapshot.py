@@ -346,6 +346,140 @@ def test_pandoc_document_preview_loader_uses_pandoc_command(tmp_path, monkeypatc
     assert preview == FilePreviewState.with_content("# Slide 1\n", False)
 
 
+def test_chafa_image_preview_loader_strips_non_sgr_control_sequences(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    from zivo.services.browser_snapshot import ChafaImagePreviewLoader
+
+    image = tmp_path / "preview.png"
+    image.write_bytes(b"png")
+    loader = ChafaImagePreviewLoader()
+
+    monkeypatch.setattr(
+        "zivo.services.previews.core.shutil.which",
+        lambda name: "/usr/bin/chafa",
+    )
+
+    class _CompletedProcess:
+        stdout = b"\x1b[?25l\x1b[31m@@\x1b[0m\n\x1b[?25h"
+
+    monkeypatch.setattr(
+        "zivo.services.previews.core.subprocess.run",
+        lambda *args, **kwargs: _CompletedProcess(),
+    )
+
+    preview = loader.load_preview(image, preview_columns=40)
+
+    assert preview == FilePreviewState.with_content(
+        "\x1b[31m@@\x1b[0m\n",
+        False,
+        content_kind="image",
+    )
+
+
+def test_chafa_image_preview_loader_strips_osc_sequences(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    from zivo.services.browser_snapshot import ChafaImagePreviewLoader
+
+    image = tmp_path / "preview.png"
+    image.write_bytes(b"png")
+    loader = ChafaImagePreviewLoader()
+
+    monkeypatch.setattr(
+        "zivo.services.previews.core.shutil.which",
+        lambda name: "/usr/bin/chafa",
+    )
+
+    class _CompletedProcess:
+        stdout = (
+            b"\x1b]7;file:///tmp/zivo\x1b\\"
+            b"\x1b[31m@@\x1b[0m\n"
+            b"\x1b]1337;RemoteHost=test\x07"
+        )
+
+    monkeypatch.setattr(
+        "zivo.services.previews.core.subprocess.run",
+        lambda *args, **kwargs: _CompletedProcess(),
+    )
+
+    preview = loader.load_preview(image, preview_columns=40)
+
+    assert preview == FilePreviewState.with_content(
+        "\x1b[31m@@\x1b[0m\n",
+        False,
+        content_kind="image",
+    )
+
+
+def test_chafa_image_preview_loader_uses_full_color_mode(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    from zivo.services.browser_snapshot import ChafaImagePreviewLoader
+
+    image = tmp_path / "preview.png"
+    image.write_bytes(b"png")
+    loader = ChafaImagePreviewLoader()
+
+    monkeypatch.setattr(
+        "zivo.services.previews.core.shutil.which",
+        lambda name: "/usr/bin/chafa",
+    )
+
+    class _CompletedProcess:
+        stdout = b"@@\n"
+
+    captured_args: list[str] = []
+
+    def _run(args, **kwargs):
+        captured_args.extend(args)
+        return _CompletedProcess()
+
+    monkeypatch.setattr("zivo.services.previews.core.subprocess.run", _run)
+
+    preview = loader.load_preview(image, preview_columns=40)
+
+    assert preview == FilePreviewState.with_content("@@\n", False, content_kind="image")
+    assert captured_args[:8] == [
+        "/usr/bin/chafa",
+        "--format",
+        "symbols",
+        "--colors",
+        "full",
+        "--animate",
+        "off",
+        "--fit-width",
+    ]
+
+
+def test_live_browser_snapshot_loader_detects_png_signature_without_extension(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    image = project / "preview.bin"
+    image.write_bytes(b"\x89PNG\r\n\x1a\nrest")
+    preview_loader = StubImagePreviewLoader(
+        previews_by_path={
+            str(image): FilePreviewState.with_content(
+                "\x1b[31m@@\x1b[0m\n",
+                False,
+                content_kind="image",
+            ),
+        }
+    )
+    loader = LiveBrowserSnapshotLoader(image_preview_loader=preview_loader)
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(image))
+
+    assert snapshot.child_pane.mode == "preview"
+    assert snapshot.child_pane.preview_path == str(image)
+    assert snapshot.child_pane.preview_content == "\x1b[31m@@\x1b[0m\n"
+    assert snapshot.child_pane.preview_kind == "image"
+    assert preview_loader.calls == [f"{image}:80"]
+
+
 def test_live_browser_snapshot_loader_uses_pdftotext_for_pdf_preview(
     tmp_path,
     monkeypatch,

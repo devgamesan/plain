@@ -1,5 +1,8 @@
 """Child pane widget that toggles between list and preview modes."""
 
+import re
+
+from rich.color import Color
 from rich.style import Style
 from rich.syntax import Syntax
 from rich.text import Text
@@ -18,6 +21,8 @@ from .pane_rendering import (
     _resolve_component_styles,
 )
 from .side_pane import SidePane
+
+_SGR_SEQUENCE_RE = re.compile(r"\x1b\[([0-9;]*)m")
 
 
 class ChildPane(Vertical):
@@ -205,12 +210,7 @@ class ChildPane(Vertical):
             return Text()
 
         if state.preview_kind == "image":
-            return Text.from_ansi(
-                state.preview_content,
-                no_wrap=True,
-                overflow="ignore",
-                end="",
-            )
+            return _render_image_preview_text(state.preview_content)
 
         lexer = "text"
         if state.preview_path is not None:
@@ -278,3 +278,57 @@ class ChildPane(Vertical):
                 state.syntax_theme,
             )
         return ("list", state.entries)
+
+
+def _render_image_preview_text(content: str) -> Text:
+    text = Text(no_wrap=True, overflow="ignore", end="")
+    current_style = Style()
+    position = 0
+
+    for match in _SGR_SEQUENCE_RE.finditer(content):
+        if match.start() > position:
+            text.append(content[position : match.start()], style=current_style)
+        current_style = _apply_sgr_codes(current_style, match.group(1))
+        position = match.end()
+
+    if position < len(content):
+        text.append(content[position:], style=current_style)
+
+    return text
+
+
+def _apply_sgr_codes(style: Style, raw_codes: str) -> Style:
+    if not raw_codes:
+        return Style()
+
+    color = style.color
+    bgcolor = style.bgcolor
+    codes = [int(code) if code else 0 for code in raw_codes.split(";")]
+    index = 0
+
+    while index < len(codes):
+        code = codes[index]
+        if code == 0:
+            color = None
+            bgcolor = None
+            index += 1
+            continue
+        if code == 39:
+            color = None
+            index += 1
+            continue
+        if code == 49:
+            bgcolor = None
+            index += 1
+            continue
+        if code == 38 and index + 4 < len(codes) and codes[index + 1] == 2:
+            color = Color.from_rgb(codes[index + 2], codes[index + 3], codes[index + 4])
+            index += 5
+            continue
+        if code == 48 and index + 4 < len(codes) and codes[index + 1] == 2:
+            bgcolor = Color.from_rgb(codes[index + 2], codes[index + 3], codes[index + 4])
+            index += 5
+            continue
+        index += 1
+
+    return Style(color=color, bgcolor=bgcolor)

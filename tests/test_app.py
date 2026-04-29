@@ -1056,6 +1056,140 @@ async def test_app_renders_text_preview_in_child_pane_for_file_cursor() -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_renders_image_preview_in_child_pane_for_file_cursor() -> None:
+    path = str(Path("/tmp/zivo-image-preview").resolve())
+    image = f"{path}/preview.png"
+    preview_content = (
+        "\x1b[31m@@\x1b[0m\n"
+        "\x1b[32m##\x1b[0m\n"
+        "\x1b[34m..\x1b[0m\n"
+    ) * 40
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: BrowserSnapshot(
+                current_path=path,
+                parent_pane=PaneState(
+                    directory_path="/tmp",
+                    entries=(
+                        DirectoryEntryState(path, "zivo-image-preview", "dir"),
+                        DirectoryEntryState("/tmp/sibling", "sibling", "dir"),
+                    ),
+                    cursor_path=path,
+                ),
+                current_pane=PaneState(
+                    directory_path=path,
+                    entries=(DirectoryEntryState(image, "preview.png", "file"),),
+                    cursor_path=image,
+                ),
+                child_pane=PaneState(
+                    directory_path=path,
+                    entries=(),
+                    mode="preview",
+                    preview_path=image,
+                    preview_content=preview_content,
+                    preview_kind="image",
+                ),
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test():
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 1)
+        await _wait_for_child_preview(app, "Preview: preview.png", "@@")
+
+
+@pytest.mark.asyncio
+async def test_app_ignores_terminal_response_sequences_in_browsing_mode() -> None:
+    path = str(Path("/tmp/zivo-terminal-response").resolve())
+    readme = f"{path}/README.md"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: BrowserSnapshot(
+                current_path=path,
+                parent_pane=PaneState(
+                    directory_path="/tmp",
+                    entries=(
+                        DirectoryEntryState(path, "zivo-terminal-response", "dir"),
+                        DirectoryEntryState("/tmp/sibling", "sibling", "dir"),
+                    ),
+                    cursor_path=path,
+                ),
+                current_pane=PaneState(
+                    directory_path=path,
+                    entries=(DirectoryEntryState(readme, "README.md", "file"),),
+                    cursor_path=readme,
+                ),
+                child_pane=PaneState(
+                    directory_path=path,
+                    entries=(),
+                    mode="preview",
+                    preview_path=readme,
+                    preview_content="# Title\npreview body\n",
+                ),
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test():
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_row_count(app, 1)
+        await app._dispatch_key_press("escape")
+        await app._dispatch_key_press("[")
+        await app._dispatch_key_press("0")
+        await app._dispatch_key_press("c")
+
+        notification = app.app_state.notification
+        assert notification is None or "Copied" not in notification.message
+
+
+@pytest.mark.asyncio
+async def test_textual_parser_ignores_terminal_device_attributes_response() -> None:
+    from textual._xterm_parser import XTermParser
+
+    from zivo.app import _install_textual_terminal_response_filters
+
+    _install_textual_terminal_response_filters()
+    parser = XTermParser()
+
+    events = list(parser.feed("\x1b[0c"))
+
+    assert events == []
+
+
+@pytest.mark.asyncio
+async def test_textual_parser_ignores_terminal_osc_color_response() -> None:
+    from textual._xterm_parser import XTermParser
+
+    from zivo.app import _install_textual_terminal_response_filters
+
+    _install_textual_terminal_response_filters()
+    parser = XTermParser()
+
+    events = list(parser.feed("\x1b]10;rgb:0000/0000/0000\x1b\\"))
+
+    assert events == []
+    assert list(parser.feed("")) == []
+
+
+@pytest.mark.asyncio
+async def test_textual_parser_ignores_split_terminal_osc_color_response() -> None:
+    from textual._xterm_parser import XTermParser
+
+    from zivo.app import _install_textual_terminal_response_filters
+
+    _install_textual_terminal_response_filters()
+    parser = XTermParser()
+
+    assert list(parser.feed("\x1b]10;rgb:0000")) == []
+    assert list(parser.feed("/0000/0000\x1b")) == []
+    assert list(parser.feed("\\")) == []
+    assert list(parser.feed("")) == []
+
+
+@pytest.mark.asyncio
 async def test_app_browsing_preview_scrolls_with_brackets() -> None:
     path = str(Path("/tmp/zivo-preview-scroll").resolve())
     readme = f"{path}/README.md"

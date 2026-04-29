@@ -92,7 +92,7 @@ def test_child_pane_renders_image_preview_as_ansi() -> None:
     )
 
     assert isinstance(renderable, Text)
-    assert renderable.plain == "@@"
+    assert renderable.plain == "@@\n"
     assert renderable.no_wrap is True
 
 

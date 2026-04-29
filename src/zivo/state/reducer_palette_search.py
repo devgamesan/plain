@@ -294,6 +294,35 @@ def handle_open_grep_result_in_editor(
     )
 
 
+def handle_open_grep_result_in_gui_editor(
+    state: AppState,
+    reduce_state,
+) -> ReduceResult:
+    del reduce_state
+    if state.command_palette.source == "selected_files_grep":
+        results = state.command_palette.sfg_results
+        message = state.command_palette.sfg_error_message or "No matching lines"
+    else:
+        results = state.command_palette.grep_search_results
+        message = state.command_palette.grep_search_error_message or "No matching lines"
+
+    if not results:
+        return notify(state, level="warning", message=message)
+
+    selected_result = results[
+        normalize_command_palette_cursor(state, state.command_palette.cursor_index)
+    ]
+    return run_external_launch_request(
+        replace(state, notification=None),
+        ExternalLaunchRequest(
+            kind="open_gui_editor",
+            path=selected_result.path,
+            line_number=selected_result.line_number,
+            column_number=selected_result.column_number,
+        ),
+    )
+
+
 def handle_open_find_result_in_editor(
     state: AppState,
     reduce_state,
@@ -310,6 +339,25 @@ def handle_open_find_result_in_editor(
     return run_external_launch_request(
         replace(state, notification=None),
         ExternalLaunchRequest(kind="open_editor", path=selected_result.path, line_number=None),
+    )
+
+
+def handle_open_find_result_in_gui_editor(
+    state: AppState,
+    reduce_state,
+) -> ReduceResult:
+    del reduce_state
+    results = state.command_palette.file_search_results
+    message = state.command_palette.file_search_error_message or "No matching files"
+    if not results:
+        return notify(state, level="warning", message=message)
+
+    selected_result = results[
+        normalize_command_palette_cursor(state, state.command_palette.cursor_index)
+    ]
+    return run_external_launch_request(
+        replace(state, notification=None),
+        ExternalLaunchRequest(kind="open_gui_editor", path=selected_result.path),
     )
 
 

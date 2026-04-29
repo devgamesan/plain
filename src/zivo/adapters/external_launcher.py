@@ -32,7 +32,7 @@ from zivo.adapters.platforms.base import (
 from zivo.adapters.platforms.base import (
     is_wsl_environment as _base_is_wsl_environment,
 )
-from zivo.models import EditorConfig, TerminalConfig
+from zivo.models import EditorConfig, GuiEditorConfig, TerminalConfig
 
 SystemNameResolver = Callable[[], str]
 CommandOutputReader = Callable[[Sequence[str]], str]
@@ -46,6 +46,13 @@ class ExternalLaunchAdapter(Protocol):
     def open_with_default_app(self, path: str) -> None: ...
 
     def open_in_editor(self, path: str, line_number: int | None = None) -> None: ...
+
+    def open_in_gui_editor(
+        self,
+        path: str,
+        line_number: int | None = None,
+        column_number: int | None = None,
+    ) -> None: ...
 
     def open_terminal(
         self, path: str, launch_mode: Literal["window", "foreground"] = "window"
@@ -81,12 +88,21 @@ class LocalExternalLaunchAdapter:
     )
     terminal_command_templates: TerminalConfig = field(default_factory=TerminalConfig)
     editor_command_template: EditorConfig = field(default_factory=EditorConfig)
+    gui_editor_command_template: GuiEditorConfig = field(default_factory=GuiEditorConfig)
 
     def open_with_default_app(self, path: str) -> None:
         self._platform_adapter().open_with_default_app(path)
 
     def open_in_editor(self, path: str, line_number: int | None = None) -> None:
         self._platform_adapter().open_in_editor(path, line_number)
+
+    def open_in_gui_editor(
+        self,
+        path: str,
+        line_number: int | None = None,
+        column_number: int | None = None,
+    ) -> None:
+        self._platform_adapter().open_in_gui_editor(path, line_number, column_number)
 
     def open_terminal(
         self, path: str, launch_mode: Literal["window", "foreground"] = "window"
@@ -121,6 +137,7 @@ class LocalExternalLaunchAdapter:
             clipboard_readers=self.clipboard_readers,
             terminal_command_templates=self.terminal_command_templates,
             editor_command_template=self.editor_command_template,
+            gui_editor_command_template=self.gui_editor_command_template,
         )
 
     def _command_exists(self, command: str) -> bool:

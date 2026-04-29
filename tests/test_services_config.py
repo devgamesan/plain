@@ -7,6 +7,7 @@ from zivo.models import (
     DisplayConfig,
     EditorConfig,
     FileSearchConfig,
+    GuiEditorConfig,
     HelpBarConfig,
     LoggingConfig,
     TerminalConfig,
@@ -53,6 +54,9 @@ def test_loader_creates_default_config_when_missing(tmp_path) -> None:
     assert '#   "konsole --working-directory {path}",' in written
     assert '#   "gnome-terminal --working-directory={path}",' in written
     assert '# command = "nvim -u NONE"' in written
+    assert "[gui_editor]" in written
+    assert 'command = "code --goto {path}:{line}:{column}"' in written
+    assert 'fallback_command = "code {path}"' in written
     assert 'theme = "textual-dark"' in written
     assert 'preview_syntax_theme = "auto"' in written
     assert "preview_max_kib = 64" in written
@@ -82,6 +86,10 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
 
         [editor]
         command = "nvim -u NONE"
+
+        [gui_editor]
+        command = "codium --goto {{path}}:{{line}}:{{column}}"
+        fallback_command = "codium {{path}}"
 
         [display]
         show_hidden_files = true
@@ -118,6 +126,8 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
     assert result.warnings == ()
     assert result.config.terminal.linux == ("konsole --working-directory {path}",)
     assert result.config.editor.command == "nvim -u NONE"
+    assert result.config.gui_editor.command == "codium --goto {path}:{line}:{column}"
+    assert result.config.gui_editor.fallback_command == "codium {path}"
     assert result.config.display.show_hidden_files is True
     assert result.config.display.show_directory_sizes is True
     assert result.config.display.enable_text_preview is False
@@ -147,6 +157,10 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
 
         [editor]
         command = "code --wait"
+
+        [gui_editor]
+        command = "{bad"
+        fallback_command = 1
 
         [display]
         show_hidden_files = true
@@ -179,6 +193,7 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
 
     assert result.config.terminal.linux == ("konsole --working-directory {path}",)
     assert result.config.editor.command is None
+    assert result.config.gui_editor == GuiEditorConfig()
     assert result.config.display.show_hidden_files is True
     assert result.config.display.show_directory_sizes is True
     assert result.config.display.enable_text_preview is True
@@ -194,7 +209,7 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
     assert result.config.logging.enabled is True
     assert result.config.logging.path is None
     assert result.config.bookmarks.paths == ()
-    assert len(result.warnings) == 18
+    assert len(result.warnings) == 20
 
 
 def test_loader_warns_for_invalid_editor_command_syntax(tmp_path) -> None:
@@ -226,6 +241,10 @@ def test_config_save_service_writes_normalized_config_file(tmp_path) -> None:
                 linux=("konsole --working-directory {path}",),
             ),
             editor=EditorConfig(command="nvim -u NONE"),
+            gui_editor=GuiEditorConfig(
+                command="codium --goto {path}:{line}:{column}",
+                fallback_command="codium {path}",
+            ),
             display=DisplayConfig(
                 show_hidden_files=True,
                 show_directory_sizes=True,
@@ -259,6 +278,8 @@ def test_config_save_service_writes_normalized_config_file(tmp_path) -> None:
     assert '# windows = ["wt -d {path}"]' in written
     assert 'linux = ["konsole --working-directory {path}"]' in written
     assert 'command = "nvim -u NONE"' in written
+    assert 'command = "codium --goto {path}:{line}:{column}"' in written
+    assert 'fallback_command = "codium {path}"' in written
     assert "show_hidden_files = true" in written
     assert "show_directory_sizes = true" in written
     assert "enable_text_preview = false" in written
@@ -410,6 +431,10 @@ def test_render_app_config_round_trips_full_config(tmp_path) -> None:
             macos=("open -a Terminal {path}",),
         ),
         editor=EditorConfig(command="nvim -u NONE"),
+        gui_editor=GuiEditorConfig(
+            command="codium --goto {path}:{line}:{column}",
+            fallback_command="codium {path}",
+        ),
         display=DisplayConfig(
             show_hidden_files=True,
             show_directory_sizes=False,

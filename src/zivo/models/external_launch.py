@@ -3,7 +3,13 @@
 from dataclasses import dataclass
 from typing import Literal
 
-ExternalLaunchKind = Literal["open_file", "open_editor", "open_terminal", "copy_paths"]
+ExternalLaunchKind = Literal[
+    "open_file",
+    "open_editor",
+    "open_gui_editor",
+    "open_terminal",
+    "copy_paths",
+]
 TerminalLaunchMode = Literal["window", "foreground"]
 
 
@@ -15,4 +21,5 @@ class ExternalLaunchRequest:
     path: str | None = None
     paths: tuple[str, ...] = ()
     line_number: int | None = None
+    column_number: int | None = None
     terminal_launch_mode: TerminalLaunchMode | None = None

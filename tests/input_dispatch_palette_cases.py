@@ -59,6 +59,38 @@ def test_palette_ctrl_e_opens_find_result_in_editor() -> None:
     assert actions == (SetNotification(None), OpenFindResultInEditor())
 
 
+def test_palette_ctrl_o_opens_grep_result_in_gui_editor() -> None:
+    from zivo.state.models import CommandPaletteState
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="grep_search",
+            query="test",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="ctrl+o")
+
+    assert actions == (SetNotification(None), OpenGrepResultInGuiEditor())
+
+
+def test_palette_ctrl_o_opens_find_result_in_gui_editor() -> None:
+    from zivo.state.models import CommandPaletteState
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="file_search",
+            query="test",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="ctrl+o")
+
+    assert actions == (SetNotification(None), OpenFindResultInGuiEditor())
+
+
 def test_palette_e_key_does_not_open_editor_for_other_sources() -> None:
     from zivo.state.models import CommandPaletteState
     state = replace(
@@ -328,4 +360,3 @@ def test_palette_backspace_updates_rff_field() -> None:
         SetNotification(None),
         SetFindReplaceField(field="find", value="tod"),
     )
-

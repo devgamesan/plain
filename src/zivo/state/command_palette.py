@@ -364,6 +364,14 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 enabled=single_target_entry.kind == "file",
             )
         )
+        items.append(
+            CommandPaletteItem(
+                id="open_in_gui_editor",
+                label="Open in GUI editor",
+                shortcut="O",
+                enabled=single_target_entry.kind == "file",
+            )
+        )
     elif has_target:
         items.append(
             CommandPaletteItem(
@@ -407,6 +415,12 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 id="open_file_manager",
                 label="Open in file manager",
                 shortcut="M",
+                enabled=True,
+            ),
+            CommandPaletteItem(
+                id="open_current_directory_in_gui_editor",
+                label="Open current directory in GUI editor",
+                shortcut=None,
                 enabled=True,
             ),
             CommandPaletteItem(

@@ -2801,8 +2801,8 @@ async def test_app_displays_browsing_help_bar() -> None:
     app = create_app(snapshot_loader=loader, initial_path=path)
     split_terminal_hint = " | t term" if os.name == "posix" else ""
     expected_help = (
-        "enter open | e edit | i info | space select | c copy | x cut | v paste | "
-        "d delete | r rename | z undo\n"
+        "enter open | e edit | O gui editor | i info | space select | "
+        "c copy | x cut | v paste | d delete | r rename | z undo\n"
         "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to | [ ] preview\n"
         "n new-file | N new-dir | H history | "
         f"b bookmarks{split_terminal_hint} | p transfer | : palette | q quit"

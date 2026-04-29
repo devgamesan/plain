@@ -261,7 +261,7 @@ wheels = [
 
 [[package]]
 name = "zivo"
-version = "0.17.1"
+version = "0.18.1"
 source = { editable = "." }
 dependencies = [
     { name = "send2trash" },

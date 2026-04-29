@@ -36,6 +36,7 @@ from .actions import (
     MoveCursorByPage,
     OpenNewTab,
     OpenPathInEditor,
+    OpenPathInGuiEditor,
     OpenPathWithDefaultApp,
     OpenTerminalAtPath,
     PasteClipboard,
@@ -89,6 +90,7 @@ BROWSING_KEYMAP = {
     "delete": "delete_targets",
     "shift+delete": "permanent_delete_targets",
     "e": "open_in_editor",
+    "O": "open_in_gui_editor",
     "right": "enter_directory",
     "l": "enter_directory",
     "enter": "enter_or_open",
@@ -419,6 +421,12 @@ def handle_open_in_editor(_state: AppState, ctx: BrowsingCtx) -> DispatchedActio
     return warn("Editor launch requires a file")
 
 
+def handle_open_in_gui_editor(_state: AppState, ctx: BrowsingCtx) -> DispatchedActions:
+    if ctx.cursor_entry is not None and ctx.cursor_entry.kind == "file":
+        return supported(OpenPathInGuiEditor(ctx.cursor_entry.path))
+    return warn("GUI editor launch requires a file")
+
+
 def handle_enter_directory(_state: AppState, ctx: BrowsingCtx) -> DispatchedActions:
     if ctx.cursor_entry is not None and ctx.cursor_entry.kind == "dir":
         return supported(EnterCursorDirectory())
@@ -482,6 +490,7 @@ BROWSING_COMPLEX_DISPATCH: dict[str, BrowsingHandler] = {
     "delete_targets": handle_delete_targets,
     "permanent_delete_targets": handle_permanent_delete_targets,
     "open_in_editor": handle_open_in_editor,
+    "open_in_gui_editor": handle_open_in_gui_editor,
     "enter_directory": handle_enter_directory,
 }
 

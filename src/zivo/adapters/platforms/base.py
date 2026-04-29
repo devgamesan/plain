@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from zivo.models import EditorConfig, TerminalConfig
+from zivo.models import EditorConfig, GuiEditorConfig, TerminalConfig
 
 PlatformKind = Literal["linux", "wsl", "darwin", "windows"]
 CommandRunner = Callable[[Sequence[str], str | None, str | None], None]
@@ -47,6 +47,7 @@ class PlatformAdapterContext:
     clipboard_readers: tuple[ClipboardReader, ...]
     terminal_command_templates: TerminalConfig
     editor_command_template: EditorConfig
+    gui_editor_command_template: GuiEditorConfig
 
 
 @dataclass(frozen=True)
@@ -80,6 +81,24 @@ class BasePlatformLaunchAdapter:
                 errors.append(str(error) or f"{command[0]} failed")
 
         raise OSError(errors[-1] if errors else f"Failed to open {resolved_path} in editor")
+
+    def open_in_gui_editor(
+        self,
+        path: str,
+        line_number: int | None = None,
+        column_number: int | None = None,
+    ) -> None:
+        resolved_path = _resolve_existing_path(path)
+        cwd = str(resolved_path if resolved_path.is_dir() else resolved_path.parent)
+        self._run_first_available(
+            self._gui_editor_commands(
+                str(resolved_path),
+                line_number=line_number,
+                column_number=column_number,
+            ),
+            context=f"open {resolved_path} in GUI editor",
+            cwd=cwd,
+        )
 
     def open_terminal(
         self,
@@ -313,6 +332,58 @@ class BasePlatformLaunchAdapter:
                     commands.append(parsed_command)
         return _dedupe_commands(commands)
 
+    def _gui_editor_commands(
+        self,
+        path: str,
+        *,
+        line_number: int | None = None,
+        column_number: int | None = None,
+    ) -> tuple[tuple[str, ...], ...]:
+        config = self.context.gui_editor_command_template
+        commands: list[tuple[str, ...]] = []
+        if line_number is not None:
+            commands.append(
+                _render_gui_editor_template(
+                    config.command,
+                    path,
+                    line_number=line_number,
+                    column_number=column_number,
+                    platform_kind=self.platform_kind,
+                )
+            )
+            if config.fallback_command:
+                commands.append(
+                    _render_gui_editor_template(
+                        config.fallback_command,
+                        path,
+                        line_number=line_number,
+                        column_number=column_number,
+                        platform_kind=self.platform_kind,
+                    )
+                )
+        else:
+            if config.fallback_command:
+                commands.append(
+                    _render_gui_editor_template(
+                        config.fallback_command,
+                        path,
+                        line_number=1,
+                        column_number=1,
+                        platform_kind=self.platform_kind,
+                    )
+                )
+            if config.command:
+                commands.append(
+                    _render_gui_editor_template(
+                        config.command,
+                        path,
+                        line_number=1,
+                        column_number=1,
+                        platform_kind=self.platform_kind,
+                    )
+                )
+        return _dedupe_commands(tuple(command for command in commands if command))
+
 
 def _resolve_existing_path(path: str) -> Path:
     resolved_path = Path(path).expanduser().resolve()
@@ -334,6 +405,25 @@ def _render_template_path(path: str, template_key: str) -> str:
 
         return subprocess.list2cmdline([path])
     return shlex.quote(path)
+
+
+def _render_gui_editor_template(
+    template: str,
+    path: str,
+    *,
+    line_number: int,
+    column_number: int | None,
+    platform_kind: PlatformKind,
+) -> tuple[str, ...]:
+    if not template.strip():
+        return ()
+    template_key = "windows" if platform_kind == "windows" else "linux"
+    rendered = template.format(
+        path=_render_template_path(path, template_key),
+        line=max(1, line_number),
+        column=max(1, column_number or 1),
+    )
+    return tuple(shlex.split(rendered, posix=platform_kind != "windows"))
 
 
 def _windows_set_location_command(path: str) -> str:

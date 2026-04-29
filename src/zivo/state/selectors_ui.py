@@ -140,7 +140,10 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             if state.config.help_bar.palette_file_search:
                 return HelpBarState(state.config.help_bar.palette_file_search)
             return HelpBarState(
-                ("type filename | ↑↓ or Ctrl+n/p select | enter jump | Ctrl+e edit | esc cancel",)
+                (
+                    "type filename | ↑↓ or Ctrl+n/p select | enter jump | "
+                    "Ctrl+e edit | Ctrl+o GUI | esc cancel",
+                )
             )
         if state.command_palette is not None and state.command_palette.source == "grep_search":
             if state.config.help_bar.palette_grep_search:
@@ -148,7 +151,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             return HelpBarState(
                 (
                     "type text / tab fields / ↑↓ or Ctrl+n/p select | "
-                    "enter jump | Ctrl+e edit | esc cancel",
+                    "enter jump | Ctrl+e edit | Ctrl+o GUI | esc cancel",
                 )
             )
         if (
@@ -171,7 +174,10 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             and state.command_palette.source == "selected_files_grep"
         ):
             return HelpBarState(
-                ("type keyword / ↑↓ or Ctrl+n/p select | enter jump | Ctrl+e edit | esc cancel",)
+                (
+                    "type keyword / ↑↓ or Ctrl+n/p select | enter jump | "
+                    "Ctrl+e edit | Ctrl+o GUI | esc cancel",
+                )
             )
         if state.command_palette is not None and state.command_palette.source == "history":
             if state.config.help_bar.palette_history:
@@ -214,8 +220,8 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     )
     return HelpBarState(
         (
-            "enter open | e edit | i info | space select | c copy | x cut | v paste | "
-            "d delete | r rename | z undo",
+            "enter open | e edit | O gui editor | i info | space select | "
+            "c copy | x cut | v paste | d delete | r rename | z undo",
             "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to | [ ] preview",
             browsing_shortcuts,
         )

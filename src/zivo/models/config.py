@@ -30,6 +30,14 @@ class EditorConfig:
 
 
 @dataclass(frozen=True)
+class GuiEditorConfig:
+    """GUI editor launch command templates configured by the user."""
+
+    command: str = "code --goto {path}:{line}:{column}"
+    fallback_command: str = "code {path}"
+
+
+@dataclass(frozen=True)
 class DisplayConfig:
     """Display-related startup defaults."""
 
@@ -110,6 +118,7 @@ class AppConfig:
 
     terminal: TerminalConfig = field(default_factory=TerminalConfig)
     editor: EditorConfig = field(default_factory=EditorConfig)
+    gui_editor: GuiEditorConfig = field(default_factory=GuiEditorConfig)
     display: DisplayConfig = field(default_factory=DisplayConfig)
     behavior: BehaviorConfig = field(default_factory=BehaviorConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)

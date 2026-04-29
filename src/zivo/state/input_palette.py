@@ -12,7 +12,9 @@ from .actions import (
     CycleSelectedFilesGrepField,
     MoveCommandPaletteCursor,
     OpenFindResultInEditor,
+    OpenFindResultInGuiEditor,
     OpenGrepResultInEditor,
+    OpenGrepResultInGuiEditor,
     SelectedFilesGrepKeywordChanged,
     SetCommandPaletteQuery,
     SetFindReplaceField,
@@ -260,6 +262,12 @@ def dispatch_command_palette_input(
             return supported(OpenGrepResultInEditor())
         if state.command_palette.source == "file_search":
             return supported(OpenFindResultInEditor())
+
+    if key == "ctrl+o" and state.command_palette is not None:
+        if state.command_palette.source in {"grep_search", "selected_files_grep"}:
+            return supported(OpenGrepResultInGuiEditor())
+        if state.command_palette.source == "file_search":
+            return supported(OpenFindResultInGuiEditor())
 
     if character and character.isprintable():
         if palette_source == "grep_search":

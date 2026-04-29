@@ -32,7 +32,9 @@ from zivo.state.actions import (
     GrepSearchCompleted,
     GrepSearchFailed,
     OpenFindResultInEditor,
+    OpenFindResultInGuiEditor,
     OpenGrepResultInEditor,
+    OpenGrepResultInGuiEditor,
     SelectedFilesGrepKeywordChanged,
     SetCommandPaletteQuery,
     SetGrepSearchField,
@@ -132,6 +134,72 @@ def test_open_grep_result_in_editor_keeps_palette_state() -> None:
             ),
         ),
     )
+
+
+def test_open_find_result_in_gui_editor_emits_external_launch_effect() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            query="readme",
+            file_search_results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    display_path="README.md",
+                ),
+            ),
+            cursor_index=0,
+        ),
+    )
+
+    result = reduce_app_state(state, OpenFindResultInGuiEditor())
+
+    assert result.effects == (
+        RunExternalLaunchEffect(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="open_gui_editor",
+                path="/home/tadashi/develop/zivo/README.md",
+            ),
+        ),
+    )
+
+
+def test_open_grep_result_in_gui_editor_uses_line_and_column() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginGrepSearch())
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            query="reduce_app_state",
+            grep_search_results=(
+                GrepSearchResultState(
+                    path="/home/tadashi/develop/zivo/src/zivo/state/reducer.py",
+                    display_path="src/zivo/state/reducer.py",
+                    line_number=15,
+                    line_text="def reduce_app_state(state: AppState, action: Action)",
+                    column_number=5,
+                ),
+            ),
+            cursor_index=0,
+        ),
+    )
+
+    result = reduce_app_state(state, OpenGrepResultInGuiEditor())
+
+    assert result.effects == (
+        RunExternalLaunchEffect(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="open_gui_editor",
+                path="/home/tadashi/develop/zivo/src/zivo/state/reducer.py",
+                line_number=15,
+                column_number=5,
+            ),
+        ),
+    )
+
 
 def test_begin_file_search_enters_find_file_mode() -> None:
     next_state = _reduce_state(build_initial_app_state(), BeginFileSearch())

@@ -36,6 +36,7 @@ from .actions import (
     GoToTransferHome,
     OpenNewTab,
     OpenPathInEditor,
+    OpenPathInGuiEditor,
     OpenPathWithDefaultApp,
     OpenTerminalAtPath,
     PasteClipboard,
@@ -282,6 +283,30 @@ def _run_open_in_editor_command(
     if entry.kind != "file":
         return notify(next_state, level="warning", message="Can only open files in editor")
     return reduce_state(next_state, OpenPathInEditor(path=entry.path))
+
+
+def _run_open_in_gui_editor_command(
+    state: AppState,
+    next_state: AppState,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    entry = single_target_entry(state)
+    if entry is None:
+        return notify(
+            next_state,
+            level="warning",
+            message="Open in GUI editor requires a single target",
+        )
+    if entry.kind != "file":
+        return notify(next_state, level="warning", message="Can only open files in GUI editor")
+    return reduce_state(next_state, OpenPathInGuiEditor(path=entry.path))
+
+
+def _run_open_current_directory_in_gui_editor_command(
+    state: AppState,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return reduce_state(state, OpenPathInGuiEditor(path=state.current_path))
 
 
 def _run_extract_archive_command(
@@ -544,12 +569,16 @@ def _run_palette_command_item(
         return _run_extract_archive_command(state, next_state, reduce_state)
     if item_id == "open_in_editor":
         return _run_open_in_editor_command(state, next_state, reduce_state)
+    if item_id == "open_in_gui_editor":
+        return _run_open_in_gui_editor_command(state, next_state, reduce_state)
     if item_id == "delete_targets":
         return _run_delete_targets_command(state, next_state, reduce_state)
     if item_id == "empty_trash":
         return _run_empty_trash_command(next_state, reduce_state)
     if item_id == "open_file_manager":
         return _run_open_file_manager_command(next_state, reduce_state)
+    if item_id == "open_current_directory_in_gui_editor":
+        return _run_open_current_directory_in_gui_editor_command(next_state, reduce_state)
     if item_id == "open_terminal":
         return _run_open_terminal_command(next_state, reduce_state)
     if item_id == "run_shell_command":

@@ -519,6 +519,24 @@ def test_browsing_e_on_file_dispatches_open_in_editor() -> None:
     )
 
 
+def test_browsing_shift_o_on_file_dispatches_open_in_gui_editor() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        current_pane=replace(
+            state.current_pane,
+            cursor_path="/home/tadashi/develop/zivo/README.md",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="O", character="O")
+
+    assert actions == (
+        SetNotification(None),
+        OpenPathInGuiEditor("/home/tadashi/develop/zivo/README.md"),
+    )
+
+
 def test_browsing_e_on_directory_warns() -> None:
     state = build_initial_app_state()
 

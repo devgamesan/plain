@@ -57,7 +57,7 @@ zivo aims to be usable by everyone without complex configuration, plugin install
 
   ![](docs/resources/screen-find-command.png)
 
-- Recursive grep search is available under the current directory. You can jump from search results directly to the matching file. Context lines around each match can be previewed, making it easy to find what you are looking for. The palette includes `Filter: Filename`, `Include extensions`, and `Exclude extensions` fields so you can narrow matches before opening them. You can also open the matching location directly in a terminal editor.
+- Recursive grep search is available under the current directory. You can jump from search results directly to the matching file. Context lines around each match can be previewed, making it easy to find what you are looking for. The palette includes `Filter: Filename`, `Include extensions`, and `Exclude extensions` fields so you can narrow matches before opening them. You can also open the matching location directly in a terminal editor or GUI editor.
 
   ![](docs/resources/screen-grep-command.png)
 
@@ -77,7 +77,7 @@ zivo aims to be usable by everyone without complex configuration, plugin install
 
   ![](docs/resources/screen-history.png)
 
-- Press `e` on a file to switch into a terminal editor in the current terminal session. Editors such as `nvim`, `vim`, and `nano` can be used seamlessly. The following shows an example of opening Vim from zivo.
+- Press `e` on a file to switch into a terminal editor in the current terminal session. Press `O` to open the focused file in a configured GUI editor such as VS Code. Editors such as `nvim`, `vim`, and `nano` can be used seamlessly. The following shows an example of opening Vim from zivo.
 
   ![](docs/resources/screen-terminal-editor.png)
 
@@ -233,6 +233,7 @@ You can open an external terminal directly from zivo. Press `t` to suspend zivo 
 | `Shift+Delete` | Permanently delete selected items (fn + Shift + Delete on macOS) |
 | `i` | Show file attributes |
 | `e` | Open file in terminal editor |
+| `O` | Open file in GUI editor |
 | `!` | Execute shell command |
 | `f` | Find files (recursive search) |
 | `g` | Grep search |
@@ -317,6 +318,7 @@ You can open an external terminal directly from zivo. Press `t` to suspend zivo 
 | `Home` / `End` | Jump to first/last result |
 | `Enter` | Open selected result |
 | `Ctrl+e` | Open selected result in editor |
+| `Ctrl+o` | Open selected result in GUI editor |
 | `Esc` | Close search |
 
 **Note**: In search results mode, use arrow keys to navigate. `j`/`k` keys are used for typing the search query.
@@ -376,7 +378,7 @@ The tab strip is only shown when two or more browser tabs are open.
 | `Close current tab` | Two or more tabs are open | Closes the active browser tab. The last remaining tab cannot be closed. Also available with `w`. |
 | `Find files` | Always | Opens recursive file search. |
 | `Grep search` | Always | Opens recursive grep search (`ripgrep` / `rg` required on `PATH`) with keyword, filename, include-extension, and exclude-extension filters. |
-| `Grep in selected files` | A file is focused or one or more files are selected in the current directory | Opens grep search limited to the selected files, or the focused file when nothing is explicitly selected. Type a keyword to search within those files via grep, and matching lines appear in the palette. Use `↑` / `↓` or `Ctrl+n` / `Ctrl+p` to move between results, `Enter` to navigate to the file, and `Ctrl+e` to open the file in a terminal editor. |
+| `Grep in selected files` | A file is focused or one or more files are selected in the current directory | Opens grep search limited to the selected files, or the focused file when nothing is explicitly selected. Type a keyword to search within those files via grep, and matching lines appear in the palette. Use `↑` / `↓` or `Ctrl+n` / `Ctrl+p` to move between results, `Enter` to navigate to the file, `Ctrl+e` to open the file in a terminal editor, and `Ctrl+o` to open the matching location in a GUI editor. |
 | `History search` | Always | Opens directory history list and jump to a selected directory. |
 | `Show bookmarks` | Always | Opens the saved bookmark list and jumps to the selected directory. |
 | `Go back` | Directory history has a previous entry | Moves to the previous directory in history. |
@@ -396,10 +398,12 @@ The tab strip is only shown when two or more browser tabs are open.
 | `Compress as zip` | At least one target is selected or focused | Starts zip compression for the selected items, or the focused item when nothing is selected. The destination input accepts absolute and relative paths resolved from the current directory, defaults to a `.zip` path next to the selected content, and asks for confirmation before overwriting an existing zip file. |
 | `Extract archive` | Exactly one supported archive file is selected or focused | Starts archive extraction for `.zip`, `.tar`, `.tar.gz`, or `.tar.bz2`. The destination input accepts absolute and relative paths. Relative paths are resolved from the archive file's parent directory, and the default value is a same-name directory next to the archive. Existing destination paths are confirmed before extraction, and the status bar shows entry-count progress while the extraction runs. |
 | `Open in editor` | Exactly one file is selected or focused | Opens the focused file in a terminal editor, using `editor.command` -> `$EDITOR` -> built-in defaults. |
+| `Open in GUI editor` | Exactly one file is selected or focused | Opens the focused file in a configured GUI editor. Also available with `O`. |
 | `Copy path` | At least one target is selected or focused | Copies the selected path list, or the focused path when nothing is selected, to the system clipboard. Also available with `C`. |
 | `Move to trash` | At least one target is selected or focused | Moves the selected items, or the focused item, to trash (confirmation is enabled by default and can be configured). On Windows this uses the Recycle Bin via `send2trash`. |
 | `Empty trash` | Always | Permanently deletes all items from the trash. Shows a confirmation dialog before emptying. On Windows this uses PowerShell's `Clear-RecycleBin` to empty the Recycle Bin. |
 | `Open in file manager` | Always | Opens the current directory in the OS file manager. Also available with `M`. |
+| `Open current directory in GUI editor` | Always | Opens zivo's current directory in the configured GUI editor. |
 | `Open terminal` | Always | Launches an external terminal rooted at zivo's current directory, using `config.toml` templates before built-in fallbacks. Also available with `T` and `t`. |
 | `Run shell command` | Always | Opens a one-line shell command dialog, runs the command in the current directory in the background, and returns the first output line or failure summary in the status bar. On Windows, zivo prefers `powershell.exe`, then `pwsh`, then `cmd.exe`, so command syntax follows the selected Windows shell rather than POSIX `sh`. Also available with `!`. |
 | `Bookmark this directory` / `Remove bookmark` | Always | Saves or removes the current directory in `[bookmarks].paths`. The label reflects whether the current directory is already bookmarked. Also available with `B`. |
@@ -425,6 +429,8 @@ The supported settings are:
 | `terminal` | `macos` | Array of shell-style command templates | Optional terminal launch commands for macOS, validated the same way as Linux entries. |
 | `terminal` | `windows` | Array of shell-style command templates | Optional terminal launch commands for Windows and WSL bridge workflows. |
 | `editor` | `command` | Shell-style string, for example `nvim -u NONE` | Optional terminal editor command used by `e`. Do not include the file path; zivo appends it automatically. Unsupported GUI editors or invalid commands are ignored. |
+| `gui_editor` | `command` | Shell-style command template | GUI editor command used when line/column information is available. Use `{path}`, `{line}`, and `{column}`. Defaults to `code --goto {path}:{line}:{column}`. |
+| `gui_editor` | `fallback_command` | Shell-style command template | GUI editor command used when opening a path without a match location, or when `command` fails. Use `{path}`. Defaults to `code {path}`. |
 | `display` | `show_hidden_files` | `true` / `false` | Default hidden-file visibility when the app starts. |
 | `display` | `show_directory_sizes` | `true` / `false` | Shows recursive directory sizes in the current pane. Defaults to `true`. Large directories can be expensive to scan. zivo also calculates sizes automatically while the main pane is sorted by `size`. |
 | `display` | `enable_text_preview` | `true` / `false` | Shows text-file previews in the right pane. Defaults to `true`. grep result context preview follows the same setting. |
@@ -457,6 +463,10 @@ windows = ["wt -d {path}"]
 
 [editor]
 command = "nvim -u NONE"
+
+[gui_editor]
+command = "code --goto {path}:{line}:{column}"
+fallback_command = "code {path}"
 
 [display]
 show_hidden_files = false

@@ -46,6 +46,18 @@ class LiveExternalLaunchService:
                 raise OSError(_format_editor_error(path, str(error))) from error
             return
 
+        if request.kind == "open_gui_editor":
+            path = _require_path(request)
+            try:
+                self.adapter.open_in_gui_editor(
+                    path,
+                    line_number=request.line_number,
+                    column_number=request.column_number,
+                )
+            except OSError as error:
+                raise OSError(_format_gui_editor_error(path, str(error))) from error
+            return
+
         path = _require_path(request)
         try:
             self.adapter.open_terminal(path, request.terminal_launch_mode or "window")
@@ -83,6 +95,10 @@ def _format_open_error(path: str, detail: str) -> str:
 
 def _format_editor_error(path: str, detail: str) -> str:
     return f"Failed to open {path} in editor: {detail}"
+
+
+def _format_gui_editor_error(path: str, detail: str) -> str:
+    return f"Failed to open {path} in GUI editor: {detail}"
 
 
 def _format_terminal_error(path: str, detail: str) -> str:

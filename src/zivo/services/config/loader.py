@@ -14,6 +14,7 @@ from zivo.models import (
     DisplayConfig,
     EditorConfig,
     FileSearchConfig,
+    GuiEditorConfig,
     HelpBarConfig,
     LoggingConfig,
     TerminalConfig,
@@ -86,6 +87,7 @@ class AppConfigLoader:
             config=AppConfig(
                 terminal=load_terminal_config(document.get("terminal"), warnings),
                 editor=load_editor_config(document.get("editor"), warnings),
+                gui_editor=load_gui_editor_config(document.get("gui_editor"), warnings),
                 display=load_display_config(document.get("display"), warnings),
                 behavior=load_behavior_config(document.get("behavior"), warnings),
                 logging=load_logging_config(document.get("logging"), warnings),
@@ -259,6 +261,53 @@ def load_editor_config(section: object, warnings: list[str]) -> EditorConfig:
         )
         return EditorConfig()
     return EditorConfig(command=command)
+
+
+def load_gui_editor_config(section: object, warnings: list[str]) -> GuiEditorConfig:
+    config = GuiEditorConfig()
+    validated = validate_section_dict(section, "gui_editor", warnings)
+    if validated is None:
+        return config
+
+    command = _read_gui_editor_template(
+        validated,
+        "command",
+        config.command,
+        warnings,
+    )
+    fallback_command = _read_gui_editor_template(
+        validated,
+        "fallback_command",
+        config.fallback_command,
+        warnings,
+    )
+    return GuiEditorConfig(command=command, fallback_command=fallback_command)
+
+
+def _read_gui_editor_template(
+    section: dict[str, object],
+    key: str,
+    default: str,
+    warnings: list[str],
+) -> str:
+    value = section.get(key)
+    if value is None:
+        return default
+    if not isinstance(value, str) or not value.strip():
+        warnings.append(f"gui_editor.{key} must be a non-empty string; using default.")
+        return default
+    try:
+        rendered = value.format(path=VALIDATION_PATH, line=1, column=1)
+        parsed = tuple(shlex.split(rendered))
+    except (IndexError, KeyError, ValueError) as error:
+        warnings.append(
+            f"gui_editor.{key} is not a valid shell-style template: {error}; using default."
+        )
+        return default
+    if not parsed:
+        warnings.append(f"gui_editor.{key} did not produce an executable command; using default.")
+        return default
+    return value
 
 
 def load_behavior_config(section: object, warnings: list[str]) -> BehaviorConfig:

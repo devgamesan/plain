@@ -590,6 +590,7 @@ class zivoApp(App[None]):
             adapter=LocalExternalLaunchAdapter(
                 terminal_command_templates=app_config.terminal,
                 editor_command_template=app_config.editor,
+                gui_editor_command_template=app_config.gui_editor,
             )
         )
 

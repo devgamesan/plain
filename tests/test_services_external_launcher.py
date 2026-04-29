@@ -8,7 +8,7 @@ import pytest
 
 from zivo.adapters import LocalExternalLaunchAdapter
 from zivo.adapters.external_launcher import _build_command_candidate, _run_foreground_command
-from zivo.models import EditorConfig, ExternalLaunchRequest, TerminalConfig
+from zivo.models import EditorConfig, ExternalLaunchRequest, GuiEditorConfig, TerminalConfig
 from zivo.services import LiveExternalLaunchService
 
 
@@ -38,6 +38,7 @@ class StubForegroundRunner:
 class StubExternalLaunchAdapter:
     opened_paths: list[str] = field(default_factory=list)
     edited_paths: list[str] = field(default_factory=list)
+    gui_edited_paths: list[tuple[str, int | None, int | None]] = field(default_factory=list)
     terminal_paths: list[str] = field(default_factory=list)
     clipboard_payloads: list[str] = field(default_factory=list)
 
@@ -46,6 +47,14 @@ class StubExternalLaunchAdapter:
 
     def open_in_editor(self, path: str) -> None:
         self.edited_paths.append(path)
+
+    def open_in_gui_editor(
+        self,
+        path: str,
+        line_number: int | None = None,
+        column_number: int | None = None,
+    ) -> None:
+        self.gui_edited_paths.append((path, line_number, column_number))
 
     def open_terminal(self, path: str, launch_mode: str = "window") -> None:
         self.terminal_paths.append(path)
@@ -531,6 +540,22 @@ def test_live_external_launch_service_opens_terminal_with_adapter() -> None:
     assert adapter.terminal_paths == ["/tmp/zivo"]
 
 
+def test_live_external_launch_service_opens_gui_editor_with_adapter() -> None:
+    adapter = StubExternalLaunchAdapter()
+    service = LiveExternalLaunchService(adapter=adapter)
+
+    service.execute(
+        ExternalLaunchRequest(
+            kind="open_gui_editor",
+            path="/tmp/zivo/README.md",
+            line_number=12,
+            column_number=4,
+        )
+    )
+
+    assert adapter.gui_edited_paths == [("/tmp/zivo/README.md", 12, 4)]
+
+
 def test_live_external_launch_service_opens_terminal_in_foreground_mode(tmp_path) -> None:
     runner = StubForegroundRunner()
     adapter = LocalExternalLaunchAdapter(
@@ -739,6 +764,69 @@ def test_live_external_launch_service_opens_editor_with_line_number(tmp_path) ->
 
     assert runner.executed == [
         (("vim", "+42", str(readme.resolve())), str(tmp_path.resolve()))
+    ]
+
+
+def test_local_external_launch_adapter_opens_gui_editor_with_line_and_column(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("plain\n", encoding="utf-8")
+    runner = StubCommandRunner()
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Linux",
+        command_available=lambda command: command if command == "code" else None,
+        command_runner=runner,
+        gui_editor_command_template=GuiEditorConfig(),
+        text_file_reader=lambda _path: "Linux version 6.8.0\n",
+    )
+
+    adapter.open_in_gui_editor(str(readme), line_number=42, column_number=7)
+
+    assert runner.executed == [
+        (("code", "--goto", f"{readme.resolve()}:42:7"), str(tmp_path.resolve()), None)
+    ]
+
+
+def test_local_external_launch_adapter_uses_gui_editor_fallback_without_line(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("plain\n", encoding="utf-8")
+    runner = StubCommandRunner()
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Linux",
+        command_available=lambda command: command if command == "code" else None,
+        command_runner=runner,
+        gui_editor_command_template=GuiEditorConfig(),
+        text_file_reader=lambda _path: "Linux version 6.8.0\n",
+    )
+
+    adapter.open_in_gui_editor(str(readme))
+
+    assert runner.executed == [
+        (("code", str(readme.resolve())), str(tmp_path.resolve()), None)
+    ]
+
+
+def test_local_external_launch_adapter_falls_back_for_gui_editor_when_command_fails(
+    tmp_path,
+) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("plain\n", encoding="utf-8")
+    runner = StubCommandRunner(failing_commands={"codium"})
+    adapter = LocalExternalLaunchAdapter(
+        system_name_resolver=lambda: "Linux",
+        command_available=lambda command: command if command in {"codium", "code"} else None,
+        command_runner=runner,
+        gui_editor_command_template=GuiEditorConfig(
+            command="codium --goto {path}:{line}:{column}",
+            fallback_command="code {path}",
+        ),
+        text_file_reader=lambda _path: "Linux version 6.8.0\n",
+    )
+
+    adapter.open_in_gui_editor(str(readme), line_number=3, column_number=2)
+
+    assert runner.executed == [
+        (("codium", "--goto", f"{readme.resolve()}:3:2"), str(tmp_path.resolve()), None),
+        (("code", str(readme.resolve())), str(tmp_path.resolve()), None),
     ]
 
 

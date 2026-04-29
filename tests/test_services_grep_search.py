@@ -29,6 +29,20 @@ def test_live_grep_search_service_matches_file_contents_recursively(tmp_path) ->
     results = service.search(str(root), "todo", show_hidden=False)
 
     assert [result.display_label for result in results] == ["docs/README.md:1: TODO: update docs"]
+    assert [result.column_number for result in results] == [1]
+
+
+@skip_if_no_rg
+def test_live_grep_search_service_records_first_match_column(tmp_path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "README.md").write_text("prefix TODO item\n", encoding="utf-8")
+
+    service = LiveGrepSearchService()
+
+    results = service.search(str(root), "todo", show_hidden=False)
+
+    assert [result.column_number for result in results] == [8]
 
 
 @skip_if_no_rg

@@ -146,6 +146,7 @@ from .actions_navigation import (
     MoveTransferCursorByPage,
     OpenNewTab,
     OpenPathInEditor,
+    OpenPathInGuiEditor,
     OpenPathWithDefaultApp,
     OpenTerminalAtPath,
     PasteClipboardToTransferPane,
@@ -186,7 +187,9 @@ from .actions_palette import (
     GrepSearchFailed,
     MoveCommandPaletteCursor,
     OpenFindResultInEditor,
+    OpenFindResultInGuiEditor,
     OpenGrepResultInEditor,
+    OpenGrepResultInGuiEditor,
     SelectedFilesGrepKeywordChanged,
     SetCommandPaletteQuery,
     SetFindReplaceField,
@@ -293,6 +296,8 @@ Action = (
     | TextReplaceApplyFailed
     | OpenGrepResultInEditor
     | OpenFindResultInEditor
+    | OpenGrepResultInGuiEditor
+    | OpenFindResultInGuiEditor
     | BeginFilterInput
     | ConfirmFilterInput
     | CancelFilterInput
@@ -342,6 +347,7 @@ Action = (
     | ExitCurrentPath
     | OpenPathWithDefaultApp
     | OpenPathInEditor
+    | OpenPathInGuiEditor
     | OpenTerminalAtPath
     | ShowAttributes
     | CopyPathsToClipboard

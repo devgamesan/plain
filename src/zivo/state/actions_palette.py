@@ -268,3 +268,13 @@ class OpenGrepResultInEditor:
 @dataclass(frozen=True)
 class OpenFindResultInEditor:
     """Open the selected file search result in editor."""
+
+
+@dataclass(frozen=True)
+class OpenGrepResultInGuiEditor:
+    """Open the selected grep search result in a GUI editor."""
+
+
+@dataclass(frozen=True)
+class OpenFindResultInGuiEditor:
+    """Open the selected file search result in a GUI editor."""

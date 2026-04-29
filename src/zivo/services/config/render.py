@@ -19,6 +19,7 @@ def render_app_config(config: AppConfig) -> str:
     sections = [
         render_terminal_section(config),
         render_editor_section(config),
+        render_gui_editor_section(config),
         render_display_section(config),
         render_behavior_section(config),
         render_logging_section(config),
@@ -60,6 +61,18 @@ def render_editor_section(config: AppConfig) -> str:
         '# command = "nvim -u NONE"\n'
         '# command = "emacs -nw"\n'
         f"command = {command}"
+    )
+
+
+def render_gui_editor_section(config: AppConfig) -> str:
+    return (
+        "[gui_editor]\n"
+        "# Optional GUI editor templates for `O` and search-result Ctrl+o.\n"
+        "# Use {path}, {line}, and {column}. Defaults target VS Code.\n"
+        '# command = "code --goto {path}:{line}:{column}"\n'
+        '# fallback_command = "code {path}"\n'
+        f"command = {render_toml_string(config.gui_editor.command)}\n"
+        f"fallback_command = {render_toml_string(config.gui_editor.fallback_command)}"
     )
 
 

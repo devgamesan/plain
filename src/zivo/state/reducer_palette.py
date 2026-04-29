@@ -34,7 +34,9 @@ from .actions import (
     GrepSearchFailed,
     MoveCommandPaletteCursor,
     OpenFindResultInEditor,
+    OpenFindResultInGuiEditor,
     OpenGrepResultInEditor,
+    OpenGrepResultInGuiEditor,
     SelectedFilesGrepKeywordChanged,
     SetCommandPaletteQuery,
     SetFindReplaceField,
@@ -99,7 +101,9 @@ from .reducer_palette_search import (
     handle_grep_search_completed,
     handle_grep_search_failed,
     handle_open_find_result_in_editor,
+    handle_open_find_result_in_gui_editor,
     handle_open_grep_result_in_editor,
+    handle_open_grep_result_in_gui_editor,
     handle_set_file_search_query,
     handle_set_grep_search_field,
     handle_sfg_keyword_changed,
@@ -477,6 +481,8 @@ _PALETTE_HANDLERS: dict[type[Action], _PaletteHandler] = {
     TextReplaceApplyFailed: lambda s, a, r: handle_text_replace_apply_failed(s, a),
     OpenGrepResultInEditor: lambda s, a, r: handle_open_grep_result_in_editor(s, r),
     OpenFindResultInEditor: lambda s, a, r: handle_open_find_result_in_editor(s, r),
+    OpenGrepResultInGuiEditor: lambda s, a, r: handle_open_grep_result_in_gui_editor(s, r),
+    OpenFindResultInGuiEditor: lambda s, a, r: handle_open_find_result_in_gui_editor(s, r),
 }
 
 

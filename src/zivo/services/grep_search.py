@@ -170,6 +170,7 @@ class LiveGrepSearchService:
             path_text = data.get("path", {}).get("text")
             raw_line = data.get("lines", {}).get("text", "")
             line_number = data.get("line_number")
+            column_number = _first_submatch_column(data.get("submatches"))
             if not isinstance(path_text, str) or not isinstance(raw_line, str):
                 continue
             if not isinstance(line_number, int):
@@ -183,6 +184,7 @@ class LiveGrepSearchService:
                     display_path=self._relative_display_path(root, absolute_path),
                     line_number=line_number,
                     line_text=raw_line.rstrip("\r\n"),
+                    column_number=column_number,
                 )
             )
         return results
@@ -241,3 +243,15 @@ class FakeGrepSearchService:
         if key in self.failure_messages:
             raise OSError(self.failure_messages[key])
         return self.results_by_query.get(key, ())
+
+
+def _first_submatch_column(submatches: object) -> int:
+    if not isinstance(submatches, list):
+        return 1
+    for submatch in submatches:
+        if not isinstance(submatch, dict):
+            continue
+        start = submatch.get("start")
+        if isinstance(start, int):
+            return max(1, start + 1)
+    return 1

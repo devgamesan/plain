@@ -1271,8 +1271,8 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     split_terminal_hint = " | t term" if os.name == "posix" else ""
 
     assert help_state.lines == (
-        "enter open | e edit | i info | space select | c copy | x cut | v paste | "
-        "d delete | r rename | z undo",
+        "enter open | e edit | O gui editor | i info | space select | "
+        "c copy | x cut | v paste | d delete | r rename | z undo",
         "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to | [ ] preview",
         (
             "n new-file | N new-dir | H history | "
@@ -1280,8 +1280,8 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
         ),
     )
     assert help_state.text == (
-        "enter open | e edit | i info | space select | c copy | x cut | v paste | "
-        "d delete | r rename | z undo\n"
+        "enter open | e edit | O gui editor | i info | space select | "
+        "c copy | x cut | v paste | d delete | r rename | z undo\n"
         "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to | [ ] preview\n"
         "n new-file | N new-dir | H history | "
         f"b bookmarks{split_terminal_hint} | p transfer | : palette | q quit"
@@ -1498,7 +1498,8 @@ def test_select_help_bar_state_for_file_search_palette() -> None:
     help_bar = select_help_bar_state(state)
 
     assert help_bar.lines == (
-        "type filename | ↑↓ or Ctrl+n/p select | enter jump | Ctrl+e edit | esc cancel",
+        "type filename | ↑↓ or Ctrl+n/p select | enter jump | "
+        "Ctrl+e edit | Ctrl+o GUI | esc cancel",
     )
 
 
@@ -1513,7 +1514,7 @@ def test_select_help_bar_state_for_grep_search_palette() -> None:
 
     assert help_bar.lines == (
         "type text / tab fields / ↑↓ or Ctrl+n/p select | "
-        "enter jump | Ctrl+e edit | esc cancel",
+        "enter jump | Ctrl+e edit | Ctrl+o GUI | esc cancel",
     )
 
 

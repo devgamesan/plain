@@ -35,7 +35,10 @@ def test_dispatch_shell_command_input_updates_value() -> None:
 
     actions = dispatch_key_input(state, key="d", character="d")
 
-    assert actions == (SetNotification(None), SetShellCommandValue("pwd"))
+    assert actions == (
+        SetNotification(None),
+        SetShellCommandValue("dpw", cursor_pos=1),
+    )
 
 
 def test_browsing_bang_opens_shell_command_dialog() -> None:
@@ -48,13 +51,16 @@ def test_dispatch_shell_command_input_backspace_and_escape() -> None:
     state = replace(
         build_initial_app_state(),
         ui_mode="SHELL",
-        shell_command=ShellCommandState(cwd="/tmp/project", command="pwd"),
+        shell_command=ShellCommandState(cwd="/tmp/project", command="pwd", cursor_pos=3),
     )
 
     backspace_actions = dispatch_key_input(state, key="backspace")
     escape_actions = dispatch_key_input(state, key="escape")
 
-    assert backspace_actions == (SetNotification(None), SetShellCommandValue("pw"))
+    assert backspace_actions == (
+        SetNotification(None),
+        SetShellCommandValue("pw", cursor_pos=2),
+    )
     assert escape_actions == (SetNotification(None), CancelShellCommandInput())
 
 

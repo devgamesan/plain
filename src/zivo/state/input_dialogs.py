@@ -25,6 +25,7 @@ from .actions import (
     DismissNameConflict,
     MoveConfigEditorCursor,
     MovePendingInputCursor,
+    MoveShellCommandCursor,
     OpenPathInEditor,
     ResetHelpBarConfig,
     ResolvePasteConflict,
@@ -32,6 +33,7 @@ from .actions import (
     SetFilterQuery,
     SetPendingInputCursor,
     SetPendingInputValue,
+    SetShellCommandCursor,
     SetShellCommandValue,
     SubmitPendingInput,
     SubmitShellCommand,
@@ -204,12 +206,49 @@ def dispatch_shell_command_input(
         return supported(SubmitShellCommand())
 
     if key == "backspace":
-        current_command = state.shell_command.command if state.shell_command is not None else ""
-        return supported(SetShellCommandValue(current_command[:-1]))
+        if state.shell_command is None or state.shell_command.cursor_pos == 0:
+            return supported()
+        pos = state.shell_command.cursor_pos
+        new_value = state.shell_command.command[: pos - 1] + state.shell_command.command[pos:]
+        return supported(SetShellCommandValue(new_value, pos - 1))
+
+    if key == "delete":
+        if state.shell_command is None:
+            return supported()
+        pos = state.shell_command.cursor_pos
+        if pos >= len(state.shell_command.command):
+            return supported()
+        new_value = state.shell_command.command[:pos] + state.shell_command.command[pos + 1 :]
+        return supported(SetShellCommandValue(new_value, pos))
+
+    if key == "left":
+        return supported(MoveShellCommandCursor(delta=-1))
+
+    if key == "right":
+        return supported(MoveShellCommandCursor(delta=1))
+
+    if key == "home":
+        return supported(SetShellCommandCursor(cursor_pos=0))
+
+    if key == "end":
+        if state.shell_command is None:
+            return supported()
+        end_pos = len(state.shell_command.command)
+        return supported(SetShellCommandCursor(cursor_pos=end_pos))
+
+    if key == "ctrl+v":
+        return supported()
 
     if character and character.isprintable():
-        current_command = state.shell_command.command if state.shell_command is not None else ""
-        return supported(SetShellCommandValue(f"{current_command}{character}"))
+        if state.shell_command is None:
+            return supported()
+        pos = state.shell_command.cursor_pos
+        new_value = (
+            state.shell_command.command[:pos]
+            + character
+            + state.shell_command.command[pos:]
+        )
+        return supported(SetShellCommandValue(new_value, pos + 1))
 
     return warn("Use Enter to run or Esc to cancel")
 

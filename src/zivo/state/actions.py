@@ -19,12 +19,15 @@ from .actions_input import (
     DismissNameConflict,
     MoveConfigEditorCursor,
     MovePendingInputCursor,
+    MoveShellCommandCursor,
     PasteIntoPendingInput,
+    PasteIntoShellCommand,
     ResetHelpBarConfig,
     SaveConfigEditor,
     SetFilterQuery,
     SetPendingInputCursor,
     SetPendingInputValue,
+    SetShellCommandCursor,
     SetShellCommandValue,
     SubmitPendingInput,
     SubmitShellCommand,
@@ -76,12 +79,15 @@ __all__ = [
     "DismissNameConflict",
     "MoveConfigEditorCursor",
     "MovePendingInputCursor",
+    "MoveShellCommandCursor",
     "PasteIntoPendingInput",
+    "PasteIntoShellCommand",
     "ResetHelpBarConfig",
     "SaveConfigEditor",
     "SetFilterQuery",
     "SetPendingInputCursor",
     "SetPendingInputValue",
+    "SetShellCommandCursor",
     "SetShellCommandValue",
     "SubmitPendingInput",
     "SubmitShellCommand",
@@ -305,6 +311,8 @@ Action = (
     | MovePendingInputCursor
     | SetPendingInputCursor
     | DeletePendingInputForward
+    | MoveShellCommandCursor
+    | SetShellCommandCursor
     | SetShellCommandValue
     | SubmitPendingInput
     | CancelPendingInput
@@ -314,6 +322,7 @@ Action = (
     | DismissAttributeDialog
     | SetFilterQuery
     | PasteIntoPendingInput
+    | PasteIntoShellCommand
     | OpenNewTab
     | ActivateTabByIndex
     | ActivateNextTab

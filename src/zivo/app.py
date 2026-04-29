@@ -438,6 +438,20 @@ class zivoApp(App[None]):
             event.prevent_default()
             return
 
+        if (
+            event.key == "ctrl+v"
+            and self._app_state.ui_mode == "SHELL"
+            and self._app_state.shell_command is not None
+        ):
+            text = self._external_launch_service.get_from_clipboard()
+            if text:
+                from zivo.state.actions import PasteIntoShellCommand
+
+                await self.dispatch_actions((PasteIntoShellCommand(text=text),))
+            event.stop()
+            event.prevent_default()
+            return
+
         scroll_delta = _preview_scroll_delta(self._app_state, event.key)
         if scroll_delta is not None:
             try:
@@ -466,6 +480,16 @@ class zivoApp(App[None]):
                 )
                 event.stop()
                 event.prevent_default()
+                return
+
+        if self._app_state.ui_mode == "SHELL" and self._app_state.shell_command is not None:
+            from zivo.state.actions import PasteIntoShellCommand
+
+            await self.dispatch_actions(
+                (PasteIntoShellCommand(text=event.text),)
+            )
+            event.stop()
+            event.prevent_default()
 
     async def action_dispatch_bound_key(self, key: str) -> None:
         """Handle priority key bindings through the central dispatcher."""

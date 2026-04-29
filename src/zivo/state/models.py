@@ -269,6 +269,7 @@ class ShellCommandState:
 
     cwd: str
     command: str = ""
+    cursor_pos: int = 0
     result: ShellCommandResult | None = None
 
 

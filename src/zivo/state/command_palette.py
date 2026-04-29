@@ -209,13 +209,13 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         CommandPaletteItem(
             id="go_back",
             label="Go back",
-            shortcut="[",
+            shortcut="{",
             enabled=bool(state.history.back),
         ),
         CommandPaletteItem(
             id="go_forward",
             label="Go forward",
-            shortcut="]",
+            shortcut="}",
             enabled=bool(state.history.forward),
         ),
         CommandPaletteItem(
@@ -273,7 +273,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 if state.layout_mode == "transfer"
                 else "Toggle transfer mode"
             ),
-            shortcut="2",
+            shortcut="p",
             enabled=True,
         ),
         CommandPaletteItem(
@@ -502,7 +502,7 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
         CommandPaletteItem(
             id="toggle_transfer_mode",
             label="Close transfer mode",
-            shortcut="2",
+            shortcut="p",
             enabled=True,
         ),
         CommandPaletteItem(

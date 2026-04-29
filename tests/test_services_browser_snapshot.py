@@ -1,3 +1,4 @@
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -443,7 +444,7 @@ def test_chafa_image_preview_loader_uses_full_color_mode(
     preview = loader.load_preview(image, preview_columns=40)
 
     assert preview == FilePreviewState.with_content("@@\n", False, content_kind="image")
-    assert captured_args[:8] == [
+    assert captured_args[:7] == [
         "/usr/bin/chafa",
         "--format",
         "symbols",
@@ -451,8 +452,95 @@ def test_chafa_image_preview_loader_uses_full_color_mode(
         "full",
         "--animate",
         "off",
-        "--fit-width",
     ]
+
+
+def test_chafa_image_preview_loader_falls_back_for_older_chafa(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    from zivo.services.browser_snapshot import ChafaImagePreviewLoader
+
+    image = tmp_path / "preview.png"
+    image.write_bytes(b"png")
+    loader = ChafaImagePreviewLoader()
+
+    monkeypatch.setattr(
+        "zivo.services.previews.core.shutil.which",
+        lambda name: "/usr/bin/chafa",
+    )
+
+    class _CompletedProcess:
+        stdout = b"@@\n"
+
+    captured_calls: list[list[str]] = []
+
+    def _run(args, **kwargs):
+        captured_calls.append(list(args))
+        if "--animate" in args:
+            raise subprocess.CalledProcessError(
+                1,
+                args,
+                stderr=b"chafa: Unknown option --animate\n",
+            )
+        return _CompletedProcess()
+
+    monkeypatch.setattr("zivo.services.previews.core.subprocess.run", _run)
+
+    preview = loader.load_preview(image, preview_columns=40)
+
+    assert preview == FilePreviewState.with_content("@@\n", False, content_kind="image")
+    assert captured_calls == [
+        [
+            "/usr/bin/chafa",
+            "--format",
+            "symbols",
+            "--colors",
+            "full",
+            "--animate",
+            "off",
+            "--size",
+            "40x",
+            str(image),
+        ],
+        [
+            "/usr/bin/chafa",
+            "--format",
+            "symbols",
+            "--colors",
+            "full",
+            "--duration",
+            "0",
+            "--size",
+            "40x",
+            str(image),
+        ],
+    ]
+
+
+def test_chafa_image_preview_loader_returns_error_when_command_fails(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    from zivo.services.browser_snapshot import ChafaImagePreviewLoader
+
+    image = tmp_path / "preview.png"
+    image.write_bytes(b"png")
+    loader = ChafaImagePreviewLoader()
+
+    monkeypatch.setattr(
+        "zivo.services.previews.core.shutil.which",
+        lambda name: "/usr/bin/chafa",
+    )
+
+    def _run(args, **kwargs):
+        raise subprocess.CalledProcessError(1, args, stderr=b"decoder failed\n")
+
+    monkeypatch.setattr("zivo.services.previews.core.subprocess.run", _run)
+
+    preview = loader.load_preview(image, preview_columns=40)
+
+    assert preview == FilePreviewState.error()
 
 
 def test_live_browser_snapshot_loader_detects_png_signature_without_extension(tmp_path) -> None:

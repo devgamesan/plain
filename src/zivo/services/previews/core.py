@@ -349,6 +349,7 @@ class PandocDocumentPreviewLoader:
 class ChafaImagePreviewLoader:
     chafa_path: str | None = field(default=None, init=False, repr=False)
     chafa_missing: bool = field(default=False, init=False, repr=False)
+    supports_animate_option: bool | None = field(default=None, init=False, repr=False)
 
     def load_preview(
         self,
@@ -359,26 +360,29 @@ class ChafaImagePreviewLoader:
         chafa = self._resolve_chafa()
         if chafa is None:
             return None
+        args = self._build_chafa_command(
+            chafa,
+            path,
+            preview_columns=preview_columns,
+        )
         try:
-            result = subprocess.run(
-                [
-                    chafa,
-                    "--format",
-                    "symbols",
-                    "--colors",
-                    "full",
-                    "--animate",
-                    "off",
-                    "--fit-width",
-                    "--size",
-                    f"{max(1, preview_columns)}x",
-                    str(path),
-                ],
-                check=True,
-                capture_output=True,
+            result = subprocess.run(args, check=True, capture_output=True)
+            self.supports_animate_option = "--animate" in args
+        except subprocess.CalledProcessError as error:
+            if not self._should_retry_without_animate(error, args):
+                return FilePreviewState.error()
+            self.supports_animate_option = False
+            fallback_args = self._build_chafa_command(
+                chafa,
+                path,
+                preview_columns=preview_columns,
             )
+            try:
+                result = subprocess.run(fallback_args, check=True, capture_output=True)
+            except (OSError, subprocess.SubprocessError, ValueError):
+                return FilePreviewState.error()
         except (OSError, subprocess.SubprocessError, ValueError):
-            return None
+            return FilePreviewState.error()
 
         try:
             content = _normalize_preview_newlines(result.stdout.decode("utf-8"))
@@ -388,8 +392,45 @@ class ChafaImagePreviewLoader:
             )
         content = _strip_non_sgr_ansi(content)
         if not content.strip():
-            return None
+            return FilePreviewState.error()
         return FilePreviewState.with_content(content, False, content_kind="image")
+
+    def _build_chafa_command(
+        self,
+        chafa: str,
+        path: Path,
+        *,
+        preview_columns: int,
+    ) -> list[str]:
+        args = [
+            chafa,
+            "--format",
+            "symbols",
+            "--colors",
+            "full",
+        ]
+        if self.supports_animate_option is False:
+            args.extend(["--duration", "0"])
+        else:
+            args.extend(["--animate", "off"])
+        args.extend(
+            [
+                "--size",
+                f"{max(1, preview_columns)}x",
+                str(path),
+            ]
+        )
+        return args
+
+    def _should_retry_without_animate(
+        self,
+        error: subprocess.CalledProcessError,
+        args: list[str],
+    ) -> bool:
+        if "--animate" not in args:
+            return False
+        stderr = error.stderr or b""
+        return b"Unknown option --animate" in stderr
 
     def _resolve_chafa(self) -> str | None:
         if self.chafa_missing:

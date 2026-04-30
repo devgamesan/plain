@@ -130,8 +130,10 @@ zivo-cd
 
 zivo は初回起動時に `config.toml` を自動生成します。
 テーマ、プレビュー、ソート、エディタ連携、削除確認などを設定できます。
+また、外部ツールを起動するカスタムアクションをコマンドパレットに追加できます。
 
 詳しくは [Configuration](docs/configuration.ja.md) を参照してください。
+カスタムアクションの設定例と安全上の注意は [Custom Actions](docs/custom-actions.ja.md) を参照してください。
 
 ---
 
@@ -152,6 +154,7 @@ zivo はファイル操作の事故を防ぐための安全機構を備えてい
 
 - [Keybindings](docs/keybindings.ja.md) — 全キーバインド一覧
 - [Commands](docs/commands.ja.md) — コマンドパレット全コマンド一覧
+- [Custom Actions](docs/custom-actions.ja.md) — カスタムアクション設定ガイド
 - [Configuration](docs/configuration.ja.md) — 設定ファイルの詳細
 - [Platforms](docs/platforms.ja.md) — OS 別セットアップ
 - [Safety](docs/safety.ja.md) — 安全仕様

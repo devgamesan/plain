@@ -84,17 +84,8 @@ class LinuxPlatformLaunchAdapter(BasePlatformLaunchAdapter):
 
     def _first_available_terminal(self) -> str | None:
         """Return the first available terminal from defaults."""
+        import shutil
         for cmd_tuple in self.default_terminal_candidates(""):
-            if cmd_tuple and self._command_exists(cmd_tuple[0]):
+            if cmd_tuple and shutil.which(cmd_tuple[0]) is not None:
                 return cmd_tuple[0]
         return None
-
-    def _command_exists(self, command: str) -> bool:
-        """Check if a command exists."""
-        import shutil
-        from pathlib import Path
-
-        command_path = Path(command)
-        if command_path.is_absolute():
-            return command_path.exists()
-        return shutil.which(command) is not None

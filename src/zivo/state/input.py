@@ -59,32 +59,57 @@ def dispatch_key_input(
     character: str | None = None,
 ) -> DispatchedActions:
     """データドリブンなキーディスパッチ."""
+    dispatch_key = _normalize_dispatch_key(state, key=key, character=character)
     character = _normalize_input_character(state, key=key, character=character)
 
     if state.ui_mode == "FILTER":
-        return dispatch_filter_input(state, key=key, character=character)
+        return dispatch_filter_input(state, key=dispatch_key, character=character)
     if state.ui_mode == "CONFIRM":
-        return dispatch_confirm_input(state, key=key, character=character)
+        return dispatch_confirm_input(state, key=dispatch_key, character=character)
     if state.ui_mode == "DETAIL":
-        return dispatch_detail_input(state, key=key, character=character)
+        return dispatch_detail_input(state, key=dispatch_key, character=character)
     if state.ui_mode == "CONFIG":
-        return dispatch_config_input(state, key=key, character=character)
+        return dispatch_config_input(state, key=dispatch_key, character=character)
     if state.ui_mode == "BUSY":
         return warn("Input ignored while processing")
     if state.ui_mode == "PALETTE":
-        return dispatch_command_palette_input(state, key=key, character=character)
+        return dispatch_command_palette_input(state, key=dispatch_key, character=character)
     if state.ui_mode in {"RENAME", "CREATE", "EXTRACT", "ZIP", "SYMLINK"}:
-        return dispatch_input_dialog_input(state, key=key, character=character)
+        return dispatch_input_dialog_input(state, key=dispatch_key, character=character)
     if state.ui_mode == "SHELL":
-        return dispatch_shell_command_input(state, key=key, character=character)
+        return dispatch_shell_command_input(state, key=dispatch_key, character=character)
     if state.layout_mode == "transfer":
-        return dispatch_transfer_input(state, key=key, character=character)
+        return dispatch_transfer_input(state, key=dispatch_key, character=character)
     return dispatch_browsing_input(
         state,
-        key=key,
+        key=dispatch_key,
         character=character,
         multi_key_command_dispatch=_MULTI_KEY_COMMAND_DISPATCH,
     )
+
+
+def _normalize_dispatch_key(
+    state: AppState,
+    *,
+    key: str,
+    character: str | None,
+) -> str:
+    if state.ui_mode in {
+        "PALETTE",
+        "FILTER",
+        "RENAME",
+        "CREATE",
+        "EXTRACT",
+        "ZIP",
+        "SYMLINK",
+        "SHELL",
+    }:
+        return key
+
+    resolved_character = _resolve_printable_character(key=key, character=character)
+    if resolved_character is not None and not resolved_character.isspace():
+        return resolved_character
+    return key
 
 
 def _normalize_input_character(

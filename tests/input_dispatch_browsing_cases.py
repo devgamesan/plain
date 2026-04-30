@@ -193,6 +193,21 @@ def test_search_workspace_colon_opens_command_palette() -> None:
     assert actions == (SetNotification(None), BeginCommandPalette())
 
 
+def test_search_workspace_colon_character_opens_command_palette() -> None:
+    state = replace(
+        build_initial_app_state(),
+        search_workspace=SearchWorkspaceState(
+            kind="find",
+            root_path="/home/tadashi/develop/zivo",
+            query="readme",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="shift+semicolon", character=":")
+
+    assert actions == (SetNotification(None), BeginCommandPalette())
+
+
 def test_browsing_prefix_key_starts_multi_key_sequence(monkeypatch) -> None:
     monkeypatch.setattr(
         input_module,
@@ -709,6 +724,12 @@ def test_browsing_colon_opens_command_palette() -> None:
     assert actions == (SetNotification(None), BeginCommandPalette())
 
 
+def test_browsing_colon_character_opens_command_palette() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="shift+semicolon", character=":")
+
+    assert actions == (SetNotification(None), BeginCommandPalette())
 
 
 def test_browsing_o_opens_new_tab() -> None:

@@ -145,7 +145,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             return HelpBarState(
                 (
                     "type filename | ↑↓ or Ctrl+n/p select | enter jump | "
-                    "Ctrl+e edit | Ctrl+o GUI | esc cancel",
+                    "Ctrl+w workspace | Ctrl+e edit | Ctrl+o GUI | esc cancel",
                 )
             )
         if state.command_palette is not None and state.command_palette.source == "grep_search":
@@ -212,6 +212,13 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
                 "Space select | c copy | x cut | v paste | d delete | r rename",
                 "z undo | . hidden | N new-dir | o new-tab | w close-tab",
                 "b bookmarks | H history | G go-to | : palette",
+            )
+        )
+    if state.search_workspace is not None:
+        return HelpBarState(
+            (
+                "Search workspace | ↑↓ move | Space select | Enter jump | C copy paths",
+                "Tab switch tab | w close workspace",
             )
         )
     if state.config.help_bar.browsing:

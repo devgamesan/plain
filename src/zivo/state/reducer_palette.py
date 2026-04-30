@@ -33,6 +33,7 @@ from .actions import (
     GrepSearchCompleted,
     GrepSearchFailed,
     MoveCommandPaletteCursor,
+    OpenFileSearchWorkspace,
     OpenFindResultInEditor,
     OpenFindResultInGuiEditor,
     OpenGrepResultInEditor,
@@ -118,6 +119,7 @@ from .reducer_palette_shared import (
     enter_palette,
     restore_browsing_from_palette,
 )
+from .reducer_search_workspace import open_file_search_workspace
 
 
 def _handle_move_palette_cursor(state: AppState, action: MoveCommandPaletteCursor) -> ReduceResult:
@@ -481,6 +483,7 @@ _PALETTE_HANDLERS: dict[type[Action], _PaletteHandler] = {
     TextReplaceApplyFailed: lambda s, a, r: handle_text_replace_apply_failed(s, a),
     OpenGrepResultInEditor: lambda s, a, r: handle_open_grep_result_in_editor(s, r),
     OpenFindResultInEditor: lambda s, a, r: handle_open_find_result_in_editor(s, r),
+    OpenFileSearchWorkspace: lambda s, a, r: open_file_search_workspace(s, r),
     OpenGrepResultInGuiEditor: lambda s, a, r: handle_open_grep_result_in_gui_editor(s, r),
     OpenFindResultInGuiEditor: lambda s, a, r: handle_open_find_result_in_gui_editor(s, r),
 }

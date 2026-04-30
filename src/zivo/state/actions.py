@@ -133,6 +133,7 @@ from .actions_navigation import (
     CloseCurrentTab,
     CopyPathsToClipboard,
     EnterCursorDirectory,
+    EnterSearchWorkspaceResult,
     EnterTransferDirectory,
     ExitCurrentPath,
     FocusTransferPane,
@@ -193,6 +194,7 @@ from .actions_palette import (
     GrepSearchCompleted,
     GrepSearchFailed,
     MoveCommandPaletteCursor,
+    OpenFileSearchWorkspace,
     OpenFindResultInEditor,
     OpenFindResultInGuiEditor,
     OpenGrepResultInEditor,
@@ -305,6 +307,7 @@ Action = (
     | TextReplaceApplyFailed
     | OpenGrepResultInEditor
     | OpenFindResultInEditor
+    | OpenFileSearchWorkspace
     | OpenGrepResultInGuiEditor
     | OpenFindResultInGuiEditor
     | BeginFilterInput
@@ -348,6 +351,7 @@ Action = (
     | MoveCursorAndSelectRange
     | SetCursorPath
     | EnterCursorDirectory
+    | EnterSearchWorkspaceResult
     | GoToParentDirectory
     | GoToHomeDirectory
     | ReloadDirectory

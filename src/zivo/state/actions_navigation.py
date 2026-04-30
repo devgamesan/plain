@@ -34,6 +34,11 @@ class CloseCurrentTab:
 
 
 @dataclass(frozen=True)
+class EnterSearchWorkspaceResult:
+    """Jump from a search workspace result to the normal browser."""
+
+
+@dataclass(frozen=True)
 class MoveCursor:
     """Move the cursor within a caller-provided visible path list."""
 

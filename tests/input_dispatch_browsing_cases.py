@@ -84,6 +84,36 @@ def test_browsing_k_dispatches_move_cursor() -> None:
     )
 
 
+def test_search_workspace_enter_dispatches_jump_action() -> None:
+    state = replace(
+        build_initial_app_state(),
+        search_workspace=SearchWorkspaceState(
+            kind="find",
+            root_path="/home/tadashi/develop/zivo",
+            query="readme",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="enter")
+
+    assert actions == (SetNotification(None), EnterSearchWorkspaceResult())
+
+
+def test_search_workspace_copy_paths_uses_system_clipboard_action() -> None:
+    state = replace(
+        build_initial_app_state(),
+        search_workspace=SearchWorkspaceState(
+            kind="find",
+            root_path="/home/tadashi/develop/zivo",
+            query="readme",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="C", character="C")
+
+    assert actions == (SetNotification(None), CopyPathsToClipboard())
+
+
 def test_browsing_prefix_key_starts_multi_key_sequence(monkeypatch) -> None:
     monkeypatch.setattr(
         input_module,

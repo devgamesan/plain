@@ -26,11 +26,14 @@ from zivo.state.actions import (
     BeginGrepSearch,
     BeginSelectedFilesGrep,
     CancelCommandPalette,
+    CopyPathsToClipboard,
     CycleSelectedFilesGrepField,
+    EnterSearchWorkspaceResult,
     FileSearchCompleted,
     FileSearchFailed,
     GrepSearchCompleted,
     GrepSearchFailed,
+    OpenFileSearchWorkspace,
     OpenFindResultInEditor,
     OpenFindResultInGuiEditor,
     OpenGrepResultInEditor,
@@ -206,6 +209,133 @@ def test_begin_file_search_enters_find_file_mode() -> None:
 
     assert next_state.ui_mode == "PALETTE"
     assert next_state.command_palette == CommandPaletteState(source="file_search")
+
+
+def test_open_file_search_workspace_creates_new_tab_and_preview_request() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            query="readme",
+            file_search_results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    display_path="README.md",
+                ),
+                FileSearchResultState(
+                    path="/home/tadashi/develop/zivo/docs/commands.md",
+                    display_path="docs/commands.md",
+                ),
+            ),
+        ),
+    )
+
+    result = reduce_app_state(state, OpenFileSearchWorkspace())
+
+    assert result.state.ui_mode == "BROWSING"
+    assert result.state.command_palette is None
+    assert result.state.active_tab_index == 1
+    assert result.state.search_workspace is not None
+    assert result.state.search_workspace.query == "readme"
+    assert result.state.current_pane.directory_path == 'Search Workspace: find "readme"'
+    assert tuple(entry.name for entry in result.state.current_pane.entries) == (
+        "README.md",
+        "docs/commands.md",
+    )
+    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/zivo/README.md"
+    assert result.effects == (
+        LoadChildPaneSnapshotEffect(
+            request_id=1,
+            current_path="/home/tadashi/develop/zivo",
+            cursor_path="/home/tadashi/develop/zivo/README.md",
+            preview_max_bytes=64 * 1024,
+            enable_text_preview=True,
+            enable_image_preview=True,
+            enable_pdf_preview=True,
+            enable_office_preview=True,
+        ),
+    )
+
+
+def test_enter_search_workspace_result_jumps_to_normal_browser() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            query="commands",
+            file_search_results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/zivo/docs/commands.md",
+                    display_path="docs/commands.md",
+                ),
+            ),
+        ),
+    )
+    workspace_state = reduce_app_state(state, OpenFileSearchWorkspace()).state
+
+    result = reduce_app_state(workspace_state, EnterSearchWorkspaceResult())
+
+    assert result.state.search_workspace is None
+    assert result.state.pending_browser_snapshot_request_id == 2
+    assert result.effects == (
+        LoadBrowserSnapshotEffect(
+            request_id=2,
+            path="/home/tadashi/develop/zivo/docs",
+            cursor_path="/home/tadashi/develop/zivo/docs/commands.md",
+            blocking=True,
+            invalidate_paths=(),
+            enable_image_preview=True,
+            enable_pdf_preview=True,
+            enable_office_preview=True,
+        ),
+    )
+
+
+def test_copy_paths_to_clipboard_uses_search_workspace_selection() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            query="docs",
+            file_search_results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    display_path="README.md",
+                ),
+                FileSearchResultState(
+                    path="/home/tadashi/develop/zivo/docs/commands.md",
+                    display_path="docs/commands.md",
+                ),
+            ),
+        ),
+    )
+    workspace_state = reduce_app_state(state, OpenFileSearchWorkspace()).state
+    workspace_state = replace(
+        workspace_state,
+        current_pane=replace(
+            workspace_state.current_pane,
+            selected_paths=frozenset(
+                {
+                    "/home/tadashi/develop/zivo/README.md",
+                }
+            ),
+        ),
+    )
+
+    result = reduce_app_state(workspace_state, CopyPathsToClipboard())
+
+    assert result.effects == (
+        RunExternalLaunchEffect(
+            request_id=2,
+            request=ExternalLaunchRequest(
+                kind="copy_paths",
+                paths=("/home/tadashi/develop/zivo/README.md",),
+            ),
+        ),
+    )
 
 def test_begin_grep_search_enters_grep_mode() -> None:
     next_state = _reduce_state(build_initial_app_state(), BeginGrepSearch())

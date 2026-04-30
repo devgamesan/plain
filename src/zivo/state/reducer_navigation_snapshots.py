@@ -55,6 +55,7 @@ def _handle_request_browser_snapshot(
         state,
         notification=None,
         command_palette=None,
+        search_workspace=None,
         directory_size_cache=(),
         directory_size_delta=replace(state.directory_size_delta, changed_paths=()),
         pending_browser_snapshot_request_id=request_id,
@@ -159,6 +160,7 @@ def _handle_current_pane_loaded(
         parent_pane=action.parent_pane,
         parent_pane_loading=True,
         child_pane_loading=True,
+        search_workspace=None,
     )
     next_state = replace_browser_tab(state, tab_index, next_tab)
 

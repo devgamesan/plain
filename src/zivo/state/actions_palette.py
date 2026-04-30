@@ -271,6 +271,11 @@ class OpenFindResultInEditor:
 
 
 @dataclass(frozen=True)
+class OpenFileSearchWorkspace:
+    """Open the current file search results as a search workspace tab."""
+
+
+@dataclass(frozen=True)
 class OpenGrepResultInGuiEditor:
     """Open the selected grep search result in a GUI editor."""
 

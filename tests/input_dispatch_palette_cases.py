@@ -59,6 +59,22 @@ def test_palette_ctrl_e_opens_find_result_in_editor() -> None:
     assert actions == (SetNotification(None), OpenFindResultInEditor())
 
 
+def test_palette_ctrl_w_opens_file_search_workspace() -> None:
+    from zivo.state.models import CommandPaletteState
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="file_search",
+            query="test",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="ctrl+w")
+
+    assert actions == (SetNotification(None), OpenFileSearchWorkspace())
+
+
 def test_palette_ctrl_o_opens_grep_result_in_gui_editor() -> None:
     from zivo.state.models import CommandPaletteState
     state = replace(

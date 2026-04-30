@@ -109,6 +109,9 @@ test_select_shell_data_emits_size_delta_updates_for_directory_size_changes = (
 test_select_shell_data_exposes_visible_cursor_index = (
     cases.test_select_shell_data_exposes_visible_cursor_index
 )
+test_select_shell_data_labels_search_workspace_tab_and_path = (
+    cases.test_select_shell_data_labels_search_workspace_tab_and_path
+)
 test_select_shell_data_hides_cursor_while_filtering = (
     cases.test_select_shell_data_hides_cursor_while_filtering
 )

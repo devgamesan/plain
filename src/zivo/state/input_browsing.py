@@ -25,6 +25,7 @@ from .actions import (
     CopyTargets,
     CutTargets,
     EnterCursorDirectory,
+    EnterSearchWorkspaceResult,
     ExitCurrentPath,
     GoBack,
     GoForward,
@@ -153,6 +154,9 @@ def dispatch_browsing_input(
     if direct_tab_actions:
         return direct_tab_actions
 
+    if state.search_workspace is not None:
+        return dispatch_search_workspace_input(state, ctx, key=key)
+
     command = BROWSING_KEYMAP.get(key)
     if command is not None:
         handler = BROWSING_COMMAND_DISPATCH.get(command)
@@ -170,6 +174,41 @@ def dispatch_browsing_input(
         return pending
 
     return ()
+
+
+def dispatch_search_workspace_input(
+    state: AppState,
+    ctx: BrowsingCtx,
+    *,
+    key: str,
+) -> DispatchedActions:
+    if key in {"up", "k"}:
+        return handle_cursor_up(state, ctx)
+    if key in {"down", "j"}:
+        return handle_cursor_down(state, ctx)
+    if key == "pageup":
+        return handle_cursor_pageup(state, ctx)
+    if key == "pagedown":
+        return handle_cursor_pagedown(state, ctx)
+    if key == "home":
+        return handle_jump_cursor_start(state, ctx)
+    if key == "end":
+        return handle_jump_cursor_end(state, ctx)
+    if key == "space":
+        return handle_toggle_selection(state, ctx)
+    if key == "escape":
+        return supported(ClearSelection())
+    if key == "enter":
+        return supported(EnterSearchWorkspaceResult())
+    if key == "C":
+        return supported(CopyPathsToClipboard())
+    if key == "w":
+        return supported(CloseCurrentTab())
+    if key == "tab":
+        return supported(ActivateNextTab())
+    if key == "shift+tab":
+        return supported(ActivatePreviousTab())
+    return warn("Search workspace: ↑↓ move | Space select | Enter jump | C copy paths")
 
 
 def noop_browsing_handler(_state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:

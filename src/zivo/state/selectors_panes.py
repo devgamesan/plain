@@ -65,7 +65,11 @@ def select_tab_bar_state(state: AppState) -> TabBarState:
 
     tabs = tuple(
         TabItemState(
-            label=_format_tab_label(tab.current_path),
+            label=(
+                "Search"
+                if tab.search_workspace is not None
+                else _format_tab_label(tab.current_path)
+            ),
             active=index == state.active_tab_index,
         )
         for index, tab in enumerate(select_browser_tabs(state))

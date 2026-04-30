@@ -63,6 +63,7 @@ DirectorySizeStatus = Literal["pending", "ready", "failed"]
 CurrentPaneProjectionMode = Literal["full", "viewport"]
 LayoutMode = Literal["browser", "transfer"]
 TransferPaneId = Literal["left", "right"]
+SearchWorkspaceKind = Literal["find"]
 ConfigFieldId = Literal[
     "editor.command",
     "display.show_hidden_files",
@@ -396,6 +397,22 @@ class ReplacePreviewResultState:
 
 
 @dataclass(frozen=True)
+class SearchWorkspaceState:
+    """A virtual workspace tab backed by search results."""
+
+    kind: SearchWorkspaceKind
+    root_path: str
+    query: str
+    file_results: tuple[FileSearchResultState, ...] = ()
+
+    @property
+    def title(self) -> str:
+        if self.kind == "find":
+            return f'Search Workspace: find "{self.query}"'
+        return "Search Workspace"
+
+
+@dataclass(frozen=True)
 class CommandPaletteState:
     """Transient palette search and cursor state."""
 
@@ -507,6 +524,7 @@ class BrowserTabState:
     transfer_right: TransferPaneState | None = None
     parent_pane_loading: bool = False  # Track parent pane loading in progressive mode
     child_pane_loading: bool = False  # Track child pane loading in progressive mode
+    search_workspace: SearchWorkspaceState | None = None
 
 
 @dataclass(frozen=True)
@@ -534,6 +552,7 @@ class AppState:
     active_transfer_pane: TransferPaneId = "left"
     transfer_left: TransferPaneState | None = None
     transfer_right: TransferPaneState | None = None
+    search_workspace: SearchWorkspaceState | None = None
     notification: NotificationState | None = None
     pending_input: PendingInputState | None = None
     pending_key_sequence: PendingKeySequenceState | None = None
@@ -600,6 +619,7 @@ def browser_tab_from_app_state(state: AppState) -> BrowserTabState:
         active_transfer_pane=state.active_transfer_pane,
         transfer_left=state.transfer_left,
         transfer_right=state.transfer_right,
+        search_workspace=state.search_workspace,
     )
 
 
@@ -653,6 +673,7 @@ def load_browser_tab(state: AppState, index: int) -> AppState:
         active_transfer_pane=tab.active_transfer_pane,
         transfer_left=tab.transfer_left,
         transfer_right=tab.transfer_right,
+        search_workspace=tab.search_workspace,
     )
 
 

@@ -37,6 +37,7 @@ from zivo.state import (
     PendingInputState,
     PendingKeySequenceState,
     ReplacePreviewResultState,
+    SearchWorkspaceState,
     ZipCompressConfirmationState,
     build_initial_app_state,
     build_placeholder_app_state,
@@ -998,6 +999,38 @@ def test_select_shell_data_exposes_visible_cursor_index() -> None:
     assert shell.current_cursor_visible is True
 
 
+def test_select_shell_data_labels_search_workspace_tab_and_path() -> None:
+    state = replace(
+        build_initial_app_state(),
+        search_workspace=SearchWorkspaceState(
+            kind="find",
+            root_path="/home/tadashi/develop/zivo",
+            query="readme",
+        ),
+        current_pane=PaneState(
+            directory_path='Search Workspace: find "readme"',
+            entries=(
+                DirectoryEntryState(
+                    "/home/tadashi/develop/zivo/README.md",
+                    "README.md",
+                    "file",
+                ),
+            ),
+            cursor_path="/home/tadashi/develop/zivo/README.md",
+            selected_paths=frozenset({"/home/tadashi/develop/zivo/README.md"}),
+        ),
+    )
+
+    shell = select_shell_data(state)
+
+    assert shell.tab_bar.tabs[0].label == "Search"
+    assert shell.current_path == 'Search Workspace: find "readme"'
+    assert [entry.name for entry in shell.current_entries] == ["README.md"]
+    assert shell.current_entries[0].selected is True
+    assert shell.help is not None
+    assert shell.help.lines[0].startswith("Search workspace")
+
+
 def test_select_shell_data_hides_cursor_while_filtering() -> None:
     state = _reduce_state(build_initial_app_state(), BeginFilterInput())
 
@@ -1500,7 +1533,7 @@ def test_select_help_bar_state_for_file_search_palette() -> None:
 
     assert help_bar.lines == (
         "type filename | ↑↓ or Ctrl+n/p select | enter jump | "
-        "Ctrl+e edit | Ctrl+o GUI | esc cancel",
+        "Ctrl+w workspace | Ctrl+e edit | Ctrl+o GUI | esc cancel",
     )
 
 

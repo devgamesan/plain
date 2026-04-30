@@ -65,6 +65,7 @@ def load_browser_tab_from_tabs(
         active_transfer_pane=tab.active_transfer_pane,
         transfer_left=tab.transfer_left,
         transfer_right=tab.transfer_right,
+        search_workspace=tab.search_workspace,
     )
 
 
@@ -97,6 +98,7 @@ def build_new_tab_state(state: AppState) -> BrowserTabState:
             current_pane_delta=CurrentPaneDeltaState(),
             pending_browser_snapshot_request_id=None,
             pending_child_pane_request_id=None,
+            search_workspace=None,
             # Preserve transfer mode state
             layout_mode="transfer",
             active_transfer_pane=active_tab.active_transfer_pane,
@@ -139,6 +141,7 @@ def build_new_tab_state(state: AppState) -> BrowserTabState:
         active_transfer_pane="left",
         transfer_left=None,
         transfer_right=None,
+        search_workspace=None,
     )
 
 
@@ -200,6 +203,7 @@ def apply_loaded_snapshot_to_tab(
         current_pane_delta=CurrentPaneDeltaState(),
         pending_browser_snapshot_request_id=None,
         pending_child_pane_request_id=None,
+        search_workspace=None,
     )
 
 

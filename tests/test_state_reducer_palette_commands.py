@@ -1216,3 +1216,66 @@ def test_begin_command_palette_clears_pending_key_sequence() -> None:
 
     assert next_state.ui_mode == "PALETTE"
     assert next_state.pending_key_sequence is None
+
+
+def test_submit_command_palette_begins_terminal_window_custom_action_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(
+            config=AppConfig(
+                actions=ActionsConfig(
+                    custom=(
+                        CustomActionConfig(
+                            name="Open lazygit in new terminal",
+                            command=("lazygit",),
+                            when="always",
+                            mode="terminal_window",
+                            cwd="{cwd}",
+                        ),
+                    )
+                )
+            )
+        ),
+    )
+    state = _reduce_state(state, BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("lazygit in new"))
+
+    next_state = _reduce_state(state, SubmitCommandPalette())
+
+    assert next_state.ui_mode == "CONFIRM"
+    assert next_state.custom_action_confirmation is not None
+    assert next_state.custom_action_confirmation.request.name == "Open lazygit in new terminal"
+    assert next_state.custom_action_confirmation.request.command == ("lazygit",)
+    assert next_state.custom_action_confirmation.request.mode == "terminal_window"
+
+
+def test_confirm_terminal_window_custom_action_stays_in_browsing() -> None:
+    state = replace(
+        build_initial_app_state(
+            config=AppConfig(
+                actions=ActionsConfig(
+                    custom=(
+                        CustomActionConfig(
+                            name="Open lazygit in new terminal",
+                            command=("lazygit",),
+                            when="always",
+                            mode="terminal_window",
+                            cwd="{cwd}",
+                        ),
+                    )
+                )
+            )
+        ),
+    )
+    state = _reduce_state(state, BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("lazygit in new"))
+    state = _reduce_state(state, SubmitCommandPalette())
+
+    result = reduce_app_state(state, ConfirmCustomAction())
+
+    assert result.state.ui_mode == "BROWSING"
+    assert result.state.pending_custom_action_request_id == 1
+    assert any(
+        isinstance(effect, RunCustomActionEffect)
+        and effect.request.mode == "terminal_window"
+        for effect in result.effects
+    )

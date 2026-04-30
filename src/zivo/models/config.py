@@ -12,7 +12,7 @@ PreviewMaxKiB = Literal[64, 128, 256, 512, 1024]
 ConfigLogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 PasteConflictAction = Literal["overwrite", "skip", "rename", "prompt"]
 CustomActionWhen = Literal["always", "single_file", "selection"]
-CustomActionMode = Literal["background", "terminal"]
+CustomActionMode = Literal["background", "terminal", "terminal_window"]
 
 
 @dataclass(frozen=True)

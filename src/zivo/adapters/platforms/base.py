@@ -172,6 +172,10 @@ class BasePlatformLaunchAdapter:
     def default_terminal_candidates(self, path: str) -> tuple[tuple[str, ...], ...]:
         raise NotImplementedError
 
+    def run_in_terminal_window(self, cwd: str, command: tuple[str, ...]) -> None:
+        """Run a command in a new terminal window with a shell prompt after completion."""
+        raise NotImplementedError
+
     def clipboard_candidates(self) -> tuple[tuple[str, ...], ...]:
         raise NotImplementedError
 

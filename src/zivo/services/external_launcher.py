@@ -15,12 +15,17 @@ class ExternalLaunchService(Protocol):
 
     def get_from_clipboard(self) -> str: ...
 
+    def run_in_terminal_window(self, cwd: str, command: tuple[str, ...]) -> None: ...
+
 
 @dataclass(frozen=True)
 class LiveExternalLaunchService:
     """Launch files and terminals through the OS adapter."""
 
     adapter: ExternalLaunchAdapter = field(default_factory=LocalExternalLaunchAdapter)
+
+    def run_in_terminal_window(self, cwd: str, command: tuple[str, ...]) -> None:
+        self.adapter.run_in_terminal_window(cwd, command)
 
     def execute(self, request: ExternalLaunchRequest) -> None:
         if request.kind == "copy_paths":
@@ -76,6 +81,10 @@ class FakeExternalLaunchService:
     default_delay_seconds: float = 0.0
     executed_requests: list[ExternalLaunchRequest] = field(default_factory=list)
     clipboard_contents: str = ""
+    terminal_commands: list[tuple[str, tuple[str, ...]]] = field(default_factory=list)
+
+    def run_in_terminal_window(self, cwd: str, command: tuple[str, ...]) -> None:
+        self.terminal_commands.append((cwd, command))
 
     def execute(self, request: ExternalLaunchRequest) -> None:
         if self.default_delay_seconds > 0:

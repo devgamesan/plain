@@ -10,7 +10,7 @@ VALID_PREVIEW_SYNTAX_THEMES = frozenset(SUPPORTED_PREVIEW_SYNTAX_THEMES)
 VALID_LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 VALID_PASTE_ACTIONS = frozenset({"overwrite", "skip", "rename", "prompt"})
 VALID_CUSTOM_ACTION_WHEN = frozenset({"always", "single_file", "selection"})
-VALID_CUSTOM_ACTION_MODES = frozenset({"background", "terminal"})
+VALID_CUSTOM_ACTION_MODES = frozenset({"background", "terminal", "terminal_window"})
 VALID_PREVIEW_MAX_KIB = frozenset({64, 128, 256, 512, 1024})
 VALID_TERMINAL_EDITOR_NAMES = frozenset(
     {"edit", "emacs", "helix", "hx", "kak", "micro", "msedit", "nano", "nvim", "vi", "vim"}

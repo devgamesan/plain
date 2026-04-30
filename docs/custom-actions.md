@@ -26,6 +26,13 @@ command = ["lazygit"]
 when = "always"
 mode = "terminal"
 cwd = "{cwd}"
+
+[[actions.custom]]
+name = "Open lazygit in new window"
+command = ["lazygit"]
+when = "always"
+mode = "terminal_window"
+cwd = "{cwd}"
 ```
 
 ## Fields
@@ -45,7 +52,7 @@ cwd = "{cwd}"
 
 `terminal` is for TUI or interactive commands such as `lazygit`. zivo temporarily suspends its own interface, runs the command in the current terminal, then returns when the command exits.
 
-Opening a custom action in a separate terminal window or tab is tracked separately in #821.
+`terminal_window` opens a new terminal window or tab to run the command. zivo does not suspend; the new window runs independently with a shell prompt after the command completes. This is useful for tools you want to run side-by-side with zivo.
 
 ## Variables
 

@@ -486,7 +486,7 @@ def _load_custom_action(
         key="mode",
         default="background",
         valid_values=VALID_CUSTOM_ACTION_MODES,
-        valid_display="background, terminal",
+        valid_display="background, terminal, terminal_window",
         section_name=field_name,
         warnings=warnings,
     )

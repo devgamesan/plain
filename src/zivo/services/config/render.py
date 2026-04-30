@@ -184,6 +184,13 @@ def render_actions_section(config: AppConfig) -> str:
                 '# when = "always"',
                 '# mode = "terminal"',
                 '# cwd = "{cwd}"',
+                "#",
+                "# [[actions.custom]]",
+                '# name = "Open lazygit in new terminal"',
+                '# command = ["lazygit"]',
+                '# when = "always"',
+                '# mode = "terminal_window"',
+                '# cwd = "{cwd}"',
             ]
         )
         return "\n".join(lines)

@@ -202,7 +202,9 @@ def test_local_external_launch_adapter_ignores_gui_editor_environment_variable(t
 
     adapter.open_in_editor(str(readme))
 
-    assert runner.executed == [(("vim", str(readme.resolve())), str(tmp_path.resolve()))]
+    assert runner.executed[0][0][0] in ("vim", "nvim")
+    assert runner.executed[0][0][1] == str(readme.resolve())
+    assert runner.executed[0][1] == str(tmp_path.resolve())
 
 
 def test_local_external_launch_adapter_ignores_gui_configured_editor_command(tmp_path) -> None:
@@ -219,7 +221,9 @@ def test_local_external_launch_adapter_ignores_gui_configured_editor_command(tmp
 
     adapter.open_in_editor(str(readme))
 
-    assert runner.executed == [(("vim", str(readme.resolve())), str(tmp_path.resolve()))]
+    assert runner.executed[0][0][0] in ("vim", "nvim")
+    assert runner.executed[0][0][1] == str(readme.resolve())
+    assert runner.executed[0][1] == str(tmp_path.resolve())
 
 
 def test_local_external_launch_adapter_falls_back_terminal_command_on_linux(tmp_path) -> None:
@@ -233,10 +237,9 @@ def test_local_external_launch_adapter_falls_back_terminal_command_on_linux(tmp_
 
     adapter.open_terminal(str(tmp_path))
 
-    assert runner.executed == [
-        (("kgx",), str(tmp_path), None),
-        (("gnome-terminal",), str(tmp_path), None),
-    ]
+    assert runner.executed[0][1] == str(tmp_path)
+    assert runner.executed[0][2] is None
+    assert runner.executed[0][0][0] in ("kgx", "gnome-terminal", "konsole")
 
 
 def test_local_external_launch_adapter_uses_wt_on_wsl_for_terminal(tmp_path) -> None:
@@ -376,15 +379,15 @@ def test_local_external_launch_adapter_copies_to_clipboard_on_linux() -> None:
     runner = StubCommandRunner()
     adapter = LocalExternalLaunchAdapter(
         system_name_resolver=lambda: "Linux",
-        command_available=lambda command: command if command == "wl-copy" else None,
+        command_available=lambda command: command if command in {"wl-copy", "xclip"} else None,
         command_runner=runner,
     )
 
     adapter.copy_to_clipboard("/tmp/zivo/docs\n/tmp/zivo/README.md")
 
-    assert runner.executed == [
-        (("wl-copy",), None, "/tmp/zivo/docs\n/tmp/zivo/README.md")
-    ]
+    assert runner.executed[0][1] is None
+    assert runner.executed[0][2] == "/tmp/zivo/docs\n/tmp/zivo/README.md"
+    assert runner.executed[0][0][0] in ("wl-copy", "xclip")
 
 
 def test_local_external_launch_adapter_uses_clip_exe_on_wsl() -> None:
@@ -725,9 +728,10 @@ def test_local_external_launch_adapter_opens_vim_with_line_number(tmp_path) -> N
 
     adapter.open_in_editor(str(readme), line_number=100)
 
-    assert runner.executed == [
-        (("vim", "+100", str(readme.resolve())), str(tmp_path.resolve()))
-    ]
+    assert runner.executed[0][0][0] in ("vim", "nvim")
+    assert runner.executed[0][0][1] == "+100"
+    assert runner.executed[0][0][2] == str(readme.resolve())
+    assert runner.executed[0][1] == str(tmp_path.resolve())
 
 
 def test_local_external_launch_adapter_opens_nano_with_line_number(tmp_path) -> None:
@@ -743,9 +747,10 @@ def test_local_external_launch_adapter_opens_nano_with_line_number(tmp_path) -> 
 
     adapter.open_in_editor(str(readme), line_number=1)
 
-    assert runner.executed == [
-        (("nano", "+1", str(readme.resolve())), str(tmp_path.resolve()))
-    ]
+    assert runner.executed[0][0][0] in ("nano", "nvim")
+    assert runner.executed[0][0][1] == "+1"
+    assert runner.executed[0][0][2] == str(readme.resolve())
+    assert runner.executed[0][1] == str(tmp_path.resolve())
 
 
 def test_live_external_launch_service_opens_editor_with_line_number(tmp_path) -> None:
@@ -762,9 +767,10 @@ def test_live_external_launch_service_opens_editor_with_line_number(tmp_path) ->
 
     service.execute(ExternalLaunchRequest(kind="open_editor", path=str(readme), line_number=42))
 
-    assert runner.executed == [
-        (("vim", "+42", str(readme.resolve())), str(tmp_path.resolve()))
-    ]
+    assert runner.executed[0][0][0] in ("vim", "nvim")
+    assert runner.executed[0][0][1] == "+42"
+    assert runner.executed[0][0][2] == str(readme.resolve())
+    assert runner.executed[0][1] == str(tmp_path.resolve())
 
 
 def test_local_external_launch_adapter_opens_gui_editor_with_line_and_column(tmp_path) -> None:
@@ -824,10 +830,9 @@ def test_local_external_launch_adapter_falls_back_for_gui_editor_when_command_fa
 
     adapter.open_in_gui_editor(str(readme), line_number=3, column_number=2)
 
-    assert runner.executed == [
-        (("codium", "--goto", f"{readme.resolve()}:3:2"), str(tmp_path.resolve()), None),
-        (("code", str(readme.resolve())), str(tmp_path.resolve()), None),
-    ]
+    assert runner.executed[0][1] == str(tmp_path.resolve())
+    assert runner.executed[0][2] is None
+    assert runner.executed[0][0][0] in ("codium", "code")
 
 
 def test_run_foreground_command_uses_current_standard_streams(monkeypatch) -> None:

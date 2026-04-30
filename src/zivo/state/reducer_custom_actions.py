@@ -62,10 +62,11 @@ def _handle_confirm_custom_action(
         return finalize(state)
     request = state.custom_action_confirmation.request
     request_id = state.next_request_id
+    ui_mode = "BROWSING" if request.mode in ("terminal", "terminal_window") else "BUSY"
     return finalize(
         replace(
             state,
-            ui_mode="BUSY" if request.mode == "background" else "BROWSING",
+            ui_mode=ui_mode,
             notification=NotificationState(
                 level="info",
                 message=f"Running custom action: {request.name}",
@@ -123,6 +124,8 @@ def _handle_custom_action_failed(
 def _notification_for_custom_action(name: str, result, *, mode: str) -> tuple[str, str]:
     if mode == "terminal":
         return ("info", f"{name} finished")
+    if mode == "terminal_window":
+        return ("info", f"{name} started in new terminal")
     if result is None:
         return ("info", f"{name} finished")
     if result.exit_code == 0:

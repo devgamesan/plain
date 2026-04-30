@@ -26,6 +26,13 @@ command = ["lazygit"]
 when = "always"
 mode = "terminal"
 cwd = "{cwd}"
+
+[[actions.custom]]
+name = "Open lazygit in new window"
+command = ["lazygit"]
+when = "always"
+mode = "terminal_window"
+cwd = "{cwd}"
 ```
 
 ## フィールド
@@ -45,7 +52,7 @@ cwd = "{cwd}"
 
 `terminal` は `lazygit` のような TUI/対話コマンド向けです。zivo の画面を一時停止し、現在の terminal でコマンドを実行し、終了後に zivo へ戻ります。
 
-別ターミナルウィンドウ/別タブで開く `terminal_window` 相当の挙動は #821 で扱います。
+`terminal_window` は、新しいターミナルウィンドウまたはタブでコマンドを実行します。zivo は suspend せず、新しいウィンドウは独立して実行され、コマンド完了後にシェルプロンプトが表示されます。zivo と並行して使いたいツールに便利です。
 
 ## 変数
 

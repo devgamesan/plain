@@ -58,6 +58,8 @@ class ExternalLaunchAdapter(Protocol):
         self, path: str, launch_mode: Literal["window", "foreground"] = "window"
     ) -> None: ...
 
+    def run_in_terminal_window(self, cwd: str, command: tuple[str, ...]) -> None: ...
+
     def copy_to_clipboard(self, text: str) -> None: ...
 
     def get_from_clipboard(self) -> str: ...
@@ -108,6 +110,9 @@ class LocalExternalLaunchAdapter:
         self, path: str, launch_mode: Literal["window", "foreground"] = "window"
     ) -> None:
         self._platform_adapter().open_terminal(path, launch_mode)
+
+    def run_in_terminal_window(self, cwd: str, command: tuple[str, ...]) -> None:
+        self._platform_adapter().run_in_terminal_window(cwd, command)
 
     def copy_to_clipboard(self, text: str) -> None:
         self._platform_adapter().copy_to_clipboard(text)

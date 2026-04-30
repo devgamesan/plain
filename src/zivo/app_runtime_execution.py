@@ -91,6 +91,9 @@ def schedule_custom_action(app: Any, effect: RunCustomActionEffect) -> None:
     if effect.request.mode == "terminal":
         run_terminal_custom_action(app, effect)
         return
+    if effect.request.mode == "terminal_window":
+        run_terminal_window_custom_action(app, effect)
+        return
     run_worker(
         app,
         effect,
@@ -146,6 +149,36 @@ def run_terminal_custom_action(app: Any, effect: RunCustomActionEffect) -> None:
         return
 
     app.refresh(repaint=True, layout=True)
+    app.call_next(
+        app.dispatch_actions,
+        (
+            CustomActionCompleted(
+                request_id=effect.request_id,
+                request=effect.request,
+                result=CustomActionResult(effect.request.name),
+            ),
+        ),
+    )
+
+
+def run_terminal_window_custom_action(app: Any, effect: RunCustomActionEffect) -> None:
+    try:
+        app._external_launch_service.run_in_terminal_window(
+            effect.request.cwd, effect.request.command
+        )
+    except OSError as error:
+        app.call_next(
+            app.dispatch_actions,
+            (
+                CustomActionFailed(
+                    request_id=effect.request_id,
+                    request=effect.request,
+                    message=str(error) or "Failed to open terminal window",
+                ),
+            ),
+        )
+        return
+
     app.call_next(
         app.dispatch_actions,
         (

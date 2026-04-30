@@ -133,6 +133,13 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
         when = "always"
         mode = "terminal"
         cwd = "{{cwd}}"
+
+        [[actions.custom]]
+        name = "Open lazygit in new terminal"
+        command = ["lazygit"]
+        when = "always"
+        mode = "terminal_window"
+        cwd = "{{cwd}}"
         """,
         encoding="utf-8",
     )
@@ -176,6 +183,13 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
             command=("lazygit",),
             when="always",
             mode="terminal",
+            cwd="{cwd}",
+        ),
+        CustomActionConfig(
+            name="Open lazygit in new terminal",
+            command=("lazygit",),
+            when="always",
+            mode="terminal_window",
             cwd="{cwd}",
         ),
     )

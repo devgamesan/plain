@@ -25,7 +25,6 @@ from .actions import (
     CopyTargets,
     CutTargets,
     EnterCursorDirectory,
-    EnterSearchWorkspaceResult,
     ExitCurrentPath,
     GoBack,
     GoForward,
@@ -199,7 +198,7 @@ def dispatch_search_workspace_input(
     if key == "escape":
         return supported(ClearSelection())
     if key == "enter":
-        return supported(EnterSearchWorkspaceResult())
+        return handle_enter_search_workspace_file_open(state, ctx)
     if key == "C":
         return supported(CopyPathsToClipboard())
     if key == "w":
@@ -208,7 +207,26 @@ def dispatch_search_workspace_input(
         return supported(ActivateNextTab())
     if key == "shift+tab":
         return supported(ActivatePreviousTab())
-    return warn("Search workspace: ↑↓ move | Space select | Enter jump | C copy paths")
+    return warn("Search workspace: ↑↓ move | Space select | Enter open | C copy paths")
+
+
+def handle_enter_search_workspace_file_open(state: AppState, ctx: BrowsingCtx) -> DispatchedActions:
+    """Handle Enter key in search workspace to open file with default app."""
+    if state.search_workspace is None or state.current_pane.cursor_path is None:
+        return warn("No file selected")
+
+    cursor_path = state.current_pane.cursor_path
+    if state.search_workspace.kind == "grep":
+        # Grep workspace: decode the encoded path
+        _GREP_PATH_SEP = "\x00"
+        try:
+            real_path, _ = cursor_path.rsplit(_GREP_PATH_SEP, 1)
+            return supported(OpenPathWithDefaultApp(real_path))
+        except ValueError:
+            return warn("Invalid grep result path")
+    else:
+        # Find workspace: use path as-is
+        return supported(OpenPathWithDefaultApp(cursor_path))
 
 
 def noop_browsing_handler(_state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:

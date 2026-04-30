@@ -133,7 +133,6 @@ from .actions_navigation import (
     CloseCurrentTab,
     CopyPathsToClipboard,
     EnterCursorDirectory,
-    EnterSearchWorkspaceResult,
     EnterTransferDirectory,
     ExitCurrentPath,
     FocusTransferPane,
@@ -353,7 +352,6 @@ Action = (
     | SetCursorPath
     | EnterCursorDirectory
     | OpenGrepSearchWorkspace
-    | EnterSearchWorkspaceResult
     | GoToParentDirectory
     | GoToHomeDirectory
     | ReloadDirectory

@@ -84,7 +84,7 @@ def test_browsing_k_dispatches_move_cursor() -> None:
     )
 
 
-def test_search_workspace_enter_dispatches_jump_action() -> None:
+def test_search_workspace_enter_warns_when_no_cursor() -> None:
     state = replace(
         build_initial_app_state(),
         search_workspace=SearchWorkspaceState(
@@ -92,11 +92,75 @@ def test_search_workspace_enter_dispatches_jump_action() -> None:
             root_path="/home/tadashi/develop/zivo",
             query="readme",
         ),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(),
+            cursor_path=None,
+        ),
     )
 
     actions = dispatch_key_input(state, key="enter")
 
-    assert actions == (SetNotification(None), EnterSearchWorkspaceResult())
+    assert len(actions) == 1
+    assert isinstance(actions[0], SetNotification)
+    assert actions[0].notification.level == "warning"
+    assert "No file selected" in actions[0].notification.message
+
+
+def test_search_workspace_enter_opens_file() -> None:
+    state = replace(
+        build_initial_app_state(),
+        search_workspace=SearchWorkspaceState(
+            kind="find",
+            root_path="/home/tadashi/develop/zivo",
+            query="readme",
+        ),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(
+                DirectoryEntryState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    name="README.md",
+                    kind="file",
+                ),
+            ),
+            cursor_path="/home/tadashi/develop/zivo/README.md",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="enter")
+
+    assert actions[0] == SetNotification(None)
+    assert actions[1] == OpenPathWithDefaultApp("/home/tadashi/develop/zivo/README.md")
+
+
+def test_search_workspace_enter_opens_grep_result() -> None:
+    # Grep workspace uses encoded paths: "path\x00line_number"
+    encoded_path = "/home/tadashi/develop/zivo/README.md\x0042"
+    state = replace(
+        build_initial_app_state(),
+        search_workspace=SearchWorkspaceState(
+            kind="grep",
+            root_path="/home/tadashi/develop/zivo",
+            query="TODO",
+        ),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(
+                DirectoryEntryState(
+                    path=encoded_path,
+                    name="README.md:42: TODO: implement this",
+                    kind="file",
+                ),
+            ),
+            cursor_path=encoded_path,
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="enter")
+
+    assert actions[0] == SetNotification(None)
+    assert actions[1] == OpenPathWithDefaultApp("/home/tadashi/develop/zivo/README.md")
 
 
 def test_search_workspace_copy_paths_uses_system_clipboard_action() -> None:

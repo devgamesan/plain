@@ -3,7 +3,7 @@
 from dataclasses import replace
 from pathlib import Path
 
-from .actions import EnterSearchWorkspaceResult, RequestBrowserSnapshot
+from .actions import RequestBrowserSnapshot
 from .effects import ReduceResult
 from .models import (
     AppState,
@@ -175,31 +175,3 @@ def open_grep_search_workspace(
         insert_index,
     )
     return sync_child_pane(next_state, cursor_path, reduce_state)
-
-
-def handle_enter_search_workspace_result(
-    state: AppState,
-    action: EnterSearchWorkspaceResult,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    """Jump from the selected workspace row to the containing directory."""
-
-    del action
-    if state.search_workspace is None or state.current_pane.cursor_path is None:
-        return finalize(state)
-
-    cursor_path = state.current_pane.cursor_path
-    if state.search_workspace.kind == "grep":
-        real_path, _ = _decode_grep_path(cursor_path)
-        parent_path = str(Path(real_path).parent)
-        next_state = replace(state, search_workspace=None)
-        return reduce_state(
-            next_state,
-            RequestBrowserSnapshot(parent_path, cursor_path=real_path, blocking=True),
-        )
-    parent_path = str(Path(cursor_path).parent)
-    next_state = replace(state, search_workspace=None)
-    return reduce_state(
-        next_state,
-        RequestBrowserSnapshot(parent_path, cursor_path=cursor_path, blocking=True),
-    )

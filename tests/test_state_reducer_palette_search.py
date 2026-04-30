@@ -28,7 +28,6 @@ from zivo.state.actions import (
     CancelCommandPalette,
     CopyPathsToClipboard,
     CycleSelectedFilesGrepField,
-    EnterSearchWorkspaceResult,
     FileSearchCompleted,
     FileSearchFailed,
     GrepSearchCompleted,
@@ -252,41 +251,6 @@ def test_open_file_search_workspace_creates_new_tab_and_preview_request() -> Non
             cursor_path="/home/tadashi/develop/zivo/README.md",
             preview_max_bytes=64 * 1024,
             enable_text_preview=True,
-            enable_image_preview=True,
-            enable_pdf_preview=True,
-            enable_office_preview=True,
-        ),
-    )
-
-
-def test_enter_search_workspace_result_jumps_to_normal_browser() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    state = replace(
-        state,
-        command_palette=replace(
-            state.command_palette,
-            query="commands",
-            file_search_results=(
-                FileSearchResultState(
-                    path="/home/tadashi/develop/zivo/docs/commands.md",
-                    display_path="docs/commands.md",
-                ),
-            ),
-        ),
-    )
-    workspace_state = reduce_app_state(state, OpenFileSearchWorkspace()).state
-
-    result = reduce_app_state(workspace_state, EnterSearchWorkspaceResult())
-
-    assert result.state.search_workspace is None
-    assert result.state.pending_browser_snapshot_request_id == 2
-    assert result.effects == (
-        LoadBrowserSnapshotEffect(
-            request_id=2,
-            path="/home/tadashi/develop/zivo/docs",
-            cursor_path="/home/tadashi/develop/zivo/docs/commands.md",
-            blocking=True,
-            invalidate_paths=(),
             enable_image_preview=True,
             enable_pdf_preview=True,
             enable_office_preview=True,
@@ -1460,43 +1424,6 @@ def test_open_grep_search_workspace_creates_new_tab_and_preview_request() -> Non
                 column_number=1,
             ),
             grep_context_lines=3,
-        ),
-    )
-
-
-def test_enter_grep_search_workspace_result_jumps_to_normal_browser() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginGrepSearch())
-    state = replace(
-        state,
-        command_palette=replace(
-            state.command_palette,
-            grep_search_keyword="answer",
-            grep_search_results=(
-                GrepSearchResultState(
-                    path="/home/tadashi/develop/zivo/src/utils.py",
-                    display_path="src/utils.py",
-                    line_number=42,
-                    line_text="answer = 42",
-                ),
-            ),
-        ),
-    )
-    workspace_state = reduce_app_state(state, OpenGrepSearchWorkspace()).state
-
-    result = reduce_app_state(workspace_state, EnterSearchWorkspaceResult())
-
-    assert result.state.search_workspace is None
-    assert result.state.pending_browser_snapshot_request_id == 2
-    assert result.effects == (
-        LoadBrowserSnapshotEffect(
-            request_id=2,
-            path="/home/tadashi/develop/zivo/src",
-            cursor_path="/home/tadashi/develop/zivo/src/utils.py",
-            blocking=True,
-            invalidate_paths=(),
-            enable_image_preview=True,
-            enable_pdf_preview=True,
-            enable_office_preview=True,
         ),
     )
 

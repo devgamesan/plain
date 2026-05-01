@@ -351,6 +351,7 @@ def config_editor_labels() -> tuple[str, ...]:
         "Directories first",
         "Grep preview context lines",
         "Confirm delete",
+        "Confirm exit",
         "Paste conflict action",
         "Log level",
         "File search max results",

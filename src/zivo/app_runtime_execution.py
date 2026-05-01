@@ -14,6 +14,7 @@ from textual.app import SuspendNotSupported
 from zivo.app_runtime_core import WorkerSpec, run_worker
 from zivo.models import CustomActionResult
 from zivo.state import (
+    ExitCurrentPathEffect,
     RunArchiveExtractEffect,
     RunArchivePreparationEffect,
     RunAttributeInspectionEffect,
@@ -485,3 +486,7 @@ def schedule_external_launch_effect(app: Any, effect: RunExternalLaunchEffect) -
         app.call_next(run_foreground_external_launch, app, effect)
         return
     schedule_external_launch(app, effect)
+
+
+def schedule_exit_current_path(app: Any, effect: ExitCurrentPathEffect) -> None:
+    app.exit(result=app._app_state.current_path, return_code=effect.return_code)

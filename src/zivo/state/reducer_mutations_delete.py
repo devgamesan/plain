@@ -16,6 +16,7 @@ from .actions import (
     ConfirmExitCurrentPath,
     ExitCurrentPath,
 )
+from .effects import ExitCurrentPathEffect
 from .models import (
     DeleteConfirmationState,
     EmptyTrashConfirmationState,
@@ -218,10 +219,10 @@ def _handle_begin_exit_current_path(state, action, reduce_state):
 def _handle_confirm_exit_current_path(state, action, reduce_state):
     if state.exit_confirmation is None:
         return finalize(state)
-    # ExitCurrentPath を reduce_state に渡して処理させる
-    return reduce_state(
+    # ExitCurrentPathEffect を発行して実際に終了
+    return finalize(
         replace(state, exit_confirmation=None),
-        ExitCurrentPath()
+        ExitCurrentPathEffect()
     )
 
 

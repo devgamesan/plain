@@ -1266,7 +1266,7 @@ def test_cycle_config_editor_file_search_max_results_updates_draft() -> None:
             config_editor=ConfigEditorState(
                 path="/tmp/zivo/config.toml",
                 draft=original_state.config,
-                cursor_index=19,  # file_search.max_results
+                cursor_index=20,  # file_search.max_results
             ),
         )
 

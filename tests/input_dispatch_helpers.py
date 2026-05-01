@@ -29,6 +29,7 @@ from zivo.state.actions import (
     BeginCommandPalette,
     BeginCreateInput,
     BeginDeleteTargets,
+    BeginExitCurrentPath,
     BeginFileSearch,
     BeginFilterInput,
     BeginGoToPath,

@@ -18,6 +18,7 @@ from zivo.app_runtime_execution import (
     schedule_clipboard_paste,
     schedule_config_save,
     schedule_custom_action,
+    schedule_exit_current_path,
     schedule_external_launch_effect,
     schedule_file_mutation,
     schedule_shell_command,
@@ -54,6 +55,7 @@ from zivo.app_runtime_search import (
 )
 from zivo.state import (
     Effect,
+    ExitCurrentPathEffect,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
     LoadCurrentPaneEffect,
@@ -173,6 +175,7 @@ EFFECT_SCHEDULERS = (
     (RunGrepSearchEffect, schedule_grep_search),
     (RunTextReplacePreviewEffect, schedule_text_replace_preview),
     (RunTextReplaceApplyEffect, schedule_text_replace_apply),
+    (ExitCurrentPathEffect, schedule_exit_current_path),
 )
 
 

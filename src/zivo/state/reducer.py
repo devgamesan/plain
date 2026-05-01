@@ -16,7 +16,7 @@ from .actions import (
     SetPendingKeySequence,
     SetUiMode,
 )
-from .effects import ReduceResult
+from .effects import ExitCurrentPathEffect, ReduceResult
 from .models import AppState, PendingKeySequenceState, sync_active_browser_tab
 from .reducer_common import finalize
 from .reducer_mutations import handle_mutation_action
@@ -46,8 +46,7 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
         )
 
     if isinstance(action, ExitCurrentPath):
-        # reducer では何もせず、app.py で処理させる
-        return finalize(state)
+        return finalize(state, ExitCurrentPathEffect())
 
     if isinstance(action, SetPendingKeySequence):
         return _finalize_reduce_result(

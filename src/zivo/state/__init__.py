@@ -2,6 +2,7 @@
 
 from .effects import (
     Effect,
+    ExitCurrentPathEffect,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
     LoadCurrentPaneEffect,
@@ -120,6 +121,7 @@ __all__ = [
     "DirectorySizeStatus",
     "Effect",
     "EmptyTrashConfirmationState",
+    "ExitCurrentPathEffect",
     "FileSearchResultState",
     "FilterState",
     "FindReplaceFieldId",

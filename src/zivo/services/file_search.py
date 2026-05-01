@@ -3,6 +3,7 @@
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Literal, Protocol
 
@@ -131,10 +132,20 @@ class LiveFileSearchService:
                     continue
                 if not parsed_query.matches(child.name):
                     continue
+                size_bytes: int | None = None
+                modified_at: datetime | None = None
+                try:
+                    stat_result = child.stat()
+                    size_bytes = stat_result.st_size
+                    modified_at = datetime.fromtimestamp(stat_result.st_mtime)
+                except OSError:
+                    pass
                 results.append(
                     FileSearchResultState(
                         path=str(child),
                         display_path=child.relative_to(root).as_posix(),
+                        size_bytes=size_bytes,
+                        modified_at=modified_at,
                     )
                 )
 

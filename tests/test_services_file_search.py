@@ -20,6 +20,47 @@ def test_live_file_search_service_matches_files_recursively(tmp_path) -> None:
     assert [result.display_path for result in results] == ["docs/README.md"]
 
 
+def test_live_file_search_service_populates_file_metadata(tmp_path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "data.txt").write_text("hello\n", encoding="utf-8")
+
+    service = LiveFileSearchService()
+
+    results = service.search(str(root), "data", show_hidden=False)
+
+    assert len(results) == 1
+    result = results[0]
+    assert result.display_path == "data.txt"
+    assert result.size_bytes == 6
+    assert result.modified_at is not None
+
+
+def test_live_file_search_service_handles_stat_failure(tmp_path, monkeypatch) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    target = root / "data.txt"
+    target.write_text("hello\n", encoding="utf-8")
+
+    original_stat = Path.stat
+
+    def broken_stat(self: Path, *args, **kwargs):
+        if self.name == "data.txt":
+            raise PermissionError("denied")
+        return original_stat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", broken_stat)
+
+    service = LiveFileSearchService()
+
+    results = service.search(str(root), "data", show_hidden=False)
+
+    assert len(results) == 1
+    result = results[0]
+    assert result.size_bytes is None
+    assert result.modified_at is None
+
+
 def test_live_file_search_service_skips_hidden_paths_when_disabled(tmp_path) -> None:
     root = tmp_path / "project"
     root.mkdir()

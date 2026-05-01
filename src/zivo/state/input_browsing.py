@@ -228,7 +228,7 @@ def dispatch_search_workspace_input(
 
 
 def handle_enter_search_workspace_file_open(state: AppState, ctx: BrowsingCtx) -> DispatchedActions:
-    """Handle Enter key in search workspace to open file with default app."""
+    """Handle Enter key in search workspace to open file."""
     if state.search_workspace is None or state.current_pane.cursor_path is None:
         return warn("No file selected")
 
@@ -236,13 +236,15 @@ def handle_enter_search_workspace_file_open(state: AppState, ctx: BrowsingCtx) -
     if state.search_workspace.kind == "grep":
         decoded = decode_grep_result_path(cursor_path)
         if decoded is not None:
-            real_path, _ = decoded
-            return supported(OpenPathWithDefaultApp(real_path))
+            real_path, line_number = decoded
+            return supported(
+                OpenPathInGuiEditor(real_path, line_number=line_number, column_number=1)
+            )
         if cursor_path:
-            return supported(OpenPathWithDefaultApp(cursor_path))
+            return supported(OpenPathInGuiEditor(cursor_path))
         return warn("Invalid grep result path")
     else:
-        # Find workspace: use path as-is
+        # Find workspace: open with default app
         return supported(OpenPathWithDefaultApp(cursor_path))
 
 

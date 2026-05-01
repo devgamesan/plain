@@ -161,7 +161,9 @@ def test_search_workspace_enter_opens_grep_result() -> None:
     actions = dispatch_key_input(state, key="enter")
 
     assert actions[0] == SetNotification(None)
-    assert actions[1] == OpenPathWithDefaultApp("/home/tadashi/develop/zivo/README.md")
+    assert actions[1] == OpenPathInGuiEditor(
+        "/home/tadashi/develop/zivo/README.md", line_number=42, column_number=1
+    )
 
 
 def test_search_workspace_copy_paths_uses_system_clipboard_action() -> None:

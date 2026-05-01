@@ -1621,8 +1621,8 @@ def test_select_help_bar_state_for_grep_search_palette() -> None:
     help_bar = select_help_bar_state(state)
 
     assert help_bar.lines == (
-        "type text / tab fields / ↑↓ or Ctrl+n/p select | "
-        "enter jump | Ctrl+e edit | Ctrl+o GUI | esc cancel",
+        "type text / ↑↓ or Ctrl+n/p select | "
+        "enter open | Ctrl+w workspace | Ctrl+e edit | Ctrl+o GUI | esc cancel",
     )
 
 

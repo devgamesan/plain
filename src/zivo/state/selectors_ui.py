@@ -157,8 +157,8 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
                 return HelpBarState(state.config.help_bar.palette_grep_search)
             return HelpBarState(
                 (
-                    "type text / tab fields / ↑↓ or Ctrl+n/p select | "
-                    "enter jump | Ctrl+e edit | Ctrl+o GUI | esc cancel",
+                    "type text / ↑↓ or Ctrl+n/p select | "
+                    "enter open | Ctrl+w workspace | Ctrl+e edit | Ctrl+o GUI | esc cancel",
                 )
             )
         if (

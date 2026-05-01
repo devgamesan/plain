@@ -88,6 +88,9 @@ test_select_shell_data_builds_child_preview_message_for_unavailable_file = (
 test_select_shell_data_builds_grep_preview_for_palette_selection = (
     cases.test_select_shell_data_builds_grep_preview_for_palette_selection
 )
+test_select_shell_data_builds_grep_preview_for_search_workspace = (
+    cases.test_select_shell_data_builds_grep_preview_for_search_workspace
+)
 test_select_shell_data_builds_sfg_preview_for_palette_selection = (
     cases.test_select_shell_data_builds_sfg_preview_for_palette_selection
 )

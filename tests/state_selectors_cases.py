@@ -75,6 +75,7 @@ from zivo.state.actions import (
 )
 from zivo.state.command_palette import CommandPaletteItem
 from zivo.state.reducer_common import directory_size_target_paths
+from zivo.state.search_workspace_helpers import encode_grep_result_path
 from zivo.state.selectors import (
     _has_execute_permission,
     _select_command_palette_window,
@@ -1011,6 +1012,58 @@ def test_select_shell_data_builds_grep_preview_for_palette_selection() -> None:
     assert shell.child_pane.is_preview is True
     assert shell.child_pane.title == "Preview: README.md:5"
     assert shell.child_pane.preview_path == path
+    assert shell.child_pane.preview_start_line == 2
+    assert shell.child_pane.preview_highlight_line == 5
+
+
+def test_select_shell_data_builds_grep_preview_for_search_workspace() -> None:
+    path = "/home/tadashi/develop/zivo/README.md"
+    grep_result = GrepSearchResultState(
+        path=path,
+        display_path="README.md",
+        line_number=5,
+        line_text="TODO: update docs",
+    )
+    encoded_path = encode_grep_result_path(path, 5)
+    state = replace(
+        build_initial_app_state(),
+        search_workspace=SearchWorkspaceState(
+            kind="grep",
+            root_path="/home/tadashi/develop/zivo",
+            query="todo",
+            grep_results=(grep_result,),
+            grep_display_mode="match",
+        ),
+        current_pane=PaneState(
+            directory_path='Search Workspace: grep "todo"',
+            entries=(
+                DirectoryEntryState(
+                    encoded_path,
+                    "README.md:5",
+                    "file",
+                ),
+            ),
+            cursor_path=encoded_path,
+        ),
+        child_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(),
+            mode="preview",
+            preview_path=path,
+            preview_title="Preview: README.md:5",
+            preview_content="line3\nline4\nTODO: update docs\nline6\n",
+            preview_start_line=2,
+            preview_highlight_line=5,
+        ),
+    )
+
+    shell = select_shell_data(state)
+
+    assert shell.child_pane.is_preview is True
+    assert shell.child_pane.title == "Preview: README.md:5"
+    assert shell.child_pane.preview_path == path
+    assert shell.child_pane.preview_content is not None
+    assert "TODO: update docs" in shell.child_pane.preview_content
     assert shell.child_pane.preview_start_line == 2
     assert shell.child_pane.preview_highlight_line == 5
 

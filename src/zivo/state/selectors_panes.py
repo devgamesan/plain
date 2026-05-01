@@ -23,6 +23,7 @@ from .models import (
     SortState,
     select_browser_tabs,
 )
+from .search_workspace_helpers import decode_grep_result_path
 from .selectors_shared import (
     SIDE_PANE_SORT,
     _find_current_cursor_index,
@@ -180,6 +181,11 @@ def select_child_pane_for_cursor(
     elif (
         state.child_pane.mode != "preview"
         or cursor_entry.path != state.child_pane.preview_path
+    ) and not (
+        state.search_workspace is not None
+        and state.search_workspace.kind == "grep"
+        and (decoded := decode_grep_result_path(cursor_entry.path)) is not None
+        and decoded[0] == state.child_pane.preview_path
     ):
         preview_disabled_message = _detect_preview_disabled_message(
             cursor_entry,

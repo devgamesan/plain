@@ -218,8 +218,8 @@ def _handle_begin_exit_current_path(state, action, reduce_state):
 def _handle_confirm_exit_current_path(state, action, reduce_state):
     if state.exit_confirmation is None:
         return finalize(state)
-    # ExitCurrentPath を Effect として返す
-    return finalize(
+    # ExitCurrentPath を reduce_state に渡して処理させる
+    return reduce_state(
         replace(state, exit_confirmation=None),
         ExitCurrentPath()
     )

@@ -46,7 +46,8 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
         )
 
     if isinstance(action, ExitCurrentPath):
-        return finalize(state, ExitCurrentPath())
+        # reducer では何もせず、app.py で処理させる
+        return finalize(state)
 
     if isinstance(action, SetPendingKeySequence):
         return _finalize_reduce_result(

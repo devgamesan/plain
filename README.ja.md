@@ -188,6 +188,12 @@ uv run pip-licenses --format=plain --from=mixed --with-urls --output-file NOTICE
 uv sync --python 3.12 --dev
 ```
 
+commit / push 前に Ruff が実行されるよう、ローカル Git hook をインストールします。
+
+```bash
+uv run pre-commit install
+```
+
 ローカル checkout から直接アプリを起動する場合は、リポジトリ直下で次を使えます。
 
 ```bash
@@ -199,6 +205,12 @@ uv run zivo
 ```bash
 uv run ruff check .
 uv run pytest
+```
+
+Git hook は手動でも実行できます。
+
+```bash
+uv run pre-commit run --all-files
 ```
 
 ### TestPyPI からインストール

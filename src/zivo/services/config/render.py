@@ -103,6 +103,7 @@ def render_behavior_section(config: AppConfig) -> str:
     return (
         "[behavior]\n"
         f"confirm_delete = {render_bool(config.behavior.confirm_delete)}\n"
+        f"confirm_exit = {render_bool(config.behavior.confirm_exit)}\n"
         f'paste_conflict_action = "{config.behavior.paste_conflict_action}"'
     )
 

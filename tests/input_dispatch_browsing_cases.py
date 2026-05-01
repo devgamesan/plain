@@ -431,7 +431,7 @@ def test_browsing_q_dispatches_exit_current_path() -> None:
 
     actions = dispatch_key_input(state, key="q", character="q")
 
-    assert actions == (SetNotification(None), ExitCurrentPath())
+    assert actions == (SetNotification(None), BeginExitCurrentPath())
 
 
 def test_browsing_uppercase_printable_key_is_ignored() -> None:

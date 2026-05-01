@@ -6,6 +6,7 @@ from zivo.state.actions import (
     ActivateTabByIndex,
     BeginCommandPalette,
     BeginDeleteTargets,
+    BeginExitCurrentPath,
     BeginGoToPath,
     BeginHistorySearch,
     BeginRenameInput,
@@ -13,7 +14,6 @@ from zivo.state.actions import (
     CloseCurrentTab,
     CopyTargets,
     CutTargets,
-    ExitCurrentPath,
     FocusTransferPane,
     OpenNewTab,
     PasteClipboardToTransferPane,
@@ -140,7 +140,7 @@ def test_transfer_mode_q_exits_app() -> None:
 
     assert dispatch_key_input(state, key="q") == (
         SetNotification(None),
-        ExitCurrentPath(),
+        BeginExitCurrentPath(),
     )
 
 

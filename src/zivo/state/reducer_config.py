@@ -236,6 +236,14 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
                 confirm_delete=not config.behavior.confirm_delete,
             ),
         )
+    if field_id == "behavior.confirm_exit":
+        return replace(
+            config,
+            behavior=replace(
+                config.behavior,
+                confirm_exit=not config.behavior.confirm_exit,
+            ),
+        )
     if field_id == "logging.level":
         return replace(
             config,
@@ -317,6 +325,7 @@ def config_editor_field_ids() -> tuple[str, ...]:
         "display.directories_first",
         "display.grep_preview_context_lines",
         "behavior.confirm_delete",
+        "behavior.confirm_exit",
         "behavior.paste_conflict_action",
         "logging.level",
         "file_search.max_results",
@@ -342,6 +351,7 @@ def config_editor_labels() -> tuple[str, ...]:
         "Directories first",
         "Grep preview context lines",
         "Confirm delete",
+        "Confirm exit",
         "Paste conflict action",
         "Log level",
         "File search max results",
@@ -477,6 +487,12 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
             "Current behavior: confirmations are "
             f"{'enabled' if config.behavior.confirm_delete else 'disabled'} by default.",
         )
+    if field_id == "behavior.confirm_exit":
+        return (
+            "Controls whether exit actions ask for confirmation first.",
+            "Current behavior: confirmations are "
+            f"{'enabled' if config.behavior.confirm_exit else 'disabled'} by default.",
+        )
     if field_id == "behavior.paste_conflict_action":
         return (
             "Sets the default behavior when a paste target already exists.",
@@ -547,6 +563,7 @@ def apply_config_to_runtime_state(state, config: AppConfig):
             directories_first=config.display.directories_first,
         ),
         confirm_delete=config.behavior.confirm_delete,
+        confirm_exit=config.behavior.confirm_exit,
         paste_conflict_action=config.behavior.paste_conflict_action,
     )
 
@@ -589,6 +606,8 @@ def format_config_field_value(field_index: int, config: AppConfig) -> str:
         return str(config.display.grep_preview_context_lines)
     if field_id == "behavior.confirm_delete":
         return _format_bool(config.behavior.confirm_delete)
+    if field_id == "behavior.confirm_exit":
+        return _format_bool(config.behavior.confirm_exit)
     if field_id == "behavior.paste_conflict_action":
         return config.behavior.paste_conflict_action
     if field_id == "logging.level":

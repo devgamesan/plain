@@ -207,6 +207,7 @@ class zivoApp(App[None]):
             show_help_bar=self._app_config.display.show_help_bar,
             sort=_initial_sort_state(self._app_config),
             confirm_delete=self._app_config.behavior.confirm_delete,
+            confirm_exit=self._app_config.behavior.confirm_exit,
             paste_conflict_action=self._app_config.behavior.paste_conflict_action,
             post_reload_notification=startup_notification,
             current_pane_projection_mode=current_pane_projection_mode,

@@ -10,6 +10,7 @@ from .actions import (
     BeginCommandPalette,
     BeginCreateInput,
     BeginDeleteTargets,
+    BeginExitCurrentPath,
     BeginFileSearch,
     BeginFilterInput,
     BeginGoToPath,
@@ -81,7 +82,7 @@ BROWSING_KEYMAP = {
     "left": "go_to_parent",
     "h": "go_to_parent",
     "R": "reload_directory",
-    "q": "exit_current_path",
+    "q": "begin_exit_current_path",
     "p": "toggle_transfer_mode",
     "r": "begin_rename",
     "!": "begin_shell_command",
@@ -221,6 +222,8 @@ def dispatch_search_workspace_input(
         return supported(ActivateNextTab())
     if key == "shift+tab":
         return supported(ActivatePreviousTab())
+    if key == "q":
+        return supported(BeginExitCurrentPath())
     return warn(
         "Search workspace: ↑↓ move | / filter | s sort | m view | "
         "Space select | Enter open | C copy paths"
@@ -531,6 +534,7 @@ BROWSING_SIMPLE_DISPATCH: dict[str, type[Action]] = {
     "close_current_tab": CloseCurrentTab,
     "activate_next_tab": ActivateNextTab,
     "activate_previous_tab": ActivatePreviousTab,
+    "begin_exit_current_path": BeginExitCurrentPath,
     "exit_current_path": ExitCurrentPath,
     "show_attributes": ShowAttributes,
     "toggle_transfer_mode": ToggleTransferMode,

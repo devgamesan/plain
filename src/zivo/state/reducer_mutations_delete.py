@@ -7,12 +7,22 @@ from zivo.models import DeleteRequest
 from .actions import (
     BeginDeleteTargets,
     BeginEmptyTrash,
+    BeginExitCurrentPath,
     CancelDeleteConfirmation,
     CancelEmptyTrashConfirmation,
+    CancelExitConfirmation,
     ConfirmDeleteTargets,
     ConfirmEmptyTrash,
+    ConfirmExitCurrentPath,
+    ExitCurrentPath,
 )
-from .models import DeleteConfirmationState, EmptyTrashConfirmationState, NotificationState
+from .effects import ExitCurrentPathEffect
+from .models import (
+    DeleteConfirmationState,
+    EmptyTrashConfirmationState,
+    ExitConfirmationState,
+    NotificationState,
+)
 from .reducer_common import finalize, run_file_mutation_request
 from .reducer_mutations_common import MutationHandler, detect_platform
 
@@ -179,11 +189,64 @@ def _handle_cancel_empty_trash_confirmation(state, action, reduce_state):
     )
 
 
+def _handle_begin_exit_current_path(state, action, reduce_state):
+    if state.confirm_exit:
+        return finalize(
+            replace(
+                state,
+                ui_mode="CONFIRM",
+                notification=None,
+                pending_input=None,
+                command_palette=None,
+                pending_file_search_request_id=None,
+                pending_grep_search_request_id=None,
+                paste_conflict=None,
+                delete_confirmation=None,
+                empty_trash_confirmation=None,
+                exit_confirmation=ExitConfirmationState(),
+                archive_extract_confirmation=None,
+                archive_extract_progress=None,
+                zip_compress_confirmation=None,
+                zip_compress_progress=None,
+                name_conflict=None,
+                attribute_inspection=None,
+            )
+        )
+    # confirm_exit が False の場合は reducer を経由して直接終了アクションを発行
+    return reduce_state(state, ExitCurrentPath())
+
+
+def _handle_confirm_exit_current_path(state, action, reduce_state):
+    if state.exit_confirmation is None:
+        return finalize(state)
+    # ExitCurrentPathEffect を発行して実際に終了
+    return finalize(
+        replace(state, exit_confirmation=None),
+        ExitCurrentPathEffect()
+    )
+
+
+def _handle_cancel_exit_confirmation(state, action, reduce_state):
+    if state.exit_confirmation is None:
+        return finalize(state)
+    return finalize(
+        replace(
+            state,
+            ui_mode="BROWSING",
+            notification=None,
+            exit_confirmation=None,
+        )
+    )
+
+
 DELETE_MUTATION_HANDLERS: dict[type, MutationHandler] = {
     BeginDeleteTargets: _handle_begin_delete_targets,
     BeginEmptyTrash: _handle_begin_empty_trash,
+    BeginExitCurrentPath: _handle_begin_exit_current_path,
     ConfirmDeleteTargets: _handle_confirm_delete_targets,
     ConfirmEmptyTrash: _handle_confirm_empty_trash,
+    ConfirmExitCurrentPath: _handle_confirm_exit_current_path,
     CancelDeleteConfirmation: _handle_cancel_delete_confirmation,
     CancelEmptyTrashConfirmation: _handle_cancel_empty_trash_confirmation,
+    CancelExitConfirmation: _handle_cancel_exit_confirmation,
 }

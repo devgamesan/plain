@@ -84,6 +84,10 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             if state.delete_confirmation.mode == "permanent":
                 return HelpBarState(("enter confirm permanent delete | esc cancel",))
             return HelpBarState(("enter confirm delete | esc cancel",))
+        if state.exit_confirmation is not None:
+            if state.config.help_bar.confirm_exit:
+                return HelpBarState(state.config.help_bar.confirm_exit)
+            return HelpBarState(("enter confirm exit | esc cancel",))
         if state.archive_extract_confirmation is not None:
             return HelpBarState(("enter continue extraction | esc return to input",))
         if state.zip_compress_confirmation is not None:
@@ -562,6 +566,13 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
         return ConflictDialogState(
             title="Empty Trash Confirmation",
             message=message,
+            options=("enter confirm", "esc cancel"),
+        )
+
+    if state.exit_confirmation is not None:
+        return ConflictDialogState(
+            title="Exit Confirmation",
+            message="Exit the application?",
             options=("enter confirm", "esc cancel"),
         )
 

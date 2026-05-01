@@ -26,7 +26,13 @@ from zivo.state.actions import (
     ToggleTransferMode,
     TransferCopyToOppositePane,
     TransferMoveToOppositePane,
+    TransferSearchWorkspaceSelection,
     UndoCompleted,
+)
+from zivo.state.models import (
+    FileSearchResultState,
+    GrepSearchResultState,
+    SearchWorkspaceState,
 )
 
 
@@ -233,3 +239,174 @@ def test_transfer_mode_is_scoped_to_browser_tab() -> None:
     assert previous_tab_state.layout_mode == "transfer"
     assert previous_tab_state.transfer_left is not None
     assert previous_tab_state.transfer_right is not None
+
+
+def test_transfer_search_workspace_selection_with_find_workspace() -> None:
+    """Test TransferSearchWorkspaceSelection with find workspace."""
+    state = build_initial_app_state()
+    # Create a find workspace with file results
+    state = replace(
+        state,
+        search_workspace=SearchWorkspaceState(
+            kind="find",
+            root_path=state.current_path,
+            query="test",
+            file_results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    display_path="README.md",
+                ),
+                FileSearchResultState(
+                    path="/home/tadashi/develop/zivo/pyproject.toml",
+                    display_path="pyproject.toml",
+                ),
+            ),
+        ),
+        current_pane=replace(
+            state.current_pane,
+            selected_paths=frozenset([
+                "/home/tadashi/develop/zivo/README.md",
+                "/home/tadashi/develop/zivo/pyproject.toml",
+            ]),
+        ),
+    )
+
+    reduced = reduce_app_state(state, TransferSearchWorkspaceSelection(mode="copy"))
+
+    assert reduced.state.layout_mode == "transfer"
+    assert reduced.state.active_transfer_pane == "left"
+    assert reduced.state.transfer_left is not None
+    assert reduced.state.transfer_right is not None
+    assert reduced.state.transfer_left.pane.selected_paths == frozenset([
+        "/home/tadashi/develop/zivo/README.md",
+        "/home/tadashi/develop/zivo/pyproject.toml",
+    ])
+    assert reduced.state.notification is not None
+    assert "copy 2 items" in reduced.state.notification.message
+
+
+def test_transfer_search_workspace_selection_with_grep_match_mode() -> None:
+    """Test TransferSearchWorkspaceSelection with grep workspace in match mode."""
+    state = build_initial_app_state()
+    # Create a grep workspace with match results
+    state = replace(
+        state,
+        search_workspace=SearchWorkspaceState(
+            kind="grep",
+            root_path=state.current_path,
+            query="test",
+            grep_display_mode="match",
+            grep_results=(
+                GrepSearchResultState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    display_path="README.md",
+                    line_number=10,
+                    line_text="test line",
+                ),
+                GrepSearchResultState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    display_path="README.md",
+                    line_number=20,
+                    line_text="another test line",
+                ),
+                GrepSearchResultState(
+                    path="/home/tadashi/develop/zivo/pyproject.toml",
+                    display_path="pyproject.toml",
+                    line_number=5,
+                    line_text="test config",
+                ),
+            ),
+        ),
+        current_pane=replace(
+            state.current_pane,
+            selected_paths=frozenset([
+                "/home/tadashi/develop/zivo/README.md\x0010",
+                "/home/tadashi/develop/zivo/README.md\x0020",
+                "/home/tadashi/develop/zivo/pyproject.toml\x0005",
+            ]),
+        ),
+    )
+
+    reduced = reduce_app_state(state, TransferSearchWorkspaceSelection(mode="move"))
+
+    assert reduced.state.layout_mode == "transfer"
+    assert reduced.state.transfer_left is not None
+    # Should extract unique file paths from selected matches
+    assert reduced.state.transfer_left.pane.selected_paths == frozenset([
+        "/home/tadashi/develop/zivo/README.md",
+        "/home/tadashi/develop/zivo/pyproject.toml",
+    ])
+    assert reduced.state.notification is not None
+    assert "move 2 items" in reduced.state.notification.message
+
+
+def test_transfer_search_workspace_selection_with_no_selection() -> None:
+    """Test TransferSearchWorkspaceSelection with no selection."""
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        search_workspace=SearchWorkspaceState(
+            kind="find",
+            root_path=state.current_path,
+            query="test",
+            file_results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    display_path="README.md",
+                ),
+            ),
+        ),
+        current_pane=replace(
+            state.current_pane,
+            selected_paths=frozenset(),
+            cursor_path="/home/tadashi/develop/zivo/README.md",
+        ),
+    )
+
+    reduced = reduce_app_state(state, TransferSearchWorkspaceSelection(mode="copy"))
+
+    # Should use cursor path when no selection
+    assert reduced.state.layout_mode == "transfer"
+    assert reduced.state.transfer_left is not None
+    assert reduced.state.transfer_left.pane.selected_paths == frozenset([
+        "/home/tadashi/develop/zivo/README.md",
+    ])
+
+
+def test_transfer_search_workspace_selection_with_nothing_to_transfer() -> None:
+    """Test TransferSearchWorkspaceSelection with nothing to transfer."""
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        search_workspace=SearchWorkspaceState(
+            kind="find",
+            root_path=state.current_path,
+            query="test",
+            file_results=(),
+        ),
+        current_pane=replace(
+            state.current_pane,
+            selected_paths=frozenset(),
+            cursor_path=None,
+        ),
+    )
+
+    reduced = reduce_app_state(state, TransferSearchWorkspaceSelection(mode="copy"))
+
+    # Should show warning and not enter transfer mode
+    assert reduced.state.layout_mode == "browser"
+    assert reduced.state.notification is not None
+    assert reduced.state.notification.level == "warning"
+    assert "Nothing to transfer" in reduced.state.notification.message
+
+
+def test_transfer_search_workspace_selection_with_no_workspace() -> None:
+    """Test TransferSearchWorkspaceSelection with no workspace active."""
+    state = build_initial_app_state()
+
+    reduced = reduce_app_state(state, TransferSearchWorkspaceSelection(mode="copy"))
+
+    # Should show warning
+    assert reduced.state.notification is not None
+    assert reduced.state.notification.level == "warning"
+    assert "No search workspace active" in reduced.state.notification.message

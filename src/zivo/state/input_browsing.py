@@ -51,6 +51,7 @@ from .actions import (
     ToggleSearchWorkspaceGrepDisplayMode,
     ToggleSelectionAndAdvance,
     ToggleTransferMode,
+    TransferSearchWorkspaceSelection,
     UndoLastOperation,
 )
 from .input_common import (
@@ -208,7 +209,13 @@ def dispatch_search_workspace_input(
     if key == "m":
         if state.search_workspace is not None and state.search_workspace.kind == "grep":
             return supported(ToggleSearchWorkspaceGrepDisplayMode())
+        # For find workspace, 'm' key triggers transfer (move mode)
+        if state.search_workspace is not None and state.search_workspace.kind == "find":
+            return supported(TransferSearchWorkspaceSelection(mode="move"))
         return ()
+    if key == "y":
+        # 'y' key triggers transfer (copy mode) for all search workspaces
+        return supported(TransferSearchWorkspaceSelection(mode="copy"))
     if key == ":":
         return supported(BeginCommandPalette())
     if key == "enter":
@@ -222,8 +229,8 @@ def dispatch_search_workspace_input(
     if key == "shift+tab":
         return supported(ActivatePreviousTab())
     return warn(
-        "Search workspace: ↑↓ move | / filter | s sort | m view | "
-        "Space select | Enter open | C copy paths"
+        "Search workspace: ↑↓ move | / filter | s sort | m view/find | "
+        "y copy | Space select | Enter open | C copy paths"
     )
 
 

@@ -285,3 +285,10 @@ class TransferMoveToOppositePane:
 @dataclass(frozen=True)
 class PasteClipboardToTransferPane:
     """Paste the app clipboard into the active transfer pane directory."""
+
+
+@dataclass(frozen=True)
+class TransferSearchWorkspaceSelection:
+    """Transfer selected Search Workspace items to opposite pane."""
+
+    mode: Literal["copy", "move"]

@@ -33,6 +33,7 @@ from .actions import (
     TransferMoveToOppositePane,
     TransferPaneSnapshotFailed,
     TransferPaneSnapshotLoaded,
+    TransferSearchWorkspaceSelection,
 )
 from .effects import LoadTransferPaneEffect, ReduceResult
 from .entry_state_helpers import select_visible_entry_states
@@ -46,6 +47,7 @@ from .models import (
 )
 from .reducer_common import finalize, move_cursor, run_paste_request, select_range_paths
 from .reducer_requests import browser_snapshot_invalidation_paths, build_history_after_snapshot_load
+from .search_workspace_helpers import extract_transfer_paths_from_search_workspace
 
 ReducerFn = Callable[[object, Action], ReduceResult]
 
@@ -148,6 +150,70 @@ def _handle_toggle_transfer_mode(
             transfer_left=left,
             transfer_right=right,
             notification=NotificationState(level="info", message="Transfer mode opened"),
+        )
+    )
+
+
+def _handle_transfer_search_workspace_selection(
+    state: AppState,
+    action: TransferSearchWorkspaceSelection,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    """Transfer selected Search Workspace items to opposite pane."""
+    del reduce_state
+    if state.search_workspace is None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning", message="No search workspace active"
+                ),
+            )
+        )
+
+    # Extract transfer paths from Search Workspace
+    transfer_paths = extract_transfer_paths_from_search_workspace(
+        state,
+        state.current_pane.cursor_path,
+        state.current_pane.selected_paths,
+    )
+
+    if not transfer_paths:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning", message="Nothing to transfer"
+                ),
+            )
+        )
+
+    # Initialize left and right panes (same as ToggleTransferMode)
+    left = TransferPaneState(
+        pane=state.current_pane, current_path=state.current_path, history=state.history
+    )
+    right = TransferPaneState(
+        pane=state.current_pane, current_path=state.current_path, history=state.history
+    )
+
+    # Set left pane selected_paths to transfer paths
+    left = replace(
+        left,
+        pane=replace(left.pane, selected_paths=frozenset(transfer_paths)),
+    )
+
+    mode_label = "copy" if action.mode == "copy" else "move"
+    return finalize(
+        replace(
+            state,
+            layout_mode="transfer",
+            active_transfer_pane="left",
+            transfer_left=left,
+            transfer_right=right,
+            notification=NotificationState(
+                level="info",
+                message=f"Transfer mode opened ({mode_label} {len(transfer_paths)} items)",
+            ),
         )
     )
 
@@ -676,6 +742,7 @@ _TRANSFER_HANDLERS: dict[type[Action], Callable[[AppState, Action, ReducerFn], R
     GoToTransferHome: _handle_go_to_transfer_home,
     TransferCopyToOppositePane: _handle_transfer_copy_to_opposite_pane,
     TransferMoveToOppositePane: _handle_transfer_move_to_opposite_pane,
+    TransferSearchWorkspaceSelection: _handle_transfer_search_workspace_selection,
     PasteClipboardToTransferPane: _handle_paste_clipboard_to_transfer_pane,
     TransferPaneSnapshotLoaded: _handle_transfer_pane_snapshot_loaded,
     TransferPaneSnapshotFailed: _handle_transfer_pane_snapshot_failed,

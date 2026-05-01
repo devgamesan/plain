@@ -10,8 +10,8 @@ The tab strip is only shown when two or more browser tabs are open.
 | `Next tab` | Two or more tabs are open | Activates the next browser tab. Also available with `tab`. |
 | `Previous tab` | Two or more tabs are open | Activates the previous browser tab. Also available with `shift+tab`. |
 | `Close current tab` | Two or more tabs are open | Closes the active browser tab. The last remaining tab cannot be closed. Also available with `w`. |
-| `Find files` | Always | Opens recursive file search. |
-| `Grep search` | Always | Opens recursive grep search (`ripgrep` / `rg` required on `PATH`) with keyword, filename, include-extension, and exclude-extension filters. |
+| `Find files` | Always | Opens recursive file search. Use `y` key in Search Workspace to start transfer mode (copy), `m` key to start transfer mode (move). |
+| `Grep search` | Always | Opens recursive grep search (`ripgrep` / `rg` required on `PATH`) with keyword, filename, include-extension, and exclude-extension filters. Use `y` key in Search Workspace to start transfer mode (copy), `m` key to toggle match/file view. |
 | `Grep in selected files` | A file is focused or one or more files are selected in the current directory | Opens grep search limited to the selected files, or the focused file when nothing is explicitly selected. Type a keyword to search within those files via grep, and matching lines appear in the palette. Use `↑` / `↓` or `Ctrl+n` / `Ctrl+p` to move between results, `Enter` to navigate to the file, `Ctrl+e` to open the file in a terminal editor, and `Ctrl+o` to open the matching location in a GUI editor. |
 | `History search` | Always | Opens directory history list and jump to a selected directory. |
 | `Show bookmarks` | Always | Opens the saved bookmark list and jumps to the selected directory. |

@@ -169,6 +169,7 @@ from .actions_navigation import (
     ToggleTransferSelectionAndAdvance,
     TransferCopyToOppositePane,
     TransferMoveToOppositePane,
+    TransferSearchWorkspaceSelection,
 )
 from .actions_palette import (
     BeginBookmarkSearch,
@@ -385,6 +386,7 @@ Action = (
     | GoToTransferHome
     | TransferCopyToOppositePane
     | TransferMoveToOppositePane
+    | TransferSearchWorkspaceSelection
     | PasteClipboardToTransferPane
     | BeginDeleteTargets
     | BeginCustomActionConfirmation

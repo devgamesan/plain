@@ -10,8 +10,8 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 | `Next tab` | 2 タブ以上開いているとき | 次のブラウズタブへ切り替えます。`tab` でも実行できます。 |
 | `Previous tab` | 2 タブ以上開いているとき | 前のブラウズタブへ切り替えます。`shift+tab` でも実行できます。 |
 | `Close current tab` | 2 タブ以上開いているとき | アクティブなブラウズタブを閉じます。最後の 1 タブは閉じられません。`w` でも実行できます。 |
-| `Find files` | 常に表示 | 再帰ファイル検索を開きます。検索結果パレットでは `Ctrl+w` で結果を新規タブの Search Workspace として開けます。 |
-| `Grep search` | 常に表示 | 再帰 grep 検索を開きます（`ripgrep` / `rg` が `PATH` 上に必要）。keyword / filename / include extension / exclude extension の各フィルタを利用できます。 |
+| `Find files` | 常に表示 | 再帰ファイル検索を開きます。検索結果パレットでは `Ctrl+w` で結果を新規タブの Search Workspace として開けます。Search Workspace で `y` キーで転送モード（コピー）、`m` キーで転送モード（移動）を起動できます。 |
+| `Grep search` | 常に表示 | 再帰 grep 検索を開きます（`ripgrep` / `rg` が `PATH` 上に必要）。keyword / filename / include extension / exclude extension の各フィルタを利用できます。Search Workspace で `y` キーで転送モード（コピー）、`m` キーで match/file 表示の切り替えを起動できます。 |
 | `Grep in selected files` | カレントディレクトリでファイルが1つフォーカスされているか、1つ以上のファイルが選択されているとき | 選択されたファイル、または何も選択されていない場合はフォーカスされたファイルに限定してgrep検索を開きます。キーワードを入力してgrep検索を行い、一致した行がパレットに表示されます。`↑` / `↓` または `Ctrl+n` / `Ctrl+p` で結果間を移動し、`Enter` でファイルへナビゲートし、`Ctrl+e` でターミナルエディタ、`Ctrl+o` で GUI エディタの該当箇所を開きます。 |
 | `History search` | 常に表示 | ディレクトリ履歴リストを開き、選択したディレクトリへ移動します。 |
 | `Show bookmarks` | 常に表示 | 保存済みのブックマークリストを開き、選択したディレクトリへ移動します。 |

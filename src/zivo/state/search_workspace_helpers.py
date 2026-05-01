@@ -165,3 +165,54 @@ def _matching_grep_results(
         result = first_grep_result_for_encoded_path(grep_results, path)
         return () if result is None else (result,)
     return tuple(result for result in grep_results if result.path == path)
+
+
+def extract_transfer_paths_from_search_workspace(
+    state: AppState,
+    cursor_path: str | None,
+    selected_paths: frozenset[str],
+) -> tuple[str, ...]:
+    """Extract file paths from Search Workspace for transfer operations.
+
+    Args:
+        state: Current app state
+        cursor_path: Current cursor path
+        selected_paths: Currently selected paths
+
+    Returns:
+        Tuple of file paths suitable for transfer operations.
+        For grep workspace in "match" mode, extracts unique file paths.
+        For other cases, returns selected paths or cursor path.
+    """
+    workspace = state.search_workspace
+    if workspace is None:
+        return ()
+
+    # Find workspace: use paths as-is
+    if workspace.kind == "find":
+        if selected_paths:
+            return tuple(selected_paths)
+        return (cursor_path,) if cursor_path else ()
+
+    # Grep workspace: need to handle match mode
+    if workspace.kind == "grep":
+        # Use normalize_grep_workspace_selected_paths_for_mode with mode="file"
+        # to convert match paths to file paths and deduplicate
+        file_paths = normalize_grep_workspace_selected_paths_for_mode(
+            workspace.grep_results,
+            selected_paths,
+            "file",  # Always use file paths for transfer
+        )
+
+        if file_paths:
+            return tuple(file_paths)
+
+        # No selection: use cursor path
+        if cursor_path:
+            decoded = decode_grep_result_path(cursor_path)
+            if decoded is not None:
+                return (decoded[0],)  # Return file path
+            return (cursor_path,)
+        return ()
+
+    return ()

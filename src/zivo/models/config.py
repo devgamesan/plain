@@ -64,6 +64,7 @@ class BehaviorConfig:
     """Behavior-related startup defaults."""
 
     confirm_delete: bool = True
+    confirm_exit: bool = True
     paste_conflict_action: PasteConflictAction = "prompt"
 
 
@@ -103,6 +104,7 @@ class HelpBarConfig:
     shell: tuple[str, ...] = ()
     config: tuple[str, ...] = ()
     confirm_delete: tuple[str, ...] = ()
+    confirm_exit: tuple[str, ...] = ()
     detail: tuple[str, ...] = ()
     busy: tuple[str, ...] = ()
 

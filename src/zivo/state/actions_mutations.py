@@ -102,6 +102,21 @@ class CancelEmptyTrashConfirmation:
 
 
 @dataclass(frozen=True)
+class BeginExitCurrentPath:
+    """Begin the exit confirmation flow."""
+
+
+@dataclass(frozen=True)
+class ConfirmExitCurrentPath:
+    """Confirm the application exit."""
+
+
+@dataclass(frozen=True)
+class CancelExitConfirmation:
+    """Cancel the exit confirmation."""
+
+
+@dataclass(frozen=True)
 class ConfirmArchiveExtract:
     """Confirm the pending archive extraction request."""
 

@@ -18,6 +18,7 @@ from .actions import (
     BeginCustomActionConfirmation,
     BeginDeleteTargets,
     BeginEmptyTrash,
+    BeginExitCurrentPath,
     BeginExtractArchiveInput,
     BeginFileSearch,
     BeginFindAndReplace,
@@ -456,6 +457,10 @@ def _run_create_dir_command(state: AppState, reduce_state: ReducerFn) -> ReduceR
     return reduce_state(state, BeginCreateInput("dir"))
 
 
+def _run_exit_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
+    return reduce_state(state, BeginExitCurrentPath())
+
+
 def _run_create_symlink_command(
     state: AppState,
     next_state: AppState,
@@ -565,6 +570,8 @@ def _run_palette_command_item(
         return _run_reload_directory_command(next_state, reduce_state)
     if item_id == "toggle_transfer_mode":
         return reduce_state(next_state, ToggleTransferMode())
+    if item_id == "exit":
+        return _run_exit_command(next_state, reduce_state)
     if item_id == "undo_last_operation":
         return reduce_state(next_state, UndoLastOperation())
     if item_id == "copy_targets":

@@ -268,6 +268,12 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             enabled=tab_count > 1,
         ),
         CommandPaletteItem(
+            id="exit",
+            label="Exit",
+            shortcut="q",
+            enabled=True,
+        ),
+        CommandPaletteItem(
             id="toggle_transfer_mode",
             label=(
                 "Close transfer mode"

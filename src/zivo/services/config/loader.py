@@ -330,6 +330,13 @@ def load_behavior_config(section: object, warnings: list[str]) -> BehaviorConfig
             warnings=warnings,
             section_name="behavior",
         ),
+        confirm_exit=read_bool(
+            validated,
+            key="confirm_exit",
+            default=config.confirm_exit,
+            warnings=warnings,
+            section_name="behavior",
+        ),
         paste_conflict_action=read_enum(
             validated,
             key="paste_conflict_action",

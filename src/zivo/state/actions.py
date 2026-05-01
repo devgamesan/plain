@@ -36,10 +36,12 @@ from .actions_mutations import (
     BeginCustomActionConfirmation,
     BeginDeleteTargets,
     BeginEmptyTrash,
+    BeginExitCurrentPath,
     CancelArchiveExtractConfirmation,
     CancelCustomActionConfirmation,
     CancelDeleteConfirmation,
     CancelEmptyTrashConfirmation,
+    CancelExitConfirmation,
     CancelPasteConflict,
     CancelReplaceConfirmation,
     CancelSymlinkOverwriteConfirmation,
@@ -49,6 +51,7 @@ from .actions_mutations import (
     ConfirmCustomAction,
     ConfirmDeleteTargets,
     ConfirmEmptyTrash,
+    ConfirmExitCurrentPath,
     ConfirmReplaceTargets,
     ConfirmSymlinkOverwrite,
     ConfirmZipCompress,
@@ -97,11 +100,13 @@ __all__ = [
     # Mutation actions
     "BeginDeleteTargets",
     "BeginEmptyTrash",
+    "BeginExitCurrentPath",
     "BeginCustomActionConfirmation",
     "CancelArchiveExtractConfirmation",
     "CancelCustomActionConfirmation",
     "CancelDeleteConfirmation",
     "CancelEmptyTrashConfirmation",
+    "CancelExitConfirmation",
     "CancelPasteConflict",
     "CancelReplaceConfirmation",
     "CancelSymlinkOverwriteConfirmation",
@@ -111,6 +116,7 @@ __all__ = [
     "ConfirmCustomAction",
     "ConfirmDeleteTargets",
     "ConfirmEmptyTrash",
+    "ConfirmExitCurrentPath",
     "ConfirmReplaceTargets",
     "ConfirmSymlinkOverwrite",
     "ConfirmZipCompress",
@@ -403,6 +409,9 @@ Action = (
     | BeginEmptyTrash
     | ConfirmEmptyTrash
     | CancelEmptyTrashConfirmation
+    | BeginExitCurrentPath
+    | ConfirmExitCurrentPath
+    | CancelExitConfirmation
     | ConfirmArchiveExtract
     | ConfirmCustomAction
     | CancelArchiveExtractConfirmation

@@ -141,10 +141,14 @@ You can open an external terminal directly from zivo. Press `t` to suspend zivo 
 | `PageUp` / `PageDown` | Move cursor by page |
 | `Home` / `End` | Jump to first/last result |
 | `Space` | Select or deselect the target file/result |
+| `a` | Select all visible results |
 | `/` | Enter filter mode |
 | `s` | Cycle sort order |
 | `m` | Toggle grep match/file view |
 | `Enter` | Open selected result |
+| `e` | Open selected result in terminal editor |
+| `O` | Open selected result in GUI editor |
+| `R` | Reload the workspace listing |
 | `C` | Copy selected paths, or the cursor path when nothing is selected, to the system clipboard |
 | `:` | Open the command palette |
 | `Tab` / `Shift+Tab` | Switch tabs |

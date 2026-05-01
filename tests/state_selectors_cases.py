@@ -1432,20 +1432,18 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     split_terminal_hint = " | t term" if os.name == "posix" else ""
 
     assert help_state.lines == (
-        "enter open | e edit | O gui editor | i info | space select | "
-        "c copy | x cut | v paste | d delete | r rename | z undo",
-        "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to | [ ] preview",
-        (
-            "n new-file | N new-dir | H history | "
-            f"b bookmarks{split_terminal_hint} | p transfer | : palette | q quit"
-        ),
+        "enter open | e edit | O gui editor | i info | "
+        "/ filter | s sort | . hidden | [ ] preview",
+        "space select | c copy | x cut | v paste | "
+        "d delete | r rename | z undo",
+        f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette | q quit",
     )
     assert help_state.text == (
-        "enter open | e edit | O gui editor | i info | space select | "
-        "c copy | x cut | v paste | d delete | r rename | z undo\n"
-        "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to | [ ] preview\n"
-        "n new-file | N new-dir | H history | "
-        f"b bookmarks{split_terminal_hint} | p transfer | : palette | q quit"
+        "enter open | e edit | O gui editor | i info | "
+        "/ filter | s sort | . hidden | [ ] preview\n"
+        "space select | c copy | x cut | v paste | "
+        "d delete | r rename | z undo\n"
+        f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette | q quit"
     )
 
 
@@ -1457,14 +1455,12 @@ def test_select_help_bar_for_transfer_mode_prioritizes_transfer_actions() -> Non
     assert help_state.lines == (
         "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit",
         "Space select | c copy | x cut | v paste | d delete | r rename",
-        "z undo | . hidden | N new-dir | o new-tab | w close-tab",
-        "b bookmarks | H history | G go-to | : palette",
+        "z undo | . hidden | N new-dir | : palette",
     )
     assert help_state.text == (
         "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit\n"
         "Space select | c copy | x cut | v paste | d delete | r rename\n"
-        "z undo | . hidden | N new-dir | o new-tab | w close-tab\n"
-        "b bookmarks | H history | G go-to | : palette"
+        "z undo | . hidden | N new-dir | : palette"
     )
 
 

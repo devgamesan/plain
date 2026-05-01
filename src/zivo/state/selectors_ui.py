@@ -214,30 +214,26 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             (
                 "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit",
                 "Space select | c copy | x cut | v paste | d delete | r rename",
-                "z undo | . hidden | N new-dir | o new-tab | w close-tab",
-                "b bookmarks | H history | G go-to | : palette",
+                "z undo | . hidden | N new-dir | : palette",
             )
         )
     if state.search_workspace is not None:
         return HelpBarState(
             (
-                "Search workspace | ↑↓ move | Space select | a select all | Enter jump | "
-                "e edit | O GUI | R refresh | C copy paths",
+                "Search workspace | Space select | a select all | Enter jump | "
+                "e edit | O GUI",
             )
         )
     if state.config.help_bar.browsing:
         return HelpBarState(state.config.help_bar.browsing)
     split_terminal_hint = " | t term" if is_split_terminal_supported() else ""
-    browsing_shortcuts = (
-        "n new-file | N new-dir | H history | "
-        f"b bookmarks{split_terminal_hint} | p transfer | : palette | q quit"
-    )
     return HelpBarState(
         (
-            "enter open | e edit | O gui editor | i info | space select | "
-            "c copy | x cut | v paste | d delete | r rename | z undo",
-            "/ filter | s sort | . hidden | ~ home | f find | g grep | G go-to | [ ] preview",
-            browsing_shortcuts,
+            "enter open | e edit | O gui editor | i info | "
+            "/ filter | s sort | . hidden | [ ] preview",
+            "space select | c copy | x cut | v paste | "
+            "d delete | r rename | z undo",
+            f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette | q quit",
         )
     )
 

@@ -235,8 +235,8 @@ def dispatch_search_workspace_input(
     if key == "q":
         return supported(BeginExitCurrentPath())
     return warn(
-        "Search workspace: ↑↓ move | / filter | s sort | m view | "
-        "Space select | a select all | Enter jump | e edit | O GUI | R refresh | C copy paths"
+        "Search workspace: / filter | s sort | m view | "
+        "Space select | a select all | Enter jump | e edit | O GUI"
     )
 
 

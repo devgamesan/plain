@@ -200,6 +200,8 @@ def dispatch_search_workspace_input(
         return handle_jump_cursor_end(state, ctx)
     if key == "space":
         return handle_toggle_selection(state, ctx)
+    if key == "a":
+        return handle_select_all(state, ctx)
     if key == "escape":
         if ctx.filter_is_active:
             return supported(CancelFilterInput())
@@ -216,6 +218,12 @@ def dispatch_search_workspace_input(
         return supported(BeginCommandPalette())
     if key == "enter":
         return handle_enter_search_workspace_file_open(state, ctx)
+    if key == "e":
+        return handle_open_in_editor_workspace(state, ctx)
+    if key == "O":
+        return handle_open_in_gui_editor_workspace(state, ctx)
+    if key == "R":
+        return supported(ReloadDirectory())
     if key == "C":
         return supported(CopyPathsToClipboard())
     if key == "w":
@@ -228,7 +236,7 @@ def dispatch_search_workspace_input(
         return supported(BeginExitCurrentPath())
     return warn(
         "Search workspace: ↑↓ move | / filter | s sort | m view | "
-        "Space select | Enter open | C copy paths"
+        "Space select | a select all | Enter jump | e edit | O GUI | R refresh | C copy paths"
     )
 
 
@@ -251,6 +259,38 @@ def handle_enter_search_workspace_file_open(state: AppState, ctx: BrowsingCtx) -
     else:
         # Find workspace: open with default app
         return supported(OpenPathWithDefaultApp(cursor_path))
+
+
+def handle_open_in_editor_workspace(state: AppState, ctx: BrowsingCtx) -> DispatchedActions:
+    if state.search_workspace is None or state.current_pane.cursor_path is None:
+        return warn("No file selected")
+    cursor_path = state.current_pane.cursor_path
+    if state.search_workspace.kind == "grep":
+        decoded = decode_grep_result_path(cursor_path)
+        if decoded is not None:
+            real_path, line_number = decoded
+            return supported(OpenPathInEditor(real_path, line_number=line_number))
+        if cursor_path:
+            return supported(OpenPathInEditor(cursor_path))
+        return warn("Invalid grep result path")
+    return supported(OpenPathInEditor(cursor_path))
+
+
+def handle_open_in_gui_editor_workspace(state: AppState, ctx: BrowsingCtx) -> DispatchedActions:
+    if state.search_workspace is None or state.current_pane.cursor_path is None:
+        return warn("No file selected")
+    cursor_path = state.current_pane.cursor_path
+    if state.search_workspace.kind == "grep":
+        decoded = decode_grep_result_path(cursor_path)
+        if decoded is not None:
+            real_path, line_number = decoded
+            return supported(
+                OpenPathInGuiEditor(real_path, line_number=line_number, column_number=1)
+            )
+        if cursor_path:
+            return supported(OpenPathInGuiEditor(cursor_path))
+        return warn("Invalid grep result path")
+    return supported(OpenPathInGuiEditor(cursor_path))
 
 
 def noop_browsing_handler(_state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:

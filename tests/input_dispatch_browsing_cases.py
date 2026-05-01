@@ -258,6 +258,132 @@ def test_search_workspace_escape_clears_selection_when_no_filter() -> None:
     assert actions == (SetNotification(None), ClearSelection())
 
 
+def test_search_workspace_a_selects_all() -> None:
+    state = replace(
+        build_initial_app_state(),
+        search_workspace=SearchWorkspaceState(
+            kind="find",
+            root_path="/home/tadashi/develop/zivo",
+            query="readme",
+        ),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(
+                DirectoryEntryState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    name="README.md",
+                    kind="file",
+                ),
+            ),
+            cursor_path="/home/tadashi/develop/zivo/README.md",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="a", character="a")
+
+    assert actions[0] == SetNotification(None)
+    assert isinstance(actions[1], SelectAllVisibleEntries)
+
+
+def test_search_workspace_e_opens_in_editor() -> None:
+    state = replace(
+        build_initial_app_state(),
+        search_workspace=SearchWorkspaceState(
+            kind="find",
+            root_path="/home/tadashi/develop/zivo",
+            query="readme",
+        ),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(
+                DirectoryEntryState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    name="README.md",
+                    kind="file",
+                ),
+            ),
+            cursor_path="/home/tadashi/develop/zivo/README.md",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="e", character="e")
+
+    assert actions[0] == SetNotification(None)
+    assert actions[1] == OpenPathInEditor("/home/tadashi/develop/zivo/README.md")
+
+
+def test_search_workspace_O_opens_in_gui_editor() -> None:
+    state = replace(
+        build_initial_app_state(),
+        search_workspace=SearchWorkspaceState(
+            kind="find",
+            root_path="/home/tadashi/develop/zivo",
+            query="readme",
+        ),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(
+                DirectoryEntryState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    name="README.md",
+                    kind="file",
+                ),
+            ),
+            cursor_path="/home/tadashi/develop/zivo/README.md",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="O", character="O")
+
+    assert actions[0] == SetNotification(None)
+    assert actions[1] == OpenPathInGuiEditor("/home/tadashi/develop/zivo/README.md")
+
+
+def test_search_workspace_e_opens_grep_in_editor() -> None:
+    encoded_path = "/home/tadashi/develop/zivo/README.md\x0042"
+    state = replace(
+        build_initial_app_state(),
+        search_workspace=SearchWorkspaceState(
+            kind="grep",
+            root_path="/home/tadashi/develop/zivo",
+            query="TODO",
+        ),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(
+                DirectoryEntryState(
+                    path=encoded_path,
+                    name="README.md:42: TODO: implement this",
+                    kind="file",
+                ),
+            ),
+            cursor_path=encoded_path,
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="e", character="e")
+
+    assert actions[0] == SetNotification(None)
+    assert actions[1] == OpenPathInEditor(
+        "/home/tadashi/develop/zivo/README.md", line_number=42
+    )
+
+
+def test_search_workspace_R_refreshes_directory() -> None:
+    state = replace(
+        build_initial_app_state(),
+        search_workspace=SearchWorkspaceState(
+            kind="find",
+            root_path="/home/tadashi/develop/zivo",
+            query="readme",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="R", character="R")
+
+    assert actions == (SetNotification(None), ReloadDirectory())
+
+
 def test_browsing_prefix_key_starts_multi_key_sequence(monkeypatch) -> None:
     monkeypatch.setattr(
         input_module,

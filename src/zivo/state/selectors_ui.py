@@ -221,8 +221,8 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     if state.search_workspace is not None:
         return HelpBarState(
             (
-                "Search workspace | ↑↓ move | Space select | Enter jump | C copy paths",
-                "Tab switch tab | w close workspace",
+                "Search workspace | ↑↓ move | Space select | a select all | Enter jump | "
+                "e edit | O GUI | R refresh | C copy paths",
             )
         )
     if state.config.help_bar.browsing:

@@ -361,6 +361,8 @@ class FileSearchResultState:
 
     path: str
     display_path: str
+    size_bytes: int | None = None
+    modified_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -372,6 +374,8 @@ class GrepSearchResultState:
     line_number: int
     line_text: str
     column_number: int = 1
+    size_bytes: int | None = None
+    modified_at: datetime | None = None
 
     @property
     def display_label(self) -> str:

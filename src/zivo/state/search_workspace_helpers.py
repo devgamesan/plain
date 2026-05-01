@@ -42,6 +42,8 @@ def build_grep_file_entries(
             path=result.path,
             name=result.display_path,
             kind="file",
+            size_bytes=result.size_bytes,
+            modified_at=result.modified_at,
         )
     return tuple(file_entries.values())
 

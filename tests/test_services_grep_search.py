@@ -33,6 +33,25 @@ def test_live_grep_search_service_matches_file_contents_recursively(tmp_path) ->
 
 
 @skip_if_no_rg
+def test_live_grep_search_service_populates_file_metadata(tmp_path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    target = root / "data.txt"
+    target.write_text("TODO: item\n", encoding="utf-8")
+    expected_size = target.stat().st_size
+
+    service = LiveGrepSearchService()
+
+    results = service.search(str(root), "todo", show_hidden=False)
+
+    assert len(results) == 1
+    result = results[0]
+    assert result.display_path == "data.txt"
+    assert result.size_bytes == expected_size
+    assert result.modified_at is not None
+
+
+@skip_if_no_rg
 def test_live_grep_search_service_records_first_match_column(tmp_path) -> None:
     root = tmp_path / "project"
     root.mkdir()

@@ -3,7 +3,8 @@
 import json
 import subprocess
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
@@ -106,7 +107,7 @@ class LiveGrepSearchService:
             if self._is_nonfatal_ripgrep_error(return_code, stderr_text, stripped_query):
                 return tuple(
                     sorted(
-                        self._parse_results(root, stdout_lines),
+                        self._attach_file_metadata(self._parse_results(root, stdout_lines)),
                         key=lambda result: (result.display_path.casefold(), result.line_number),
                     )
                 )
@@ -114,7 +115,7 @@ class LiveGrepSearchService:
                 raise InvalidGrepSearchQueryError(message)
             raise OSError(message)
 
-        results = self._parse_results(root, stdout_lines)
+        results = self._attach_file_metadata(self._parse_results(root, stdout_lines))
         return tuple(
             sorted(
                 results,
@@ -188,6 +189,25 @@ class LiveGrepSearchService:
                 )
             )
         return results
+
+    @staticmethod
+    def _attach_file_metadata(
+        results: list[GrepSearchResultState],
+    ) -> list[GrepSearchResultState]:
+        cache: dict[str, tuple[int | None, datetime | None]] = {}
+        for path in {r.path for r in results}:
+            try:
+                stat_result = Path(path).stat()
+                cache[path] = (
+                    stat_result.st_size,
+                    datetime.fromtimestamp(stat_result.st_mtime),
+                )
+            except OSError:
+                cache[path] = (None, None)
+        return [
+            replace(r, size_bytes=cache[r.path][0], modified_at=cache[r.path][1])
+            for r in results
+        ]
 
     @staticmethod
     def _relative_display_path(root: Path, path: Path) -> str:

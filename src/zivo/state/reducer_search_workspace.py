@@ -54,6 +54,8 @@ def open_file_search_workspace(
             path=result.path,
             name=result.display_path,
             kind="file",
+            size_bytes=result.size_bytes,
+            modified_at=result.modified_at,
         )
         for result in workspace.file_results
     )
@@ -121,6 +123,8 @@ def open_grep_search_workspace(
             path=encode_grep_result_path(result.path, result.line_number),
             name=result.display_label,
             kind="file",
+            size_bytes=result.size_bytes,
+            modified_at=result.modified_at,
         )
         for result in grep_results
     )

@@ -201,6 +201,8 @@ def dispatch_search_workspace_input(
     if key == "space":
         return handle_toggle_selection(state, ctx)
     if key == "escape":
+        if ctx.filter_is_active:
+            return supported(CancelFilterInput())
         return supported(ClearSelection())
     if key == "/":
         return supported(BeginFilterInput())

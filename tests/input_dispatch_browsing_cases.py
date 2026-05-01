@@ -226,6 +226,38 @@ def test_search_workspace_grep_m_toggles_match_and_file_views() -> None:
     assert actions == (SetNotification(None), ToggleSearchWorkspaceGrepDisplayMode())
 
 
+def test_search_workspace_escape_clears_filter_when_active() -> None:
+    base = build_initial_app_state()
+    state = replace(
+        base,
+        search_workspace=SearchWorkspaceState(
+            kind="find",
+            root_path="/home/tadashi/develop/zivo",
+            query="readme",
+        ),
+        filter=replace(base.filter, query="docs", active=True),
+    )
+
+    actions = dispatch_key_input(state, key="escape")
+
+    assert actions == (SetNotification(None), CancelFilterInput())
+
+
+def test_search_workspace_escape_clears_selection_when_no_filter() -> None:
+    state = replace(
+        build_initial_app_state(),
+        search_workspace=SearchWorkspaceState(
+            kind="find",
+            root_path="/home/tadashi/develop/zivo",
+            query="readme",
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="escape")
+
+    assert actions == (SetNotification(None), ClearSelection())
+
+
 def test_browsing_prefix_key_starts_multi_key_sequence(monkeypatch) -> None:
     monkeypatch.setattr(
         input_module,

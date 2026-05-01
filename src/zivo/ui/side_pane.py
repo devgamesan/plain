@@ -49,6 +49,7 @@ class SidePane(Vertical):
         self._ft_styles: dict[str, Style] = {}
         self._last_render_width = 0
         self._last_clicked_path: str | None = None
+        self._hovered_path: str | None = None
 
     @property
     def list_view_id(self) -> str | None:
@@ -88,6 +89,42 @@ class SidePane(Vertical):
         event.stop()
         self.post_message(self.EntryClicked(self.id, path, double_click=double_click))
 
+    def on_mouse_move(self, event: events.MouseMove) -> None:
+        meta = event.style.meta
+        if "entry_path" not in meta:
+            if self._hovered_path is not None:
+                self._hovered_path = None
+                self._refresh_hover()
+            return
+        path = str(meta["entry_path"])
+        if path != self._hovered_path:
+            self._hovered_path = path
+            self._refresh_hover()
+
+    def on_leave(self, _event: events.Leave) -> None:
+        if self._hovered_path is not None:
+            self._hovered_path = None
+            self._refresh_hover()
+
+    def _refresh_hover(self) -> None:
+        try:
+            content = self._content_widget()
+        except NoMatches:
+            return
+        render_width = self._last_render_width
+        if render_width <= 0:
+            return
+        content.update(
+            _render_file_entries(
+                self._entries,
+                render_width,
+                self._ft_styles,
+                selected_directory_style=self.SELECTED_DIRECTORY_STYLE,
+                selected_cut_style=self.SELECTED_CUT_STYLE,
+                hovered_path=self._hovered_path,
+            )
+        )
+
     async def set_entries(self, entries: Sequence[PaneEntry]) -> None:
         """Replace the rendered entries without remounting the pane."""
 
@@ -95,6 +132,7 @@ class SidePane(Vertical):
         if next_entries == self._entries:
             return
 
+        self._hovered_path = None
         content = self._content_widget()
         render_width = self._entry_width(content)
         content.update(
@@ -124,6 +162,7 @@ class SidePane(Vertical):
                 self._ft_styles,
                 selected_directory_style=self.SELECTED_DIRECTORY_STYLE,
                 selected_cut_style=self.SELECTED_CUT_STYLE,
+                hovered_path=self._hovered_path,
             )
         )
         self._last_render_width = render_width

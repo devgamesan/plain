@@ -62,6 +62,7 @@ class ChildPane(Vertical):
         self._last_render_width = 0
         self._last_render_signature: object | None = None
         self._last_clicked_path: str | None = None
+        self._hovered_path: str | None = None
 
     @property
     def list_view_id(self) -> str | None:
@@ -138,9 +139,50 @@ class ChildPane(Vertical):
         event.stop()
         self.post_message(self.EntryClicked(self.id, path, double_click=double_click))
 
+    def on_mouse_move(self, event: events.MouseMove) -> None:
+        if self._state.is_preview:
+            return
+        meta = event.style.meta
+        if "entry_path" not in meta:
+            if self._hovered_path is not None:
+                self._hovered_path = None
+                self._refresh_list_hover()
+            return
+        path = str(meta["entry_path"])
+        if path != self._hovered_path:
+            self._hovered_path = path
+            self._refresh_list_hover()
+
+    def on_leave(self, _event: events.Leave) -> None:
+        if self._state.is_preview:
+            return
+        if self._hovered_path is not None:
+            self._hovered_path = None
+            self._refresh_list_hover()
+
+    def _refresh_list_hover(self) -> None:
+        try:
+            widget = self._list_widget()
+        except NoMatches:
+            return
+        render_width = self._last_render_width
+        if render_width <= 0:
+            return
+        widget.update(
+            _render_file_entries(
+                self._state.entries,
+                render_width,
+                self._ft_styles,
+                selected_directory_style=self.SELECTED_DIRECTORY_STYLE,
+                selected_cut_style=self.SELECTED_CUT_STYLE,
+                hovered_path=self._hovered_path,
+            )
+        )
+
     async def set_state(self, state: ChildPaneViewState) -> None:
         if state == self._state:
             return
+        self._hovered_path = None
 
         previous_state = self._state
         preview_identity_changed = self._preview_identity(state) != self._preview_identity(
@@ -205,6 +247,7 @@ class ChildPane(Vertical):
                 self._ft_styles,
                 selected_directory_style=self.SELECTED_DIRECTORY_STYLE,
                 selected_cut_style=self.SELECTED_CUT_STYLE,
+                hovered_path=self._hovered_path,
             )
         )
         self._last_render_width = render_width

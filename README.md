@@ -188,6 +188,12 @@ To prepare the development environment:
 uv sync --python 3.12 --dev
 ```
 
+Install the local Git hooks so Ruff runs before commits and pushes:
+
+```bash
+uv run pre-commit install
+```
+
 To launch the app directly from a local checkout, run this from the repository root:
 
 ```bash
@@ -199,6 +205,12 @@ Lint and test:
 ```bash
 uv run ruff check .
 uv run pytest
+```
+
+You can also run the Git hooks manually:
+
+```bash
+uv run pre-commit run --all-files
 ```
 
 ### Install from TestPyPI

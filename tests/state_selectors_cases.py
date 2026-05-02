@@ -31,6 +31,8 @@ from zivo.state import (
     FileSearchResultState,
     GrepSearchPaletteState,
     GrepSearchResultState,
+    GrfPaletteState,
+    GrsPaletteState,
     HistoryAndNavigationPaletteState,
     HistoryState,
     NameConflictState,
@@ -41,6 +43,7 @@ from zivo.state import (
     PendingKeySequenceState,
     ReplacePreviewPaletteState,
     ReplacePreviewResultState,
+    RffPaletteState,
     SfgPaletteState,
     ZipCompressConfirmationState,
     build_initial_app_state,
@@ -3178,3 +3181,94 @@ def test_detect_preview_disabled_message_returns_none_when_enabled() -> None:
         enable_office_preview=True,
     )
     assert message is None
+
+
+def test_select_command_palette_state_rff_preview_title_with_counts() -> None:
+    preview_result = ReplacePreviewResultState(
+        path="/home/tadashi/develop/zivo/README.md",
+        display_path="README.md",
+        diff_text="--- before\n+++ after\n@@\n-todo item\n+done item\n",
+        match_count=2,
+        first_match_line_number=8,
+        first_match_before="todo item",
+        first_match_after="done item",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="replace_in_found_files",
+            rff=RffPaletteState(
+                preview_results=(preview_result,),
+                total_match_count=2,
+            ),
+        ),
+    )
+    palette_state = select_command_palette_state(state)
+    assert palette_state is not None
+    assert palette_state.title == "Replace in Found Files (1 file(s), 2 match(es)) (1-1 / 1)"
+
+
+def test_select_command_palette_state_rff_preview_title_without_results() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="replace_in_found_files",
+        ),
+    )
+    palette_state = select_command_palette_state(state)
+    assert palette_state is not None
+    assert palette_state.title == "Replace in Found Files"
+
+
+def test_select_command_palette_state_grf_preview_title_with_counts() -> None:
+    preview_result = ReplacePreviewResultState(
+        path="/home/tadashi/develop/zivo/README.md",
+        display_path="README.md",
+        diff_text="--- before\n+++ after\n@@\n-todo item\n+done item\n",
+        match_count=2,
+        first_match_line_number=8,
+        first_match_before="todo item",
+        first_match_after="done item",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="replace_in_grep_files",
+            grf=GrfPaletteState(
+                preview_results=(preview_result,),
+                total_match_count=2,
+            ),
+        ),
+    )
+    palette_state = select_command_palette_state(state)
+    assert palette_state is not None
+    assert palette_state.title == "Replace in Grep Files (1 file(s), 2 match(es)) (1-1 / 1)"
+
+
+def test_select_command_palette_state_grs_preview_title_with_counts() -> None:
+    preview_result = ReplacePreviewResultState(
+        path="/home/tadashi/develop/zivo/README.md",
+        display_path="README.md",
+        diff_text="--- before\n+++ after\n@@\n-todo item\n+done item\n",
+        match_count=2,
+        first_match_line_number=8,
+        first_match_before="todo item",
+        first_match_after="done item",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="grep_replace_selected",
+            grs=GrsPaletteState(
+                preview_results=(preview_result,),
+                total_match_count=2,
+            ),
+        ),
+    )
+    palette_state = select_command_palette_state(state)
+    assert palette_state is not None
+    assert palette_state.title == "Grep Replace Selected (1 file(s), 2 match(es)) (1-1 / 1)"

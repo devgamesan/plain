@@ -572,11 +572,22 @@ def _select_find_replace_preview_window(
         state.terminal_height,
         extra_rows=3,
     )
-    title = "Replace in Found Files"
-    if state.command_palette is not None and state.command_palette.rff.preview_results:
-        file_count = len(state.command_palette.rff.preview_results)
-        total_matches = state.command_palette.rff.total_match_count
-        title = f"Replace in Found Files ({file_count} file(s), {total_matches} match(es))"
+    source = state.command_palette.source if state.command_palette else None
+    if source == "replace_in_grep_files":
+        base_title = "Replace in Grep Files"
+        preview_state = state.command_palette.grf
+    elif source == "grep_replace_selected":
+        base_title = "Grep Replace Selected"
+        preview_state = state.command_palette.grs
+    else:
+        base_title = "Replace in Found Files"
+        preview_state = state.command_palette.rff if state.command_palette else None
+
+    title = base_title
+    if preview_state and preview_state.preview_results:
+        file_count = len(preview_state.preview_results)
+        total_matches = preview_state.total_match_count
+        title = f"{base_title} ({file_count} file(s), {total_matches} match(es))"
     return _select_search_window(results, cursor_index, title=title, visible_window=visible_window)
 
 

@@ -90,6 +90,10 @@ Screen {
     color: $text;
 }
 
+#tab-bar:hover {
+    background: $panel;
+}
+
 #help-bar {
     height: auto;
     min-height: 1;

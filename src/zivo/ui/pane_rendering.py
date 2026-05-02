@@ -204,6 +204,7 @@ def _render_file_label(
     *,
     selected_directory_style: str,
     selected_cut_style: str,
+    hovered_path: str | None = None,
 ) -> Text:
     """Render a single file entry label with resolved theme styles."""
 
@@ -217,6 +218,9 @@ def _render_file_label(
         selected_cut_style=selected_cut_style,
     )
     style = _style_without_background(style)
+    if hovered_path is not None and entry.path == hovered_path:
+        base = style or Style()
+        style = Style(reverse=True) + base
     text = Text(label) if style is None else Text(label, style=style)
     if label:
         text.stylize(Style(meta={"entry_path": entry.path}), 0, len(label))
@@ -230,6 +234,7 @@ def _render_file_entries(
     *,
     selected_directory_style: str,
     selected_cut_style: str,
+    hovered_path: str | None = None,
 ) -> Text:
     """Render a sequence of file entries as a single Rich Text block."""
 
@@ -243,6 +248,7 @@ def _render_file_entries(
                 styles,
                 selected_directory_style=selected_directory_style,
                 selected_cut_style=selected_cut_style,
+                hovered_path=hovered_path,
             )
             for entry in entries
         ]

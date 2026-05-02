@@ -78,6 +78,7 @@ from zivo.state import (
 )
 from zivo.state.actions import (
     Action,
+    ActivateTabByIndex,
     EnterCursorDirectory,
     EnterTransferDirectory,
     ExitCurrentPath,
@@ -101,6 +102,7 @@ from zivo.ui import (
     ShellCommandDialog,
     SidePane,
     StatusBar,
+    TabBar,
 )
 
 
@@ -675,6 +677,11 @@ class zivoApp(App[None]):
 
         await self.dispatch_actions((SetTerminalHeight(height=event.size.height),))
         self._sync_overlay_layout(event.size.width)
+
+    async def on_tab_bar_tab_clicked(self, message: TabBar.TabClicked) -> None:
+        """Handle tab clicks from the TabBar widget."""
+
+        await self.dispatch_actions((ActivateTabByIndex(index=message.tab_index),))
 
     async def on_side_pane_entry_clicked(self, message: SidePane.EntryClicked) -> None:
         """Handle left parent-pane double clicks from the widget message path."""

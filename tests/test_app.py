@@ -463,6 +463,7 @@ class BlockingFileSearchService:
         query: str,
         *,
         show_hidden: bool,
+        search_target: str = "all",
         max_results: int | None = None,
         is_cancelled=None,
     ) -> tuple[FileSearchResultState, ...]:

@@ -36,7 +36,7 @@ def test_live_file_search_service_skips_hidden_paths_when_disabled(tmp_path) -> 
     assert [result.display_path for result in hidden_on] == [".secret/README.md"]
 
 
-def test_live_file_search_service_matches_case_insensitively_and_ignores_directories(
+def test_live_file_search_service_matches_case_insensitively_and_includes_directories(
     tmp_path,
 ) -> None:
     root = tmp_path / "project"
@@ -46,9 +46,14 @@ def test_live_file_search_service_matches_case_insensitively_and_ignores_directo
 
     service = LiveFileSearchService()
 
-    results = service.search(str(root), "read", show_hidden=False)
+    all_results = service.search(str(root), "read", show_hidden=False, search_target="all")
+    assert {r.display_path for r in all_results} == {"Readings", "README.MD"}
 
-    assert [result.display_path for result in results] == ["README.MD"]
+    files_results = service.search(str(root), "read", show_hidden=False, search_target="files")
+    assert [r.display_path for r in files_results] == ["README.MD"]
+
+    dirs_results = service.search(str(root), "read", show_hidden=False, search_target="directories")
+    assert [r.display_path for r in dirs_results] == ["Readings"]
 
 
 def test_live_file_search_service_supports_regex_queries_with_re_prefix(tmp_path) -> None:

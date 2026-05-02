@@ -188,6 +188,7 @@ from .actions_palette import (
     BeginSelectedFilesGrep,
     BeginTextReplace,
     CancelCommandPalette,
+    CycleFileSearchField,
     CycleFindReplaceField,
     CycleGrepReplaceField,
     CycleGrepReplaceSelectedField,
@@ -205,6 +206,7 @@ from .actions_palette import (
     OpenGrepResultInGuiEditor,
     SelectedFilesGrepKeywordChanged,
     SetCommandPaletteQuery,
+    SetFileSearchTarget,
     SetFindReplaceField,
     SetGrepReplaceField,
     SetGrepReplaceSelectedField,
@@ -285,6 +287,8 @@ Action = (
     | BeginGrepReplaceSelected
     | BeginSelectedFilesGrep
     | SelectedFilesGrepKeywordChanged
+    | CycleFileSearchField
+    | SetFileSearchTarget
     | CycleSelectedFilesGrepField
     | BeginCommandPalette
     | CancelCommandPalette

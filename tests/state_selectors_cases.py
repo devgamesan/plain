@@ -2086,7 +2086,7 @@ def test_select_command_palette_state_for_file_search_results() -> None:
     palette_state = select_command_palette_state(state)
 
     assert palette_state is not None
-    assert palette_state.title == "Find File (1-1 / 1)"
+    assert palette_state.title == "Find All (1-1 / 1)"
     assert palette_state.empty_message == "No matching files"
     assert [item.label for item in palette_state.items] == ["README.md"]
 
@@ -2107,7 +2107,7 @@ def test_select_command_palette_state_shows_searching_message_while_file_search_
     palette_state = select_command_palette_state(state)
 
     assert palette_state is not None
-    assert palette_state.title == "Find File"
+    assert palette_state.title == "Find All"
     assert palette_state.empty_message == "Searching files..."
     assert palette_state.items == ()
 
@@ -2126,7 +2126,7 @@ def test_select_command_palette_state_shows_regex_error_message() -> None:
     palette_state = select_command_palette_state(state)
 
     assert palette_state is not None
-    assert palette_state.title == "Find File"
+    assert palette_state.title == "Find All"
     assert palette_state.empty_message == "Invalid regex: unterminated character set"
     assert palette_state.items == ()
 
@@ -2153,9 +2153,8 @@ def test_select_command_palette_state_windows_large_file_search_results() -> Non
     palette_state = select_command_palette_state(state)
 
     assert palette_state is not None
-    assert palette_state.title == "Find File (4-17 / 20)"
+    assert palette_state.title == "Find All (5-17 / 20)"
     assert [item.label for item in palette_state.items] == [
-        "src/module_3.py",
         "src/module_4.py",
         "src/module_5.py",
         "src/module_6.py",
@@ -2170,7 +2169,7 @@ def test_select_command_palette_state_windows_large_file_search_results() -> Non
         "src/module_15.py",
         "src/module_16.py",
     ]
-    assert palette_state.items[7].selected is True
+    assert palette_state.items[6].selected is True
     assert palette_state.has_more_items is True
 
 

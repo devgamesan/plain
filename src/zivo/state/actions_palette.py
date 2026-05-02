@@ -86,6 +86,20 @@ class CycleSelectedFilesGrepField:
 
 
 @dataclass(frozen=True)
+class SetFileSearchTarget:
+    """Change the file-search target scope."""
+
+    target: str
+
+
+@dataclass(frozen=True)
+class CycleFileSearchField:
+    """Cycle between file-search input fields."""
+
+    delta: int
+
+
+@dataclass(frozen=True)
 class BeginCommandPalette:
     """Open the command palette."""
 

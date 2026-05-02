@@ -59,6 +59,8 @@ FindReplaceFieldId = Literal["filename", "find", "replace"]
 GrepReplaceFieldId = Literal["keyword", "replace", "filename", "include", "exclude"]
 GrepReplaceSelectedFieldId = Literal["keyword", "replace"]
 SelectedFilesGrepFieldId = Literal["keyword"]
+FileSearchTarget = Literal["files", "directories", "all"]
+FileSearchFieldId = Literal["keyword", "target"]
 DirectorySizeStatus = Literal["pending", "ready", "failed"]
 CurrentPaneProjectionMode = Literal["full", "viewport"]
 LayoutMode = Literal["browser", "transfer"]
@@ -359,6 +361,7 @@ class FileSearchResultState:
 
     path: str
     display_path: str
+    entry_type: Literal["file", "directory"] = "file"
 
 
 @dataclass(frozen=True)
@@ -422,6 +425,9 @@ class CommandPaletteState:
     file_search_cache_results: tuple[FileSearchResultState, ...] = ()
     file_search_cache_root_path: str | None = None
     file_search_cache_show_hidden: bool = False
+    file_search_target: FileSearchTarget = "all"
+    file_search_active_field: FileSearchFieldId = "keyword"
+    file_search_cache_target: FileSearchTarget | None = None
     grep_search_results: tuple[GrepSearchResultState, ...] = ()
     grep_search_error_message: str | None = None
     replace_preview_results: tuple[ReplacePreviewResultState, ...] = ()

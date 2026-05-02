@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Protocol
 
-from zivo.state.models import FileSearchResultState
+from zivo.state.models import FileSearchResultState, FileSearchTarget
 
 
 class FileSearchService(Protocol):
@@ -18,6 +18,7 @@ class FileSearchService(Protocol):
         query: str,
         *,
         show_hidden: bool,
+        search_target: FileSearchTarget = "all",
         max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
     ) -> tuple[FileSearchResultState, ...]: ...
@@ -96,6 +97,7 @@ class LiveFileSearchService:
         query: str,
         *,
         show_hidden: bool,
+        search_target: FileSearchTarget = "all",
         max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
     ) -> tuple[FileSearchResultState, ...]:
@@ -126,8 +128,12 @@ class LiveFileSearchService:
                     return ()
                 if not show_hidden and child.name.startswith("."):
                     continue
-                if _is_walkable_directory(child):
+                is_dir = _is_walkable_directory(child)
+                if is_dir:
                     stack.append(child)
+                if search_target == "directories" and not is_dir:
+                    continue
+                if search_target == "files" and is_dir:
                     continue
                 if not parsed_query.matches(child.name):
                     continue
@@ -135,12 +141,11 @@ class LiveFileSearchService:
                     FileSearchResultState(
                         path=str(child),
                         display_path=child.relative_to(root).as_posix(),
+                        entry_type="directory" if is_dir else "file",
                     )
                 )
 
-                # max_results が指定されている場合のみ制限を適用
                 if max_results is not None and len(results) >= max_results:
-                    # 早期終了する前にソート
                     results.sort(key=lambda result: result.display_path.casefold())
                     return tuple(results)
 
@@ -152,12 +157,12 @@ class LiveFileSearchService:
 class FakeFileSearchService:
     """Deterministic file-search service used by tests."""
 
-    results_by_query: dict[tuple[str, str, bool], tuple[FileSearchResultState, ...]] = field(
+    results_by_query: dict[tuple[str, ...], tuple[FileSearchResultState, ...]] = field(
         default_factory=dict
     )
-    failure_messages: dict[tuple[str, str, bool], str] = field(default_factory=dict)
-    invalid_query_messages: dict[tuple[str, str, bool], str] = field(default_factory=dict)
-    executed_requests: list[tuple[str, str, bool]] = field(default_factory=list)
+    failure_messages: dict[tuple[str, ...], str] = field(default_factory=dict)
+    invalid_query_messages: dict[tuple[str, ...], str] = field(default_factory=dict)
+    executed_requests: list[tuple[str, ...]] = field(default_factory=list)
 
     def search(
         self,
@@ -165,10 +170,15 @@ class FakeFileSearchService:
         query: str,
         *,
         show_hidden: bool,
+        search_target: FileSearchTarget = "all",
         max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
     ) -> tuple[FileSearchResultState, ...]:
-        key = (root_path, query, show_hidden)
+        key = (
+            (root_path, query, show_hidden)
+            if search_target == "all"
+            else (root_path, query, show_hidden, search_target)
+        )
         self.executed_requests.append(key)
         if is_cancelled is not None and is_cancelled():
             return ()

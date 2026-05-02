@@ -106,8 +106,11 @@ def handle_set_find_replace_field(state: AppState, field, value: str) -> ReduceR
 def handle_set_rff_filename(state: AppState, value: str) -> ReduceResult:
     next_palette = replace(
         state.command_palette,
-        rff_filename_query=value,
-        rff_file_error_message=None,
+        rff=replace(
+            state.command_palette.rff,
+            filename_query=value,
+            file_error_message=None,
+        ),
         cursor_index=0,
     )
     query = value.strip()
@@ -117,11 +120,14 @@ def handle_set_rff_filename(state: AppState, value: str) -> ReduceResult:
                 state,
                 command_palette=replace(
                     next_palette,
-                    rff_file_results=(),
-                    rff_preview_results=(),
-                    rff_error_message=None,
-                    rff_status_message=None,
-                    rff_total_match_count=0,
+                    rff=replace(
+                        next_palette.rff,
+                        file_results=(),
+                        preview_results=(),
+                        error_message=None,
+                        status_message=None,
+                        total_match_count=0,
+                    ),
                 ),
                 child_pane=PaneState(directory_path=state.current_path, entries=()),
                 pending_file_search_request_id=None,
@@ -151,30 +157,39 @@ def handle_set_rff_text_field(state: AppState, field: str, value: str) -> Reduce
     if field == "find":
         next_palette = replace(
             state.command_palette,
-            rff_find_text=value,
-            rff_error_message=None,
-            rff_status_message=None,
+            rff=replace(
+                state.command_palette.rff,
+                find_text=value,
+                error_message=None,
+                status_message=None,
+            ),
             cursor_index=0,
         )
     else:
         next_palette = replace(
             state.command_palette,
-            rff_replacement_text=value,
-            rff_error_message=None,
-            rff_status_message=None,
+            rff=replace(
+                state.command_palette.rff,
+                replacement_text=value,
+                error_message=None,
+                status_message=None,
+            ),
             cursor_index=0,
         )
 
-    find_text = next_palette.rff_find_text.strip()
-    file_paths = tuple(r.path for r in next_palette.rff_file_results)
+    find_text = next_palette.rff.find_text.strip()
+    file_paths = tuple(r.path for r in next_palette.rff.file_results)
     if not find_text or not file_paths:
         return finalize(
             replace(
                 state,
                 command_palette=replace(
                     next_palette,
-                    rff_preview_results=(),
-                    rff_total_match_count=0,
+                    rff=replace(
+                        next_palette.rff,
+                        preview_results=(),
+                        total_match_count=0,
+                    ),
                 ),
                 child_pane=PaneState(directory_path=state.current_path, entries=()),
                 pending_replace_preview_request_id=None,
@@ -184,8 +199,8 @@ def handle_set_rff_text_field(state: AppState, field: str, value: str) -> Reduce
     request_id = state.next_request_id
     request = TextReplaceRequest(
         paths=file_paths,
-        find_text=next_palette.rff_find_text,
-        replace_text=next_palette.rff_replacement_text,
+        find_text=next_palette.rff.find_text,
+        replace_text=next_palette.rff.replacement_text,
     )
     return finalize(
         replace(
@@ -223,14 +238,17 @@ def handle_cycle_find_replace_field(
 ) -> ReduceResult:
     if state.command_palette is None or state.command_palette.source != "replace_in_found_files":
         return finalize(state)
-    current_index = FIND_REPLACE_FIELDS.index(state.command_palette.rff_active_field)
+    current_index = FIND_REPLACE_FIELDS.index(state.command_palette.rff.active_field)
     next_index = (current_index + action.delta) % len(FIND_REPLACE_FIELDS)
     return finalize(
         replace(
             state,
             command_palette=replace(
                 state.command_palette,
-                rff_active_field=FIND_REPLACE_FIELDS[next_index],
+                rff=replace(
+                    state.command_palette.rff,
+                    active_field=FIND_REPLACE_FIELDS[next_index],
+                ),
             ),
         )
     )
@@ -567,23 +585,23 @@ def handle_submit_find_and_replace_palette(state: AppState) -> ReduceResult:
         return notify(state, level="warning", message="File search is still running")
     if state.command_palette is None:
         return finalize(state)
-    if not state.command_palette.rff_find_text.strip():
+    if not state.command_palette.rff.find_text.strip():
         return notify(state, level="warning", message="Find text is required")
-    if state.command_palette.rff_error_message is not None:
-        return notify(state, level="warning", message=state.command_palette.rff_error_message)
-    if not state.command_palette.rff_preview_results:
-        message = state.command_palette.rff_status_message or "No matching files"
+    if state.command_palette.rff.error_message is not None:
+        return notify(state, level="warning", message=state.command_palette.rff.error_message)
+    if not state.command_palette.rff.preview_results:
+        message = state.command_palette.rff.status_message or "No matching files"
         return notify(state, level="warning", message=message)
 
     # Show confirmation dialog instead of directly applying replacement
-    file_paths = tuple(r.path for r in state.command_palette.rff_file_results)
+    file_paths = tuple(r.path for r in state.command_palette.rff.file_results)
     return _handle_begin_replace_confirmation(
         state,
         mode="replace_in_found_files",
-        find_text=state.command_palette.rff_find_text,
-        replacement_text=state.command_palette.rff_replacement_text,
+        find_text=state.command_palette.rff.find_text,
+        replacement_text=state.command_palette.rff.replacement_text,
         target_paths=file_paths,
-        total_match_count=state.command_palette.rff_total_match_count,
+        total_match_count=state.command_palette.rff.total_match_count,
     )
 
 
@@ -652,21 +670,27 @@ def handle_rff_file_search_completed(state: AppState, action: FileSearchComplete
         state,
         command_palette=replace(
             state.command_palette,
-            rff_file_results=action.results,
-            rff_file_error_message=None,
+            rff=replace(
+                state.command_palette.rff,
+                file_results=action.results,
+                file_error_message=None,
+            ),
             cursor_index=0,
         ),
         pending_file_search_request_id=None,
     )
-    find_text = next_state.command_palette.rff_find_text.strip()
+    find_text = next_state.command_palette.rff.find_text.strip()
     if not find_text or not action.results:
         return sync_find_replace_preview(
             replace(
                 next_state,
                 command_palette=replace(
                     next_state.command_palette,
-                    rff_preview_results=(),
-                    rff_total_match_count=0,
+                    rff=replace(
+                        next_state.command_palette.rff,
+                        preview_results=(),
+                        total_match_count=0,
+                    ),
                 ),
             )
         )
@@ -674,8 +698,8 @@ def handle_rff_file_search_completed(state: AppState, action: FileSearchComplete
     request_id = next_state.next_request_id
     request = TextReplaceRequest(
         paths=file_paths,
-        find_text=next_state.command_palette.rff_find_text,
-        replace_text=next_state.command_palette.rff_replacement_text,
+        find_text=next_state.command_palette.rff.find_text,
+        replace_text=next_state.command_palette.rff.replacement_text,
     )
     return finalize(
         replace(
@@ -835,10 +859,13 @@ def handle_rff_preview_completed(
         state,
         command_palette=replace(
             state.command_palette,
-            rff_preview_results=preview_results,
-            rff_error_message=None,
-            rff_status_message=status_message,
-            rff_total_match_count=action.result.total_match_count,
+            rff=replace(
+                state.command_palette.rff,
+                preview_results=preview_results,
+                error_message=None,
+                status_message=status_message,
+                total_match_count=action.result.total_match_count,
+            ),
             cursor_index=0,
         ),
         pending_replace_preview_request_id=None,
@@ -909,10 +936,13 @@ def handle_text_replace_preview_failed(
                     state,
                     command_palette=replace(
                         state.command_palette,
-                        rff_preview_results=(),
-                        rff_error_message=action.message,
-                        rff_status_message=None,
-                        rff_total_match_count=0,
+                        rff=replace(
+                            state.command_palette.rff,
+                            preview_results=(),
+                            error_message=action.message,
+                            status_message=None,
+                            total_match_count=0,
+                        ),
                         cursor_index=0,
                     ),
                     child_pane=PaneState(directory_path=state.current_path, entries=()),
@@ -1106,7 +1136,7 @@ def sync_replace_preview(state: AppState) -> ReduceResult:
 def selected_find_replace_preview_result(state: AppState) -> ReplacePreviewResultState | None:
     if state.command_palette is None or state.command_palette.source != "replace_in_found_files":
         return None
-    results = state.command_palette.rff_preview_results
+    results = state.command_palette.rff.preview_results
     if not results:
         return None
     return results[normalize_command_palette_cursor(state, state.command_palette.cursor_index)]
@@ -1120,7 +1150,7 @@ def sync_find_replace_preview(state: AppState) -> ReduceResult:
             state.command_palette is not None
             and state.command_palette.source == "replace_in_found_files"
         ):
-            preview_message = state.command_palette.rff_status_message or preview_message
+            preview_message = state.command_palette.rff.status_message or preview_message
         return finalize(
             replace(
                 state,
@@ -1148,7 +1178,7 @@ def sync_find_replace_preview(state: AppState) -> ReduceResult:
                 preview_title="Replace Preview",
                 preview_content=selected_result.diff_text,
                 preview_message=(
-                    state.command_palette.rff_status_message
+                    state.command_palette.rff.status_message
                     if state.command_palette is not None
                     else None
                 ),

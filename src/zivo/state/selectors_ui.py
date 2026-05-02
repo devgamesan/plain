@@ -377,12 +377,12 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
     if state.command_palette.source == "replace_in_found_files":
         visible_results, title = _select_find_replace_preview_window(
             state,
-            state.command_palette.rff_preview_results,
+            state.command_palette.rff.preview_results,
             cursor_index,
         )
         return CommandPaletteViewState(
             title=title,
-            query=state.command_palette.rff_filename_query,
+            query=state.command_palette.rff.filename_query,
             items=tuple(
                 CommandPaletteItemViewState(
                     label=result.display_label,
@@ -395,7 +395,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             empty_message=_find_replace_empty_message(state),
             input_fields=_build_find_replace_input_fields(state.command_palette),
             has_more_items=(
-                len(state.command_palette.rff_preview_results) > len(visible_results)
+                len(state.command_palette.rff.preview_results) > len(visible_results)
             ),
         )
     if state.command_palette.source == "replace_in_grep_files":
@@ -843,22 +843,22 @@ def _find_replace_empty_message(state: AppState) -> str:
         return "Searching files..."
     if state.command_palette is None or state.command_palette.source != "replace_in_found_files":
         return ""
-    if state.command_palette.rff_file_error_message is not None:
-        return state.command_palette.rff_file_error_message
-    if not state.command_palette.rff_filename_query.strip():
+    if state.command_palette.rff.file_error_message is not None:
+        return state.command_palette.rff.file_error_message
+    if not state.command_palette.rff.filename_query.strip():
         return "Type a filename pattern"
     if state.pending_replace_preview_request_id is not None:
         return "Previewing diff in right pane..."
-    if state.command_palette.rff_error_message is not None:
-        return state.command_palette.rff_error_message
-    if not state.command_palette.rff_find_text.strip():
-        file_count = len(state.command_palette.rff_file_results)
+    if state.command_palette.rff.error_message is not None:
+        return state.command_palette.rff.error_message
+    if not state.command_palette.rff.find_text.strip():
+        file_count = len(state.command_palette.rff.file_results)
         if file_count == 0:
             return "No matching files"
         return f"{file_count} file(s) found. Tab to Find field."
-    if state.command_palette.rff_status_message is not None:
-        return state.command_palette.rff_status_message
-    if state.command_palette.rff_total_match_count > 0:
+    if state.command_palette.rff.status_message is not None:
+        return state.command_palette.rff.status_message
+    if state.command_palette.rff.total_match_count > 0:
         return "Preview shown in right pane. Press Enter to apply."
     return "No matching files"
 

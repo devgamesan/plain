@@ -449,10 +449,13 @@ def handle_file_search_failed(
                     state,
                     command_palette=replace(
                         state.command_palette,
-                        rff_file_results=(),
-                        rff_file_error_message=action.message,
-                        rff_preview_results=(),
-                        rff_total_match_count=0,
+                        rff=replace(
+                            state.command_palette.rff,
+                            file_results=(),
+                            file_error_message=action.message,
+                            preview_results=(),
+                            total_match_count=0,
+                        ),
                     ),
                     pending_file_search_request_id=None,
                 )

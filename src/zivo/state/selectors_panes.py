@@ -399,7 +399,7 @@ def _select_replace_preview_pane(
     if not state.config.display.enable_text_preview:
         return _build_child_entries_view((), syntax_theme)
     if state.command_palette.source == "replace_in_found_files":
-        results = state.command_palette.rff_preview_results
+        results = state.command_palette.rff.preview_results
     elif state.command_palette.source == "replace_in_grep_files":
         results = state.command_palette.grf_preview_results
     elif state.command_palette.source == "grep_replace_selected":

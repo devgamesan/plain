@@ -475,21 +475,21 @@ def _build_find_replace_input_fields(
     return (
         CommandPaletteInputFieldViewState(
             label="Filename",
-            value=palette.rff_filename_query,
+            value=palette.rff.filename_query,
             placeholder="pattern or re:pattern",
-            active=palette.rff_active_field == "filename",
+            active=palette.rff.active_field == "filename",
         ),
         CommandPaletteInputFieldViewState(
             label="Find",
-            value=palette.rff_find_text,
+            value=palette.rff.find_text,
             placeholder="text or re:pattern",
-            active=palette.rff_active_field == "find",
+            active=palette.rff.active_field == "find",
         ),
         CommandPaletteInputFieldViewState(
             label="Replace",
-            value=palette.rff_replacement_text,
+            value=palette.rff.replacement_text,
             placeholder="replacement text",
-            active=palette.rff_active_field == "replace",
+            active=palette.rff.active_field == "replace",
         ),
     )
 
@@ -573,9 +573,9 @@ def _select_find_replace_preview_window(
         extra_rows=3,
     )
     title = "Replace in Found Files"
-    if state.command_palette is not None and state.command_palette.rff_preview_results:
-        file_count = len(state.command_palette.rff_preview_results)
-        total_matches = state.command_palette.rff_total_match_count
+    if state.command_palette is not None and state.command_palette.rff.preview_results:
+        file_count = len(state.command_palette.rff.preview_results)
+        total_matches = state.command_palette.rff.total_match_count
         title = f"Replace in Found Files ({file_count} file(s), {total_matches} match(es))"
     return _select_search_window(results, cursor_index, title=title, visible_window=visible_window)
 

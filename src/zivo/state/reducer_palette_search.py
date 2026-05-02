@@ -583,10 +583,13 @@ def handle_grep_search_failed(
                     state,
                     command_palette=replace(
                         state.command_palette,
-                        grs_grep_results=(),
-                        grs_grep_error_message=action.message,
-                        grs_preview_results=(),
-                        grs_total_match_count=0,
+                        grs=replace(
+                            state.command_palette.grs,
+                            grep_results=(),
+                            grep_error_message=action.message,
+                            preview_results=(),
+                            total_match_count=0,
+                        ),
                         cursor_index=0,
                     ),
                     pending_grep_search_request_id=None,

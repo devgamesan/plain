@@ -403,7 +403,7 @@ def _select_replace_preview_pane(
     elif state.command_palette.source == "replace_in_grep_files":
         results = state.command_palette.grf_preview_results
     elif state.command_palette.source == "grep_replace_selected":
-        results = state.command_palette.grs_preview_results
+        results = state.command_palette.grs.preview_results
     else:
         results = state.command_palette.replace_preview.preview_results
     if not results:

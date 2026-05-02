@@ -319,7 +319,10 @@ def _handle_begin_grep_replace_selected(
             next_state,
             command_palette=replace(
                 next_state.command_palette,
-                grs_target_paths=action.target_paths,
+                grs=replace(
+                    next_state.command_palette.grs,
+                    target_paths=action.target_paths,
+                ),
             ),
         )
     )

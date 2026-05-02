@@ -279,14 +279,17 @@ def handle_cycle_grep_replace_selected_field(
 ) -> ReduceResult:
     if state.command_palette is None or state.command_palette.source != "grep_replace_selected":
         return finalize(state)
-    current_index = GREP_REPLACE_SELECTED_FIELDS.index(state.command_palette.grs_active_field)
+    current_index = GREP_REPLACE_SELECTED_FIELDS.index(state.command_palette.grs.active_field)
     next_index = (current_index + action.delta) % len(GREP_REPLACE_SELECTED_FIELDS)
     return finalize(
         replace(
             state,
             command_palette=replace(
                 state.command_palette,
-                grs_active_field=GREP_REPLACE_SELECTED_FIELDS[next_index],
+                grs=replace(
+                    state.command_palette.grs,
+                    active_field=GREP_REPLACE_SELECTED_FIELDS[next_index],
+                ),
             ),
         )
     )
@@ -473,21 +476,27 @@ def grs_unique_file_paths(grep_results: tuple[GrepSearchResultState, ...]) -> tu
 def handle_set_grs_keyword(state: AppState, value: str) -> ReduceResult:
     next_palette = replace(
         state.command_palette,
-        grs_keyword=value,
-        grs_grep_error_message=None,
+        grs=replace(
+            state.command_palette.grs,
+            keyword=value,
+            grep_error_message=None,
+        ),
         cursor_index=0,
     )
-    keyword = next_palette.grs_keyword.strip()
+    keyword = next_palette.grs.keyword.strip()
     if not keyword:
         return sync_grep_replace_selected_preview(
             replace(
                 state,
                 command_palette=replace(
                     next_palette,
-                    grs_grep_results=(),
-                    grs_grep_error_message=None,
-                    grs_preview_results=(),
-                    grs_total_match_count=0,
+                    grs=replace(
+                        next_palette.grs,
+                        grep_results=(),
+                        grep_error_message=None,
+                        preview_results=(),
+                        total_match_count=0,
+                    ),
                 ),
                 pending_grep_search_request_id=None,
             )
@@ -512,25 +521,31 @@ def handle_set_grs_keyword(state: AppState, value: str) -> ReduceResult:
 def handle_set_grs_replace(state: AppState, value: str) -> ReduceResult:
     next_palette = replace(
         state.command_palette,
-        grs_replacement_text=value,
-        grs_error_message=None,
-        grs_status_message=None,
+        grs=replace(
+            state.command_palette.grs,
+            replacement_text=value,
+            error_message=None,
+            status_message=None,
+        ),
         cursor_index=0,
     )
     return trigger_grs_preview(state, next_palette)
 
 
 def trigger_grs_preview(state: AppState, next_palette) -> ReduceResult:
-    keyword = next_palette.grs_keyword.strip()
-    file_paths = grs_unique_file_paths(next_palette.grs_grep_results)
+    keyword = next_palette.grs.keyword.strip()
+    file_paths = grs_unique_file_paths(next_palette.grs.grep_results)
     if not keyword or not file_paths:
         return sync_grep_replace_selected_preview(
             replace(
                 state,
                 command_palette=replace(
                     next_palette,
-                    grs_preview_results=(),
-                    grs_total_match_count=0,
+                    grs=replace(
+                        next_palette.grs,
+                        preview_results=(),
+                        total_match_count=0,
+                    ),
                 ),
                 child_pane=PaneState(directory_path=state.current_path, entries=()),
                 pending_replace_preview_request_id=None,
@@ -540,7 +555,7 @@ def trigger_grs_preview(state: AppState, next_palette) -> ReduceResult:
     request = TextReplaceRequest(
         paths=file_paths,
         find_text=keyword,
-        replace_text=next_palette.grs_replacement_text,
+        replace_text=next_palette.grs.replacement_text,
     )
     return finalize(
         replace(
@@ -643,23 +658,23 @@ def handle_submit_grep_replace_selected_palette(state: AppState) -> ReduceResult
         return notify(state, level="warning", message="Grep search is still running")
     if state.command_palette is None:
         return finalize(state)
-    if not state.command_palette.grs_keyword.strip():
+    if not state.command_palette.grs.keyword.strip():
         return notify(state, level="warning", message="Keyword is required")
-    if state.command_palette.grs_error_message is not None:
-        return notify(state, level="warning", message=state.command_palette.grs_error_message)
-    if not state.command_palette.grs_preview_results:
-        message = state.command_palette.grs_status_message or "No matching files"
+    if state.command_palette.grs.error_message is not None:
+        return notify(state, level="warning", message=state.command_palette.grs.error_message)
+    if not state.command_palette.grs.preview_results:
+        message = state.command_palette.grs.status_message or "No matching files"
         return notify(state, level="warning", message=message)
 
     # Show confirmation dialog instead of directly applying replacement
-    file_paths = grs_unique_file_paths(state.command_palette.grs_grep_results)
+    file_paths = grs_unique_file_paths(state.command_palette.grs.grep_results)
     return _handle_begin_replace_confirmation(
         state,
         mode="grep_replace_selected",
-        find_text=state.command_palette.grs_keyword,
-        replacement_text=state.command_palette.grs_replacement_text,
+        find_text=state.command_palette.grs.keyword,
+        replacement_text=state.command_palette.grs.replacement_text,
         target_paths=file_paths,
-        total_match_count=state.command_palette.grs_total_match_count,
+        total_match_count=state.command_palette.grs.total_match_count,
     )
 
 
@@ -767,27 +782,33 @@ def handle_grf_grep_search_completed(state: AppState, action: GrepSearchComplete
 
 
 def handle_grs_grep_search_completed(state: AppState, action: GrepSearchCompleted) -> ReduceResult:
-    target_set = frozenset(state.command_palette.grs_target_paths)
+    target_set = frozenset(state.command_palette.grs.target_paths)
     filtered_results = tuple(r for r in action.results if r.path in target_set)
     next_state = replace(
         state,
         command_palette=replace(
             state.command_palette,
-            grs_grep_results=filtered_results,
-            grs_grep_error_message=None,
+            grs=replace(
+                state.command_palette.grs,
+                grep_results=filtered_results,
+                grep_error_message=None,
+            ),
             cursor_index=0,
         ),
         pending_grep_search_request_id=None,
     )
-    keyword = next_state.command_palette.grs_keyword.strip()
+    keyword = next_state.command_palette.grs.keyword.strip()
     if not keyword or not filtered_results:
         return sync_grep_replace_selected_preview(
             replace(
                 next_state,
                 command_palette=replace(
                     next_state.command_palette,
-                    grs_preview_results=(),
-                    grs_total_match_count=0,
+                    grs=replace(
+                        next_state.command_palette.grs,
+                        preview_results=(),
+                        total_match_count=0,
+                    ),
                 ),
             )
         )
@@ -796,7 +817,7 @@ def handle_grs_grep_search_completed(state: AppState, action: GrepSearchComplete
     request = TextReplaceRequest(
         paths=file_paths,
         find_text=keyword,
-        replace_text=next_state.command_palette.grs_replacement_text,
+        replace_text=next_state.command_palette.grs.replacement_text,
     )
     return finalize(
         replace(
@@ -908,10 +929,13 @@ def handle_grs_preview_completed(
         state,
         command_palette=replace(
             state.command_palette,
-            grs_preview_results=preview_results,
-            grs_error_message=None,
-            grs_status_message=status_message,
-            grs_total_match_count=action.result.total_match_count,
+            grs=replace(
+                state.command_palette.grs,
+                preview_results=preview_results,
+                error_message=None,
+                status_message=status_message,
+                total_match_count=action.result.total_match_count,
+            ),
             cursor_index=0,
         ),
         pending_replace_preview_request_id=None,
@@ -991,10 +1015,13 @@ def handle_text_replace_preview_failed(
                     state,
                     command_palette=replace(
                         state.command_palette,
-                        grs_preview_results=(),
-                        grs_error_message=action.message,
-                        grs_status_message=None,
-                        grs_total_match_count=0,
+                        grs=replace(
+                            state.command_palette.grs,
+                            preview_results=(),
+                            error_message=action.message,
+                            status_message=None,
+                            total_match_count=0,
+                        ),
                         cursor_index=0,
                     ),
                     child_pane=PaneState(directory_path=state.current_path, entries=()),
@@ -1246,7 +1273,7 @@ def selected_grep_replace_selected_preview_result(
 ) -> ReplacePreviewResultState | None:
     if state.command_palette is None or state.command_palette.source != "grep_replace_selected":
         return None
-    results = state.command_palette.grs_preview_results
+    results = state.command_palette.grs.preview_results
     if not results:
         return None
     cursor = normalize_command_palette_cursor(state, state.command_palette.cursor_index)
@@ -1261,7 +1288,7 @@ def sync_grep_replace_selected_preview(state: AppState) -> ReduceResult:
             state.command_palette is not None
             and state.command_palette.source == "grep_replace_selected"
         ):
-            preview_message = state.command_palette.grs_status_message or preview_message
+            preview_message = state.command_palette.grs.status_message or preview_message
         return finalize(
             replace(
                 state,
@@ -1289,7 +1316,7 @@ def sync_grep_replace_selected_preview(state: AppState) -> ReduceResult:
                 preview_title="Replace Preview",
                 preview_content=selected_result.diff_text,
                 preview_message=(
-                    state.command_palette.grs_status_message
+                    state.command_palette.grs.status_message
                     if state.command_palette is not None
                     else None
                 ),

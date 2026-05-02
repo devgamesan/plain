@@ -919,8 +919,8 @@ def test_begin_grep_replace_selected_enters_grs_mode() -> None:
     assert state.ui_mode == "PALETTE"
     assert state.command_palette is not None
     assert state.command_palette.source == "grep_replace_selected"
-    assert state.command_palette.grs_active_field == "keyword"
-    assert state.command_palette.grs_target_paths == (
+    assert state.command_palette.grs.active_field == "keyword"
+    assert state.command_palette.grs.target_paths == (
         "/home/tadashi/develop/zivo/a.py",
         "/home/tadashi/develop/zivo/b.py",
     )
@@ -935,7 +935,7 @@ def test_set_grs_keyword_field_starts_grep_search() -> None:
     )
 
     assert result.state.pending_grep_search_request_id is not None
-    assert result.state.command_palette.grs_keyword == "todo"
+    assert result.state.command_palette.grs.keyword == "todo"
     effects = [e for e in result.effects if isinstance(e, RunGrepSearchEffect)]
     assert len(effects) == 1
     assert effects[0].query == "todo"
@@ -949,7 +949,7 @@ def test_set_grs_keyword_clear_triggers_no_search() -> None:
     result = reduce_app_state(state, SetGrepReplaceSelectedField(field="keyword", value=""))
 
     assert result.state.pending_grep_search_request_id is None
-    assert result.state.command_palette.grs_grep_results == ()
+    assert result.state.command_palette.grs.grep_results == ()
 
 def test_grs_grep_search_completed_filters_to_target_paths() -> None:
     state = _reduce_state(
@@ -960,7 +960,10 @@ def test_grs_grep_search_completed_filters_to_target_paths() -> None:
     )
     state = replace(
         state,
-        command_palette=replace(state.command_palette, grs_keyword="todo"),
+        command_palette=replace(
+            state.command_palette,
+            grs=replace(state.command_palette.grs, keyword="todo"),
+        ),
         pending_grep_search_request_id=10,
         next_request_id=11,
     )
@@ -988,11 +991,11 @@ def test_grs_grep_search_completed_filters_to_target_paths() -> None:
         state, GrepSearchCompleted(request_id=10, query="todo", results=all_results)
     )
 
-    assert len(result.state.command_palette.grs_grep_results) == 2
-    assert result.state.command_palette.grs_grep_results[0].path == (
+    assert len(result.state.command_palette.grs.grep_results) == 2
+    assert result.state.command_palette.grs.grep_results[0].path == (
         "/home/tadashi/develop/zivo/a.py"
     )
-    assert result.state.command_palette.grs_grep_results[1].path == (
+    assert result.state.command_palette.grs.grep_results[1].path == (
         "/home/tadashi/develop/zivo/c.py"
     )
     assert result.state.pending_grep_search_request_id is None
@@ -1006,8 +1009,11 @@ def test_grs_grep_search_completed_auto_triggers_preview_when_replace_text_prese
         state,
         command_palette=replace(
             state.command_palette,
-            grs_keyword="todo",
-            grs_replacement_text="done",
+            grs=replace(
+                state.command_palette.grs,
+                keyword="todo",
+                replacement_text="done",
+            ),
         ),
         pending_grep_search_request_id=10,
         next_request_id=11,
@@ -1024,7 +1030,7 @@ def test_grs_grep_search_completed_auto_triggers_preview_when_replace_text_prese
         state, GrepSearchCompleted(request_id=10, query="todo", results=results)
     )
 
-    assert result.state.command_palette.grs_grep_results == results
+    assert result.state.command_palette.grs.grep_results == results
     assert result.state.pending_replace_preview_request_id is not None
     effects = [e for e in result.effects if isinstance(e, RunTextReplacePreviewEffect)]
     assert len(effects) == 1
@@ -1039,13 +1045,16 @@ def test_set_grs_replace_field_with_grep_results_starts_preview() -> None:
         state,
         command_palette=replace(
             state.command_palette,
-            grs_keyword="todo",
-            grs_grep_results=(
-                GrepSearchResultState(
-                    path="/home/tadashi/develop/zivo/a.py",
-                    display_path="a.py",
-                    line_number=1,
-                    line_text="todo item",
+            grs=replace(
+                state.command_palette.grs,
+                keyword="todo",
+                grep_results=(
+                    GrepSearchResultState(
+                        path="/home/tadashi/develop/zivo/a.py",
+                        display_path="a.py",
+                        line_number=1,
+                        line_text="todo item",
+                    ),
                 ),
             ),
         ),
@@ -1070,7 +1079,7 @@ def test_set_grs_replace_field_without_grep_results_no_preview() -> None:
     )
 
     assert result.state.pending_replace_preview_request_id is None
-    assert result.state.command_palette.grs_preview_results == ()
+    assert result.state.command_palette.grs.preview_results == ()
 
 def test_grs_preview_completed_stores_results() -> None:
     state = _reduce_state(
@@ -1081,14 +1090,17 @@ def test_grs_preview_completed_stores_results() -> None:
         state,
         command_palette=replace(
             state.command_palette,
-            grs_keyword="todo",
-            grs_replacement_text="done",
-            grs_grep_results=(
-                GrepSearchResultState(
-                    path="/home/tadashi/develop/zivo/a.py",
-                    display_path="a.py",
-                    line_number=1,
-                    line_text="todo item",
+            grs=replace(
+                state.command_palette.grs,
+                keyword="todo",
+                replacement_text="done",
+                grep_results=(
+                    GrepSearchResultState(
+                        path="/home/tadashi/develop/zivo/a.py",
+                        display_path="a.py",
+                        line_number=1,
+                        line_text="todo item",
+                    ),
                 ),
             ),
         ),
@@ -1118,8 +1130,8 @@ def test_grs_preview_completed_stores_results() -> None:
         state, TextReplacePreviewCompleted(request_id=10, result=preview_result)
     )
 
-    assert len(result.state.command_palette.grs_preview_results) == 1
-    assert result.state.command_palette.grs_total_match_count == 1
+    assert len(result.state.command_palette.grs.preview_results) == 1
+    assert result.state.command_palette.grs.total_match_count == 1
     assert result.state.pending_replace_preview_request_id is None
 
 def test_submit_grs_palette_applies_replacement() -> None:
@@ -1131,28 +1143,31 @@ def test_submit_grs_palette_applies_replacement() -> None:
         state,
         command_palette=replace(
             state.command_palette,
-            grs_keyword="todo",
-            grs_replacement_text="done",
-            grs_grep_results=(
-                GrepSearchResultState(
-                    path="/home/tadashi/develop/zivo/a.py",
-                    display_path="a.py",
-                    line_number=1,
-                    line_text="todo item",
+            grs=replace(
+                state.command_palette.grs,
+                keyword="todo",
+                replacement_text="done",
+                grep_results=(
+                    GrepSearchResultState(
+                        path="/home/tadashi/develop/zivo/a.py",
+                        display_path="a.py",
+                        line_number=1,
+                        line_text="todo item",
+                    ),
                 ),
-            ),
-            grs_preview_results=(
-                ReplacePreviewResultState(
-                    path="/home/tadashi/develop/zivo/a.py",
-                    display_path="a.py",
-                    diff_text="- todo + done",
-                    match_count=1,
-                    first_match_line_number=1,
-                    first_match_before="todo",
-                    first_match_after="done",
+                preview_results=(
+                    ReplacePreviewResultState(
+                        path="/home/tadashi/develop/zivo/a.py",
+                        display_path="a.py",
+                        diff_text="- todo + done",
+                        match_count=1,
+                        first_match_line_number=1,
+                        first_match_before="todo",
+                        first_match_after="done",
+                    ),
                 ),
+                total_match_count=1,
             ),
-            grs_total_match_count=1,
         ),
     )
     result = reduce_app_state(state, SubmitCommandPalette())
@@ -1191,14 +1206,17 @@ def test_submit_grs_palette_warns_when_no_preview_results() -> None:
         state,
         command_palette=replace(
             state.command_palette,
-            grs_keyword="todo",
-            grs_replacement_text="done",
-            grs_grep_results=(
-                GrepSearchResultState(
-                    path="/home/tadashi/develop/zivo/a.py",
-                    display_path="a.py",
-                    line_number=1,
-                    line_text="todo item",
+            grs=replace(
+                state.command_palette.grs,
+                keyword="todo",
+                replacement_text="done",
+                grep_results=(
+                    GrepSearchResultState(
+                        path="/home/tadashi/develop/zivo/a.py",
+                        display_path="a.py",
+                        line_number=1,
+                        line_text="todo item",
+                    ),
                 ),
             ),
         ),
@@ -1227,7 +1245,10 @@ def test_grs_grep_search_completed_filters_non_target_results() -> None:
     )
     state = replace(
         state,
-        command_palette=replace(state.command_palette, grs_keyword="todo"),
+        command_palette=replace(
+            state.command_palette,
+            grs=replace(state.command_palette.grs, keyword="todo"),
+        ),
         pending_grep_search_request_id=10,
         next_request_id=11,
     )
@@ -1249,8 +1270,8 @@ def test_grs_grep_search_completed_filters_non_target_results() -> None:
         state, GrepSearchCompleted(request_id=10, query="todo", results=all_results)
     )
 
-    assert len(result.state.command_palette.grs_grep_results) == 1
-    assert result.state.command_palette.grs_grep_results[0].path == (
+    assert len(result.state.command_palette.grs.grep_results) == 1
+    assert result.state.command_palette.grs.grep_results[0].path == (
         "/home/tadashi/develop/zivo/a.py"
     )
     # Preview is triggered even with empty replace text to show find matches

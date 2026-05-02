@@ -142,8 +142,8 @@ def grs_field_value(
     field: GrepReplaceSelectedFieldId,
 ) -> str:
     if field == "keyword":
-        return palette.grs_keyword or palette.query
-    return palette.grs_replacement_text
+        return palette.grs.keyword or palette.query
+    return palette.grs.replacement_text
 
 
 def replace_grs_field(
@@ -153,8 +153,8 @@ def replace_grs_field(
     value: str,
 ) -> CommandPaletteState:
     if field == "keyword":
-        return replace(palette, grs_keyword=value)
-    return replace(palette, grs_replacement_text=value)
+        return replace(palette, grs=replace(palette.grs, keyword=value))
+    return replace(palette, grs=replace(palette.grs, replacement_text=value))
 
 
 def normalize_grep_extension_filters(

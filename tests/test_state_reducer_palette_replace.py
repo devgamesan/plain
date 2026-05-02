@@ -384,7 +384,7 @@ def test_begin_find_and_replace_enters_rff_mode() -> None:
     assert state.ui_mode == "PALETTE"
     assert state.command_palette is not None
     assert state.command_palette.source == "replace_in_found_files"
-    assert state.command_palette.rff_active_field == "filename"
+    assert state.command_palette.rff.active_field == "filename"
 
 def test_set_rff_filename_field_starts_file_search() -> None:
     state = _reduce_state(build_initial_app_state(), BeginFindAndReplace())
@@ -392,7 +392,7 @@ def test_set_rff_filename_field_starts_file_search() -> None:
     result = reduce_app_state(state, SetFindReplaceField(field="filename", value="readme"))
 
     assert result.state.command_palette is not None
-    assert result.state.command_palette.rff_filename_query == "readme"
+    assert result.state.command_palette.rff.filename_query == "readme"
     assert result.state.pending_file_search_request_id == 1
     assert result.effects == (
         RunFileSearchEffect(
@@ -421,11 +421,14 @@ def test_set_rff_find_field_with_file_results_starts_preview() -> None:
         state,
         command_palette=replace(
             state.command_palette,
-            rff_filename_query="readme",
-            rff_file_results=(
-                FileSearchResultState(
-                    path="/home/tadashi/develop/zivo/README.md",
-                    display_path="README.md",
+            rff=replace(
+                state.command_palette.rff,
+                filename_query="readme",
+                file_results=(
+                    FileSearchResultState(
+                        path="/home/tadashi/develop/zivo/README.md",
+                        display_path="README.md",
+                    ),
                 ),
             ),
         ),
@@ -434,7 +437,7 @@ def test_set_rff_find_field_with_file_results_starts_preview() -> None:
     result = reduce_app_state(state, SetFindReplaceField(field="find", value="todo"))
 
     assert result.state.command_palette is not None
-    assert result.state.command_palette.rff_find_text == "todo"
+    assert result.state.command_palette.rff.find_text == "todo"
     assert result.state.pending_replace_preview_request_id == 1
     assert result.effects == (
         RunTextReplacePreviewEffect(
@@ -460,26 +463,26 @@ def test_cycle_find_replace_field_cycles_through_three_fields() -> None:
     state = _reduce_state(build_initial_app_state(), BeginFindAndReplace())
 
     assert state.command_palette is not None
-    assert state.command_palette.rff_active_field == "filename"
+    assert state.command_palette.rff.active_field == "filename"
 
     state = _reduce_state(state, CycleFindReplaceField(delta=1))
     assert state.command_palette is not None
-    assert state.command_palette.rff_active_field == "find"
+    assert state.command_palette.rff.active_field == "find"
 
     state = _reduce_state(state, CycleFindReplaceField(delta=1))
     assert state.command_palette is not None
-    assert state.command_palette.rff_active_field == "replace"
+    assert state.command_palette.rff.active_field == "replace"
 
     state = _reduce_state(state, CycleFindReplaceField(delta=1))
     assert state.command_palette is not None
-    assert state.command_palette.rff_active_field == "filename"
+    assert state.command_palette.rff.active_field == "filename"
 
 def test_cycle_find_replace_field_reverse() -> None:
     state = _reduce_state(build_initial_app_state(), BeginFindAndReplace())
 
     state = _reduce_state(state, CycleFindReplaceField(delta=-1))
     assert state.command_palette is not None
-    assert state.command_palette.rff_active_field == "replace"
+    assert state.command_palette.rff.active_field == "replace"
 
 def test_rff_file_search_completed_stores_results() -> None:
     state = _reduce_state(build_initial_app_state(), BeginFindAndReplace())
@@ -488,7 +491,10 @@ def test_rff_file_search_completed_stores_results() -> None:
         pending_file_search_request_id=3,
         command_palette=replace(
             state.command_palette,
-            rff_filename_query="readme",
+            rff=replace(
+                state.command_palette.rff,
+                filename_query="readme",
+            ),
         ),
     )
 
@@ -507,7 +513,7 @@ def test_rff_file_search_completed_stores_results() -> None:
     )
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.rff_file_results == (
+    assert next_state.command_palette.rff.file_results == (
         FileSearchResultState(
             path="/home/tadashi/develop/zivo/README.md",
             display_path="README.md",
@@ -522,8 +528,11 @@ def test_rff_file_search_completed_auto_triggers_preview_when_find_text_present(
         pending_file_search_request_id=3,
         command_palette=replace(
             state.command_palette,
-            rff_filename_query="readme",
-            rff_find_text="todo",
+            rff=replace(
+                state.command_palette.rff,
+                filename_query="readme",
+                find_text="todo",
+            ),
         ),
     )
 
@@ -552,12 +561,15 @@ def test_rff_preview_completed_stores_results() -> None:
         pending_replace_preview_request_id=4,
         command_palette=replace(
             state.command_palette,
-            rff_find_text="todo",
-            rff_replacement_text="done",
-            rff_file_results=(
-                FileSearchResultState(
-                    path="/home/tadashi/develop/zivo/README.md",
-                    display_path="README.md",
+            rff=replace(
+                state.command_palette.rff,
+                find_text="todo",
+                replacement_text="done",
+                file_results=(
+                    FileSearchResultState(
+                        path="/home/tadashi/develop/zivo/README.md",
+                        display_path="README.md",
+                    ),
                 ),
             ),
         ),
@@ -590,9 +602,9 @@ def test_rff_preview_completed_stores_results() -> None:
     )
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.rff_total_match_count == 1
-    assert len(next_state.command_palette.rff_preview_results) == 1
-    assert next_state.command_palette.rff_preview_results[0].display_path == "README.md"
+    assert next_state.command_palette.rff.total_match_count == 1
+    assert len(next_state.command_palette.rff.preview_results) == 1
+    assert next_state.command_palette.rff.preview_results[0].display_path == "README.md"
     assert next_state.child_pane.preview_title == "Replace Preview"
     assert next_state.pending_replace_preview_request_id is None
 
@@ -612,11 +624,14 @@ def test_submit_rff_palette_warns_when_no_preview_results() -> None:
         state,
         command_palette=replace(
             state.command_palette,
-            rff_find_text="todo",
-            rff_file_results=(
-                FileSearchResultState(
-                    path="/home/tadashi/develop/zivo/README.md",
-                    display_path="README.md",
+            rff=replace(
+                state.command_palette.rff,
+                find_text="todo",
+                file_results=(
+                    FileSearchResultState(
+                        path="/home/tadashi/develop/zivo/README.md",
+                        display_path="README.md",
+                    ),
                 ),
             ),
         ),

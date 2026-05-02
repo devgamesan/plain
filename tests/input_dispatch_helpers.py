@@ -15,6 +15,7 @@ from zivo.state import (
     PendingInputState,
     PendingKeySequenceState,
     ReplacePreviewPaletteState,
+    RffPaletteState,
     ZipCompressConfirmationState,
     build_initial_app_state,
     dispatch_key_input,

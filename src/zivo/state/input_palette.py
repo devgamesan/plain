@@ -65,12 +65,12 @@ def active_replace_field_value(state: AppState) -> str:
 def active_find_replace_field_value(state: AppState) -> str:
     if state.command_palette is None:
         return ""
-    field = state.command_palette.rff_active_field
+    field = state.command_palette.rff.active_field
     if field == "filename":
-        return state.command_palette.rff_filename_query
+        return state.command_palette.rff.filename_query
     if field == "find":
-        return state.command_palette.rff_find_text
-    return state.command_palette.rff_replacement_text
+        return state.command_palette.rff.find_text
+    return state.command_palette.rff.replacement_text
 
 
 def active_grep_replace_field_value(state: AppState) -> str:
@@ -259,7 +259,7 @@ def dispatch_command_palette_input(
         if palette_source == "replace_in_found_files":
             return supported(
                 SetFindReplaceField(
-                    field=state.command_palette.rff_active_field,
+                    field=state.command_palette.rff.active_field,
                     value=active_find_replace_field_value(state)[:-1],
                 )
             )
@@ -324,7 +324,7 @@ def dispatch_command_palette_input(
                 )
             )
         if palette_source == "replace_in_found_files":
-            active_field_rff: FindReplaceFieldId = state.command_palette.rff_active_field
+            active_field_rff: FindReplaceFieldId = state.command_palette.rff.active_field
             return supported(
                 SetFindReplaceField(
                     field=active_field_rff,

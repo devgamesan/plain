@@ -457,6 +457,20 @@ class ReplacePreviewPaletteState:
 
 
 @dataclass(frozen=True)
+class RffPaletteState:
+    filename_query: str = ""
+    active_field: FindReplaceFieldId = "filename"
+    find_text: str = ""
+    replacement_text: str = ""
+    file_results: tuple[FileSearchResultState, ...] = ()
+    file_error_message: str | None = None
+    preview_results: tuple[ReplacePreviewResultState, ...] = ()
+    error_message: str | None = None
+    status_message: str | None = None
+    total_match_count: int = 0
+
+
+@dataclass(frozen=True)
 class CommandPaletteState:
     """Transient palette search and cursor state."""
 
@@ -471,16 +485,7 @@ class CommandPaletteState:
     history_and_navigation: HistoryAndNavigationPaletteState = field(
         default_factory=HistoryAndNavigationPaletteState
     )
-    rff_filename_query: str = ""
-    rff_active_field: FindReplaceFieldId = "filename"
-    rff_find_text: str = ""
-    rff_replacement_text: str = ""
-    rff_file_results: tuple[FileSearchResultState, ...] = ()
-    rff_file_error_message: str | None = None
-    rff_preview_results: tuple[ReplacePreviewResultState, ...] = ()
-    rff_error_message: str | None = None
-    rff_status_message: str | None = None
-    rff_total_match_count: int = 0
+    rff: RffPaletteState = field(default_factory=RffPaletteState)
     grf_keyword: str = ""
     grf_include_extensions: str = ""
     grf_exclude_extensions: str = ""

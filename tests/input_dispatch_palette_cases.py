@@ -317,7 +317,7 @@ def test_palette_printable_key_updates_rff_filename_field() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="replace_in_found_files",
-            rff_active_field="filename",
+            rff=RffPaletteState(active_field="filename"),
         ),
     )
 
@@ -335,7 +335,7 @@ def test_palette_printable_key_updates_rff_find_field() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="replace_in_found_files",
-            rff_active_field="find",
+            rff=RffPaletteState(active_field="find"),
         ),
     )
 
@@ -353,8 +353,7 @@ def test_palette_backspace_updates_rff_field() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="replace_in_found_files",
-            rff_active_field="find",
-            rff_find_text="todo",
+            rff=RffPaletteState(active_field="find", find_text="todo"),
         ),
     )
 

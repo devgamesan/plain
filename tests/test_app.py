@@ -4019,7 +4019,7 @@ async def test_app_grep_search_filters_results_by_filename(tmp_path) -> None:
         def _filtered_results_ready() -> bool:
             palette = app.app_state.command_palette
             return palette is not None and [
-                result.display_label for result in palette.grep_search_results
+                result.display_label for result in palette.grep_search.results
             ] == expected_labels
 
         await _wait_for_predicate(
@@ -4029,7 +4029,7 @@ async def test_app_grep_search_filters_results_by_filename(tmp_path) -> None:
         )
         assert app.app_state.command_palette is not None
         assert [
-            result.display_label for result in app.app_state.command_palette.grep_search_results
+            result.display_label for result in app.app_state.command_palette.grep_search.results
         ] == expected_labels
 
 
@@ -4081,7 +4081,7 @@ async def test_app_grep_search_cancels_superseded_request_without_notification(t
         assert app.app_state.command_palette is not None
         # Note: Due to timing issues, we just check that results are populated
         # assert [
-        #     result.display_label for result in app.app_state.command_palette.grep_search_results
+        #     result.display_label for result in app.app_state.command_palette.grep_search.results
         # ] == ["guide.md:1: guide"]
 
 

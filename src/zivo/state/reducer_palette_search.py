@@ -142,20 +142,24 @@ def handle_set_grep_search_field(
     field,
     value: str,
 ) -> ReduceResult:
+    next_palette = replace_grep_field(state.command_palette, field=field, value=value)
     next_palette = replace(
-        replace_grep_field(state.command_palette, field=field, value=value),
-        grep_search_error_message=None,
+        next_palette,
+        grep_search=replace(next_palette.grep_search, error_message=None),
         cursor_index=0,
     )
-    stripped_query = next_palette.grep_search_keyword.strip()
+    stripped_query = next_palette.grep_search.keyword.strip()
     if not stripped_query:
         return sync_grep_preview(
             replace(
                 state,
                 command_palette=replace(
                     next_palette,
-                    grep_search_results=(),
-                    grep_search_error_message=None,
+                    grep_search=replace(
+                        next_palette.grep_search,
+                        results=(),
+                        error_message=None,
+                    ),
                 ),
                 pending_grep_search_request_id=None,
                 pending_child_pane_request_id=None,
@@ -172,22 +176,28 @@ def handle_set_grep_search_field(
                     state,
                     command_palette=replace(
                         next_palette,
-                        grep_search_results=(),
-                        grep_search_error_message=validation_error,
+                        grep_search=replace(
+                            next_palette.grep_search,
+                            results=(),
+                            error_message=validation_error,
+                        ),
                     ),
                     pending_grep_search_request_id=None,
                     pending_child_pane_request_id=None,
                 )
             )
-        if state.command_palette.grep_search_results:
+        if state.command_palette.grep_search.results:
             return sync_grep_preview(
                 replace(
                     state,
                     command_palette=replace(
                         next_palette,
-                        grep_search_results=filter_grep_results_by_filename(
-                            state.command_palette.grep_search_results,
-                            value,
+                        grep_search=replace(
+                            next_palette.grep_search,
+                            results=filter_grep_results_by_filename(
+                                state.command_palette.grep_search.results,
+                                value,
+                            ),
                         ),
                     ),
                 )
@@ -195,8 +205,8 @@ def handle_set_grep_search_field(
 
     try:
         include_globs, exclude_globs = validate_grep_search_filters(
-            next_palette.grep_search_include_extensions,
-            next_palette.grep_search_exclude_extensions,
+            next_palette.grep_search.include_extensions,
+            next_palette.grep_search.exclude_extensions,
         )
     except ValueError as error:
         return sync_grep_preview(
@@ -204,8 +214,11 @@ def handle_set_grep_search_field(
                 state,
                 command_palette=replace(
                     next_palette,
-                    grep_search_results=(),
-                    grep_search_error_message=str(error),
+                    grep_search=replace(
+                        next_palette.grep_search,
+                        results=(),
+                        error_message=str(error),
+                    ),
                 ),
                 pending_grep_search_request_id=None,
                 pending_child_pane_request_id=None,
@@ -260,8 +273,8 @@ def handle_submit_grep_search_palette(
         results = state.command_palette.sfg.results
         message = state.command_palette.sfg.error_message or "No matching lines"
     else:
-        results = state.command_palette.grep_search_results
-        message = state.command_palette.grep_search_error_message or "No matching lines"
+        results = state.command_palette.grep_search.results
+        message = state.command_palette.grep_search.error_message or "No matching lines"
 
     if not results:
         return notify(state, level="warning", message=message)
@@ -286,8 +299,8 @@ def handle_open_grep_result_in_editor(
         results = state.command_palette.sfg.results
         message = state.command_palette.sfg.error_message or "No matching lines"
     else:
-        results = state.command_palette.grep_search_results
-        message = state.command_palette.grep_search_error_message or "No matching lines"
+        results = state.command_palette.grep_search.results
+        message = state.command_palette.grep_search.error_message or "No matching lines"
 
     if not results:
         return notify(state, level="warning", message=message)
@@ -314,8 +327,8 @@ def handle_open_grep_result_in_gui_editor(
         results = state.command_palette.sfg.results
         message = state.command_palette.sfg.error_message or "No matching lines"
     else:
-        results = state.command_palette.grep_search_results
-        message = state.command_palette.grep_search_error_message or "No matching lines"
+        results = state.command_palette.grep_search.results
+        message = state.command_palette.grep_search.error_message or "No matching lines"
 
     if not results:
         return notify(state, level="warning", message=message)
@@ -510,11 +523,14 @@ def handle_grep_search_completed(
             state,
             command_palette=replace(
                 state.command_palette,
-                grep_search_results=filter_grep_results_by_filename(
-                    action.results,
-                    state.command_palette.grep_search_filename_filter,
+                grep_search=replace(
+                    state.command_palette.grep_search,
+                    results=filter_grep_results_by_filename(
+                        action.results,
+                        state.command_palette.grep_search.filename_filter,
+                    ),
+                    error_message=None,
                 ),
-                grep_search_error_message=None,
                 cursor_index=0,
             ),
             pending_grep_search_request_id=None,
@@ -591,8 +607,11 @@ def handle_grep_search_failed(
                 state,
                 command_palette=replace(
                     state.command_palette,
-                    grep_search_results=(),
-                    grep_search_error_message=action.message,
+                    grep_search=replace(
+                        state.command_palette.grep_search,
+                        results=(),
+                        error_message=action.message,
+                    ),
                     cursor_index=0,
                 ),
                 pending_grep_search_request_id=None,
@@ -673,7 +692,7 @@ def selected_file_search_result(state: AppState) -> FileSearchResultState | None
 def selected_grep_result(state: AppState) -> GrepSearchResultState | None:
     if state.command_palette is None or state.command_palette.source != "grep_search":
         return None
-    results = state.command_palette.grep_search_results
+    results = state.command_palette.grep_search.results
     if not results:
         return None
     cursor_index = normalize_command_palette_cursor(state, state.command_palette.cursor_index)

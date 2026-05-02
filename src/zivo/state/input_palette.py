@@ -43,14 +43,14 @@ from .selectors import compute_search_visible_window
 def active_grep_field_value(state: AppState) -> str:
     if state.command_palette is None:
         return ""
-    field = state.command_palette.grep_search_active_field
+    field = state.command_palette.grep_search.active_field
     if field == "keyword":
-        return state.command_palette.grep_search_keyword or state.command_palette.query
+        return state.command_palette.grep_search.keyword or state.command_palette.query
     if field == "filename":
-        return state.command_palette.grep_search_filename_filter
+        return state.command_palette.grep_search.filename_filter
     if field == "include":
-        return state.command_palette.grep_search_include_extensions
-    return state.command_palette.grep_search_exclude_extensions
+        return state.command_palette.grep_search.include_extensions
+    return state.command_palette.grep_search.exclude_extensions
 
 
 def active_replace_field_value(state: AppState) -> str:
@@ -245,7 +245,7 @@ def dispatch_command_palette_input(
         if palette_source == "grep_search":
             return supported(
                 SetGrepSearchField(
-                    field=state.command_palette.grep_search_active_field,
+                    field=state.command_palette.grep_search.active_field,
                     value=active_grep_field_value(state)[:-1],
                 )
             )
@@ -308,7 +308,7 @@ def dispatch_command_palette_input(
             ):
                 return warn("Use left/right arrows on the target field to change scope")
         if palette_source == "grep_search":
-            active_field: GrepSearchFieldId = state.command_palette.grep_search_active_field
+            active_field: GrepSearchFieldId = state.command_palette.grep_search.active_field
             return supported(
                 SetGrepSearchField(
                     field=active_field,

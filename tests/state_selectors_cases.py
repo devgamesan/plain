@@ -29,6 +29,7 @@ from zivo.state import (
     DirectorySizeDeltaState,
     FileSearchPaletteState,
     FileSearchResultState,
+    GrepSearchPaletteState,
     GrepSearchResultState,
     HistoryAndNavigationPaletteState,
     HistoryState,
@@ -920,7 +921,7 @@ def test_select_shell_data_builds_grep_preview_for_palette_selection() -> None:
         command_palette=CommandPaletteState(
             source="grep_search",
             query="todo",
-            grep_search_results=(grep_result,),
+            grep_search=GrepSearchPaletteState(results=(grep_result,)),
         ),
         child_pane=PaneState(
             directory_path="/home/tadashi/develop/zivo",
@@ -1557,11 +1558,13 @@ def test_select_command_palette_state_for_grep_search_includes_input_fields() ->
         command_palette=CommandPaletteState(
             source="grep_search",
             query="todo",
-            grep_search_keyword="todo",
-            grep_search_filename_filter="main",
-            grep_search_include_extensions="py,ts",
-            grep_search_exclude_extensions="log",
-            grep_search_active_field="exclude",
+            grep_search=GrepSearchPaletteState(
+                keyword="todo",
+                filename_filter="main",
+                include_extensions="py,ts",
+                exclude_extensions="log",
+                active_field="exclude",
+            ),
         ),
     )
 
@@ -2191,12 +2194,14 @@ def test_select_command_palette_state_for_grep_search_results() -> None:
         command_palette=CommandPaletteState(
             source="grep_search",
             query="todo",
-            grep_search_results=(
-                GrepSearchResultState(
-                    path="/home/tadashi/develop/zivo/src/zivo/app.py",
-                    display_path="src/zivo/app.py",
-                    line_number=42,
-                    line_text="TODO: update palette",
+            grep_search=GrepSearchPaletteState(
+                results=(
+                    GrepSearchResultState(
+                        path="/home/tadashi/develop/zivo/src/zivo/app.py",
+                        display_path="src/zivo/app.py",
+                        line_number=42,
+                        line_text="TODO: update palette",
+                    ),
                 ),
             ),
         ),
@@ -2228,7 +2233,7 @@ def test_select_command_palette_state_windows_large_grep_search_results() -> Non
             source="grep_search",
             query="todo",
             cursor_index=10,
-            grep_search_results=results,
+            grep_search=GrepSearchPaletteState(results=results),
         ),
     )
 
@@ -2248,7 +2253,7 @@ def test_select_command_palette_state_shows_grep_searching_message() -> None:
         command_palette=CommandPaletteState(
             source="grep_search",
             query="todo",
-            grep_search_results=(),
+            grep_search=GrepSearchPaletteState(results=()),
         ),
         pending_grep_search_request_id=9,
     )

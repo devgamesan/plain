@@ -26,6 +26,7 @@ from .reducer_config import (
 )
 from .selectors_shared import (
     _build_command_palette_items_view,
+    _build_file_search_input_fields,
     _build_find_replace_input_fields,
     _build_grep_replace_input_fields,
     _build_grep_replace_selected_input_fields,
@@ -312,7 +313,11 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             query=state.command_palette.query,
             items=tuple(
                 CommandPaletteItemViewState(
-                    label=result.display_path,
+                    label=(
+                        f"{result.display_path}/"
+                        if result.entry_type == "directory"
+                        else result.display_path
+                    ),
                     shortcut=None,
                     enabled=True,
                     selected=index == cursor_index,
@@ -321,6 +326,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             ),
             empty_message=_file_search_empty_message(state),
             has_more_items=len(state.command_palette.file_search_results) > len(visible_results),
+            input_fields=_build_file_search_input_fields(state.command_palette),
         )
     if state.command_palette.source == "grep_search":
         visible_results, title = _select_grep_search_window(

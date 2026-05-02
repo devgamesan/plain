@@ -4,6 +4,7 @@ import os
 
 from .actions import (
     CancelCommandPalette,
+    CycleFileSearchField,
     CycleFindReplaceField,
     CycleGrepReplaceField,
     CycleGrepReplaceSelectedField,
@@ -17,6 +18,7 @@ from .actions import (
     OpenGrepResultInGuiEditor,
     SelectedFilesGrepKeywordChanged,
     SetCommandPaletteQuery,
+    SetFileSearchTarget,
     SetFindReplaceField,
     SetGrepReplaceField,
     SetGrepReplaceSelectedField,
@@ -106,6 +108,8 @@ def palette_extra_rows(palette_source: str | None) -> int:
         return 1
     if palette_source in {"grep_search", "replace_text"}:
         return 2
+    if palette_source == "file_search":
+        return 1
     return 0
 
 
@@ -143,6 +147,12 @@ def dispatch_command_palette_input(
     if key == "escape":
         return supported(CancelCommandPalette())
 
+    if key == "tab" and palette_source == "file_search":
+        return supported(CycleFileSearchField(delta=1))
+
+    if key == "shift+tab" and palette_source == "file_search":
+        return supported(CycleFileSearchField(delta=-1))
+
     if key == "tab" and palette_source == "grep_search":
         return supported(CycleGrepSearchField(delta=1))
 
@@ -179,6 +189,19 @@ def dispatch_command_palette_input(
     if key == "shift+tab" and palette_source == "selected_files_grep":
         return supported(CycleSelectedFilesGrepField(delta=-1))
 
+    if key in ("left", "right") and palette_source == "file_search":
+        if (
+            state.command_palette is not None
+            and state.command_palette.file_search_active_field == "target"
+        ):
+            delta = -1 if key == "left" else 1
+            targets: tuple[str, ...] = ("files", "directories", "all")
+            current = state.command_palette.file_search_target
+            index = targets.index(current)
+            next_target = targets[(index + delta) % len(targets)]
+            return supported(SetFileSearchTarget(target=next_target))
+        return warn("Use left/right arrows on the target field to change scope")
+
     if key == "up" or (key == "k" and not search_palette):
         return supported(MoveCommandPaletteCursor(delta=-1))
 
@@ -211,6 +234,14 @@ def dispatch_command_palette_input(
         return supported(SubmitCommandPalette())
 
     if key == "backspace":
+        if palette_source == "file_search":
+            if (
+                state.command_palette is not None
+                and state.command_palette.file_search_active_field == "target"
+            ):
+                return warn("Use left/right arrows on the target field to change scope")
+            current_query = state.command_palette.query if state.command_palette is not None else ""
+            return supported(SetCommandPaletteQuery(current_query[:-1]))
         if palette_source == "grep_search":
             return supported(
                 SetGrepSearchField(
@@ -270,6 +301,12 @@ def dispatch_command_palette_input(
             return supported(OpenFindResultInGuiEditor())
 
     if character and character.isprintable():
+        if palette_source == "file_search":
+            if (
+                state.command_palette is not None
+                and state.command_palette.file_search_active_field == "target"
+            ):
+                return warn("Use left/right arrows on the target field to change scope")
         if palette_source == "grep_search":
             active_field: GrepSearchFieldId = state.command_palette.grep_search_active_field
             return supported(

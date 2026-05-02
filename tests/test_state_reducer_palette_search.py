@@ -470,6 +470,7 @@ def test_set_command_palette_query_reuses_completed_file_search_results_for_pref
             ),
             file_search_cache_root_path="/home/tadashi/develop/zivo",
             file_search_cache_show_hidden=False,
+            file_search_cache_target="all",
         ),
         pending_file_search_request_id=4,
         next_request_id=5,

@@ -6,12 +6,14 @@ from zivo.models.external_launch import ExternalLaunchRequest
 from zivo.windows_paths import resolve_parent_directory_path
 
 from .actions import (
+    CycleFileSearchField,
     CycleSelectedFilesGrepField,
     FileSearchCompleted,
     FileSearchFailed,
     GrepSearchCompleted,
     GrepSearchFailed,
     SelectedFilesGrepKeywordChanged,
+    SetFileSearchTarget,
 )
 from .command_palette import normalize_command_palette_cursor
 from .effects import (
@@ -85,12 +87,14 @@ def handle_set_file_search_query(
 
     is_regex_query = is_regex_file_search_query(stripped_query)
     normalized_query = stripped_query.casefold()
+    search_target = next_palette.file_search_target
     if (
         not is_regex_query
         and state.command_palette.file_search_cache_query
         and normalized_query.startswith(state.command_palette.file_search_cache_query)
         and state.command_palette.file_search_cache_root_path == state.current_path
         and state.command_palette.file_search_cache_show_hidden == state.show_hidden
+        and state.command_palette.file_search_cache_target == search_target
     ):
         return sync_file_search_preview(
             replace(
@@ -122,6 +126,7 @@ def handle_set_file_search_query(
             root_path=state.current_path,
             query=stripped_query,
             show_hidden=state.show_hidden,
+            search_target=search_target,
         ),
     )
 
@@ -398,6 +403,7 @@ def handle_file_search_completed(
                 file_search_cache_results=cache_results,
                 file_search_cache_root_path=state.current_path,
                 file_search_cache_show_hidden=state.show_hidden,
+                file_search_cache_target=state.command_palette.file_search_target,
             ),
             pending_file_search_request_id=None,
         )
@@ -587,6 +593,51 @@ def handle_grep_search_failed(
         level="error",
         message=action.message,
     )
+
+
+FILE_SEARCH_TARGET_CYCLE: tuple[str, ...] = ("files", "directories", "all")
+
+
+def _next_file_search_target(current: str, delta: int) -> str:
+    index = FILE_SEARCH_TARGET_CYCLE.index(current)
+    return FILE_SEARCH_TARGET_CYCLE[(index + delta) % len(FILE_SEARCH_TARGET_CYCLE)]
+
+
+def handle_set_file_search_target(
+    state: AppState,
+    action: SetFileSearchTarget,
+) -> ReduceResult:
+    if state.command_palette is None or state.command_palette.source != "file_search":
+        return finalize(state)
+    if action.target == state.command_palette.file_search_target:
+        return finalize(state)
+    next_palette = replace(
+        state.command_palette,
+        file_search_target=action.target,
+        file_search_results=(),
+        file_search_error_message=None,
+        cursor_index=0,
+    )
+    return handle_set_file_search_query(
+        state, next_palette, state.command_palette.query,
+    )
+
+
+def handle_cycle_file_search_field(
+    state: AppState,
+    action: CycleFileSearchField,
+) -> ReduceResult:
+    if state.command_palette is None or state.command_palette.source != "file_search":
+        return finalize(state)
+    current = state.command_palette.file_search_active_field
+    fields: tuple[str, ...] = ("keyword", "target")
+    index = fields.index(current)
+    next_index = (index + action.delta) % len(fields)
+    next_palette = replace(
+        state.command_palette,
+        file_search_active_field=fields[next_index],
+    )
+    return finalize(replace(state, command_palette=next_palette))
 
 
 def selected_file_search_result(state: AppState) -> FileSearchResultState | None:

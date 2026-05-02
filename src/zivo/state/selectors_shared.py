@@ -59,6 +59,7 @@ COMMAND_PALETTE_VISIBLE_WINDOW = 8
 MIN_SEARCH_VISIBLE_WINDOW = 3
 _SEARCH_OVERHEAD_ROWS = 10
 _GREP_SEARCH_EXTRA_INPUT_ROWS = 2
+_FILE_SEARCH_EXTRA_INPUT_ROWS = 1
 MIN_CURRENT_PANE_VISIBLE_WINDOW = 5
 _CURRENT_PANE_OVERHEAD_ROWS = 9
 
@@ -306,9 +307,18 @@ def _select_file_search_window(
     results: tuple[FileSearchResultState, ...],
     cursor_index: int,
 ) -> tuple[tuple[tuple[int, FileSearchResultState], ...], str]:
-    visible_window = compute_search_visible_window(state.terminal_height)
+    visible_window = compute_search_visible_window(
+        state.terminal_height,
+        extra_rows=_FILE_SEARCH_EXTRA_INPUT_ROWS,
+    )
+    target = state.command_palette.file_search_target if state.command_palette else "all"
+    title = {
+        "files": "Find File",
+        "directories": "Find Directory",
+        "all": "Find All",
+    }.get(target, "Find All")
     return _select_search_window(
-        results, cursor_index, title="Find File", visible_window=visible_window,
+        results, cursor_index, title=title, visible_window=visible_window,
     )
 
 
@@ -416,6 +426,26 @@ def _build_grep_search_input_fields(
             value=palette.grep_search_exclude_extensions,
             placeholder="e.g. log, tmp",
             active=palette.grep_search_active_field == "exclude",
+        ),
+    )
+
+
+def _build_file_search_input_fields(
+    palette: CommandPaletteState,
+) -> tuple[CommandPaletteInputFieldViewState, ...]:
+    target_labels = {"files": "files", "directories": "dirs", "all": "all"}
+    return (
+        CommandPaletteInputFieldViewState(
+            label="Keyword",
+            value=palette.query,
+            placeholder="type a filename or re:pattern",
+            active=palette.file_search_active_field == "keyword",
+        ),
+        CommandPaletteInputFieldViewState(
+            label="Target",
+            value=target_labels.get(palette.file_search_target, "all"),
+            placeholder="files/dirs/all",
+            active=palette.file_search_active_field == "target",
         ),
     )
 

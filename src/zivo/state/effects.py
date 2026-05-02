@@ -174,6 +174,7 @@ class RunFileSearchEffect:
     root_path: str
     query: str
     show_hidden: bool
+    search_target: str = "all"
 
 
 @dataclass(frozen=True)

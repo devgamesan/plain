@@ -228,6 +228,14 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
                 ),
             ),
         )
+    if field_id == "display.preview_word_wrap":
+        return replace(
+            config,
+            display=replace(
+                config.display,
+                preview_word_wrap=not config.display.preview_word_wrap,
+            ),
+        )
     if field_id == "behavior.confirm_delete":
         return replace(
             config,
@@ -329,6 +337,7 @@ def config_editor_field_ids() -> tuple[str, ...]:
         "behavior.paste_conflict_action",
         "logging.level",
         "file_search.max_results",
+        "display.preview_word_wrap",
     )
 
 
@@ -355,6 +364,7 @@ def config_editor_labels() -> tuple[str, ...]:
         "Paste conflict action",
         "Log level",
         "File search max results",
+        "Preview word wrap",
     )
 
 
@@ -481,6 +491,12 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
             "Increase this to show more context in grep preview results.",
             f"Current behavior: {config.display.grep_preview_context_lines} context lines.",
         )
+    if field_id == "display.preview_word_wrap":
+        return (
+            "Controls whether long lines in the preview pane wrap to fit the available width.",
+            "Current behavior: word wrap is "
+            f"{'enabled' if config.display.preview_word_wrap else 'disabled'} on startup.",
+        )
     if field_id == "behavior.confirm_delete":
         return (
             "Controls whether delete and move-to-trash actions ask for confirmation first.",
@@ -522,7 +538,7 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
 CONFIG_EDITOR_CATEGORIES: tuple[tuple[str, tuple[int, ...]], ...] = (
     ("External", (0, 1)),
     ("Theme", (3, 9)),
-    ("Preview", (5, 6, 7, 8, 10, 15)),
+    ("Preview", (5, 6, 7, 8, 10, 15, 21)),
     ("Display", (2, 4, 11, 16)),
     ("File Search", (20,)),
     ("Sorting", (12, 13, 14)),
@@ -604,6 +620,8 @@ def format_config_field_value(field_index: int, config: AppConfig) -> str:
         return _format_bool(config.display.directories_first)
     if field_id == "display.grep_preview_context_lines":
         return str(config.display.grep_preview_context_lines)
+    if field_id == "display.preview_word_wrap":
+        return _format_bool(config.display.preview_word_wrap)
     if field_id == "behavior.confirm_delete":
         return _format_bool(config.behavior.confirm_delete)
     if field_id == "behavior.confirm_exit":

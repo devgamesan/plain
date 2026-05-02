@@ -106,6 +106,7 @@ class ChildPaneViewState:
     preview_highlight_line: int | None = None
     syntax_theme: str = "monokai"
     permissions_label: str = ""
+    preview_word_wrap: bool = False
 
     @property
     def is_preview(self) -> bool:

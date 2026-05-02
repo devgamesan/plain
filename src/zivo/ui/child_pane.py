@@ -271,7 +271,7 @@ class ChildPane(Vertical):
             state.preview_content,
             lexer=lexer,
             theme=state.syntax_theme,
-            word_wrap=False,
+            word_wrap=state.preview_word_wrap,
             line_numbers=state.preview_start_line is not None,
             start_line=state.preview_start_line or 1,
             highlight_lines=(

@@ -74,17 +74,29 @@ def _handle_confirm_filter_input(
     action: ConfirmFilterInput,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
-    return finalize(
-        replace(
-            state,
-            ui_mode="BROWSING",
-            current_pane=replace(
-                state.current_pane,
-                selection_anchor_path=None,
-            ),
-            notification=None,
-        )
+    next_state = replace(
+        state,
+        ui_mode="BROWSING",
+        notification=None,
     )
+    visible_entries = select_visible_current_entry_states(next_state)
+    visible_paths = tuple(entry.path for entry in visible_entries)
+    cursor_path = normalize_cursor_path(
+        visible_entries,
+        state.current_pane.cursor_path,
+    )
+    next_state = replace(
+        next_state,
+        current_pane=replace(
+            next_state.current_pane,
+            cursor_path=cursor_path,
+            selection_anchor_path=normalize_selection_anchor_path(
+                state.current_pane.selection_anchor_path,
+                visible_paths,
+            ),
+        ),
+    )
+    return sync_child_pane(next_state, cursor_path, reduce_state)
 
 
 def _handle_cancel_filter_input(

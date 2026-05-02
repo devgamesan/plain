@@ -1407,6 +1407,16 @@ def test_confirm_filter_input_returns_to_browsing() -> None:
 
     assert next_state.ui_mode == "BROWSING"
 
+def test_confirm_filter_input_normalizes_cursor_path() -> None:
+    state = build_initial_app_state()
+    state = _reduce_state(state, SetUiMode("FILTER"))
+    state = _reduce_state(state, SetFilterQuery("src"))
+
+    next_state = _reduce_state(state, ConfirmFilterInput())
+
+    assert next_state.ui_mode == "BROWSING"
+    assert next_state.current_pane.cursor_path == "/home/tadashi/develop/zivo/src"
+
 def test_cancel_filter_input_clears_query() -> None:
     state = build_initial_app_state()
     state = _reduce_state(state, SetUiMode("FILTER"))

@@ -537,15 +537,15 @@ def _build_grep_replace_selected_input_fields(
     return (
         CommandPaletteInputFieldViewState(
             label="Keyword",
-            value=palette.grs_keyword or palette.query,
+            value=palette.grs.keyword or palette.query,
             placeholder="text or re:pattern",
-            active=palette.grs_active_field == "keyword",
+            active=palette.grs.active_field == "keyword",
         ),
         CommandPaletteInputFieldViewState(
             label="Replace",
-            value=palette.grs_replacement_text,
+            value=palette.grs.replacement_text,
             placeholder="replacement text",
-            active=palette.grs_active_field == "replace",
+            active=palette.grs.active_field == "replace",
         ),
     )
 

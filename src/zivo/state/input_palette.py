@@ -91,10 +91,10 @@ def active_grep_replace_field_value(state: AppState) -> str:
 def active_grep_replace_selected_field_value(state: AppState) -> str:
     if state.command_palette is None:
         return ""
-    field = state.command_palette.grs_active_field
+    field = state.command_palette.grs.active_field
     if field == "keyword":
-        return state.command_palette.grs_keyword or state.command_palette.query
-    return state.command_palette.grs_replacement_text
+        return state.command_palette.grs.keyword or state.command_palette.query
+    return state.command_palette.grs.replacement_text
 
 
 def palette_extra_rows(palette_source: str | None) -> int:
@@ -273,7 +273,7 @@ def dispatch_command_palette_input(
         if palette_source == "grep_replace_selected":
             return supported(
                 SetGrepReplaceSelectedField(
-                    field=state.command_palette.grs_active_field,
+                    field=state.command_palette.grs.active_field,
                     value=active_grep_replace_selected_field_value(state)[:-1],
                 )
             )
@@ -340,7 +340,7 @@ def dispatch_command_palette_input(
                 )
             )
         if palette_source == "grep_replace_selected":
-            active_field_grs: GrepReplaceSelectedFieldId = state.command_palette.grs_active_field
+            active_field_grs: GrepReplaceSelectedFieldId = state.command_palette.grs.active_field
             return supported(
                 SetGrepReplaceSelectedField(
                     field=active_field_grs,

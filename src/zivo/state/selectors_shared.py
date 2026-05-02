@@ -556,9 +556,9 @@ def _build_selected_files_grep_input_fields(
     return (
         CommandPaletteInputFieldViewState(
             label="Keyword",
-            value=palette.sfg_keyword or palette.query,
+            value=palette.sfg.keyword or palette.query,
             placeholder="text or re:pattern",
-            active=palette.sfg_active_field == "keyword",
+            active=palette.sfg.active_field == "keyword",
         ),
     )
 

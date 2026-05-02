@@ -38,6 +38,7 @@ from zivo.state import (
     PendingInputState,
     PendingKeySequenceState,
     ReplacePreviewResultState,
+    SfgPaletteState,
     ZipCompressConfirmationState,
     build_initial_app_state,
     build_placeholder_app_state,
@@ -2960,8 +2961,10 @@ def test_select_shell_data_builds_sfg_preview_for_palette_selection() -> None:
         command_palette=CommandPaletteState(
             source="selected_files_grep",
             query="todo",
-            sfg_target_paths=(path,),
-            sfg_results=(grep_result,),
+            sfg=SfgPaletteState(
+                target_paths=(path,),
+                results=(grep_result,),
+            ),
         ),
         child_pane=PaneState(
             directory_path="/home/tadashi/develop/zivo",
@@ -2992,7 +2995,7 @@ def test_select_shell_data_builds_sfg_preview_falls_back_to_empty_for_no_results
         command_palette=CommandPaletteState(
             source="selected_files_grep",
             query="todo",
-            sfg_results=(),
+            sfg=SfgPaletteState(results=()),
         ),
     )
 
@@ -3022,7 +3025,7 @@ def test_select_shell_data_builds_sfg_preview_falls_back_to_empty_when_preview_d
         command_palette=CommandPaletteState(
             source="selected_files_grep",
             query="todo",
-            sfg_results=(grep_result,),
+            sfg=SfgPaletteState(results=(grep_result,)),
         ),
     )
 

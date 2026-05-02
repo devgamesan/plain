@@ -412,6 +412,15 @@ class HistoryAndNavigationPaletteState:
 
 
 @dataclass(frozen=True)
+class SfgPaletteState:
+    target_paths: tuple[str, ...] = ()
+    keyword: str = ""
+    active_field: SelectedFilesGrepFieldId = "keyword"
+    results: tuple[GrepSearchResultState, ...] = ()
+    error_message: str | None = None
+
+
+@dataclass(frozen=True)
 class CommandPaletteState:
     """Transient palette search and cursor state."""
 
@@ -477,11 +486,7 @@ class CommandPaletteState:
     grs_status_message: str | None = None
     grs_total_match_count: int = 0
     grs_target_paths: tuple[str, ...] = ()
-    sfg_target_paths: tuple[str, ...] = ()
-    sfg_keyword: str = ""
-    sfg_active_field: SelectedFilesGrepFieldId = "keyword"
-    sfg_results: tuple[GrepSearchResultState, ...] = ()
-    sfg_error_message: str | None = None
+    sfg: SfgPaletteState = field(default_factory=SfgPaletteState)
 
 
 @dataclass(frozen=True)

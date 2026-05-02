@@ -364,7 +364,7 @@ def _select_sfg_preview_pane(
     if not state.config.display.enable_text_preview:
         return _build_child_entries_view((), syntax_theme)
 
-    results = state.command_palette.sfg_results
+    results = state.command_palette.sfg.results
     if not results:
         return _build_child_entries_view((), syntax_theme)
 

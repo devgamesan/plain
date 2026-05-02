@@ -251,8 +251,8 @@ def handle_submit_grep_search_palette(
     reduce_state,
 ) -> ReduceResult:
     if state.command_palette.source == "selected_files_grep":
-        results = state.command_palette.sfg_results
-        message = state.command_palette.sfg_error_message or "No matching lines"
+        results = state.command_palette.sfg.results
+        message = state.command_palette.sfg.error_message or "No matching lines"
     else:
         results = state.command_palette.grep_search_results
         message = state.command_palette.grep_search_error_message or "No matching lines"
@@ -277,8 +277,8 @@ def handle_open_grep_result_in_editor(
 ) -> ReduceResult:
     del reduce_state
     if state.command_palette.source == "selected_files_grep":
-        results = state.command_palette.sfg_results
-        message = state.command_palette.sfg_error_message or "No matching lines"
+        results = state.command_palette.sfg.results
+        message = state.command_palette.sfg.error_message or "No matching lines"
     else:
         results = state.command_palette.grep_search_results
         message = state.command_palette.grep_search_error_message or "No matching lines"
@@ -305,8 +305,8 @@ def handle_open_grep_result_in_gui_editor(
 ) -> ReduceResult:
     del reduce_state
     if state.command_palette.source == "selected_files_grep":
-        results = state.command_palette.sfg_results
-        message = state.command_palette.sfg_error_message or "No matching lines"
+        results = state.command_palette.sfg.results
+        message = state.command_palette.sfg.error_message or "No matching lines"
     else:
         results = state.command_palette.grep_search_results
         message = state.command_palette.grep_search_error_message or "No matching lines"
@@ -773,8 +773,11 @@ def handle_sfg_keyword_changed(
 
     next_palette = replace(
         state.command_palette,
-        sfg_keyword=action.keyword,
-        sfg_error_message=None,
+        sfg=replace(
+            state.command_palette.sfg,
+            keyword=action.keyword,
+            error_message=None,
+        ),
         cursor_index=0,
     )
     stripped_query = action.keyword.strip()
@@ -785,8 +788,11 @@ def handle_sfg_keyword_changed(
                 state,
                 command_palette=replace(
                     next_palette,
-                    sfg_results=(),
-                    sfg_error_message=None,
+                    sfg=replace(
+                        next_palette.sfg,
+                        results=(),
+                        error_message=None,
+                    ),
                 ),
                 pending_grep_search_request_id=None,
                 pending_child_pane_request_id=None,
@@ -824,7 +830,7 @@ def handle_sfg_grep_search_completed(
     if state.command_palette is None or state.command_palette.source != "selected_files_grep":
         return finalize(state)
 
-    target_set = frozenset(state.command_palette.sfg_target_paths)
+    target_set = frozenset(state.command_palette.sfg.target_paths)
     filtered_results = tuple(
         r for r in action.results
         if r.path in target_set
@@ -835,8 +841,11 @@ def handle_sfg_grep_search_completed(
             state,
             command_palette=replace(
                 state.command_palette,
-                sfg_results=filtered_results,
-                sfg_error_message=None,
+                sfg=replace(
+                    state.command_palette.sfg,
+                    results=filtered_results,
+                    error_message=None,
+                ),
                 cursor_index=0,
             ),
             pending_grep_search_request_id=None,
@@ -861,8 +870,11 @@ def handle_sfg_grep_search_failed(
                 state,
                 command_palette=replace(
                     state.command_palette,
-                    sfg_results=(),
-                    sfg_error_message=action.message,
+                    sfg=replace(
+                        state.command_palette.sfg,
+                        results=(),
+                        error_message=action.message,
+                    ),
                     cursor_index=0,
                 ),
                 pending_grep_search_request_id=None,
@@ -893,7 +905,7 @@ def selected_sfg_result(state: AppState) -> GrepSearchResultState | None:
     """Return the selected result for selected-files-grep."""
     if state.command_palette is None or state.command_palette.source != "selected_files_grep":
         return None
-    results = state.command_palette.sfg_results
+    results = state.command_palette.sfg.results
     if not results:
         return None
     cursor_index = normalize_command_palette_cursor(state, state.command_palette.cursor_index)

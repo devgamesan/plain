@@ -449,12 +449,12 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
     if state.command_palette.source == "selected_files_grep":
         visible_results, title = _select_grep_search_window(
             state,
-            state.command_palette.sfg_results,
+            state.command_palette.sfg.results,
             cursor_index,
         )
         return CommandPaletteViewState(
             title=title,
-            query=state.command_palette.sfg_keyword,
+            query=state.command_palette.sfg.keyword,
             items=tuple(
                 CommandPaletteItemViewState(
                     label=result.display_label,
@@ -466,7 +466,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             ),
             empty_message=_selected_files_grep_empty_message(state),
             input_fields=_build_selected_files_grep_input_fields(state.command_palette),
-            has_more_items=(len(state.command_palette.sfg_results) > len(visible_results)),
+            has_more_items=(len(state.command_palette.sfg.results) > len(visible_results)),
         )
     if state.command_palette.source == "history":
         return _build_command_palette_items_view(
@@ -918,10 +918,10 @@ def _selected_files_grep_empty_message(state: AppState) -> str:
         return "Searching..."
     if state.command_palette is None or state.command_palette.source != "selected_files_grep":
         return ""
-    if state.command_palette.sfg_error_message is not None:
-        return state.command_palette.sfg_error_message
-    if not state.command_palette.sfg_keyword.strip():
+    if state.command_palette.sfg.error_message is not None:
+        return state.command_palette.sfg.error_message
+    if not state.command_palette.sfg.keyword.strip():
         return "Type a search keyword"
-    if not state.command_palette.sfg_results:
+    if not state.command_palette.sfg.results:
         return "No matches found in selected files"
     return ""

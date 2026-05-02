@@ -948,12 +948,12 @@ def test_begin_selected_files_grep_with_multiple_selection() -> None:
     assert state.ui_mode == "PALETTE"
     assert state.command_palette is not None
     assert state.command_palette.source == "selected_files_grep"
-    assert state.command_palette.sfg_target_paths == (
+    assert state.command_palette.sfg.target_paths == (
         "/home/tadashi/develop/zivo/src/main.py",
         "/home/tadashi/develop/zivo/src/utils.py",
     )
-    assert state.command_palette.sfg_keyword == ""
-    assert state.command_palette.sfg_results == ()
+    assert state.command_palette.sfg.keyword == ""
+    assert state.command_palette.sfg.results == ()
 
 
 def test_begin_selected_files_grep_with_single_file() -> None:
@@ -968,7 +968,7 @@ def test_begin_selected_files_grep_with_single_file() -> None:
     assert state.ui_mode == "PALETTE"
     assert state.command_palette is not None
     assert state.command_palette.source == "selected_files_grep"
-    assert state.command_palette.sfg_target_paths == ("/home/tadashi/develop/zivo/README.md",)
+    assert state.command_palette.sfg.target_paths == ("/home/tadashi/develop/zivo/README.md",)
 
 
 def test_begin_selected_files_grep_with_empty_selection() -> None:
@@ -981,7 +981,7 @@ def test_begin_selected_files_grep_with_empty_selection() -> None:
     assert state.ui_mode == "PALETTE"
     assert state.command_palette is not None
     assert state.command_palette.source == "selected_files_grep"
-    assert state.command_palette.sfg_target_paths == ()
+    assert state.command_palette.sfg.target_paths == ()
 
 
 def test_sfg_keyword_triggers_search() -> None:
@@ -1011,7 +1011,7 @@ def test_sfg_keyword_triggers_search() -> None:
     )
 
     assert result.state.command_palette is not None
-    assert result.state.command_palette.sfg_keyword == "test"
+    assert result.state.command_palette.sfg.keyword == "test"
     assert result.state.pending_grep_search_request_id == 1
     assert len(result.effects) == 1
     effect = result.effects[0]
@@ -1031,13 +1031,16 @@ def test_sfg_empty_keyword_clears_results() -> None:
         state,
         command_palette=replace(
             state.command_palette,
-            sfg_keyword="test",
-            sfg_results=(
-                GrepSearchResultState(
-                    path="/path/to/file.py",
-                    display_path="file.py",
-                    line_number=1,
-                    line_text="test line",
+            sfg=replace(
+                state.command_palette.sfg,
+                keyword="test",
+                results=(
+                    GrepSearchResultState(
+                        path="/path/to/file.py",
+                        display_path="file.py",
+                        line_number=1,
+                        line_text="test line",
+                    ),
                 ),
             ),
         ),
@@ -1050,8 +1053,8 @@ def test_sfg_empty_keyword_clears_results() -> None:
     )
 
     assert result.state.command_palette is not None
-    assert result.state.command_palette.sfg_keyword == ""
-    assert result.state.command_palette.sfg_results == ()
+    assert result.state.command_palette.sfg.keyword == ""
+    assert result.state.command_palette.sfg.results == ()
     assert result.state.pending_grep_search_request_id is None
 
 
@@ -1096,7 +1099,7 @@ def test_sfg_filters_results_by_target_paths() -> None:
     )
 
     assert result.state.command_palette is not None
-    assert result.state.command_palette.sfg_results == (
+    assert result.state.command_palette.sfg.results == (
         GrepSearchResultState(
             path="/home/tadashi/develop/zivo/src/main.py",
             display_path="src/main.py",
@@ -1111,7 +1114,7 @@ def test_sfg_filters_results_by_target_paths() -> None:
         ),
     )
     # other.py should be filtered out as it's not in target_paths
-    assert len(result.state.command_palette.sfg_results) == 2
+    assert len(result.state.command_palette.sfg.results) == 2
 
 
 def test_sfg_grep_search_failed_with_invalid_query() -> None:
@@ -1134,8 +1137,8 @@ def test_sfg_grep_search_failed_with_invalid_query() -> None:
     )
 
     assert result.state.command_palette is not None
-    assert result.state.command_palette.sfg_error_message == "Invalid regex pattern"
-    assert result.state.command_palette.sfg_results == ()
+    assert result.state.command_palette.sfg.error_message == "Invalid regex pattern"
+    assert result.state.command_palette.sfg.results == ()
 
 
 def test_sfg_cycle_field_is_noop() -> None:
@@ -1149,7 +1152,7 @@ def test_sfg_cycle_field_is_noop() -> None:
     result = reduce_app_state(state, CycleSelectedFilesGrepField(delta=1))
 
     assert result.state.command_palette is not None
-    assert result.state.command_palette.sfg_active_field == "keyword"
+    assert result.state.command_palette.sfg.active_field == "keyword"
     assert result.state == state  # No changes expected
 
 

@@ -325,7 +325,10 @@ def _handle_begin_selected_files_grep(
             next_state,
             command_palette=replace(
                 next_state.command_palette,
-                sfg_target_paths=action.target_paths,
+                sfg=replace(
+                    next_state.command_palette.sfg,
+                    target_paths=action.target_paths,
+                ),
             ),
         )
     )

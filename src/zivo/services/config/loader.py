@@ -194,6 +194,13 @@ def load_display_config(section: object, warnings: list[str]) -> DisplayConfig:
             warnings=warnings,
             section_name="display",
         ),
+        preview_word_wrap=read_bool(
+            validated,
+            key="preview_word_wrap",
+            default=config.preview_word_wrap,
+            warnings=warnings,
+            section_name="display",
+        ),
     )
     return replace(
         config,

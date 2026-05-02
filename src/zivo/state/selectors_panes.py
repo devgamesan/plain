@@ -204,6 +204,7 @@ def select_child_pane_for_cursor(
             state.child_pane.preview_highlight_line,
             syntax_theme,
             permissions_label,
+            state.config.display.preview_word_wrap,
         )
     if state.child_pane.mode == "preview" and state.child_pane.preview_message is not None:
         preview_path = state.child_pane.preview_path or cursor_entry.path
@@ -218,6 +219,7 @@ def select_child_pane_for_cursor(
             state.child_pane.preview_highlight_line,
             syntax_theme,
             permissions_label,
+            state.config.display.preview_word_wrap,
         )
 
     visible_entries = _select_side_pane_entry_states(state.child_pane.entries, state.show_hidden)
@@ -316,6 +318,7 @@ def _select_file_search_preview_pane(
         state.child_pane.preview_start_line,
         state.child_pane.preview_highlight_line,
         syntax_theme,
+        preview_word_wrap=state.config.display.preview_word_wrap,
     )
 
 
@@ -350,6 +353,7 @@ def _select_grep_preview_pane(
         state.child_pane.preview_start_line,
         state.child_pane.preview_highlight_line,
         syntax_theme,
+        preview_word_wrap=state.config.display.preview_word_wrap,
     )
 
 
@@ -384,6 +388,7 @@ def _select_sfg_preview_pane(
         state.child_pane.preview_start_line,
         state.child_pane.preview_highlight_line,
         syntax_theme,
+        preview_word_wrap=state.config.display.preview_word_wrap,
     )
 
 
@@ -422,6 +427,7 @@ def _select_replace_preview_pane(
         state.child_pane.preview_start_line,
         state.child_pane.preview_highlight_line,
         syntax_theme,
+        preview_word_wrap=state.config.display.preview_word_wrap,
     )
 
 
@@ -631,6 +637,7 @@ def _build_child_preview_view(
     preview_highlight_line: int | None,
     syntax_theme: str,
     permissions_label: str = "",
+    preview_word_wrap: bool = False,
 ) -> ChildPaneViewState:
     return ChildPaneViewState(
         title=preview_title or _format_child_preview_title(preview_path, preview_truncated),
@@ -644,6 +651,7 @@ def _build_child_preview_view(
         preview_highlight_line=preview_highlight_line,
         syntax_theme=syntax_theme,
         permissions_label=permissions_label,
+        preview_word_wrap=preview_word_wrap,
     )
 
 

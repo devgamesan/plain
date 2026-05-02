@@ -3368,7 +3368,7 @@ async def test_app_go_to_path_shows_candidates_and_tabs_to_selected_directory(tm
         await asyncio.sleep(0.05)
 
         assert app.app_state.command_palette is not None
-        assert app.app_state.command_palette.go_to_path_candidates == (
+        assert app.app_state.command_palette.history_and_navigation.go_to_path_candidates == (
             docs_path,
             downloads_path,
         )

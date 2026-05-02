@@ -135,7 +135,13 @@ def _handle_move_palette_cursor(state: AppState, action: MoveCommandPaletteCurso
         ),
     )
     if state.command_palette.source == "go_to_path":
-        next_palette = replace(next_palette, go_to_path_selection_active=True)
+        next_palette = replace(
+            next_palette,
+            history_and_navigation=replace(
+                next_palette.history_and_navigation,
+                go_to_path_selection_active=True,
+            ),
+        )
     next_state = replace(state, command_palette=next_palette)
     if state.command_palette.source == "file_search":
         return sync_file_search_preview(next_state)

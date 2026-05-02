@@ -29,6 +29,7 @@ from zivo.state import (
     DirectorySizeDeltaState,
     FileSearchResultState,
     GrepSearchResultState,
+    HistoryAndNavigationPaletteState,
     HistoryState,
     NameConflictState,
     NotificationState,
@@ -1422,9 +1423,11 @@ def test_select_command_palette_state_shows_go_to_path_candidates() -> None:
             source="go_to_path",
             query="do",
             cursor_index=1,
-            go_to_path_candidates=(
-                "/home/tadashi/docs",
-                "/home/tadashi/downloads",
+            history_and_navigation=HistoryAndNavigationPaletteState(
+                go_to_path_candidates=(
+                    "/home/tadashi/docs",
+                    "/home/tadashi/downloads",
+                ),
             ),
         ),
     )
@@ -1617,11 +1620,13 @@ def test_select_command_palette_state_go_to_path_can_show_candidates_without_sel
         command_palette=CommandPaletteState(
             source="go_to_path",
             query="docs/",
-            go_to_path_candidates=(
-                "/home/tadashi/docs/api",
-                "/home/tadashi/docs/guides",
+            history_and_navigation=HistoryAndNavigationPaletteState(
+                go_to_path_candidates=(
+                    "/home/tadashi/docs/api",
+                    "/home/tadashi/docs/guides",
+                ),
+                go_to_path_selection_active=False,
             ),
-            go_to_path_selection_active=False,
         ),
     )
 
@@ -2716,7 +2721,9 @@ class TestCommandPaletteDynamicWindow:
                 source="go_to_path",
                 query="",
                 cursor_index=0,
-                go_to_path_candidates=tuple(f"/path/{i}" for i in range(25)),
+                history_and_navigation=HistoryAndNavigationPaletteState(
+                    go_to_path_candidates=tuple(f"/path/{i}" for i in range(25)),
+                ),
             ),
         )
 
@@ -2735,7 +2742,9 @@ class TestCommandPaletteDynamicWindow:
                 source="go_to_path",
                 query="",
                 cursor_index=0,
-                go_to_path_candidates=tuple(f"/path/{i}" for i in range(10)),
+                history_and_navigation=HistoryAndNavigationPaletteState(
+                    go_to_path_candidates=tuple(f"/path/{i}" for i in range(10)),
+                ),
             ),
         )
 
@@ -2756,7 +2765,9 @@ class TestCommandPaletteDynamicWindow:
             ui_mode="PALETTE",
             command_palette=CommandPaletteState(
                 source="history",
-                history_results=tuple(f"/history/{i}" for i in range(25)),
+                history_and_navigation=HistoryAndNavigationPaletteState(
+                    history_results=tuple(f"/history/{i}" for i in range(25)),
+                ),
             ),
         )
 

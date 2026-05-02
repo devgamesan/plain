@@ -127,7 +127,7 @@ def dispatch_command_palette_input(
         and state.command_palette is not None
         and state.command_palette.source == "go_to_path"
     ):
-        candidates = state.command_palette.go_to_path_candidates
+        candidates = state.command_palette.history_and_navigation.go_to_path_candidates
         if not candidates:
             return warn("No matching directory to complete")
 

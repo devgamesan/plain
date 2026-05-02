@@ -16,6 +16,7 @@ from zivo.state import (
     CommandPaletteState,
     ConfigEditorState,
     DirectoryEntryState,
+    HistoryAndNavigationPaletteState,
     HistoryState,
     LoadBrowserSnapshotEffect,
     LoadTransferPaneEffect,
@@ -312,7 +313,7 @@ def test_begin_history_search_enters_history_mode() -> None:
     assert next_state.ui_mode == "PALETTE"
     assert next_state.command_palette is not None
     assert next_state.command_palette.source == "history"
-    assert next_state.command_palette.history_results == (
+    assert next_state.command_palette.history_and_navigation.history_results == (
         "/home/tadashi/develop/zivo",
         "/tmp/a",
         "/tmp/b",
@@ -325,7 +326,7 @@ def test_begin_history_search_with_empty_history() -> None:
     assert next_state.ui_mode == "PALETTE"
     assert next_state.command_palette is not None
     assert next_state.command_palette.source == "history"
-    assert next_state.command_palette.history_results == ()
+    assert next_state.command_palette.history_and_navigation.history_results == ()
 
 def test_begin_bookmark_search_enters_bookmarks_mode() -> None:
     next_state = _reduce_state(build_initial_app_state(), BeginBookmarkSearch())
@@ -353,7 +354,8 @@ def test_begin_go_to_path_on_windows_prefills_drive_candidates(monkeypatch) -> N
     )
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.go_to_path_candidates == ("C:\\", "D:\\")
+    nav = next_state.command_palette.history_and_navigation
+    assert nav.go_to_path_candidates == ("C:\\", "D:\\")
 
 def test_submit_history_palette_navigates_to_selected_directory() -> None:
     state = build_initial_app_state()
@@ -362,7 +364,9 @@ def test_submit_history_palette_navigates_to_selected_directory() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="history",
-            history_results=("/tmp/a", "/tmp/b", "/tmp/c"),
+            history_and_navigation=HistoryAndNavigationPaletteState(
+                history_results=("/tmp/a", "/tmp/b", "/tmp/c"),
+            ),
             cursor_index=1,
         ),
     )
@@ -382,7 +386,9 @@ def test_submit_history_palette_with_empty_history_shows_warning() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="history",
-            history_results=(),
+            history_and_navigation=HistoryAndNavigationPaletteState(
+                history_results=(),
+            ),
         ),
     )
 
@@ -410,7 +416,9 @@ def test_submit_history_palette_in_transfer_mode_navigates_active_pane() -> None
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="history",
-            history_results=("/tmp/a", "/tmp/b", "/tmp/c"),
+            history_and_navigation=HistoryAndNavigationPaletteState(
+                history_results=("/tmp/a", "/tmp/b", "/tmp/c"),
+            ),
             cursor_index=2,
         ),
     )
@@ -592,7 +600,7 @@ def test_set_command_palette_query_updates_go_to_path_candidates(tmp_path) -> No
     )
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.go_to_path_candidates == (
+    assert next_state.command_palette.history_and_navigation.go_to_path_candidates == (
         str(tmp_path / "docs"),
         str(tmp_path / "downloads"),
     )
@@ -608,7 +616,7 @@ def test_set_command_palette_query_resolves_relative_go_to_path_candidates(tmp_p
     next_state = _reduce_state(state, SetCommandPaletteQuery("projects/z"))
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.go_to_path_candidates == (
+    assert next_state.command_palette.history_and_navigation.go_to_path_candidates == (
         str(tmp_path / "projects" / "zivo"),
     )
 
@@ -631,7 +639,8 @@ def test_set_command_palette_query_shows_root_directory_candidates_for_slash() -
     )
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.go_to_path_candidates == expected_candidates
+    nav = next_state.command_palette.history_and_navigation
+    assert nav.go_to_path_candidates == expected_candidates
 
 def test_submit_go_to_path_palette_requests_snapshot(tmp_path) -> None:
     state = _reduce_state(
@@ -671,7 +680,10 @@ def test_submit_go_to_path_palette_uses_selected_candidate(tmp_path) -> None:
         command_palette=replace(
             state.command_palette,
             query=str(tmp_path),
-            go_to_path_candidates=(str(tmp_path / "alpha"), str(tmp_path / "beta")),
+            history_and_navigation=replace(
+                state.command_palette.history_and_navigation,
+                go_to_path_candidates=(str(tmp_path / "alpha"), str(tmp_path / "beta")),
+            ),
             cursor_index=1,
         ),
     )
@@ -737,7 +749,7 @@ def test_set_command_palette_query_updates_windows_drive_candidates(monkeypatch)
     next_state = _reduce_state(state, SetCommandPaletteQuery("d"))
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.go_to_path_candidates == ("D:\\",)
+    assert next_state.command_palette.history_and_navigation.go_to_path_candidates == ("D:\\",)
     state = _reduce_state(
         build_initial_app_state(config_path="/tmp/zivo/config.toml"),
         BeginCommandPalette(),

@@ -16,6 +16,7 @@ from textual.widgets import DataTable, Label, Static
 
 from zivo import create_app
 from zivo.app import _preview_scroll_delta
+from zivo.app_overlay_layout import update_pane_visibility
 from zivo.models import (
     AppConfig,
     BehaviorConfig,
@@ -6176,15 +6177,15 @@ async def test_app_toggles_pane_visibility_on_resize() -> None:
         assert parent.display
         assert child.display
 
-        app._update_pane_visibility(60)
+        update_pane_visibility(app, 60)
         assert not parent.display
         assert not child.display
 
-        app._update_pane_visibility(80)
+        update_pane_visibility(app, 80)
         assert not parent.display
         assert child.display
 
-        app._update_pane_visibility(120)
+        update_pane_visibility(app, 120)
         assert parent.display
         assert child.display
 

@@ -15,6 +15,7 @@ from textual.timer import Timer
 from textual.worker import Worker
 
 from zivo.adapters import LocalExternalLaunchAdapter
+from zivo.app_overlay_layout import sync_overlay_layout
 from zivo.app_runtime import (
     handle_worker_state_changed,
     schedule_effects,
@@ -287,139 +288,6 @@ class zivoApp(App[None]):
         yield HelpBar(shell.help, id="help-bar")
         yield StatusBar(shell.status, id="status-bar")
 
-    _PANE_VISIBILITY_NARROW_THRESHOLD = 66
-    _PANE_VISIBILITY_MEDIUM_THRESHOLD = 100
-
-    def _update_pane_visibility(self, width: int) -> None:
-        """Show or hide side panes based on terminal width."""
-        try:
-            parent_pane = self.query_one("#parent-pane")
-            child_pane = self.query_one("#child-pane")
-        except NoMatches:
-            return
-
-        if self._app_state.layout_mode == "transfer":
-            parent_pane.display = False
-            child_pane.display = False
-            return
-
-        if width >= self._PANE_VISIBILITY_MEDIUM_THRESHOLD:
-            parent_pane.display = True
-        elif width >= self._PANE_VISIBILITY_NARROW_THRESHOLD:
-            parent_pane.display = False
-        else:
-            parent_pane.display = False
-
-        if width >= self._PANE_VISIBILITY_NARROW_THRESHOLD:
-            child_pane.display = True
-        else:
-            child_pane.display = False
-
-    def _get_target_overlay_pane(self) -> MainPane | None:
-        """
-        Get the target pane for overlay positioning based on current mode.
-
-        In transfer mode, overlays the opposite pane to keep the active pane visible.
-        In browser mode, overlays the current pane.
-
-        Returns:
-            MainPane instance if found, None otherwise
-        """
-        # Transfer mode with active left pane -> overlay on right pane
-        if (
-            self._app_state.layout_mode == "transfer"
-            and self._app_state.active_transfer_pane == "left"
-        ):
-            try:
-                return self.query_one("#transfer-right-pane", MainPane)
-            except NoMatches:
-                # Fallback to current pane if right pane doesn't exist
-                pass
-
-        # Default: current pane (browser mode or transfer mode with active right pane)
-        try:
-            return self.query_one("#current-pane", MainPane)
-        except NoMatches:
-            return None
-
-    def _update_command_palette_geometry(self) -> None:
-        """Constrain the command palette overlay to the appropriate pane."""
-
-        try:
-            command_palette_layer = self.query_one("#command-palette-layer", Container)
-            browser_row = self.query_one("#browser-row")
-        except NoMatches:
-            return
-
-        # Determine target pane based on mode and active pane
-        target_pane = self._get_target_overlay_pane()
-        if target_pane is None:
-            return
-
-        pane_region = target_pane.region
-        row_region = browser_row.region
-        if pane_region.width <= 0 or pane_region.height <= 0:
-            return
-
-        command_palette_layer.styles.width = pane_region.width
-        command_palette_layer.styles.height = pane_region.height
-        command_palette_layer.styles.offset = (
-            pane_region.x,
-            row_region.y,
-        )
-
-    def _update_config_dialog_geometry(self) -> None:
-        """Constrain the config dialog overlay to the appropriate pane."""
-
-        try:
-            config_dialog_layer = self.query_one("#config-dialog-layer", Container)
-            browser_row = self.query_one("#browser-row")
-        except NoMatches:
-            return
-
-        # Determine target pane based on mode and active pane
-        target_pane = self._get_target_overlay_pane()
-        if target_pane is None:
-            return
-
-        pane_region = target_pane.region
-        row_region = browser_row.region
-        if pane_region.width <= 0 or pane_region.height <= 0:
-            return
-
-        config_dialog_layer.styles.width = pane_region.width
-        config_dialog_layer.styles.height = pane_region.height
-        config_dialog_layer.styles.offset = (
-            pane_region.x,
-            row_region.y,
-        )
-
-    def _update_input_dialog_geometry(self) -> None:
-        """Constrain the input dialog overlay to the appropriate pane."""
-
-        try:
-            input_dialog_layer = self.query_one("#input-dialog-layer", Container)
-            browser_row = self.query_one("#browser-row")
-        except NoMatches:
-            return
-
-        # Determine target pane based on mode and active pane
-        target_pane = self._get_target_overlay_pane()
-        if target_pane is None:
-            return
-
-        pane_region = target_pane.region
-        row_region = browser_row.region
-        if pane_region.width <= 0 or pane_region.height <= 0:
-            return
-
-        input_dialog_layer.styles.width = pane_region.width
-        input_dialog_layer.styles.height = pane_region.height
-        input_dialog_layer.styles.offset = (
-            pane_region.x,
-            row_region.y,
-        )
-
     async def on_mount(self) -> None:
         """Load the initial directory snapshot after the UI mounts."""
 
@@ -427,7 +295,7 @@ class zivoApp(App[None]):
             SetTerminalHeight(height=self.size.height),
             RequestBrowserSnapshot(self._initial_path, blocking=True),
         ))
-        self.call_after_refresh(self._sync_overlay_layout)
+        self.call_after_refresh(lambda: sync_overlay_layout(self))
 
     async def on_key(self, event: events.Key) -> None:
         """Normalize keyboard input into reducer actions."""
@@ -676,7 +544,7 @@ class zivoApp(App[None]):
         """Update the terminal height on resize."""
 
         await self.dispatch_actions((SetTerminalHeight(height=event.size.height),))
-        self._sync_overlay_layout(event.size.width)
+        sync_overlay_layout(self, event.size.width)
 
     async def on_tab_bar_tab_clicked(self, message: TabBar.TabClicked) -> None:
         """Handle tab clicks from the TabBar widget."""
@@ -723,17 +591,9 @@ class zivoApp(App[None]):
                 select_shell_data(self._app_state),
                 theme_changed=theme_changed,
             )
-            self.call_after_refresh(self._sync_overlay_layout)
+            self.call_after_refresh(lambda: sync_overlay_layout(self))
         except ScreenStackError:
             return
-
-    def _sync_overlay_layout(self, width: int | None = None) -> None:
-        """Refresh side-pane visibility and overlay geometry together."""
-
-        self._update_pane_visibility(self.size.width if width is None else width)
-        self._update_command_palette_geometry()
-        self._update_config_dialog_geometry()
-        self._update_input_dialog_geometry()
 
     async def _handle_main_pane_click(
         self,

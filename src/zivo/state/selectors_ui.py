@@ -331,12 +331,12 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
     if state.command_palette.source == "grep_search":
         visible_results, title = _select_grep_search_window(
             state,
-            state.command_palette.grep_search_results,
+            state.command_palette.grep_search.results,
             cursor_index,
         )
         return CommandPaletteViewState(
             title=title,
-            query=state.command_palette.grep_search_keyword,
+            query=state.command_palette.grep_search.keyword,
             items=tuple(
                 CommandPaletteItemViewState(
                     label=result.display_label,
@@ -348,7 +348,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             ),
             empty_message=_grep_search_empty_message(state),
             input_fields=_build_grep_search_input_fields(state.command_palette),
-            has_more_items=len(state.command_palette.grep_search_results) > len(visible_results),
+            has_more_items=len(state.command_palette.grep_search.results) > len(visible_results),
         )
     if state.command_palette.source == "replace_text":
         visible_results, title = _select_replace_preview_window(
@@ -816,9 +816,9 @@ def _grep_search_empty_message(state: AppState) -> str:
     if (
         state.command_palette is not None
         and state.command_palette.source == "grep_search"
-        and state.command_palette.grep_search_error_message is not None
+        and state.command_palette.grep_search.error_message is not None
     ):
-        return state.command_palette.grep_search_error_message
+        return state.command_palette.grep_search.error_message
     return "No matching lines"
 
 

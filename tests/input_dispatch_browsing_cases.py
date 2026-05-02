@@ -689,7 +689,7 @@ def test_search_palette_k_key_updates_query() -> None:
         command_palette=CommandPaletteState(
             source="grep_search",
             query="ab",
-            grep_search_keyword="ab",
+            grep_search=GrepSearchPaletteState(keyword="ab"),
         ),
     )
 
@@ -731,8 +731,10 @@ def test_grep_palette_printable_key_updates_include_field() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="grep_search",
-            grep_search_active_field="include",
-            grep_search_include_extensions="p",
+            grep_search=GrepSearchPaletteState(
+                active_field="include",
+                include_extensions="p",
+            ),
         ),
     )
 
@@ -750,8 +752,10 @@ def test_grep_palette_printable_key_updates_filename_field() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="grep_search",
-            grep_search_active_field="filename",
-            grep_search_filename_filter="READ",
+            grep_search=GrepSearchPaletteState(
+                active_field="filename",
+                filename_filter="READ",
+            ),
         ),
     )
 

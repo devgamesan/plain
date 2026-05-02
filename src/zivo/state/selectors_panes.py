@@ -329,7 +329,7 @@ def _select_grep_preview_pane(
     if not state.config.display.enable_text_preview:
         return _build_child_entries_view((), syntax_theme)
 
-    results = state.command_palette.grep_search_results
+    results = state.command_palette.grep_search.results
     if not results:
         return _build_child_entries_view((), syntax_theme)
 

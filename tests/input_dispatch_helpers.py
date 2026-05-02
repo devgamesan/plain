@@ -8,6 +8,7 @@ from zivo.state import (
     CommandPaletteState,
     ConfigEditorState,
     DeleteConfirmationState,
+    GrepSearchPaletteState,
     HistoryAndNavigationPaletteState,
     NameConflictState,
     NotificationState,

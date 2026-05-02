@@ -43,12 +43,12 @@ def grep_field_value(
     field: GrepSearchFieldId,
 ) -> str:
     if field == "keyword":
-        return palette.grep_search_keyword
+        return palette.grep_search.keyword
     if field == "filename":
-        return palette.grep_search_filename_filter
+        return palette.grep_search.filename_filter
     if field == "include":
-        return palette.grep_search_include_extensions
-    return palette.grep_search_exclude_extensions
+        return palette.grep_search.include_extensions
+    return palette.grep_search.exclude_extensions
 
 
 def replace_grep_field(
@@ -58,12 +58,25 @@ def replace_grep_field(
     value: str,
 ) -> CommandPaletteState:
     if field == "keyword":
-        return replace(palette, query=value, grep_search_keyword=value)
+        return replace(
+            palette,
+            query=value,
+            grep_search=replace(palette.grep_search, keyword=value),
+        )
     if field == "filename":
-        return replace(palette, grep_search_filename_filter=value)
+        return replace(
+            palette,
+            grep_search=replace(palette.grep_search, filename_filter=value),
+        )
     if field == "include":
-        return replace(palette, grep_search_include_extensions=value)
-    return replace(palette, grep_search_exclude_extensions=value)
+        return replace(
+            palette,
+            grep_search=replace(palette.grep_search, include_extensions=value),
+        )
+    return replace(
+        palette,
+        grep_search=replace(palette.grep_search, exclude_extensions=value),
+    )
 
 
 def replace_field_value(

@@ -405,27 +405,27 @@ def _build_grep_search_input_fields(
     return (
         CommandPaletteInputFieldViewState(
             label="Keyword",
-            value=palette.grep_search_keyword or palette.query,
+            value=palette.grep_search.keyword or palette.query,
             placeholder="text or re:pattern",
-            active=palette.grep_search_active_field == "keyword",
+            active=palette.grep_search.active_field == "keyword",
         ),
         CommandPaletteInputFieldViewState(
             label="Filter: Filename",
-            value=palette.grep_search_filename_filter,
+            value=palette.grep_search.filename_filter,
             placeholder="pattern or re:pattern",
-            active=palette.grep_search_active_field == "filename",
+            active=palette.grep_search.active_field == "filename",
         ),
         CommandPaletteInputFieldViewState(
             label="Include extensions",
-            value=palette.grep_search_include_extensions,
+            value=palette.grep_search.include_extensions,
             placeholder="e.g. py, js",
-            active=palette.grep_search_active_field == "include",
+            active=palette.grep_search.active_field == "include",
         ),
         CommandPaletteInputFieldViewState(
             label="Exclude extensions",
-            value=palette.grep_search_exclude_extensions,
+            value=palette.grep_search.exclude_extensions,
             placeholder="e.g. log, tmp",
-            active=palette.grep_search_active_field == "exclude",
+            active=palette.grep_search.active_field == "exclude",
         ),
     )
 

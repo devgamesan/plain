@@ -58,7 +58,7 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
                 enabled=True,
                 path=result.path,
             )
-            for index, result in enumerate(state.command_palette.grep_search_results)
+            for index, result in enumerate(state.command_palette.grep_search.results)
         )
 
     if state.command_palette.source == "history":
@@ -155,7 +155,7 @@ def normalize_command_palette_cursor(state: AppState, cursor_index: int) -> int:
     if state.command_palette.source == "file_search":
         item_count = len(state.command_palette.file_search.results)
     elif state.command_palette.source == "grep_search":
-        item_count = len(state.command_palette.grep_search_results)
+        item_count = len(state.command_palette.grep_search.results)
     elif state.command_palette.source == "replace_text":
         item_count = len(state.command_palette.replace_preview_results)
     elif state.command_palette.source == "replace_in_found_files":

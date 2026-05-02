@@ -169,7 +169,10 @@ def _next_palette_query_state(state: AppState, query: str):
             state.command_palette.file_search,
             error_message=None,
         ),
-        grep_search_error_message=None,
+        grep_search=replace(
+            state.command_palette.grep_search,
+            error_message=None,
+        ),
     )
 
 def _handle_set_palette_query(state: AppState, action: SetCommandPaletteQuery) -> ReduceResult:
@@ -197,14 +200,17 @@ def _handle_set_palette_query(state: AppState, action: SetCommandPaletteQuery) -
 def _handle_cycle_grep_search_field(state: AppState, action: CycleGrepSearchField) -> ReduceResult:
     if state.command_palette is None or state.command_palette.source != "grep_search":
         return finalize(state)
-    current_index = GREP_SEARCH_FIELDS.index(state.command_palette.grep_search_active_field)
+    current_index = GREP_SEARCH_FIELDS.index(state.command_palette.grep_search.active_field)
     next_index = (current_index + action.delta) % len(GREP_SEARCH_FIELDS)
     return finalize(
         replace(
             state,
             command_palette=replace(
                 state.command_palette,
-                grep_search_active_field=GREP_SEARCH_FIELDS[next_index],
+                grep_search=replace(
+                    state.command_palette.grep_search,
+                    active_field=GREP_SEARCH_FIELDS[next_index],
+                ),
             ),
         )
     )

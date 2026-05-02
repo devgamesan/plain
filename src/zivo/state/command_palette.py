@@ -157,7 +157,7 @@ def normalize_command_palette_cursor(state: AppState, cursor_index: int) -> int:
     elif state.command_palette.source == "grep_search":
         item_count = len(state.command_palette.grep_search.results)
     elif state.command_palette.source == "replace_text":
-        item_count = len(state.command_palette.replace_preview_results)
+        item_count = len(state.command_palette.replace_preview.preview_results)
     elif state.command_palette.source == "replace_in_found_files":
         item_count = len(state.command_palette.rff_preview_results)
     elif state.command_palette.source == "replace_in_grep_files":

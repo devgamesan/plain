@@ -14,6 +14,7 @@ from zivo.state import (
     LoadBrowserSnapshotEffect,
     NotificationState,
     PaneState,
+    ReplacePreviewPaletteState,
     ReplacePreviewResultState,
     RunFileSearchEffect,
     RunGrepSearchEffect,
@@ -79,7 +80,7 @@ def test_begin_text_replace_enters_replace_mode() -> None:
     assert state.ui_mode == "PALETTE"
     assert state.command_palette is not None
     assert state.command_palette.source == "replace_text"
-    assert state.command_palette.replace_target_paths == (
+    assert state.command_palette.replace_preview.target_paths == (
         "/home/tadashi/develop/zivo/README.md",
     )
 
@@ -113,7 +114,7 @@ def test_cycle_replace_field_switches_active_input() -> None:
     next_state = _reduce_state(state, CycleReplaceField(delta=1))
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.replace_active_field == "replace"
+    assert next_state.command_palette.replace_preview.active_field == "replace"
 
 def test_text_replace_preview_completed_updates_palette_results() -> None:
     state = _reduce_state(
@@ -125,7 +126,10 @@ def test_text_replace_preview_completed_updates_palette_results() -> None:
         pending_replace_preview_request_id=4,
         command_palette=replace(
             state.command_palette,
-            replace_find_text="todo",
+            replace_preview=replace(
+                state.command_palette.replace_preview,
+                find_text="todo",
+            ),
         ),
     )
 
@@ -156,9 +160,9 @@ def test_text_replace_preview_completed_updates_palette_results() -> None:
     )
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.replace_total_match_count == 2
-    assert next_state.command_palette.replace_preview_results[0].display_path == "README.md"
-    assert next_state.command_palette.replace_preview_results[0].diff_text == (
+    assert next_state.command_palette.replace_preview.total_match_count == 2
+    assert next_state.command_palette.replace_preview.preview_results[0].display_path == "README.md"
+    assert next_state.command_palette.replace_preview.preview_results[0].diff_text == (
         "--- before\n+++ after\n@@\n-todo item\n+done item\n"
     )
     assert next_state.child_pane.preview_title == "Replace Preview"
@@ -182,7 +186,8 @@ def test_move_palette_cursor_updates_replace_preview_diff() -> None:
         state,
         command_palette=replace(
             state.command_palette,
-            replace_preview_results=(
+            replace_preview=ReplacePreviewPaletteState(
+                preview_results=(
                 ReplacePreviewResultState(
                     path="/home/tadashi/develop/zivo/README.md",
                     display_path="README.md",
@@ -202,7 +207,8 @@ def test_move_palette_cursor_updates_replace_preview_diff() -> None:
                     first_match_after="done",
                 ),
             ),
-            replace_total_match_count=2,
+                total_match_count=2,
+            ),
         ),
         child_pane=PaneState(
             directory_path=state.current_path,
@@ -240,7 +246,7 @@ def test_text_replace_preview_failed_sets_inline_error_for_invalid_regex() -> No
     )
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.replace_error_message == "missing )"
+    assert next_state.command_palette.replace_preview.error_message == "missing )"
     assert next_state.pending_replace_preview_request_id is None
 
 def test_submit_command_palette_applies_replace_when_preview_exists() -> None:
@@ -253,10 +259,12 @@ def test_submit_command_palette_applies_replace_when_preview_exists() -> None:
         next_request_id=8,
         command_palette=replace(
             state.command_palette,
-            replace_find_text="todo",
-            replace_replacement_text="done",
-            replace_total_match_count=2,
-            replace_preview_results=(
+            replace_preview=replace(
+                state.command_palette.replace_preview,
+                find_text="todo",
+                replacement_text="done",
+                total_match_count=2,
+                preview_results=(
                 ReplacePreviewResultState(
                     path="/home/tadashi/develop/zivo/README.md",
                     display_path="README.md",
@@ -266,6 +274,7 @@ def test_submit_command_palette_applies_replace_when_preview_exists() -> None:
                     first_match_before="todo item",
                     first_match_after="done item",
                 ),
+            ),
             ),
         ),
     )
@@ -365,7 +374,7 @@ def test_run_replace_text_command_uses_cursor_file_when_nothing_is_selected() ->
 
     assert result.state.command_palette is not None
     assert result.state.command_palette.source == "replace_text"
-    assert result.state.command_palette.replace_target_paths == (
+    assert result.state.command_palette.replace_preview.target_paths == (
         "/home/tadashi/develop/zivo/README.md",
     )
 

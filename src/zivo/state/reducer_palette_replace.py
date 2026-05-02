@@ -50,21 +50,27 @@ from .reducer_palette_shared import (
 
 
 def handle_set_replace_field(state: AppState, field, value: str) -> ReduceResult:
+    base_palette = replace_replace_field(state.command_palette, field=field, value=value)
     next_palette = replace(
-        replace_replace_field(state.command_palette, field=field, value=value),
-        replace_error_message=None,
-        replace_status_message=None,
+        base_palette,
+        replace_preview=replace(
+            base_palette.replace_preview,
+            error_message=None,
+            status_message=None,
+        ),
         cursor_index=0,
     )
-    find_text = next_palette.replace_find_text.strip()
+    find_text = next_palette.replace_preview.find_text.strip()
     if not find_text:
         return finalize(
             replace(
                 state,
                 command_palette=replace(
                     next_palette,
-                    replace_preview_results=(),
-                    replace_total_match_count=0,
+                    replace_preview=replace(
+                        next_palette.replace_preview,
+                        preview_results=(), total_match_count=0,
+                    ),
                 ),
                 child_pane=PaneState(directory_path=state.current_path, entries=()),
                 pending_replace_preview_request_id=None,
@@ -73,9 +79,9 @@ def handle_set_replace_field(state: AppState, field, value: str) -> ReduceResult
 
     request_id = state.next_request_id
     request = TextReplaceRequest(
-        paths=next_palette.replace_target_paths,
-        find_text=next_palette.replace_find_text,
-        replace_text=next_palette.replace_replacement_text,
+        paths=next_palette.replace_preview.target_paths,
+        find_text=next_palette.replace_preview.find_text,
+        replace_text=next_palette.replace_preview.replacement_text,
     )
     return finalize(
         replace(
@@ -195,14 +201,17 @@ def handle_set_rff_text_field(state: AppState, field: str, value: str) -> Reduce
 def handle_cycle_replace_field(state: AppState, action: CycleReplaceField) -> ReduceResult:
     if state.command_palette is None or state.command_palette.source != "replace_text":
         return finalize(state)
-    current_index = REPLACE_FIELDS.index(state.command_palette.replace_active_field)
+    current_index = REPLACE_FIELDS.index(state.command_palette.replace_preview.active_field)
     next_index = (current_index + action.delta) % len(REPLACE_FIELDS)
     return finalize(
         replace(
             state,
             command_palette=replace(
                 state.command_palette,
-                replace_active_field=REPLACE_FIELDS[next_index],
+                replace_preview=replace(
+                    state.command_palette.replace_preview,
+                    active_field=REPLACE_FIELDS[next_index],
+                ),
             ),
         )
     )
@@ -531,22 +540,23 @@ def handle_submit_replace_palette(state: AppState) -> ReduceResult:
         return notify(state, level="warning", message="Replacement preview is still running")
     if state.command_palette is None:
         return finalize(state)
-    if not state.command_palette.replace_find_text.strip():
+    if not state.command_palette.replace_preview.find_text.strip():
         return notify(state, level="warning", message="Find text is required")
-    if state.command_palette.replace_error_message is not None:
-        return notify(state, level="warning", message=state.command_palette.replace_error_message)
-    if not state.command_palette.replace_preview_results:
-        message = state.command_palette.replace_status_message or "No matching files"
+    if state.command_palette.replace_preview.error_message is not None:
+        msg = state.command_palette.replace_preview.error_message
+        return notify(state, level="warning", message=msg)
+    if not state.command_palette.replace_preview.preview_results:
+        message = state.command_palette.replace_preview.status_message or "No matching files"
         return notify(state, level="warning", message=message)
 
     # Show confirmation dialog instead of directly applying replacement
     return _handle_begin_replace_confirmation(
         state,
         mode="replace_text",
-        find_text=state.command_palette.replace_find_text,
-        replacement_text=state.command_palette.replace_replacement_text,
-        target_paths=state.command_palette.replace_target_paths,
-        total_match_count=state.command_palette.replace_total_match_count,
+        find_text=state.command_palette.replace_preview.find_text,
+        replacement_text=state.command_palette.replace_preview.replacement_text,
+        target_paths=state.command_palette.replace_preview.target_paths,
+        total_match_count=state.command_palette.replace_preview.total_match_count,
     )
 
 
@@ -799,10 +809,13 @@ def handle_text_replace_preview_completed(
         state,
         command_palette=replace(
             state.command_palette,
-            replace_preview_results=preview_results,
-            replace_error_message=None,
-            replace_status_message=status_message,
-            replace_total_match_count=action.result.total_match_count,
+            replace_preview=replace(
+                state.command_palette.replace_preview,
+                preview_results=preview_results,
+                error_message=None,
+                status_message=status_message,
+                total_match_count=action.result.total_match_count,
+            ),
             cursor_index=0,
         ),
         pending_replace_preview_request_id=None,
@@ -970,10 +983,13 @@ def handle_text_replace_preview_failed(
                 state,
                 command_palette=replace(
                     state.command_palette,
-                    replace_preview_results=(),
-                    replace_error_message=action.message,
-                    replace_status_message=None,
-                    replace_total_match_count=0,
+                    replace_preview=replace(
+                        state.command_palette.replace_preview,
+                        preview_results=(),
+                        error_message=action.message,
+                        status_message=None,
+                        total_match_count=0,
+                    ),
                     cursor_index=0,
                 ),
                 child_pane=PaneState(directory_path=state.current_path, entries=()),
@@ -1037,7 +1053,7 @@ def handle_text_replace_apply_failed(
 def selected_replace_preview_result(state: AppState) -> ReplacePreviewResultState | None:
     if state.command_palette is None or state.command_palette.source != "replace_text":
         return None
-    results = state.command_palette.replace_preview_results
+    results = state.command_palette.replace_preview.preview_results
     if not results:
         return None
     return results[normalize_command_palette_cursor(state, state.command_palette.cursor_index)]
@@ -1048,7 +1064,9 @@ def sync_replace_preview(state: AppState) -> ReduceResult:
     if selected_result is None:
         preview_message = "No matching files"
         if state.command_palette is not None and state.command_palette.source == "replace_text":
-            preview_message = state.command_palette.replace_status_message or preview_message
+            preview_message = (
+                state.command_palette.replace_preview.status_message or preview_message
+            )
         return finalize(
             replace(
                 state,
@@ -1076,7 +1094,7 @@ def sync_replace_preview(state: AppState) -> ReduceResult:
                 preview_title="Replace Preview",
                 preview_content=selected_result.diff_text,
                 preview_message=(
-                    state.command_palette.replace_status_message
+                    state.command_palette.replace_preview.status_message
                     if state.command_palette is not None
                     else None
                 ),

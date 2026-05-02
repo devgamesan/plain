@@ -84,8 +84,8 @@ def replace_field_value(
     field: ReplaceFieldId,
 ) -> str:
     if field == "find":
-        return palette.replace_find_text
-    return palette.replace_replacement_text
+        return palette.replace_preview.find_text
+    return palette.replace_preview.replacement_text
 
 
 def replace_replace_field(
@@ -95,8 +95,14 @@ def replace_replace_field(
     value: str,
 ) -> CommandPaletteState:
     if field == "find":
-        return replace(palette, replace_find_text=value)
-    return replace(palette, replace_replacement_text=value)
+        return replace(
+            palette,
+            replace_preview=replace(palette.replace_preview, find_text=value),
+        )
+    return replace(
+        palette,
+        replace_preview=replace(palette.replace_preview, replacement_text=value),
+    )
 
 
 def grf_field_value(

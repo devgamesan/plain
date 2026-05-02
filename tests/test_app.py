@@ -4303,7 +4303,7 @@ async def test_app_command_palette_replace_text_previews_and_applies_selected_fi
         await _wait_for_predicate(
             lambda: (
                 app.app_state.command_palette is not None
-                and len(app.app_state.command_palette.replace_preview_results) == 2
+                and len(app.app_state.command_palette.replace_preview.preview_results) == 2
             ),
             timeout=0.5,
             message="replace preview results did not appear",

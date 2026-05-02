@@ -39,6 +39,7 @@ from zivo.state import (
     PasteConflictState,
     PendingInputState,
     PendingKeySequenceState,
+    ReplacePreviewPaletteState,
     ReplacePreviewResultState,
     SfgPaletteState,
     ZipCompressConfirmationState,
@@ -1587,22 +1588,24 @@ def test_select_command_palette_state_for_text_replace_includes_input_fields() -
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="replace_text",
-            replace_find_text="todo",
-            replace_replacement_text="done",
-            replace_active_field="replace",
-            replace_preview_results=(
-                ReplacePreviewResultState(
-                    path="/home/tadashi/develop/zivo/README.md",
-                    display_path="README.md",
-                    diff_text="--- before\n+++ after\n@@\n-todo item\n+done item\n",
-                    match_count=2,
-                    first_match_line_number=8,
-                    first_match_before="todo item",
-                    first_match_after="done item",
+            replace_preview=ReplacePreviewPaletteState(
+                find_text="todo",
+                replacement_text="done",
+                active_field="replace",
+                preview_results=(
+                    ReplacePreviewResultState(
+                        path="/home/tadashi/develop/zivo/README.md",
+                        display_path="README.md",
+                        diff_text="--- before\n+++ after\n@@\n-todo item\n+done item\n",
+                        match_count=2,
+                        first_match_line_number=8,
+                        first_match_before="todo item",
+                        first_match_after="done item",
+                    ),
                 ),
+                total_match_count=2,
+                target_paths=("/home/tadashi/develop/zivo/README.md",),
             ),
-            replace_total_match_count=2,
-            replace_target_paths=("/home/tadashi/develop/zivo/README.md",),
         ),
     )
 

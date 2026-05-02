@@ -56,10 +56,10 @@ def active_grep_field_value(state: AppState) -> str:
 def active_replace_field_value(state: AppState) -> str:
     if state.command_palette is None:
         return ""
-    field = state.command_palette.replace_active_field
+    field = state.command_palette.replace_preview.active_field
     if field == "find":
-        return state.command_palette.replace_find_text
-    return state.command_palette.replace_replacement_text
+        return state.command_palette.replace_preview.find_text
+    return state.command_palette.replace_preview.replacement_text
 
 
 def active_find_replace_field_value(state: AppState) -> str:
@@ -252,7 +252,7 @@ def dispatch_command_palette_input(
         if palette_source == "replace_text":
             return supported(
                 SetReplaceField(
-                    field=state.command_palette.replace_active_field,
+                    field=state.command_palette.replace_preview.active_field,
                     value=active_replace_field_value(state)[:-1],
                 )
             )
@@ -316,7 +316,7 @@ def dispatch_command_palette_input(
                 )
             )
         if palette_source == "replace_text":
-            active_field: ReplaceFieldId = state.command_palette.replace_active_field
+            active_field: ReplaceFieldId = state.command_palette.replace_preview.active_field
             return supported(
                 SetReplaceField(
                     field=active_field,

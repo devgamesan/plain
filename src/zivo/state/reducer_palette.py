@@ -280,7 +280,10 @@ def _handle_begin_text_replace(
             next_state,
             command_palette=replace(
                 next_state.command_palette,
-                replace_target_paths=action.target_paths,
+                replace_preview=replace(
+                    next_state.command_palette.replace_preview,
+                    target_paths=action.target_paths,
+                ),
             ),
         )
     )

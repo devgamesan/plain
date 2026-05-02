@@ -353,12 +353,12 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
     if state.command_palette.source == "replace_text":
         visible_results, title = _select_replace_preview_window(
             state,
-            state.command_palette.replace_preview_results,
+            state.command_palette.replace_preview.preview_results,
             cursor_index,
         )
         return CommandPaletteViewState(
             title=title,
-            query=state.command_palette.replace_find_text,
+            query=state.command_palette.replace_preview.find_text,
             items=tuple(
                 CommandPaletteItemViewState(
                     label=result.display_label,
@@ -371,7 +371,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             empty_message=_replace_text_empty_message(state),
             input_fields=_build_replace_input_fields(state.command_palette),
             has_more_items=(
-                len(state.command_palette.replace_preview_results) > len(visible_results)
+                len(state.command_palette.replace_preview.preview_results) > len(visible_results)
             ),
         )
     if state.command_palette.source == "replace_in_found_files":
@@ -827,13 +827,13 @@ def _replace_text_empty_message(state: AppState) -> str:
         return "Previewing diff in right pane..."
     if state.command_palette is None or state.command_palette.source != "replace_text":
         return ""
-    if state.command_palette.replace_error_message is not None:
-        return state.command_palette.replace_error_message
-    if not state.command_palette.replace_find_text.strip():
+    if state.command_palette.replace_preview.error_message is not None:
+        return state.command_palette.replace_preview.error_message
+    if not state.command_palette.replace_preview.find_text.strip():
         return "Type text to find"
-    if state.command_palette.replace_status_message is not None:
-        return state.command_palette.replace_status_message
-    if state.command_palette.replace_total_match_count > 0:
+    if state.command_palette.replace_preview.status_message is not None:
+        return state.command_palette.replace_preview.status_message
+    if state.command_palette.replace_preview.total_match_count > 0:
         return "Preview shown in right pane. Press Enter to apply."
     return "No matching files"
 

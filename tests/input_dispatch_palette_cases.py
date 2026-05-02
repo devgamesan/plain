@@ -180,7 +180,9 @@ def test_palette_ctrl_n_moves_cursor_down_in_replace_palette() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="replace_text",
-            replace_find_text="todo",
+            replace_preview=ReplacePreviewPaletteState(
+                find_text="todo",
+            ),
         ),
     )
 
@@ -197,7 +199,9 @@ def test_palette_ctrl_p_moves_cursor_up_in_replace_palette() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="replace_text",
-            replace_find_text="todo",
+            replace_preview=ReplacePreviewPaletteState(
+                find_text="todo",
+            ),
         ),
     )
 

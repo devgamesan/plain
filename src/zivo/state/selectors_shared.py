@@ -346,9 +346,9 @@ def _select_replace_preview_window(
         extra_rows=_GREP_SEARCH_EXTRA_INPUT_ROWS,
     )
     title = "Replace Text"
-    if state.command_palette is not None and state.command_palette.replace_preview_results:
-        file_count = len(state.command_palette.replace_preview_results)
-        total_matches = state.command_palette.replace_total_match_count
+    if state.command_palette is not None and state.command_palette.replace_preview.preview_results:
+        file_count = len(state.command_palette.replace_preview.preview_results)
+        total_matches = state.command_palette.replace_preview.total_match_count
         title = f"Replace Text ({file_count} file(s), {total_matches} match(es))"
     return _select_search_window(results, cursor_index, title=title, visible_window=visible_window)
 
@@ -456,15 +456,15 @@ def _build_replace_input_fields(
     return (
         CommandPaletteInputFieldViewState(
             label="Find",
-            value=palette.replace_find_text,
+            value=palette.replace_preview.find_text,
             placeholder="text or re:pattern",
-            active=palette.replace_active_field == "find",
+            active=palette.replace_preview.active_field == "find",
         ),
         CommandPaletteInputFieldViewState(
             label="Replace",
-            value=palette.replace_replacement_text,
+            value=palette.replace_preview.replacement_text,
             placeholder="replacement text",
-            active=palette.replace_active_field == "replace",
+            active=palette.replace_preview.active_field == "replace",
         ),
     )
 

@@ -445,22 +445,29 @@ class GrepSearchPaletteState:
 
 
 @dataclass(frozen=True)
+class ReplacePreviewPaletteState:
+    find_text: str = ""
+    replacement_text: str = ""
+    active_field: ReplaceFieldId = "find"
+    preview_results: tuple[ReplacePreviewResultState, ...] = ()
+    error_message: str | None = None
+    status_message: str | None = None
+    target_paths: tuple[str, ...] = ()
+    total_match_count: int = 0
+
+
+@dataclass(frozen=True)
 class CommandPaletteState:
     """Transient palette search and cursor state."""
 
     source: CommandPaletteSource = "commands"
     query: str = ""
-    replace_find_text: str = ""
-    replace_replacement_text: str = ""
-    replace_active_field: ReplaceFieldId = "find"
     cursor_index: int = 0
     file_search: FileSearchPaletteState = field(default_factory=FileSearchPaletteState)
     grep_search: GrepSearchPaletteState = field(default_factory=GrepSearchPaletteState)
-    replace_preview_results: tuple[ReplacePreviewResultState, ...] = ()
-    replace_error_message: str | None = None
-    replace_status_message: str | None = None
-    replace_target_paths: tuple[str, ...] = ()
-    replace_total_match_count: int = 0
+    replace_preview: ReplacePreviewPaletteState = field(
+        default_factory=ReplacePreviewPaletteState,
+    )
     history_and_navigation: HistoryAndNavigationPaletteState = field(
         default_factory=HistoryAndNavigationPaletteState
     )

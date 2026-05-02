@@ -14,6 +14,7 @@ from .models import (
     GrepReplaceSelectedFieldId,
     GrepSearchFieldId,
     GrepSearchResultState,
+    HistoryAndNavigationPaletteState,
     NotificationState,
     ReplaceFieldId,
     ReplacePreviewResultState,
@@ -216,7 +217,9 @@ def enter_palette(
         pending_input=None,
         command_palette=CommandPaletteState(
             source=source,
-            history_results=history_results,
+            history_and_navigation=HistoryAndNavigationPaletteState(
+                history_results=history_results,
+            ),
         ),
         pending_file_search_request_id=None,
         pending_grep_search_request_id=None,

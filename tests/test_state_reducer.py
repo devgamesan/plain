@@ -2406,7 +2406,7 @@ def test_all_visited_directories_enumerable() -> None:
 
     assert next_state.command_palette is not None
     assert next_state.command_palette.source == "history"
-    assert next_state.command_palette.history_results == (
+    assert next_state.command_palette.history_and_navigation.history_results == (
         initial_path,
         "/tmp/first",
         "/tmp/second",
@@ -2468,7 +2468,7 @@ def test_history_search_deduplicates_duplicates() -> None:
 
     assert next_state.command_palette is not None
     assert next_state.command_palette.source == "history"
-    assert next_state.command_palette.history_results == (
+    assert next_state.command_palette.history_and_navigation.history_results == (
         initial_path,
         "/tmp/first",
         "/tmp/second",

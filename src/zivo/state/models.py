@@ -405,6 +405,13 @@ class ReplacePreviewResultState:
 
 
 @dataclass(frozen=True)
+class HistoryAndNavigationPaletteState:
+    history_results: tuple[str, ...] = ()
+    go_to_path_candidates: tuple[str, ...] = ()
+    go_to_path_selection_active: bool = True
+
+
+@dataclass(frozen=True)
 class CommandPaletteState:
     """Transient palette search and cursor state."""
 
@@ -435,9 +442,9 @@ class CommandPaletteState:
     replace_status_message: str | None = None
     replace_target_paths: tuple[str, ...] = ()
     replace_total_match_count: int = 0
-    history_results: tuple[str, ...] = ()
-    go_to_path_candidates: tuple[str, ...] = ()
-    go_to_path_selection_active: bool = True
+    history_and_navigation: HistoryAndNavigationPaletteState = field(
+        default_factory=HistoryAndNavigationPaletteState
+    )
     rff_filename_query: str = ""
     rff_active_field: FindReplaceFieldId = "filename"
     rff_find_text: str = ""

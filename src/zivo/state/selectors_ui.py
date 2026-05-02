@@ -485,7 +485,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
         )
 
     if state.command_palette.source == "go_to_path":
-        selection_active = state.command_palette.go_to_path_selection_active
+        selection_active = state.command_palette.history_and_navigation.go_to_path_selection_active
         empty_message = (
             "Type a path to jump to"
             if not state.command_palette.query.strip()

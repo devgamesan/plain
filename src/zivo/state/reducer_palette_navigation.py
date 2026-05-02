@@ -60,8 +60,11 @@ def handle_set_go_to_path_query(state: AppState, next_palette, query: str) -> Re
             state,
             command_palette=replace(
                 next_palette,
-                go_to_path_candidates=matches,
-                go_to_path_selection_active=not has_trailing_separator,
+                history_and_navigation=replace(
+                    next_palette.history_and_navigation,
+                    go_to_path_candidates=matches,
+                    go_to_path_selection_active=not has_trailing_separator,
+                ),
             ),
         )
     )
@@ -111,7 +114,7 @@ def handle_submit_bookmarks_palette(state: AppState, reduce_state: ReducerFn) ->
 def handle_submit_go_to_path_palette(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
     items = get_command_palette_items(state)
     expanded_path = None
-    if items and state.command_palette.go_to_path_selection_active:
+    if items and state.command_palette.history_and_navigation.go_to_path_selection_active:
         expanded_path = items[
             normalize_command_palette_cursor(state, state.command_palette.cursor_index)
         ].path
@@ -151,7 +154,10 @@ def handle_begin_go_to_path(
             next_state,
             command_palette=replace(
                 next_state.command_palette,
-                go_to_path_candidates=list_windows_drive_paths_fn(),
+                history_and_navigation=replace(
+                    next_state.command_palette.history_and_navigation,
+                    go_to_path_candidates=list_windows_drive_paths_fn(),
+                ),
             ),
         )
     return finalize(next_state)

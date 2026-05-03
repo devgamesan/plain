@@ -53,6 +53,7 @@ from .actions import (
     TextReplacePreviewCompleted,
     TextReplacePreviewFailed,
 )
+from .actions_palette import OpenSearchWorkspace
 from .command_palette import normalize_command_palette_cursor
 from .effects import ReduceResult
 from .models import AppState, NotificationState
@@ -107,6 +108,7 @@ from .reducer_palette_search import (
     handle_open_find_result_in_gui_editor,
     handle_open_grep_result_in_editor,
     handle_open_grep_result_in_gui_editor,
+    handle_open_search_workspace,
     handle_set_file_search_query,
     handle_set_file_search_target,
     handle_set_grep_search_field,
@@ -513,6 +515,7 @@ _PALETTE_HANDLERS: dict[type[Action], _PaletteHandler] = {
     OpenFindResultInEditor: lambda s, a, r: handle_open_find_result_in_editor(s, r),
     OpenGrepResultInGuiEditor: lambda s, a, r: handle_open_grep_result_in_gui_editor(s, r),
     OpenFindResultInGuiEditor: lambda s, a, r: handle_open_find_result_in_gui_editor(s, r),
+    OpenSearchWorkspace: lambda s, a, r: handle_open_search_workspace(s, a, r),
 }
 
 

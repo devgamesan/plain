@@ -1245,7 +1245,7 @@ def test_select_shell_data_includes_selected_cut_and_contextual_models() -> None
     assert shell.parent_entries[0].cut is False
     assert shell.current_context_input is not None
     assert shell.current_context_input.value == "read"
-    assert shell.current_summary.sort_label == "name asc dirs:on"
+    assert shell.current_summary.sort_label == "name asc"
     assert shell.status.message == "Ready"
 
 
@@ -1257,7 +1257,7 @@ def test_select_current_summary_state_keeps_summary_format() -> None:
     assert (
         f"{summary.item_count} items | {summary.selected_count} selected | "
         f"sort: {summary.sort_label}"
-    ) == "5 items | 0 selected | sort: name asc dirs:on"
+    ) == "5 items | 0 selected | sort: name asc"
 
 
 def test_select_status_bar_exposes_notification_level() -> None:

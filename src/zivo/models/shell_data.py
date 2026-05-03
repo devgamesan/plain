@@ -335,7 +335,7 @@ def build_dummy_shell_data() -> ThreePaneShellData:
         current_summary=CurrentSummaryState(
             item_count=len(current_entries),
             selected_count=0,
-            sort_label="name asc dirs:on",
+            sort_label="name asc",
         ),
         current_context_input=None,
         help=HelpBarState(

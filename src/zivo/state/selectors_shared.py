@@ -247,8 +247,7 @@ def _sort_size_key(descending: bool):
 
 def _format_sort_label(sort: SortState) -> str:
     direction = "desc" if sort.descending else "asc"
-    directories = "on" if sort.directories_first else "off"
-    return f"{sort.field} {direction} dirs:{directories}"
+    return f"{sort.field} {direction}"
 
 
 def compute_search_visible_window(terminal_height: int, *, extra_rows: int = 0) -> int:

@@ -966,7 +966,7 @@ async def test_app_uses_cwd_for_default_initial_path(tmp_path, monkeypatch) -> N
         status_bar = await _wait_for_status_bar(app)
 
         assert str(current_path_bar.renderable) == f"Current Path: {tmp_path}"
-        assert str(summary_bar.renderable) == ("2 items | 0 selected | sort: name asc dirs:on")
+        assert str(summary_bar.renderable) == ("2 items | 0 selected | sort: name asc")
         assert str(status_bar.renderable) == ""
 
 
@@ -1987,7 +1987,7 @@ async def test_app_keyboard_input_updates_selection_and_child_pane() -> None:
         assert app.app_state.current_pane.cursor_path == f"{path}/src"
         assert child_names == ["main.py"]
         assert str(current_path_bar.renderable) == f"Current Path: {path}"
-        assert str(summary_bar.renderable) == ("3 items | 1 selected | sort: name asc dirs:on")
+        assert str(summary_bar.renderable) == ("3 items | 1 selected | sort: name asc")
         assert str(status_bar.renderable) == ""
 
         current_table = app.query_one("#current-pane-table", DataTable)
@@ -2535,7 +2535,7 @@ async def test_app_capital_R_drops_selection_for_missing_entries() -> None:
 
         assert app.app_state.current_pane.selected_paths == set()
         assert app.app_state.current_pane.cursor_path == f"{path}/src"
-        assert str(summary_bar.renderable) == ("1 items | 0 selected | sort: name asc dirs:on")
+        assert str(summary_bar.renderable) == ("1 items | 0 selected | sort: name asc")
         assert str(status_bar.renderable) == ""
 
 
@@ -2583,7 +2583,7 @@ async def test_app_navigation_clears_selection_in_new_directory() -> None:
 
         assert app.app_state.current_pane.selected_paths == set()
         assert app.app_state.current_path == docs
-        assert str(summary_bar.renderable) == ("1 items | 0 selected | sort: name asc dirs:on")
+        assert str(summary_bar.renderable) == ("1 items | 0 selected | sort: name asc")
         assert str(status_bar.renderable) == ""
 
 
@@ -3096,7 +3096,7 @@ async def test_app_child_snapshot_failure_shows_error() -> None:
 
         assert _side_pane_lines(child_list) == []
         assert str(current_path_bar.renderable) == f"Current Path: {path}"
-        assert str(summary_bar.renderable) == "2 items | 0 selected | sort: name asc dirs:on"
+        assert str(summary_bar.renderable) == "2 items | 0 selected | sort: name asc"
         assert str(status_bar.renderable) == "error: permission denied"
         await _wait_for_child_pane_runtime_idle(app, timeout=1.0)
 
@@ -5572,7 +5572,7 @@ async def test_app_sort_shortcuts_keep_side_panes_fixed_and_update_status_bar() 
             "archive",
             "notes.txt",
         ]
-        assert str(summary_bar.renderable) == ("3 items | 0 selected | sort: name desc dirs:off")
+        assert str(summary_bar.renderable) == ("3 items | 0 selected | sort: name desc")
 
 
 @pytest.mark.asyncio
@@ -6175,7 +6175,7 @@ async def test_app_main_flow_round_trip_on_live_filesystem(tmp_path) -> None:
         await asyncio.sleep(0.05)
 
         summary_bar = await _wait_for_summary_bar(app)
-        assert str(summary_bar.renderable) == ("4 items | 0 selected | sort: name desc dirs:on")
+        assert str(summary_bar.renderable) == ("4 items | 0 selected | sort: name desc")
 
 
 @pytest.mark.asyncio

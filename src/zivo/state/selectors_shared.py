@@ -574,10 +574,10 @@ def _select_find_replace_preview_window(
     )
     source = state.command_palette.source if state.command_palette else None
     if source == "replace_in_grep_files":
-        base_title = "Replace in Grep Files"
+        base_title = "Replace in Grep Results"
         preview_state = state.command_palette.grf
     elif source == "grep_replace_selected":
-        base_title = "Grep Replace Selected"
+        base_title = "Replace in Selected Files"
         preview_state = state.command_palette.grs
     else:
         base_title = "Replace in Found Files"

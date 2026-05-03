@@ -3245,7 +3245,7 @@ def test_select_command_palette_state_grf_preview_title_with_counts() -> None:
     )
     palette_state = select_command_palette_state(state)
     assert palette_state is not None
-    assert palette_state.title == "Replace in Grep Files (1 file(s), 2 match(es)) (1-1 / 1)"
+    assert palette_state.title == "Replace in Grep Results (1 file(s), 2 match(es)) (1-1 / 1)"
 
 
 def test_select_command_palette_state_grs_preview_title_with_counts() -> None:
@@ -3271,4 +3271,4 @@ def test_select_command_palette_state_grs_preview_title_with_counts() -> None:
     )
     palette_state = select_command_palette_state(state)
     assert palette_state is not None
-    assert palette_state.title == "Grep Replace Selected (1 file(s), 2 match(es)) (1-1 / 1)"
+    assert palette_state.title == "Replace in Selected Files (1 file(s), 2 match(es)) (1-1 / 1)"

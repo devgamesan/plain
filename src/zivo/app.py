@@ -1,6 +1,5 @@
 """Application assembly for zivo."""
 
-import re
 import threading
 import time
 from collections.abc import Sequence
@@ -12,11 +11,11 @@ from textual.app import App, ComposeResult, ScreenStackError
 from textual.binding import Binding
 from textual.containers import Container, Vertical, VerticalScroll
 from textual.css.query import NoMatches
-from textual.keys import Keys
 from textual.timer import Timer
 from textual.worker import Worker
 
 from zivo.adapters import LocalExternalLaunchAdapter
+from zivo.app_overlay_layout import sync_overlay_layout
 from zivo.app_runtime import (
     handle_worker_state_changed,
     schedule_effects,
@@ -25,6 +24,10 @@ from zivo.app_runtime import (
 from zivo.app_shell import (
     build_body,
     refresh_shell,
+)
+from zivo.app_terminal_response import (
+    _install_textual_terminal_response_filters,
+    _is_terminal_response_final_byte,
 )
 from zivo.models import (
     AppConfig,
@@ -115,8 +118,10 @@ def _active_app_theme(state: AppState) -> str:
 
 
 _BROWSING_PREVIEW_SCROLL_KEYS: dict[str, int] = {
-    "[": -20,
-    "]": 20,
+    "ctrl+j": -20,
+    "ctrl+k": 20,
+    "ctrl+up": -20,
+    "ctrl+down": 20,
 }
 
 _REPLACE_PREVIEW_SCROLL_KEYS: dict[str, int] = {
@@ -132,15 +137,6 @@ _REPLACE_PREVIEW_SCROLL_SOURCES = frozenset(
         "grep_replace_selected",
     }
 )
-_TEXTUAL_TERMINAL_RESPONSE_FILTERS_INSTALLED = False
-_TERMINAL_DEVICE_ATTRIBUTES_RESPONSE_RE = re.compile(r"\x1b\[(?:\?[\d;]*|[\d;]*)c\Z")
-_TERMINAL_WINDOW_RESPONSE_RE = re.compile(r"\x1b\[(?:4|6|8);[\d;]+t\Z")
-_TERMINAL_COLOR_RESPONSE_RE = re.compile(r"\x1b\]1[01];.*(?:\x07|\x1b\\)\Z", re.DOTALL)
-_ESCAPE = "\x1b"
-_OSC_INTRODUCER = "]"
-_OSC_TERMINATOR = "\\"
-_OSC_BEL = "\x07"
-
 
 def _preview_scroll_delta(state: AppState, key: str) -> int | None:
     """Return scroll delta for preview key bindings, or None if not applicable."""
@@ -164,8 +160,8 @@ class zivoApp(App[None]):
     SUB_TITLE = "Three-pane shell"
     TERMINAL_RESPONSE_ESCAPE_TIMEOUT_SECONDS = 0.05
     BINDINGS = [
-        Binding("ctrl+p", "dispatch_bound_key('ctrl+p')", show=False, priority=True),
-        Binding("ctrl+n", "dispatch_bound_key('ctrl+n')", show=False, priority=True),
+        Binding("ctrl+k", "dispatch_bound_key('ctrl+k')", show=False, priority=True),
+        Binding("ctrl+j", "dispatch_bound_key('ctrl+j')", show=False, priority=True),
         *[Binding(key, f"dispatch_bound_key('{key}')", show=False, priority=True)
           for key in iter_bound_keys()
         ]
@@ -294,139 +290,6 @@ class zivoApp(App[None]):
         yield HelpBar(shell.help, id="help-bar")
         yield StatusBar(shell.status, id="status-bar")
 
-    _PANE_VISIBILITY_NARROW_THRESHOLD = 66
-    _PANE_VISIBILITY_MEDIUM_THRESHOLD = 100
-
-    def _update_pane_visibility(self, width: int) -> None:
-        """Show or hide side panes based on terminal width."""
-        try:
-            parent_pane = self.query_one("#parent-pane")
-            child_pane = self.query_one("#child-pane")
-        except NoMatches:
-            return
-
-        if self._app_state.layout_mode == "transfer":
-            parent_pane.display = False
-            child_pane.display = False
-            return
-
-        if width >= self._PANE_VISIBILITY_MEDIUM_THRESHOLD:
-            parent_pane.display = True
-        elif width >= self._PANE_VISIBILITY_NARROW_THRESHOLD:
-            parent_pane.display = False
-        else:
-            parent_pane.display = False
-
-        if width >= self._PANE_VISIBILITY_NARROW_THRESHOLD:
-            child_pane.display = True
-        else:
-            child_pane.display = False
-
-    def _get_target_overlay_pane(self) -> MainPane | None:
-        """
-        Get the target pane for overlay positioning based on current mode.
-
-        In transfer mode, overlays the opposite pane to keep the active pane visible.
-        In browser mode, overlays the current pane.
-
-        Returns:
-            MainPane instance if found, None otherwise
-        """
-        # Transfer mode with active left pane -> overlay on right pane
-        if (
-            self._app_state.layout_mode == "transfer"
-            and self._app_state.active_transfer_pane == "left"
-        ):
-            try:
-                return self.query_one("#transfer-right-pane", MainPane)
-            except NoMatches:
-                # Fallback to current pane if right pane doesn't exist
-                pass
-
-        # Default: current pane (browser mode or transfer mode with active right pane)
-        try:
-            return self.query_one("#current-pane", MainPane)
-        except NoMatches:
-            return None
-
-    def _update_command_palette_geometry(self) -> None:
-        """Constrain the command palette overlay to the appropriate pane."""
-
-        try:
-            command_palette_layer = self.query_one("#command-palette-layer", Container)
-            browser_row = self.query_one("#browser-row")
-        except NoMatches:
-            return
-
-        # Determine target pane based on mode and active pane
-        target_pane = self._get_target_overlay_pane()
-        if target_pane is None:
-            return
-
-        pane_region = target_pane.region
-        row_region = browser_row.region
-        if pane_region.width <= 0 or pane_region.height <= 0:
-            return
-
-        command_palette_layer.styles.width = pane_region.width
-        command_palette_layer.styles.height = pane_region.height
-        command_palette_layer.styles.offset = (
-            pane_region.x,
-            row_region.y,
-        )
-
-    def _update_config_dialog_geometry(self) -> None:
-        """Constrain the config dialog overlay to the appropriate pane."""
-
-        try:
-            config_dialog_layer = self.query_one("#config-dialog-layer", Container)
-            browser_row = self.query_one("#browser-row")
-        except NoMatches:
-            return
-
-        # Determine target pane based on mode and active pane
-        target_pane = self._get_target_overlay_pane()
-        if target_pane is None:
-            return
-
-        pane_region = target_pane.region
-        row_region = browser_row.region
-        if pane_region.width <= 0 or pane_region.height <= 0:
-            return
-
-        config_dialog_layer.styles.width = pane_region.width
-        config_dialog_layer.styles.height = pane_region.height
-        config_dialog_layer.styles.offset = (
-            pane_region.x,
-            row_region.y,
-        )
-
-    def _update_input_dialog_geometry(self) -> None:
-        """Constrain the input dialog overlay to the appropriate pane."""
-
-        try:
-            input_dialog_layer = self.query_one("#input-dialog-layer", Container)
-            browser_row = self.query_one("#browser-row")
-        except NoMatches:
-            return
-
-        # Determine target pane based on mode and active pane
-        target_pane = self._get_target_overlay_pane()
-        if target_pane is None:
-            return
-
-        pane_region = target_pane.region
-        row_region = browser_row.region
-        if pane_region.width <= 0 or pane_region.height <= 0:
-            return
-
-        input_dialog_layer.styles.width = pane_region.width
-        input_dialog_layer.styles.height = pane_region.height
-        input_dialog_layer.styles.offset = (
-            pane_region.x,
-            row_region.y,
-        )
-
     async def on_mount(self) -> None:
         """Load the initial directory snapshot after the UI mounts."""
 
@@ -434,7 +297,7 @@ class zivoApp(App[None]):
             SetTerminalHeight(height=self.size.height),
             RequestBrowserSnapshot(self._initial_path, blocking=True),
         ))
-        self.call_after_refresh(self._sync_overlay_layout)
+        self.call_after_refresh(lambda: sync_overlay_layout(self))
 
     async def on_key(self, event: events.Key) -> None:
         """Normalize keyboard input into reducer actions."""
@@ -528,10 +391,35 @@ class zivoApp(App[None]):
         if widget_id == "parent-pane-list":
             if self._is_double_click("parent-pane", entry_path):
                 await self.dispatch_actions((RequestBrowserSnapshot(entry_path, blocking=True),))
+            else:
+                entry = next(
+                    (
+                        entry
+                        for entry in self._app_state.parent_pane.entries
+                        if entry.path == entry_path
+                    ),
+                    None,
+                )
+                if entry is not None and entry.kind == "dir":
+                    await self.dispatch_actions(
+                        (RequestBrowserSnapshot(entry_path, blocking=True),)
+                    )
             return
 
-        if widget_id == "child-pane-list" and self._is_double_click("child-pane", entry_path):
-            await self._open_or_enter_path(entry_path)
+        if widget_id == "child-pane-list":
+            if self._is_double_click("child-pane", entry_path):
+                await self._open_or_enter_path(entry_path)
+            else:
+                entry = next(
+                    (
+                        entry
+                        for entry in self._app_state.child_pane.entries
+                        if entry.path == entry_path
+                    ),
+                    None,
+                )
+                if entry is not None and entry.kind == "dir":
+                    await self._open_or_enter_path(entry_path)
 
     async def on_main_pane_entry_clicked(self, message: MainPane.EntryClicked) -> None:
         """Handle bubbled click messages from the center / transfer panes."""
@@ -683,7 +571,7 @@ class zivoApp(App[None]):
         """Update the terminal height on resize."""
 
         await self.dispatch_actions((SetTerminalHeight(height=event.size.height),))
-        self._sync_overlay_layout(event.size.width)
+        sync_overlay_layout(self, event.size.width)
 
     async def on_tab_bar_tab_clicked(self, message: TabBar.TabClicked) -> None:
         """Handle tab clicks from the TabBar widget."""
@@ -691,9 +579,9 @@ class zivoApp(App[None]):
         await self.dispatch_actions((ActivateTabByIndex(index=message.tab_index),))
 
     async def on_side_pane_entry_clicked(self, message: SidePane.EntryClicked) -> None:
-        """Handle left parent-pane double clicks from the widget message path."""
+        """Handle left parent-pane clicks from the widget message path."""
 
-        if message.pane_id != "parent-pane" or not message.double_click:
+        if message.pane_id != "parent-pane":
             return
         entry = next(
             (entry for entry in self._app_state.parent_pane.entries if entry.path == message.path),
@@ -704,12 +592,24 @@ class zivoApp(App[None]):
         if entry.kind == "dir":
             await self.dispatch_actions((RequestBrowserSnapshot(message.path, blocking=True),))
             return
+        if not message.double_click:
+            return
         await self.dispatch_actions((OpenPathWithDefaultApp(message.path),))
 
     async def on_child_pane_entry_clicked(self, message: ChildPane.EntryClicked) -> None:
-        """Handle right child-pane double clicks from the widget message path."""
+        """Handle right child-pane clicks from the widget message path."""
 
         if not message.double_click:
+            entry = next(
+                (
+                    entry
+                    for entry in self._app_state.child_pane.entries
+                    if entry.path == message.path
+                ),
+                None,
+            )
+            if entry is not None and entry.kind == "dir":
+                await self._open_or_enter_path(message.path)
             return
         await self._open_or_enter_path(message.path)
 
@@ -730,17 +630,9 @@ class zivoApp(App[None]):
                 select_shell_data(self._app_state),
                 theme_changed=theme_changed,
             )
-            self.call_after_refresh(self._sync_overlay_layout)
+            self.call_after_refresh(lambda: sync_overlay_layout(self))
         except ScreenStackError:
             return
-
-    def _sync_overlay_layout(self, width: int | None = None) -> None:
-        """Refresh side-pane visibility and overlay geometry together."""
-
-        self._update_pane_visibility(self.size.width if width is None else width)
-        self._update_command_palette_geometry()
-        self._update_config_dialog_geometry()
-        self._update_input_dialog_geometry()
 
     async def _handle_main_pane_click(
         self,
@@ -877,105 +769,4 @@ def _initial_sort_state(config: AppConfig) -> SortState:
     )
 
 
-def _is_terminal_response_final_byte(key: str) -> bool:
-    if len(key) != 1:
-        return False
-    codepoint = ord(key)
-    return 0x40 <= codepoint <= 0x7E
 
-
-def _install_textual_terminal_response_filters() -> None:
-    global _TEXTUAL_TERMINAL_RESPONSE_FILTERS_INSTALLED
-    if _TEXTUAL_TERMINAL_RESPONSE_FILTERS_INSTALLED:
-        return
-
-    import textual._xterm_parser as xterm_parser
-
-    original_feed = xterm_parser.XTermParser.feed
-    original = xterm_parser.XTermParser._sequence_to_key_events
-
-    def _filter_terminal_response_chunk(self, data: str) -> str:
-        pending_escape = getattr(self, "_zivo_pending_escape", False)
-        in_osc = getattr(self, "_zivo_in_osc", False)
-        osc_saw_escape = getattr(self, "_zivo_osc_saw_escape", False)
-
-        if not data:
-            if pending_escape and not in_osc:
-                data = _ESCAPE
-            else:
-                data = ""
-            pending_escape = False
-            in_osc = False
-            osc_saw_escape = False
-            self._zivo_pending_escape = pending_escape
-            self._zivo_in_osc = in_osc
-            self._zivo_osc_saw_escape = osc_saw_escape
-            return data
-
-        filtered: list[str] = []
-        index = 0
-
-        if pending_escape:
-            pending_escape = False
-            if data.startswith(_OSC_INTRODUCER):
-                in_osc = True
-                index = 1
-            else:
-                filtered.append(_ESCAPE)
-
-        while index < len(data):
-            character = data[index]
-            if in_osc:
-                if osc_saw_escape:
-                    osc_saw_escape = False
-                    if character == _OSC_TERMINATOR:
-                        in_osc = False
-                    index += 1
-                    continue
-                if character == _OSC_BEL:
-                    in_osc = False
-                    index += 1
-                    continue
-                if character == _ESCAPE:
-                    osc_saw_escape = True
-                index += 1
-                continue
-
-            if character == _ESCAPE:
-                next_index = index + 1
-                if next_index >= len(data):
-                    pending_escape = True
-                    index += 1
-                    continue
-                if data[next_index] == _OSC_INTRODUCER:
-                    in_osc = True
-                    index += 2
-                    continue
-
-            filtered.append(character)
-            index += 1
-
-        self._zivo_pending_escape = pending_escape
-        self._zivo_in_osc = in_osc
-        self._zivo_osc_saw_escape = osc_saw_escape
-        return "".join(filtered)
-
-    def _wrapped_feed(self, data: str):
-        filtered = _filter_terminal_response_chunk(self, data)
-        if data and not filtered:
-            return ()
-        return original_feed(self, filtered)
-
-    def _wrapped(self, sequence: str):
-        if (
-            _TERMINAL_DEVICE_ATTRIBUTES_RESPONSE_RE.fullmatch(sequence)
-            or _TERMINAL_WINDOW_RESPONSE_RE.fullmatch(sequence)
-            or _TERMINAL_COLOR_RESPONSE_RE.fullmatch(sequence)
-        ):
-            yield events.Key(Keys.Ignore, sequence)
-            return
-        yield from original(self, sequence)
-
-    xterm_parser.XTermParser.feed = _wrapped_feed
-    xterm_parser.XTermParser._sequence_to_key_events = _wrapped
-    _TEXTUAL_TERMINAL_RESPONSE_FILTERS_INSTALLED = True

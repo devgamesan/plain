@@ -27,8 +27,13 @@ from zivo.state import (
     DirectoryEntryState,
     DirectorySizeCacheEntry,
     DirectorySizeDeltaState,
+    FileSearchPaletteState,
     FileSearchResultState,
+    GrepSearchPaletteState,
     GrepSearchResultState,
+    GrfPaletteState,
+    GrsPaletteState,
+    HistoryAndNavigationPaletteState,
     HistoryState,
     NameConflictState,
     NotificationState,
@@ -36,7 +41,10 @@ from zivo.state import (
     PasteConflictState,
     PendingInputState,
     PendingKeySequenceState,
+    ReplacePreviewPaletteState,
     ReplacePreviewResultState,
+    RffPaletteState,
+    SfgPaletteState,
     ZipCompressConfirmationState,
     build_initial_app_state,
     build_placeholder_app_state,
@@ -917,7 +925,7 @@ def test_select_shell_data_builds_grep_preview_for_palette_selection() -> None:
         command_palette=CommandPaletteState(
             source="grep_search",
             query="todo",
-            grep_search_results=(grep_result,),
+            grep_search=GrepSearchPaletteState(results=(grep_result,)),
         ),
         child_pane=PaneState(
             directory_path="/home/tadashi/develop/zivo",
@@ -1273,14 +1281,14 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
 
     assert help_state.lines == (
         "enter open | e edit | O gui editor | i info | "
-        "/ filter | s sort | . hidden | [ ] preview | q quit",
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo",
+        "/ filter | s sort | . hidden | [ ] bk/fwd | q quit",
+        "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv",
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette",
     )
     assert help_state.text == (
         "enter open | e edit | O gui editor | i info | "
-        "/ filter | s sort | . hidden | [ ] preview | q quit\n"
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
+        "/ filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
+        "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv\n"
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
 
@@ -1422,9 +1430,11 @@ def test_select_command_palette_state_shows_go_to_path_candidates() -> None:
             source="go_to_path",
             query="do",
             cursor_index=1,
-            go_to_path_candidates=(
-                "/home/tadashi/docs",
-                "/home/tadashi/downloads",
+            history_and_navigation=HistoryAndNavigationPaletteState(
+                go_to_path_candidates=(
+                    "/home/tadashi/docs",
+                    "/home/tadashi/downloads",
+                ),
             ),
         ),
     )
@@ -1451,7 +1461,7 @@ def test_select_help_bar_state_for_go_to_path_palette_mentions_tab_completion() 
     help_bar = select_help_bar_state(state)
 
     assert help_bar.lines == (
-        "type path | ↑↓ or Ctrl+n/p select | tab complete | enter jump | esc cancel",
+        "type path | ↑↓ or Ctrl+j/k select | tab complete | enter jump | esc cancel",
     )
 
 
@@ -1465,7 +1475,7 @@ def test_select_help_bar_state_for_history_palette() -> None:
     help_bar = select_help_bar_state(state)
 
     assert help_bar.lines == (
-        "type path | ↑↓ or Ctrl+n/p select | enter jump | esc cancel",
+        "type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",
     )
 
 
@@ -1479,7 +1489,7 @@ def test_select_help_bar_state_for_bookmarks_palette() -> None:
     help_bar = select_help_bar_state(state)
 
     assert help_bar.lines == (
-        "type path | ↑↓ or Ctrl+n/p select | enter jump | esc cancel",
+        "type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",
     )
 
 
@@ -1493,7 +1503,7 @@ def test_select_help_bar_state_for_file_search_palette() -> None:
     help_bar = select_help_bar_state(state)
 
     assert help_bar.lines == (
-        "type filename | ↑↓ or Ctrl+n/p select | enter jump | "
+        "type filename | ↑↓ or Ctrl+j/k select | enter jump | "
         "Ctrl+e edit | Ctrl+o GUI | esc cancel",
     )
 
@@ -1508,7 +1518,7 @@ def test_select_help_bar_state_for_grep_search_palette() -> None:
     help_bar = select_help_bar_state(state)
 
     assert help_bar.lines == (
-        "type text / tab fields / ↑↓ or Ctrl+n/p select | "
+        "type text / tab fields / ↑↓ or Ctrl+j/k select | "
         "enter jump | Ctrl+e edit | Ctrl+o GUI | esc cancel",
     )
 
@@ -1523,7 +1533,7 @@ def test_select_help_bar_state_for_command_palette() -> None:
     help_bar = select_help_bar_state(state)
 
     assert help_bar.lines == (
-        "type command | ↑↓ or Ctrl+n/p select | enter run | esc cancel",
+        "type command | ↑↓ or Ctrl+j/k select | enter run | esc cancel",
     )
 
 
@@ -1540,7 +1550,7 @@ def test_select_help_bar_state_for_config_editor() -> None:
     help_bar = select_help_bar_state(state)
 
     assert help_bar.lines == (
-        "↑↓ or Ctrl+n/p choose | ←→ or Enter change | s save | e edit file | r reset help",
+        "↑↓ or Ctrl+j/k choose | ←→ or Enter change | s save | e edit file | r reset help",
         "esc close",
     )
 
@@ -1552,11 +1562,13 @@ def test_select_command_palette_state_for_grep_search_includes_input_fields() ->
         command_palette=CommandPaletteState(
             source="grep_search",
             query="todo",
-            grep_search_keyword="todo",
-            grep_search_filename_filter="main",
-            grep_search_include_extensions="py,ts",
-            grep_search_exclude_extensions="log",
-            grep_search_active_field="exclude",
+            grep_search=GrepSearchPaletteState(
+                keyword="todo",
+                filename_filter="main",
+                include_extensions="py,ts",
+                exclude_extensions="log",
+                active_field="exclude",
+            ),
         ),
     )
 
@@ -1579,22 +1591,24 @@ def test_select_command_palette_state_for_text_replace_includes_input_fields() -
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="replace_text",
-            replace_find_text="todo",
-            replace_replacement_text="done",
-            replace_active_field="replace",
-            replace_preview_results=(
-                ReplacePreviewResultState(
-                    path="/home/tadashi/develop/zivo/README.md",
-                    display_path="README.md",
-                    diff_text="--- before\n+++ after\n@@\n-todo item\n+done item\n",
-                    match_count=2,
-                    first_match_line_number=8,
-                    first_match_before="todo item",
-                    first_match_after="done item",
+            replace_preview=ReplacePreviewPaletteState(
+                find_text="todo",
+                replacement_text="done",
+                active_field="replace",
+                preview_results=(
+                    ReplacePreviewResultState(
+                        path="/home/tadashi/develop/zivo/README.md",
+                        display_path="README.md",
+                        diff_text="--- before\n+++ after\n@@\n-todo item\n+done item\n",
+                        match_count=2,
+                        first_match_line_number=8,
+                        first_match_before="todo item",
+                        first_match_after="done item",
+                    ),
                 ),
+                total_match_count=2,
+                target_paths=("/home/tadashi/develop/zivo/README.md",),
             ),
-            replace_total_match_count=2,
-            replace_target_paths=("/home/tadashi/develop/zivo/README.md",),
         ),
     )
 
@@ -1617,11 +1631,13 @@ def test_select_command_palette_state_go_to_path_can_show_candidates_without_sel
         command_palette=CommandPaletteState(
             source="go_to_path",
             query="docs/",
-            go_to_path_candidates=(
-                "/home/tadashi/docs/api",
-                "/home/tadashi/docs/guides",
+            history_and_navigation=HistoryAndNavigationPaletteState(
+                go_to_path_candidates=(
+                    "/home/tadashi/docs/api",
+                    "/home/tadashi/docs/guides",
+                ),
+                go_to_path_selection_active=False,
             ),
-            go_to_path_selection_active=False,
         ),
     )
 
@@ -1978,7 +1994,7 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
     ) in dialog.lines
     assert "Terminal launch templates: edit config.toml with e" in dialog.lines
     assert dialog.options == (
-        "↑↓/Ctrl+n/p choose",
+        "↑↓/Ctrl+j/k choose",
         "←→/enter change",
         "s save",
         "e edit file",
@@ -2074,10 +2090,12 @@ def test_select_command_palette_state_for_file_search_results() -> None:
         command_palette=CommandPaletteState(
             source="file_search",
             query="read",
-            file_search_results=(
-                FileSearchResultState(
-                    path="/home/tadashi/develop/zivo/README.md",
-                    display_path="README.md",
+            file_search=FileSearchPaletteState(
+                results=(
+                    FileSearchResultState(
+                        path="/home/tadashi/develop/zivo/README.md",
+                        display_path="README.md",
+                    ),
                 ),
             ),
         ),
@@ -2099,7 +2117,7 @@ def test_select_command_palette_state_shows_searching_message_while_file_search_
         command_palette=CommandPaletteState(
             source="file_search",
             query=".py",
-            file_search_results=(),
+            file_search=FileSearchPaletteState(),
         ),
         pending_file_search_request_id=7,
     )
@@ -2119,7 +2137,9 @@ def test_select_command_palette_state_shows_regex_error_message() -> None:
         command_palette=CommandPaletteState(
             source="file_search",
             query="re:[",
-            file_search_error_message="Invalid regex: unterminated character set",
+            file_search=FileSearchPaletteState(
+                error_message="Invalid regex: unterminated character set",
+            ),
         ),
     )
 
@@ -2146,7 +2166,7 @@ def test_select_command_palette_state_windows_large_file_search_results() -> Non
             source="file_search",
             query=".py",
             cursor_index=10,
-            file_search_results=results,
+            file_search=FileSearchPaletteState(results=results),
         ),
     )
 
@@ -2180,12 +2200,14 @@ def test_select_command_palette_state_for_grep_search_results() -> None:
         command_palette=CommandPaletteState(
             source="grep_search",
             query="todo",
-            grep_search_results=(
-                GrepSearchResultState(
-                    path="/home/tadashi/develop/zivo/src/zivo/app.py",
-                    display_path="src/zivo/app.py",
-                    line_number=42,
-                    line_text="TODO: update palette",
+            grep_search=GrepSearchPaletteState(
+                results=(
+                    GrepSearchResultState(
+                        path="/home/tadashi/develop/zivo/src/zivo/app.py",
+                        display_path="src/zivo/app.py",
+                        line_number=42,
+                        line_text="TODO: update palette",
+                    ),
                 ),
             ),
         ),
@@ -2217,7 +2239,7 @@ def test_select_command_palette_state_windows_large_grep_search_results() -> Non
             source="grep_search",
             query="todo",
             cursor_index=10,
-            grep_search_results=results,
+            grep_search=GrepSearchPaletteState(results=results),
         ),
     )
 
@@ -2237,7 +2259,7 @@ def test_select_command_palette_state_shows_grep_searching_message() -> None:
         command_palette=CommandPaletteState(
             source="grep_search",
             query="todo",
-            grep_search_results=(),
+            grep_search=GrepSearchPaletteState(results=()),
         ),
         pending_grep_search_request_id=9,
     )
@@ -2584,7 +2606,7 @@ class TestSelectSearchWindowWithDynamicSize:
                 source="file_search",
                 query=".py",
                 cursor_index=15,
-                file_search_results=results,
+                file_search=FileSearchPaletteState(results=results),
             ),
         )
 
@@ -2716,7 +2738,9 @@ class TestCommandPaletteDynamicWindow:
                 source="go_to_path",
                 query="",
                 cursor_index=0,
-                go_to_path_candidates=tuple(f"/path/{i}" for i in range(25)),
+                history_and_navigation=HistoryAndNavigationPaletteState(
+                    go_to_path_candidates=tuple(f"/path/{i}" for i in range(25)),
+                ),
             ),
         )
 
@@ -2735,7 +2759,9 @@ class TestCommandPaletteDynamicWindow:
                 source="go_to_path",
                 query="",
                 cursor_index=0,
-                go_to_path_candidates=tuple(f"/path/{i}" for i in range(10)),
+                history_and_navigation=HistoryAndNavigationPaletteState(
+                    go_to_path_candidates=tuple(f"/path/{i}" for i in range(10)),
+                ),
             ),
         )
 
@@ -2756,7 +2782,9 @@ class TestCommandPaletteDynamicWindow:
             ui_mode="PALETTE",
             command_palette=CommandPaletteState(
                 source="history",
-                history_results=tuple(f"/history/{i}" for i in range(25)),
+                history_and_navigation=HistoryAndNavigationPaletteState(
+                    history_results=tuple(f"/history/{i}" for i in range(25)),
+                ),
             ),
         )
 
@@ -2949,8 +2977,10 @@ def test_select_shell_data_builds_sfg_preview_for_palette_selection() -> None:
         command_palette=CommandPaletteState(
             source="selected_files_grep",
             query="todo",
-            sfg_target_paths=(path,),
-            sfg_results=(grep_result,),
+            sfg=SfgPaletteState(
+                target_paths=(path,),
+                results=(grep_result,),
+            ),
         ),
         child_pane=PaneState(
             directory_path="/home/tadashi/develop/zivo",
@@ -2981,7 +3011,7 @@ def test_select_shell_data_builds_sfg_preview_falls_back_to_empty_for_no_results
         command_palette=CommandPaletteState(
             source="selected_files_grep",
             query="todo",
-            sfg_results=(),
+            sfg=SfgPaletteState(results=()),
         ),
     )
 
@@ -3011,7 +3041,7 @@ def test_select_shell_data_builds_sfg_preview_falls_back_to_empty_when_preview_d
         command_palette=CommandPaletteState(
             source="selected_files_grep",
             query="todo",
-            sfg_results=(grep_result,),
+            sfg=SfgPaletteState(results=(grep_result,)),
         ),
     )
 
@@ -3151,3 +3181,94 @@ def test_detect_preview_disabled_message_returns_none_when_enabled() -> None:
         enable_office_preview=True,
     )
     assert message is None
+
+
+def test_select_command_palette_state_rff_preview_title_with_counts() -> None:
+    preview_result = ReplacePreviewResultState(
+        path="/home/tadashi/develop/zivo/README.md",
+        display_path="README.md",
+        diff_text="--- before\n+++ after\n@@\n-todo item\n+done item\n",
+        match_count=2,
+        first_match_line_number=8,
+        first_match_before="todo item",
+        first_match_after="done item",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="replace_in_found_files",
+            rff=RffPaletteState(
+                preview_results=(preview_result,),
+                total_match_count=2,
+            ),
+        ),
+    )
+    palette_state = select_command_palette_state(state)
+    assert palette_state is not None
+    assert palette_state.title == "Replace in Found Files (1 file(s), 2 match(es)) (1-1 / 1)"
+
+
+def test_select_command_palette_state_rff_preview_title_without_results() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="replace_in_found_files",
+        ),
+    )
+    palette_state = select_command_palette_state(state)
+    assert palette_state is not None
+    assert palette_state.title == "Replace in Found Files"
+
+
+def test_select_command_palette_state_grf_preview_title_with_counts() -> None:
+    preview_result = ReplacePreviewResultState(
+        path="/home/tadashi/develop/zivo/README.md",
+        display_path="README.md",
+        diff_text="--- before\n+++ after\n@@\n-todo item\n+done item\n",
+        match_count=2,
+        first_match_line_number=8,
+        first_match_before="todo item",
+        first_match_after="done item",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="replace_in_grep_files",
+            grf=GrfPaletteState(
+                preview_results=(preview_result,),
+                total_match_count=2,
+            ),
+        ),
+    )
+    palette_state = select_command_palette_state(state)
+    assert palette_state is not None
+    assert palette_state.title == "Replace in Grep Results (1 file(s), 2 match(es)) (1-1 / 1)"
+
+
+def test_select_command_palette_state_grs_preview_title_with_counts() -> None:
+    preview_result = ReplacePreviewResultState(
+        path="/home/tadashi/develop/zivo/README.md",
+        display_path="README.md",
+        diff_text="--- before\n+++ after\n@@\n-todo item\n+done item\n",
+        match_count=2,
+        first_match_line_number=8,
+        first_match_before="todo item",
+        first_match_after="done item",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="grep_replace_selected",
+            grs=GrsPaletteState(
+                preview_results=(preview_result,),
+                total_match_count=2,
+            ),
+        ),
+    )
+    palette_state = select_command_palette_state(state)
+    assert palette_state is not None
+    assert palette_state.title == "Replace in Selected Files (1 file(s), 2 match(es)) (1-1 / 1)"

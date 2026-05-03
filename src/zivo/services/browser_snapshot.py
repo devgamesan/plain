@@ -186,13 +186,14 @@ class LiveBrowserSnapshotLoader:
         path: str,
         cursor_path: str | None = None,
         *,
+        show_hidden: bool = False,
         enable_image_preview: bool = True,
         enable_pdf_preview: bool = True,
         enable_office_preview: bool = True,
     ) -> BrowserSnapshot:
         resolved_path, parent_path = resolve_parent_directory_path(path)
         current_entries = self._list_directory(resolved_path)
-        resolved_cursor_path = _resolve_cursor_path(current_entries, cursor_path)
+        resolved_cursor_path = _resolve_cursor_path(current_entries, cursor_path, show_hidden)
 
         if parent_path is None:
             parent_directory_path = resolved_path
@@ -307,6 +308,8 @@ class LiveBrowserSnapshotLoader:
         self,
         path: str,
         cursor_path: str | None,
+        *,
+        show_hidden: bool = False,
     ) -> tuple[str, PaneState, PaneState]:
         """Load current pane + minimal parent (Phase 1 of progressive loading).
 
@@ -315,7 +318,7 @@ class LiveBrowserSnapshotLoader:
         """
         resolved_path, parent_path = resolve_parent_directory_path(path)
         current_entries = self._list_directory(resolved_path)
-        resolved_cursor_path = _resolve_cursor_path(current_entries, cursor_path)
+        resolved_cursor_path = _resolve_cursor_path(current_entries, cursor_path, show_hidden)
 
         if parent_path is None:
             parent_directory_path = resolved_path
@@ -656,6 +659,7 @@ class FakeBrowserSnapshotLoader:
         path: str,
         cursor_path: str | None = None,
         *,
+        show_hidden: bool = False,
         enable_image_preview: bool = True,
         enable_pdf_preview: bool = True,
         enable_office_preview: bool = True,
@@ -715,9 +719,11 @@ class FakeBrowserSnapshotLoader:
         self,
         path: str,
         cursor_path: str | None,
+        *,
+        show_hidden: bool = False,
     ) -> tuple[str, PaneState, PaneState]:
         """Load current pane + minimal parent (Phase 1 of progressive loading)."""
-        snapshot = self.load_browser_snapshot(path, cursor_path)
+        snapshot = self.load_browser_snapshot(path, cursor_path, show_hidden=show_hidden)
         return snapshot.current_path, snapshot.current_pane, snapshot.parent_pane
 
     def load_parent_child_panes(
@@ -891,11 +897,20 @@ def _build_fallback_snapshot(path: str, cursor_path: str | None) -> BrowserSnaps
     )
 
 
-def _resolve_cursor_path(entries, cursor_path: str | None) -> str | None:
+def _resolve_cursor_path(
+    entries,
+    cursor_path: str | None,
+    show_hidden: bool = False,
+) -> str | None:
     if cursor_path and _contains_path(entries, cursor_path):
         return cursor_path
     if not entries:
         return None
+    if show_hidden:
+        return entries[0].path
+    for entry in entries:
+        if not entry.hidden:
+            return entry.path
     return entries[0].path
 
 

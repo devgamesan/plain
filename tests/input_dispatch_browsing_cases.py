@@ -44,8 +44,8 @@ def test_iter_bound_keys_includes_printable_text_input_keys() -> None:
     assert "shift+up" in keys
     assert "shift+down" in keys
     assert "shift+delete" in keys
-    assert "{" in keys
-    assert "}" in keys
+    assert "[" in keys
+    assert "]" in keys
 
 
 def test_browsing_j_dispatches_move_cursor() -> None:
@@ -689,7 +689,7 @@ def test_search_palette_k_key_updates_query() -> None:
         command_palette=CommandPaletteState(
             source="grep_search",
             query="ab",
-            grep_search_keyword="ab",
+            grep_search=GrepSearchPaletteState(keyword="ab"),
         ),
     )
 
@@ -731,8 +731,10 @@ def test_grep_palette_printable_key_updates_include_field() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="grep_search",
-            grep_search_active_field="include",
-            grep_search_include_extensions="p",
+            grep_search=GrepSearchPaletteState(
+                active_field="include",
+                include_extensions="p",
+            ),
         ),
     )
 
@@ -750,8 +752,10 @@ def test_grep_palette_printable_key_updates_filename_field() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="grep_search",
-            grep_search_active_field="filename",
-            grep_search_filename_filter="READ",
+            grep_search=GrepSearchPaletteState(
+                active_field="filename",
+                filename_filter="READ",
+            ),
         ),
     )
 
@@ -1029,33 +1033,17 @@ def test_browsing_capital_G_begins_go_to_path() -> None:
     assert isinstance(actions[1], BeginGoToPath)
 
 
-def test_browsing_open_bracket_is_reserved_for_preview_scroll() -> None:
+def test_browsing_open_bracket_dispatches_go_back() -> None:
     state = build_initial_app_state()
 
     actions = dispatch_key_input(state, key="[")
 
-    assert actions == ()
-
-
-def test_browsing_close_bracket_is_reserved_for_preview_scroll() -> None:
-    state = build_initial_app_state()
-
-    actions = dispatch_key_input(state, key="]")
-
-    assert actions == ()
-
-
-def test_browsing_open_brace_dispatches_go_back() -> None:
-    state = build_initial_app_state()
-
-    actions = dispatch_key_input(state, key="{")
-
     assert actions == (SetNotification(None), GoBack())
 
 
-def test_browsing_close_brace_dispatches_go_forward() -> None:
+def test_browsing_close_bracket_dispatches_go_forward() -> None:
     state = build_initial_app_state()
 
-    actions = dispatch_key_input(state, key="}")
+    actions = dispatch_key_input(state, key="]")
 
     assert actions == (SetNotification(None), GoForward())

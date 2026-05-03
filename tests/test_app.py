@@ -16,6 +16,7 @@ from textual.widgets import DataTable, Label, Static
 
 from zivo import create_app
 from zivo.app import _preview_scroll_delta
+from zivo.app_overlay_layout import update_pane_visibility
 from zivo.models import (
     AppConfig,
     BehaviorConfig,
@@ -701,7 +702,7 @@ async def _wait_for_file_search_results(
     while True:
         palette = app.app_state.command_palette
         actual_paths = (
-            [result.display_path for result in palette.file_search_results]
+            [result.display_path for result in palette.file_search.results]
             if palette is not None
             else None
         )
@@ -1151,7 +1152,7 @@ async def test_app_ignores_terminal_response_sequences_in_browsing_mode() -> Non
 async def test_textual_parser_ignores_terminal_device_attributes_response() -> None:
     from textual._xterm_parser import XTermParser
 
-    from zivo.app import _install_textual_terminal_response_filters
+    from zivo.app_terminal_response import _install_textual_terminal_response_filters
 
     _install_textual_terminal_response_filters()
     parser = XTermParser()
@@ -1165,7 +1166,7 @@ async def test_textual_parser_ignores_terminal_device_attributes_response() -> N
 async def test_textual_parser_ignores_terminal_osc_color_response() -> None:
     from textual._xterm_parser import XTermParser
 
-    from zivo.app import _install_textual_terminal_response_filters
+    from zivo.app_terminal_response import _install_textual_terminal_response_filters
 
     _install_textual_terminal_response_filters()
     parser = XTermParser()
@@ -1180,7 +1181,7 @@ async def test_textual_parser_ignores_terminal_osc_color_response() -> None:
 async def test_textual_parser_ignores_split_terminal_osc_color_response() -> None:
     from textual._xterm_parser import XTermParser
 
-    from zivo.app import _install_textual_terminal_response_filters
+    from zivo.app_terminal_response import _install_textual_terminal_response_filters
 
     _install_textual_terminal_response_filters()
     parser = XTermParser()
@@ -1233,12 +1234,12 @@ async def test_app_browsing_preview_scrolls_with_brackets() -> None:
         child_preview_scroll = app.query_one("#child-pane-preview-scroll", VerticalScroll)
         initial_scroll_y = child_preview_scroll.scroll_y
 
-        await app.action_dispatch_bound_key("]")
+        await app.action_dispatch_bound_key("ctrl+k")
         await asyncio.sleep(0.05)
         assert child_preview_scroll.scroll_y > initial_scroll_y
 
         scrolled_down_y = child_preview_scroll.scroll_y
-        await app.action_dispatch_bound_key("[")
+        await app.action_dispatch_bound_key("ctrl+j")
         await asyncio.sleep(0.05)
         assert child_preview_scroll.scroll_y < scrolled_down_y
 
@@ -1347,8 +1348,83 @@ async def test_app_row_selected_double_click_enters_directory() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_parent_pane_double_click_opens_file_with_default_app() -> None:
-    path = str(Path("/tmp/zivo-parent-file-open/current").resolve())
+async def test_app_parent_pane_dir_single_click_enters_directory() -> None:
+    path = str(Path("/tmp/zivo-parent-dir-click/current").resolve())
+    parent_path = str(Path(path).parent)
+    sibling_path = f"{parent_path}/sibling"
+    sibling_file = f"{sibling_path}/notes.txt"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: BrowserSnapshot(
+                current_path=path,
+                parent_pane=PaneState(
+                    directory_path=parent_path,
+                    entries=(
+                        DirectoryEntryState(path, "current", "dir"),
+                        DirectoryEntryState(sibling_path, "sibling", "dir"),
+                    ),
+                    cursor_path=path,
+                ),
+                current_pane=PaneState(
+                    directory_path=path,
+                    entries=(DirectoryEntryState(f"{path}/README.md", "README.md", "file"),),
+                    cursor_path=f"{path}/README.md",
+                ),
+                child_pane=PaneState(
+                    directory_path=path,
+                    entries=(),
+                ),
+            ),
+            sibling_path: BrowserSnapshot(
+                current_path=sibling_path,
+                parent_pane=PaneState(
+                    directory_path=parent_path,
+                    entries=(
+                        DirectoryEntryState(path, "current", "dir"),
+                        DirectoryEntryState(sibling_path, "sibling", "dir"),
+                    ),
+                    cursor_path=sibling_path,
+                ),
+                current_pane=PaneState(
+                    directory_path=sibling_path,
+                    entries=(
+                        DirectoryEntryState(sibling_file, "notes.txt", "file"),
+                    ),
+                    cursor_path=sibling_file,
+                ),
+                child_pane=PaneState(
+                    directory_path=sibling_path,
+                    entries=(),
+                    mode="preview",
+                    preview_path=sibling_file,
+                    preview_content="hello world",
+                ),
+            ),
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(120, 20)):
+        await _wait_for_snapshot_loaded(app, path)
+        await app.on_side_pane_entry_clicked(
+            SidePane.EntryClicked("parent-pane", sibling_path, double_click=False)
+        )
+        await _wait_for_snapshot_loaded(app, sibling_path)
+
+        assert app.app_state.current_path == sibling_path
+        assert app.app_state.current_pane.cursor_path == sibling_file
+        assert app.app_state.child_pane.mode == "preview"
+        assert app.app_state.child_pane.preview_path == sibling_file
+        assert app.app_state.child_pane.preview_content == "hello world"
+
+        shell = select_shell_data(app.app_state)
+        assert shell.child_pane.preview_path == sibling_file
+        assert shell.child_pane.preview_content == "hello world"
+
+
+@pytest.mark.asyncio
+async def test_app_parent_pane_file_single_click_does_nothing() -> None:
+    path = str(Path("/tmp/zivo-parent-file-single/current").resolve())
     parent_path = str(Path(path).parent)
     parent_file = f"{parent_path}/notes.txt"
     loader = FakeBrowserSnapshotLoader(
@@ -1372,7 +1448,7 @@ async def test_app_parent_pane_double_click_opens_file_with_default_app() -> Non
                     directory_path=path,
                     entries=(),
                 ),
-            )
+            ),
         }
     )
     external_launch_service = FakeExternalLaunchService()
@@ -1385,12 +1461,99 @@ async def test_app_parent_pane_double_click_opens_file_with_default_app() -> Non
     async with app.run_test():
         await _wait_for_snapshot_loaded(app, path)
         await app.on_side_pane_entry_clicked(
-            SidePane.EntryClicked("parent-pane", parent_file, double_click=True)
+            SidePane.EntryClicked("parent-pane", parent_file, double_click=False)
         )
-        await _wait_for_external_launch_count(app, 1)
 
-        assert len(external_launch_service.executed_requests) == 1
-        assert external_launch_service.executed_requests[0].path == parent_file
+        assert app.app_state.current_path == path
+        assert len(external_launch_service.executed_requests) == 0
+
+
+@pytest.mark.asyncio
+async def test_app_child_pane_dir_single_click_enters_directory() -> None:
+    path = str(Path("/tmp/zivo-child-dir-click").resolve())
+    docs_path = f"{path}/docs"
+    guide_md = f"{docs_path}/guide.md"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(docs_path, "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                ),
+                child_path=path,
+                child_entries=(DirectoryEntryState(docs_path, "docs", "dir"),),
+            ),
+            docs_path: BrowserSnapshot(
+                current_path=docs_path,
+                parent_pane=PaneState(
+                    directory_path=str(Path(docs_path).parent),
+                    entries=(
+                        DirectoryEntryState(docs_path, "docs", "dir"),
+                        DirectoryEntryState(f"{path}/sibling", "sibling", "dir"),
+                    ),
+                    cursor_path=docs_path,
+                ),
+                current_pane=PaneState(
+                    directory_path=docs_path,
+                    entries=(DirectoryEntryState(guide_md, "guide.md", "file"),),
+                    cursor_path=guide_md,
+                ),
+                child_pane=PaneState(
+                    directory_path=docs_path,
+                    entries=(),
+                    mode="preview",
+                    preview_path=guide_md,
+                    preview_content="# Guide\ndetail\n",
+                ),
+            ),
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(120, 20)):
+        await _wait_for_snapshot_loaded(app, path)
+        await app.on_child_pane_entry_clicked(
+            ChildPane.EntryClicked("child-pane", docs_path, double_click=False)
+        )
+        await _wait_for_snapshot_loaded(app, docs_path)
+
+        assert app.app_state.current_path == docs_path
+        assert app.app_state.current_pane.cursor_path == guide_md
+        assert app.app_state.child_pane.mode == "preview"
+        assert app.app_state.child_pane.preview_path == guide_md
+
+        shell = select_shell_data(app.app_state)
+        assert shell.child_pane.preview_path == guide_md
+        assert shell.child_pane.preview_content is not None
+
+
+@pytest.mark.asyncio
+async def test_app_child_pane_file_single_click_does_nothing() -> None:
+    path = str(Path("/tmp/zivo-child-file-single").resolve())
+    child_file = f"{path}/notes.txt"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(f"{path}/README.md", "README.md", "file"),),
+                child_path=path,
+                child_entries=(
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                    DirectoryEntryState(child_file, "notes.txt", "file"),
+                ),
+            ),
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(120, 20)):
+        await _wait_for_snapshot_loaded(app, path)
+        await app.on_child_pane_entry_clicked(
+            ChildPane.EntryClicked("child-pane", child_file, double_click=False)
+        )
+
+        assert app.app_state.current_path == path
 
 
 @pytest.mark.asyncio
@@ -2954,8 +3117,8 @@ async def test_app_displays_browsing_help_bar() -> None:
     split_terminal_hint = " | t term" if os.name == "posix" else ""
     expected_help = (
         "enter open | e edit | O gui editor | i info | "
-        "/ filter | s sort | . hidden | [ ] preview | q quit\n"
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
+        "/ filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
+        "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv\n"
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
 
@@ -3367,7 +3530,7 @@ async def test_app_go_to_path_shows_candidates_and_tabs_to_selected_directory(tm
         await asyncio.sleep(0.05)
 
         assert app.app_state.command_palette is not None
-        assert app.app_state.command_palette.go_to_path_candidates == (
+        assert app.app_state.command_palette.history_and_navigation.go_to_path_candidates == (
             docs_path,
             downloads_path,
         )
@@ -3672,7 +3835,7 @@ async def test_app_file_search_passes_regex_queries_through_to_service(tmp_path)
         assert file_search_service.executed_requests == [(path, r"re:^README\.md$", False)]
         assert app.app_state.command_palette is not None
         assert [
-            result.display_path for result in app.app_state.command_palette.file_search_results
+            result.display_path for result in app.app_state.command_palette.file_search.results
         ] == ["README.md"]
 
 
@@ -3710,7 +3873,7 @@ async def test_app_file_search_prefix_extension_reuses_cached_results(tmp_path) 
         assert file_search_service.executed_requests == [(path, "cmd", False)]
         assert app.app_state.command_palette is not None
         assert [
-            result.display_path for result in app.app_state.command_palette.file_search_results
+            result.display_path for result in app.app_state.command_palette.file_search.results
         ] == []
 
 
@@ -3755,7 +3918,7 @@ async def test_app_file_search_cancels_superseded_request_without_notification(t
         assert app.app_state.notification is None
         assert app.app_state.command_palette is not None
         assert [
-            result.display_path for result in app.app_state.command_palette.file_search_results
+            result.display_path for result in app.app_state.command_palette.file_search.results
         ] == ["guide.md"]
 
 
@@ -4018,7 +4181,7 @@ async def test_app_grep_search_filters_results_by_filename(tmp_path) -> None:
         def _filtered_results_ready() -> bool:
             palette = app.app_state.command_palette
             return palette is not None and [
-                result.display_label for result in palette.grep_search_results
+                result.display_label for result in palette.grep_search.results
             ] == expected_labels
 
         await _wait_for_predicate(
@@ -4028,7 +4191,7 @@ async def test_app_grep_search_filters_results_by_filename(tmp_path) -> None:
         )
         assert app.app_state.command_palette is not None
         assert [
-            result.display_label for result in app.app_state.command_palette.grep_search_results
+            result.display_label for result in app.app_state.command_palette.grep_search.results
         ] == expected_labels
 
 
@@ -4080,7 +4243,7 @@ async def test_app_grep_search_cancels_superseded_request_without_notification(t
         assert app.app_state.command_palette is not None
         # Note: Due to timing issues, we just check that results are populated
         # assert [
-        #     result.display_label for result in app.app_state.command_palette.grep_search_results
+        #     result.display_label for result in app.app_state.command_palette.grep_search.results
         # ] == ["guide.md:1: guide"]
 
 
@@ -4302,7 +4465,7 @@ async def test_app_command_palette_replace_text_previews_and_applies_selected_fi
         await _wait_for_predicate(
             lambda: (
                 app.app_state.command_palette is not None
-                and len(app.app_state.command_palette.replace_preview_results) == 2
+                and len(app.app_state.command_palette.replace_preview.preview_results) == 2
             ),
             timeout=0.5,
             message="replace preview results did not appear",
@@ -4324,7 +4487,7 @@ async def test_app_command_palette_replace_text_previews_and_applies_selected_fi
         assert "+done item" in child_pane.preview_content
         assert second_target_path not in child_pane.preview_content
 
-        await pilot.press("ctrl+n")
+        await pilot.press("ctrl+j")
 
         await _wait_for_predicate(
             lambda: select_shell_data(app.app_state).child_pane.preview_path == second_target_path,
@@ -6176,15 +6339,15 @@ async def test_app_toggles_pane_visibility_on_resize() -> None:
         assert parent.display
         assert child.display
 
-        app._update_pane_visibility(60)
+        update_pane_visibility(app, 60)
         assert not parent.display
         assert not child.display
 
-        app._update_pane_visibility(80)
+        update_pane_visibility(app, 80)
         assert not parent.display
         assert child.display
 
-        app._update_pane_visibility(120)
+        update_pane_visibility(app, 120)
         assert parent.display
         assert child.display
 

@@ -43,58 +43,58 @@ from .selectors import compute_search_visible_window
 def active_grep_field_value(state: AppState) -> str:
     if state.command_palette is None:
         return ""
-    field = state.command_palette.grep_search_active_field
+    field = state.command_palette.grep_search.active_field
     if field == "keyword":
-        return state.command_palette.grep_search_keyword or state.command_palette.query
+        return state.command_palette.grep_search.keyword or state.command_palette.query
     if field == "filename":
-        return state.command_palette.grep_search_filename_filter
+        return state.command_palette.grep_search.filename_filter
     if field == "include":
-        return state.command_palette.grep_search_include_extensions
-    return state.command_palette.grep_search_exclude_extensions
+        return state.command_palette.grep_search.include_extensions
+    return state.command_palette.grep_search.exclude_extensions
 
 
 def active_replace_field_value(state: AppState) -> str:
     if state.command_palette is None:
         return ""
-    field = state.command_palette.replace_active_field
+    field = state.command_palette.replace_preview.active_field
     if field == "find":
-        return state.command_palette.replace_find_text
-    return state.command_palette.replace_replacement_text
+        return state.command_palette.replace_preview.find_text
+    return state.command_palette.replace_preview.replacement_text
 
 
 def active_find_replace_field_value(state: AppState) -> str:
     if state.command_palette is None:
         return ""
-    field = state.command_palette.rff_active_field
+    field = state.command_palette.rff.active_field
     if field == "filename":
-        return state.command_palette.rff_filename_query
+        return state.command_palette.rff.filename_query
     if field == "find":
-        return state.command_palette.rff_find_text
-    return state.command_palette.rff_replacement_text
+        return state.command_palette.rff.find_text
+    return state.command_palette.rff.replacement_text
 
 
 def active_grep_replace_field_value(state: AppState) -> str:
     if state.command_palette is None:
         return ""
-    field = state.command_palette.grf_active_field
+    field = state.command_palette.grf.active_field
     if field == "keyword":
-        return state.command_palette.grf_keyword or state.command_palette.query
+        return state.command_palette.grf.keyword or state.command_palette.query
     if field == "replace":
-        return state.command_palette.grf_replacement_text
+        return state.command_palette.grf.replacement_text
     if field == "filename":
-        return state.command_palette.grf_filename_filter
+        return state.command_palette.grf.filename_filter
     if field == "include":
-        return state.command_palette.grf_include_extensions
-    return state.command_palette.grf_exclude_extensions
+        return state.command_palette.grf.include_extensions
+    return state.command_palette.grf.exclude_extensions
 
 
 def active_grep_replace_selected_field_value(state: AppState) -> str:
     if state.command_palette is None:
         return ""
-    field = state.command_palette.grs_active_field
+    field = state.command_palette.grs.active_field
     if field == "keyword":
-        return state.command_palette.grs_keyword or state.command_palette.query
-    return state.command_palette.grs_replacement_text
+        return state.command_palette.grs.keyword or state.command_palette.query
+    return state.command_palette.grs.replacement_text
 
 
 def palette_extra_rows(palette_source: str | None) -> int:
@@ -127,7 +127,7 @@ def dispatch_command_palette_input(
         and state.command_palette is not None
         and state.command_palette.source == "go_to_path"
     ):
-        candidates = state.command_palette.go_to_path_candidates
+        candidates = state.command_palette.history_and_navigation.go_to_path_candidates
         if not candidates:
             return warn("No matching directory to complete")
 
@@ -192,11 +192,11 @@ def dispatch_command_palette_input(
     if key in ("left", "right") and palette_source == "file_search":
         if (
             state.command_palette is not None
-            and state.command_palette.file_search_active_field == "target"
+            and state.command_palette.file_search.active_field == "target"
         ):
             delta = -1 if key == "left" else 1
             targets: tuple[str, ...] = ("files", "directories", "all")
-            current = state.command_palette.file_search_target
+            current = state.command_palette.file_search.target
             index = targets.index(current)
             next_target = targets[(index + delta) % len(targets)]
             return supported(SetFileSearchTarget(target=next_target))
@@ -208,10 +208,10 @@ def dispatch_command_palette_input(
     if key == "down" or (key == "j" and not search_palette):
         return supported(MoveCommandPaletteCursor(delta=1))
 
-    if key == "ctrl+n":
+    if key == "ctrl+j":
         return supported(MoveCommandPaletteCursor(delta=1))
 
-    if key == "ctrl+p":
+    if key == "ctrl+k":
         return supported(MoveCommandPaletteCursor(delta=-1))
 
     if key == "pageup":
@@ -237,7 +237,7 @@ def dispatch_command_palette_input(
         if palette_source == "file_search":
             if (
                 state.command_palette is not None
-                and state.command_palette.file_search_active_field == "target"
+                and state.command_palette.file_search.active_field == "target"
             ):
                 return warn("Use left/right arrows on the target field to change scope")
             current_query = state.command_palette.query if state.command_palette is not None else ""
@@ -245,41 +245,41 @@ def dispatch_command_palette_input(
         if palette_source == "grep_search":
             return supported(
                 SetGrepSearchField(
-                    field=state.command_palette.grep_search_active_field,
+                    field=state.command_palette.grep_search.active_field,
                     value=active_grep_field_value(state)[:-1],
                 )
             )
         if palette_source == "replace_text":
             return supported(
                 SetReplaceField(
-                    field=state.command_palette.replace_active_field,
+                    field=state.command_palette.replace_preview.active_field,
                     value=active_replace_field_value(state)[:-1],
                 )
             )
         if palette_source == "replace_in_found_files":
             return supported(
                 SetFindReplaceField(
-                    field=state.command_palette.rff_active_field,
+                    field=state.command_palette.rff.active_field,
                     value=active_find_replace_field_value(state)[:-1],
                 )
             )
         if palette_source == "replace_in_grep_files":
             return supported(
                 SetGrepReplaceField(
-                    field=state.command_palette.grf_active_field,
+                    field=state.command_palette.grf.active_field,
                     value=active_grep_replace_field_value(state)[:-1],
                 )
             )
         if palette_source == "grep_replace_selected":
             return supported(
                 SetGrepReplaceSelectedField(
-                    field=state.command_palette.grs_active_field,
+                    field=state.command_palette.grs.active_field,
                     value=active_grep_replace_selected_field_value(state)[:-1],
                 )
             )
         if palette_source == "selected_files_grep":
             if state.command_palette is not None:
-                current_value = state.command_palette.sfg_keyword
+                current_value = state.command_palette.sfg.keyword
             else:
                 current_value = ""
             return supported(
@@ -304,11 +304,11 @@ def dispatch_command_palette_input(
         if palette_source == "file_search":
             if (
                 state.command_palette is not None
-                and state.command_palette.file_search_active_field == "target"
+                and state.command_palette.file_search.active_field == "target"
             ):
                 return warn("Use left/right arrows on the target field to change scope")
         if palette_source == "grep_search":
-            active_field: GrepSearchFieldId = state.command_palette.grep_search_active_field
+            active_field: GrepSearchFieldId = state.command_palette.grep_search.active_field
             return supported(
                 SetGrepSearchField(
                     field=active_field,
@@ -316,7 +316,7 @@ def dispatch_command_palette_input(
                 )
             )
         if palette_source == "replace_text":
-            active_field: ReplaceFieldId = state.command_palette.replace_active_field
+            active_field: ReplaceFieldId = state.command_palette.replace_preview.active_field
             return supported(
                 SetReplaceField(
                     field=active_field,
@@ -324,7 +324,7 @@ def dispatch_command_palette_input(
                 )
             )
         if palette_source == "replace_in_found_files":
-            active_field_rff: FindReplaceFieldId = state.command_palette.rff_active_field
+            active_field_rff: FindReplaceFieldId = state.command_palette.rff.active_field
             return supported(
                 SetFindReplaceField(
                     field=active_field_rff,
@@ -332,7 +332,7 @@ def dispatch_command_palette_input(
                 )
             )
         if palette_source == "replace_in_grep_files":
-            active_field_grf: GrepReplaceFieldId = state.command_palette.grf_active_field
+            active_field_grf: GrepReplaceFieldId = state.command_palette.grf.active_field
             return supported(
                 SetGrepReplaceField(
                     field=active_field_grf,
@@ -340,7 +340,7 @@ def dispatch_command_palette_input(
                 )
             )
         if palette_source == "grep_replace_selected":
-            active_field_grs: GrepReplaceSelectedFieldId = state.command_palette.grs_active_field
+            active_field_grs: GrepReplaceSelectedFieldId = state.command_palette.grs.active_field
             return supported(
                 SetGrepReplaceSelectedField(
                     field=active_field_grs,
@@ -349,7 +349,7 @@ def dispatch_command_palette_input(
             )
         if palette_source == "selected_files_grep":
             if state.command_palette is not None:
-                current_value = state.command_palette.sfg_keyword
+                current_value = state.command_palette.sfg.keyword
             else:
                 current_value = ""
             return supported(
@@ -369,15 +369,15 @@ def dispatch_command_palette_input(
         return warn("Use arrows, type to search, Enter, Ctrl+e for editor, or Esc")
 
     if palette_source == "replace_text":
-        return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+n/p, Enter to apply, or Esc")
+        return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+j/k, Enter to apply, or Esc")
 
     if palette_source == "replace_in_found_files":
-        return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+n/p, Enter to apply, or Esc")
+        return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+j/k, Enter to apply, or Esc")
 
     if palette_source == "replace_in_grep_files":
-        return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+n/p, Enter to apply, or Esc")
+        return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+j/k, Enter to apply, or Esc")
 
     if palette_source == "grep_replace_selected":
-        return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+n/p, Enter to apply, or Esc")
+        return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+j/k, Enter to apply, or Esc")
 
     return warn("Use arrows, type to filter, Enter to run, or Esc to cancel")

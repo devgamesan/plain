@@ -161,12 +161,12 @@ def test_config_ctrl_n_moves_cursor() -> None:
         ),
     )
 
-    actions = dispatch_key_input(state, key="ctrl+n")
+    actions = dispatch_key_input(state, key="ctrl+j")
 
     assert actions == (SetNotification(None), MoveConfigEditorCursor(delta=1))
 
 
-def test_config_ctrl_p_moves_cursor() -> None:
+def test_config_ctrl_k_moves_cursor() -> None:
     state = replace(
         build_initial_app_state(config_path="/tmp/zivo/config.toml"),
         ui_mode="CONFIG",
@@ -176,7 +176,7 @@ def test_config_ctrl_p_moves_cursor() -> None:
         ),
     )
 
-    actions = dispatch_key_input(state, key="ctrl+p")
+    actions = dispatch_key_input(state, key="ctrl+k")
 
     assert actions == (SetNotification(None), MoveConfigEditorCursor(delta=-1))
 
@@ -258,7 +258,7 @@ def test_config_unbound_key_shows_guidance() -> None:
             NotificationState(
                 level="warning",
                 message=(
-                    "Use ↑↓ or Ctrl+n/p to choose, ←→ or Enter to change, "
+                        "Use ↑↓ or Ctrl+j/k to choose, ←→ or Enter to change, "
                     "s to save, e to edit the file, r to reset help, or Esc to close"
                 ),
             )

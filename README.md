@@ -229,6 +229,8 @@ uv run pip-licenses --format=plain --from=mixed --with-urls --output-file NOTICE
 
 ---
 
+> **Beta**: zivo is currently in beta. Keybindings may change as features are added and keybindings are reviewed.
+
 ## Development
 
 To prepare the development environment:

@@ -119,12 +119,12 @@ def test_palette_ctrl_n_moves_cursor_down_in_grep_palette() -> None:
         ),
     )
 
-    actions = dispatch_key_input(state, key="ctrl+n")
+    actions = dispatch_key_input(state, key="ctrl+j")
 
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=1))
 
 
-def test_palette_ctrl_p_moves_cursor_up_in_grep_palette() -> None:
+def test_palette_ctrl_k_moves_cursor_up_in_grep_palette() -> None:
     from zivo.state.models import CommandPaletteState
     state = replace(
         build_initial_app_state(),
@@ -135,12 +135,12 @@ def test_palette_ctrl_p_moves_cursor_up_in_grep_palette() -> None:
         ),
     )
 
-    actions = dispatch_key_input(state, key="ctrl+p")
+    actions = dispatch_key_input(state, key="ctrl+k")
 
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=-1))
 
 
-def test_palette_ctrl_n_moves_cursor_down_in_file_search_palette() -> None:
+def test_palette_ctrl_j_moves_cursor_down_in_file_search_palette() -> None:
     from zivo.state.models import CommandPaletteState
     state = replace(
         build_initial_app_state(),
@@ -151,12 +151,12 @@ def test_palette_ctrl_n_moves_cursor_down_in_file_search_palette() -> None:
         ),
     )
 
-    actions = dispatch_key_input(state, key="ctrl+n")
+    actions = dispatch_key_input(state, key="ctrl+j")
 
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=1))
 
 
-def test_palette_ctrl_p_moves_cursor_up_in_file_search_palette() -> None:
+def test_palette_ctrl_k_moves_cursor_up_in_file_search_palette() -> None:
     from zivo.state.models import CommandPaletteState
     state = replace(
         build_initial_app_state(),
@@ -167,12 +167,12 @@ def test_palette_ctrl_p_moves_cursor_up_in_file_search_palette() -> None:
         ),
     )
 
-    actions = dispatch_key_input(state, key="ctrl+p")
+    actions = dispatch_key_input(state, key="ctrl+k")
 
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=-1))
 
 
-def test_palette_ctrl_n_moves_cursor_down_in_replace_palette() -> None:
+def test_palette_ctrl_j_moves_cursor_down_in_replace_palette() -> None:
     from zivo.state.models import CommandPaletteState
 
     state = replace(
@@ -180,16 +180,18 @@ def test_palette_ctrl_n_moves_cursor_down_in_replace_palette() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="replace_text",
-            replace_find_text="todo",
+            replace_preview=ReplacePreviewPaletteState(
+                find_text="todo",
+            ),
         ),
     )
 
-    actions = dispatch_key_input(state, key="ctrl+n")
+    actions = dispatch_key_input(state, key="ctrl+j")
 
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=1))
 
 
-def test_palette_ctrl_p_moves_cursor_up_in_replace_palette() -> None:
+def test_palette_ctrl_k_moves_cursor_up_in_replace_palette() -> None:
     from zivo.state.models import CommandPaletteState
 
     state = replace(
@@ -197,11 +199,13 @@ def test_palette_ctrl_p_moves_cursor_up_in_replace_palette() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="replace_text",
-            replace_find_text="todo",
+            replace_preview=ReplacePreviewPaletteState(
+                find_text="todo",
+            ),
         ),
     )
 
-    actions = dispatch_key_input(state, key="ctrl+p")
+    actions = dispatch_key_input(state, key="ctrl+k")
 
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=-1))
 
@@ -313,7 +317,7 @@ def test_palette_printable_key_updates_rff_filename_field() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="replace_in_found_files",
-            rff_active_field="filename",
+            rff=RffPaletteState(active_field="filename"),
         ),
     )
 
@@ -331,7 +335,7 @@ def test_palette_printable_key_updates_rff_find_field() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="replace_in_found_files",
-            rff_active_field="find",
+            rff=RffPaletteState(active_field="find"),
         ),
     )
 
@@ -349,8 +353,7 @@ def test_palette_backspace_updates_rff_field() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="replace_in_found_files",
-            rff_active_field="find",
-            rff_find_text="todo",
+            rff=RffPaletteState(active_field="find", find_text="todo"),
         ),
     )
 

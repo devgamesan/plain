@@ -46,7 +46,7 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
                 enabled=True,
                 path=result.path,
             )
-            for index, result in enumerate(state.command_palette.file_search_results)
+            for index, result in enumerate(state.command_palette.file_search.results)
         )
 
     if state.command_palette.source == "grep_search":
@@ -58,11 +58,12 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
                 enabled=True,
                 path=result.path,
             )
-            for index, result in enumerate(state.command_palette.grep_search_results)
+            for index, result in enumerate(state.command_palette.grep_search.results)
         )
 
     if state.command_palette.source == "history":
         query = state.command_palette.query
+        history_results = state.command_palette.history_and_navigation.history_results
         return tuple(
             item
             for item in (
@@ -73,7 +74,7 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
                     enabled=True,
                     path=path,
                 )
-                for index, path in enumerate(state.command_palette.history_results)
+                for index, path in enumerate(history_results)
             )
             if _matches_query(item, query)
         )
@@ -96,6 +97,7 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
         )
 
     if state.command_palette.source == "go_to_path":
+        go_to_path_candidates = state.command_palette.history_and_navigation.go_to_path_candidates
         return tuple(
             CommandPaletteItem(
                 id=f"go_to_path_candidate:{index}",
@@ -104,7 +106,7 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
                 enabled=True,
                 path=path,
             )
-            for index, path in enumerate(state.command_palette.go_to_path_candidates)
+            for index, path in enumerate(go_to_path_candidates)
         )
 
     if state.command_palette.source == "replace_in_grep_files":
@@ -116,7 +118,7 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
                 enabled=True,
                 path=result.path,
             )
-            for index, result in enumerate(state.command_palette.grf_preview_results)
+            for index, result in enumerate(state.command_palette.grf.preview_results)
         )
 
     if state.command_palette.source == "grep_replace_selected":
@@ -128,7 +130,7 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
                 enabled=True,
                 path=result.path,
             )
-            for index, result in enumerate(state.command_palette.grs_preview_results)
+            for index, result in enumerate(state.command_palette.grs.preview_results)
         )
 
     query = state.command_palette.query
@@ -151,17 +153,17 @@ def normalize_command_palette_cursor(state: AppState, cursor_index: int) -> int:
     if state.command_palette is None:
         return 0
     if state.command_palette.source == "file_search":
-        item_count = len(state.command_palette.file_search_results)
+        item_count = len(state.command_palette.file_search.results)
     elif state.command_palette.source == "grep_search":
-        item_count = len(state.command_palette.grep_search_results)
+        item_count = len(state.command_palette.grep_search.results)
     elif state.command_palette.source == "replace_text":
-        item_count = len(state.command_palette.replace_preview_results)
+        item_count = len(state.command_palette.replace_preview.preview_results)
     elif state.command_palette.source == "replace_in_found_files":
-        item_count = len(state.command_palette.rff_preview_results)
+        item_count = len(state.command_palette.rff.preview_results)
     elif state.command_palette.source == "replace_in_grep_files":
-        item_count = len(state.command_palette.grf_preview_results)
+        item_count = len(state.command_palette.grf.preview_results)
     elif state.command_palette.source == "grep_replace_selected":
-        item_count = len(state.command_palette.grs_preview_results)
+        item_count = len(state.command_palette.grs.preview_results)
     elif state.command_palette.source == "history":
         item_count = len(get_command_palette_items(state))
     else:
@@ -210,13 +212,13 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         CommandPaletteItem(
             id="go_back",
             label="Go back",
-            shortcut="{",
+            shortcut="[",
             enabled=bool(state.history.back),
         ),
         CommandPaletteItem(
             id="go_forward",
             label="Go forward",
-            shortcut="}",
+            shortcut="]",
             enabled=bool(state.history.forward),
         ),
         CommandPaletteItem(

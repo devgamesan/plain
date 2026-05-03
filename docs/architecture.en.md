@@ -306,7 +306,7 @@ Notes:
   - If an active filter exists, `Esc` clears the filter before clearing selection
 - `PALETTE`
   - Reuses one UI surface for normal commands plus file search, grep search, history, bookmarks, and go-to-path preview
-  - Keeps grep result selection on `↑↓` and `Ctrl+n/p` even though grep search now has multiple input fields
+  - Changed grep result selection to `↑↓` and `Ctrl+j/k` when grep search has multiple input fields
 - `DETAIL`
   - Read-only mode for the attribute dialog
 - `EXTRACT`
@@ -344,7 +344,7 @@ Notes:
 ## 7. Areas Still Unimplemented Or Constrained
 
 - In-app editing, Git integration, tab reordering, and keybinding customization are not implemented
-- Native Windows runtime remains unsupported, even though the config accepts a `windows` terminal key for future compatibility
+- A standalone native Windows executable (compiled binary) is not provided. zivo runs on Windows as a Python application; the `[terminal]` config key accepts a `windows` option for external-terminal launch on Windows and WSL.
 - Directory-size calculation and archive extraction grow in cost with visible directory count or archive contents, so runtime cancellation and progress tracking are part of the design
 
 Filesystem mutations treat the entry path selected in the UI as the trust boundary.  

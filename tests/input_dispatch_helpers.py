@@ -8,10 +8,14 @@ from zivo.state import (
     CommandPaletteState,
     ConfigEditorState,
     DeleteConfirmationState,
+    GrepSearchPaletteState,
+    HistoryAndNavigationPaletteState,
     NameConflictState,
     NotificationState,
     PendingInputState,
     PendingKeySequenceState,
+    ReplacePreviewPaletteState,
+    RffPaletteState,
     ZipCompressConfirmationState,
     build_initial_app_state,
     dispatch_key_input,
@@ -115,7 +119,9 @@ def _reduce_go_to_path_state(
             source="go_to_path",
             query=query,
             cursor_index=cursor_index,
-            go_to_path_candidates=candidates,
+            history_and_navigation=HistoryAndNavigationPaletteState(
+                go_to_path_candidates=candidates,
+            ),
         ),
     )
     return state

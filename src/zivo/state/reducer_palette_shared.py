@@ -14,6 +14,7 @@ from .models import (
     GrepReplaceSelectedFieldId,
     GrepSearchFieldId,
     GrepSearchResultState,
+    HistoryAndNavigationPaletteState,
     NotificationState,
     ReplaceFieldId,
     ReplacePreviewResultState,
@@ -42,12 +43,12 @@ def grep_field_value(
     field: GrepSearchFieldId,
 ) -> str:
     if field == "keyword":
-        return palette.grep_search_keyword
+        return palette.grep_search.keyword
     if field == "filename":
-        return palette.grep_search_filename_filter
+        return palette.grep_search.filename_filter
     if field == "include":
-        return palette.grep_search_include_extensions
-    return palette.grep_search_exclude_extensions
+        return palette.grep_search.include_extensions
+    return palette.grep_search.exclude_extensions
 
 
 def replace_grep_field(
@@ -57,12 +58,25 @@ def replace_grep_field(
     value: str,
 ) -> CommandPaletteState:
     if field == "keyword":
-        return replace(palette, query=value, grep_search_keyword=value)
+        return replace(
+            palette,
+            query=value,
+            grep_search=replace(palette.grep_search, keyword=value),
+        )
     if field == "filename":
-        return replace(palette, grep_search_filename_filter=value)
+        return replace(
+            palette,
+            grep_search=replace(palette.grep_search, filename_filter=value),
+        )
     if field == "include":
-        return replace(palette, grep_search_include_extensions=value)
-    return replace(palette, grep_search_exclude_extensions=value)
+        return replace(
+            palette,
+            grep_search=replace(palette.grep_search, include_extensions=value),
+        )
+    return replace(
+        palette,
+        grep_search=replace(palette.grep_search, exclude_extensions=value),
+    )
 
 
 def replace_field_value(
@@ -70,8 +84,8 @@ def replace_field_value(
     field: ReplaceFieldId,
 ) -> str:
     if field == "find":
-        return palette.replace_find_text
-    return palette.replace_replacement_text
+        return palette.replace_preview.find_text
+    return palette.replace_preview.replacement_text
 
 
 def replace_replace_field(
@@ -81,8 +95,14 @@ def replace_replace_field(
     value: str,
 ) -> CommandPaletteState:
     if field == "find":
-        return replace(palette, replace_find_text=value)
-    return replace(palette, replace_replacement_text=value)
+        return replace(
+            palette,
+            replace_preview=replace(palette.replace_preview, find_text=value),
+        )
+    return replace(
+        palette,
+        replace_preview=replace(palette.replace_preview, replacement_text=value),
+    )
 
 
 def grf_field_value(
@@ -90,14 +110,14 @@ def grf_field_value(
     field: GrepReplaceFieldId,
 ) -> str:
     if field == "keyword":
-        return palette.grf_keyword
+        return palette.grf.keyword
     if field == "replace":
-        return palette.grf_replacement_text
+        return palette.grf.replacement_text
     if field == "filename":
-        return palette.grf_filename_filter
+        return palette.grf.filename_filter
     if field == "include":
-        return palette.grf_include_extensions
-    return palette.grf_exclude_extensions
+        return palette.grf.include_extensions
+    return palette.grf.exclude_extensions
 
 
 def replace_grf_field(
@@ -107,14 +127,14 @@ def replace_grf_field(
     value: str,
 ) -> CommandPaletteState:
     if field == "keyword":
-        return replace(palette, query=value, grf_keyword=value)
+        return replace(palette, query=value, grf=replace(palette.grf, keyword=value))
     if field == "replace":
-        return replace(palette, grf_replacement_text=value)
+        return replace(palette, grf=replace(palette.grf, replacement_text=value))
     if field == "filename":
-        return replace(palette, grf_filename_filter=value)
+        return replace(palette, grf=replace(palette.grf, filename_filter=value))
     if field == "include":
-        return replace(palette, grf_include_extensions=value)
-    return replace(palette, grf_exclude_extensions=value)
+        return replace(palette, grf=replace(palette.grf, include_extensions=value))
+    return replace(palette, grf=replace(palette.grf, exclude_extensions=value))
 
 
 def grs_field_value(
@@ -122,8 +142,8 @@ def grs_field_value(
     field: GrepReplaceSelectedFieldId,
 ) -> str:
     if field == "keyword":
-        return palette.grs_keyword or palette.query
-    return palette.grs_replacement_text
+        return palette.grs.keyword or palette.query
+    return palette.grs.replacement_text
 
 
 def replace_grs_field(
@@ -133,8 +153,8 @@ def replace_grs_field(
     value: str,
 ) -> CommandPaletteState:
     if field == "keyword":
-        return replace(palette, grs_keyword=value)
-    return replace(palette, grs_replacement_text=value)
+        return replace(palette, grs=replace(palette.grs, keyword=value))
+    return replace(palette, grs=replace(palette.grs, replacement_text=value))
 
 
 def normalize_grep_extension_filters(
@@ -216,7 +236,9 @@ def enter_palette(
         pending_input=None,
         command_palette=CommandPaletteState(
             source=source,
-            history_results=history_results,
+            history_and_navigation=HistoryAndNavigationPaletteState(
+                history_results=history_results,
+            ),
         ),
         pending_file_search_request_id=None,
         pending_grep_search_request_id=None,

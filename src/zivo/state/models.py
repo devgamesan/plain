@@ -405,76 +405,120 @@ class ReplacePreviewResultState:
 
 
 @dataclass(frozen=True)
+class HistoryAndNavigationPaletteState:
+    history_results: tuple[str, ...] = ()
+    go_to_path_candidates: tuple[str, ...] = ()
+    go_to_path_selection_active: bool = True
+
+
+@dataclass(frozen=True)
+class SfgPaletteState:
+    target_paths: tuple[str, ...] = ()
+    keyword: str = ""
+    active_field: SelectedFilesGrepFieldId = "keyword"
+    results: tuple[GrepSearchResultState, ...] = ()
+    error_message: str | None = None
+
+
+@dataclass(frozen=True)
+class FileSearchPaletteState:
+    results: tuple[FileSearchResultState, ...] = ()
+    error_message: str | None = None
+    cache_query: str = ""
+    cache_results: tuple[FileSearchResultState, ...] = ()
+    cache_root_path: str | None = None
+    cache_show_hidden: bool = False
+    cache_target: FileSearchTarget | None = None
+    target: FileSearchTarget = "all"
+    active_field: FileSearchFieldId = "keyword"
+
+
+@dataclass(frozen=True)
+class GrepSearchPaletteState:
+    keyword: str = ""
+    filename_filter: str = ""
+    include_extensions: str = ""
+    exclude_extensions: str = ""
+    active_field: GrepSearchFieldId = "keyword"
+    results: tuple[GrepSearchResultState, ...] = ()
+    error_message: str | None = None
+
+
+@dataclass(frozen=True)
+class ReplacePreviewPaletteState:
+    find_text: str = ""
+    replacement_text: str = ""
+    active_field: ReplaceFieldId = "find"
+    preview_results: tuple[ReplacePreviewResultState, ...] = ()
+    error_message: str | None = None
+    status_message: str | None = None
+    target_paths: tuple[str, ...] = ()
+    total_match_count: int = 0
+
+
+@dataclass(frozen=True)
+class RffPaletteState:
+    filename_query: str = ""
+    active_field: FindReplaceFieldId = "filename"
+    find_text: str = ""
+    replacement_text: str = ""
+    file_results: tuple[FileSearchResultState, ...] = ()
+    file_error_message: str | None = None
+    preview_results: tuple[ReplacePreviewResultState, ...] = ()
+    error_message: str | None = None
+    status_message: str | None = None
+    total_match_count: int = 0
+
+
+@dataclass(frozen=True)
+class GrsPaletteState:
+    keyword: str = ""
+    active_field: GrepReplaceSelectedFieldId = "keyword"
+    grep_results: tuple[GrepSearchResultState, ...] = ()
+    grep_error_message: str | None = None
+    replacement_text: str = ""
+    preview_results: tuple[ReplacePreviewResultState, ...] = ()
+    error_message: str | None = None
+    status_message: str | None = None
+    total_match_count: int = 0
+    target_paths: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class GrfPaletteState:
+    keyword: str = ""
+    include_extensions: str = ""
+    exclude_extensions: str = ""
+    active_field: GrepReplaceFieldId = "keyword"
+    grep_results: tuple[GrepSearchResultState, ...] = ()
+    grep_error_message: str | None = None
+    filename_filter: str = ""
+    replacement_text: str = ""
+    preview_results: tuple[ReplacePreviewResultState, ...] = ()
+    error_message: str | None = None
+    status_message: str | None = None
+    total_match_count: int = 0
+
+
+@dataclass(frozen=True)
 class CommandPaletteState:
     """Transient palette search and cursor state."""
 
     source: CommandPaletteSource = "commands"
     query: str = ""
-    grep_search_keyword: str = ""
-    grep_search_filename_filter: str = ""
-    grep_search_include_extensions: str = ""
-    grep_search_exclude_extensions: str = ""
-    grep_search_active_field: GrepSearchFieldId = "keyword"
-    replace_find_text: str = ""
-    replace_replacement_text: str = ""
-    replace_active_field: ReplaceFieldId = "find"
     cursor_index: int = 0
-    file_search_results: tuple[FileSearchResultState, ...] = ()
-    file_search_error_message: str | None = None
-    file_search_cache_query: str = ""
-    file_search_cache_results: tuple[FileSearchResultState, ...] = ()
-    file_search_cache_root_path: str | None = None
-    file_search_cache_show_hidden: bool = False
-    file_search_target: FileSearchTarget = "all"
-    file_search_active_field: FileSearchFieldId = "keyword"
-    file_search_cache_target: FileSearchTarget | None = None
-    grep_search_results: tuple[GrepSearchResultState, ...] = ()
-    grep_search_error_message: str | None = None
-    replace_preview_results: tuple[ReplacePreviewResultState, ...] = ()
-    replace_error_message: str | None = None
-    replace_status_message: str | None = None
-    replace_target_paths: tuple[str, ...] = ()
-    replace_total_match_count: int = 0
-    history_results: tuple[str, ...] = ()
-    go_to_path_candidates: tuple[str, ...] = ()
-    go_to_path_selection_active: bool = True
-    rff_filename_query: str = ""
-    rff_active_field: FindReplaceFieldId = "filename"
-    rff_find_text: str = ""
-    rff_replacement_text: str = ""
-    rff_file_results: tuple[FileSearchResultState, ...] = ()
-    rff_file_error_message: str | None = None
-    rff_preview_results: tuple[ReplacePreviewResultState, ...] = ()
-    rff_error_message: str | None = None
-    rff_status_message: str | None = None
-    rff_total_match_count: int = 0
-    grf_keyword: str = ""
-    grf_include_extensions: str = ""
-    grf_exclude_extensions: str = ""
-    grf_active_field: GrepReplaceFieldId = "keyword"
-    grf_grep_results: tuple[GrepSearchResultState, ...] = ()
-    grf_grep_error_message: str | None = None
-    grf_filename_filter: str = ""
-    grf_replacement_text: str = ""
-    grf_preview_results: tuple[ReplacePreviewResultState, ...] = ()
-    grf_error_message: str | None = None
-    grf_status_message: str | None = None
-    grf_total_match_count: int = 0
-    grs_keyword: str = ""
-    grs_active_field: GrepReplaceSelectedFieldId = "keyword"
-    grs_grep_results: tuple[GrepSearchResultState, ...] = ()
-    grs_grep_error_message: str | None = None
-    grs_replacement_text: str = ""
-    grs_preview_results: tuple[ReplacePreviewResultState, ...] = ()
-    grs_error_message: str | None = None
-    grs_status_message: str | None = None
-    grs_total_match_count: int = 0
-    grs_target_paths: tuple[str, ...] = ()
-    sfg_target_paths: tuple[str, ...] = ()
-    sfg_keyword: str = ""
-    sfg_active_field: SelectedFilesGrepFieldId = "keyword"
-    sfg_results: tuple[GrepSearchResultState, ...] = ()
-    sfg_error_message: str | None = None
+    file_search: FileSearchPaletteState = field(default_factory=FileSearchPaletteState)
+    grep_search: GrepSearchPaletteState = field(default_factory=GrepSearchPaletteState)
+    replace_preview: ReplacePreviewPaletteState = field(
+        default_factory=ReplacePreviewPaletteState,
+    )
+    history_and_navigation: HistoryAndNavigationPaletteState = field(
+        default_factory=HistoryAndNavigationPaletteState
+    )
+    rff: RffPaletteState = field(default_factory=RffPaletteState)
+    grs: GrsPaletteState = field(default_factory=GrsPaletteState)
+    grf: GrfPaletteState = field(default_factory=GrfPaletteState)
+    sfg: SfgPaletteState = field(default_factory=SfgPaletteState)
 
 
 @dataclass(frozen=True)

@@ -135,7 +135,13 @@ def _handle_move_palette_cursor(state: AppState, action: MoveCommandPaletteCurso
         ),
     )
     if state.command_palette.source == "go_to_path":
-        next_palette = replace(next_palette, go_to_path_selection_active=True)
+        next_palette = replace(
+            next_palette,
+            history_and_navigation=replace(
+                next_palette.history_and_navigation,
+                go_to_path_selection_active=True,
+            ),
+        )
     next_state = replace(state, command_palette=next_palette)
     if state.command_palette.source == "file_search":
         return sync_file_search_preview(next_state)
@@ -159,8 +165,14 @@ def _next_palette_query_state(state: AppState, query: str):
         state.command_palette,
         query=query,
         cursor_index=0,
-        file_search_error_message=None,
-        grep_search_error_message=None,
+        file_search=replace(
+            state.command_palette.file_search,
+            error_message=None,
+        ),
+        grep_search=replace(
+            state.command_palette.grep_search,
+            error_message=None,
+        ),
     )
 
 def _handle_set_palette_query(state: AppState, action: SetCommandPaletteQuery) -> ReduceResult:
@@ -188,14 +200,17 @@ def _handle_set_palette_query(state: AppState, action: SetCommandPaletteQuery) -
 def _handle_cycle_grep_search_field(state: AppState, action: CycleGrepSearchField) -> ReduceResult:
     if state.command_palette is None or state.command_palette.source != "grep_search":
         return finalize(state)
-    current_index = GREP_SEARCH_FIELDS.index(state.command_palette.grep_search_active_field)
+    current_index = GREP_SEARCH_FIELDS.index(state.command_palette.grep_search.active_field)
     next_index = (current_index + action.delta) % len(GREP_SEARCH_FIELDS)
     return finalize(
         replace(
             state,
             command_palette=replace(
                 state.command_palette,
-                grep_search_active_field=GREP_SEARCH_FIELDS[next_index],
+                grep_search=replace(
+                    state.command_palette.grep_search,
+                    active_field=GREP_SEARCH_FIELDS[next_index],
+                ),
             ),
         )
     )
@@ -265,7 +280,10 @@ def _handle_begin_text_replace(
             next_state,
             command_palette=replace(
                 next_state.command_palette,
-                replace_target_paths=action.target_paths,
+                replace_preview=replace(
+                    next_state.command_palette.replace_preview,
+                    target_paths=action.target_paths,
+                ),
             ),
         )
     )
@@ -301,7 +319,10 @@ def _handle_begin_grep_replace_selected(
             next_state,
             command_palette=replace(
                 next_state.command_palette,
-                grs_target_paths=action.target_paths,
+                grs=replace(
+                    next_state.command_palette.grs,
+                    target_paths=action.target_paths,
+                ),
             ),
         )
     )
@@ -319,7 +340,10 @@ def _handle_begin_selected_files_grep(
             next_state,
             command_palette=replace(
                 next_state.command_palette,
-                sfg_target_paths=action.target_paths,
+                sfg=replace(
+                    next_state.command_palette.sfg,
+                    target_paths=action.target_paths,
+                ),
             ),
         )
     )

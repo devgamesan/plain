@@ -11,7 +11,7 @@ OS support status and dependency installation instructions for zivo.
 | Ubuntu | Supported | Primary verified environment at the moment. |
 | Ubuntu (WSL) | Supported | WSL running Ubuntu is part of the verified environments. |
 | macOS | Supported | Grant Full Disk Access to your terminal for trash operations. |
-| Windows | Supported | Drive navigation, file operations, clipboard, shell commands, external terminal, undo, and most features. `zivo-cd` is not yet available on Windows. |
+| Windows | Supported | Drive navigation, file operations, clipboard, shell commands, external terminal, undo, and most features. `zivo-cd` is not yet available on Windows. zivo runs on Windows as a Python application; a standalone native executable is not provided. |
 
 ---
 

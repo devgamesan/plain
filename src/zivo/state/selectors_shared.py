@@ -311,7 +311,7 @@ def _select_file_search_window(
         state.terminal_height,
         extra_rows=_FILE_SEARCH_EXTRA_INPUT_ROWS,
     )
-    target = state.command_palette.file_search_target if state.command_palette else "all"
+    target = state.command_palette.file_search.target if state.command_palette else "all"
     title = {
         "files": "Find File",
         "directories": "Find Directory",
@@ -346,9 +346,9 @@ def _select_replace_preview_window(
         extra_rows=_GREP_SEARCH_EXTRA_INPUT_ROWS,
     )
     title = "Replace Text"
-    if state.command_palette is not None and state.command_palette.replace_preview_results:
-        file_count = len(state.command_palette.replace_preview_results)
-        total_matches = state.command_palette.replace_total_match_count
+    if state.command_palette is not None and state.command_palette.replace_preview.preview_results:
+        file_count = len(state.command_palette.replace_preview.preview_results)
+        total_matches = state.command_palette.replace_preview.total_match_count
         title = f"Replace Text ({file_count} file(s), {total_matches} match(es))"
     return _select_search_window(results, cursor_index, title=title, visible_window=visible_window)
 
@@ -405,27 +405,27 @@ def _build_grep_search_input_fields(
     return (
         CommandPaletteInputFieldViewState(
             label="Keyword",
-            value=palette.grep_search_keyword or palette.query,
+            value=palette.grep_search.keyword or palette.query,
             placeholder="text or re:pattern",
-            active=palette.grep_search_active_field == "keyword",
+            active=palette.grep_search.active_field == "keyword",
         ),
         CommandPaletteInputFieldViewState(
             label="Filter: Filename",
-            value=palette.grep_search_filename_filter,
+            value=palette.grep_search.filename_filter,
             placeholder="pattern or re:pattern",
-            active=palette.grep_search_active_field == "filename",
+            active=palette.grep_search.active_field == "filename",
         ),
         CommandPaletteInputFieldViewState(
             label="Include extensions",
-            value=palette.grep_search_include_extensions,
+            value=palette.grep_search.include_extensions,
             placeholder="e.g. py, js",
-            active=palette.grep_search_active_field == "include",
+            active=palette.grep_search.active_field == "include",
         ),
         CommandPaletteInputFieldViewState(
             label="Exclude extensions",
-            value=palette.grep_search_exclude_extensions,
+            value=palette.grep_search.exclude_extensions,
             placeholder="e.g. log, tmp",
-            active=palette.grep_search_active_field == "exclude",
+            active=palette.grep_search.active_field == "exclude",
         ),
     )
 
@@ -439,13 +439,13 @@ def _build_file_search_input_fields(
             label="Keyword",
             value=palette.query,
             placeholder="type a filename or re:pattern",
-            active=palette.file_search_active_field == "keyword",
+            active=palette.file_search.active_field == "keyword",
         ),
         CommandPaletteInputFieldViewState(
             label="Target",
-            value=target_labels.get(palette.file_search_target, "all"),
+            value=target_labels.get(palette.file_search.target, "all"),
             placeholder="files/dirs/all",
-            active=palette.file_search_active_field == "target",
+            active=palette.file_search.active_field == "target",
         ),
     )
 
@@ -456,15 +456,15 @@ def _build_replace_input_fields(
     return (
         CommandPaletteInputFieldViewState(
             label="Find",
-            value=palette.replace_find_text,
+            value=palette.replace_preview.find_text,
             placeholder="text or re:pattern",
-            active=palette.replace_active_field == "find",
+            active=palette.replace_preview.active_field == "find",
         ),
         CommandPaletteInputFieldViewState(
             label="Replace",
-            value=palette.replace_replacement_text,
+            value=palette.replace_preview.replacement_text,
             placeholder="replacement text",
-            active=palette.replace_active_field == "replace",
+            active=palette.replace_preview.active_field == "replace",
         ),
     )
 
@@ -475,21 +475,21 @@ def _build_find_replace_input_fields(
     return (
         CommandPaletteInputFieldViewState(
             label="Filename",
-            value=palette.rff_filename_query,
+            value=palette.rff.filename_query,
             placeholder="pattern or re:pattern",
-            active=palette.rff_active_field == "filename",
+            active=palette.rff.active_field == "filename",
         ),
         CommandPaletteInputFieldViewState(
             label="Find",
-            value=palette.rff_find_text,
+            value=palette.rff.find_text,
             placeholder="text or re:pattern",
-            active=palette.rff_active_field == "find",
+            active=palette.rff.active_field == "find",
         ),
         CommandPaletteInputFieldViewState(
             label="Replace",
-            value=palette.rff_replacement_text,
+            value=palette.rff.replacement_text,
             placeholder="replacement text",
-            active=palette.rff_active_field == "replace",
+            active=palette.rff.active_field == "replace",
         ),
     )
 
@@ -500,33 +500,33 @@ def _build_grep_replace_input_fields(
     return (
         CommandPaletteInputFieldViewState(
             label="Keyword",
-            value=palette.grf_keyword or palette.query,
+            value=palette.grf.keyword or palette.query,
             placeholder="search text",
-            active=palette.grf_active_field == "keyword",
+            active=palette.grf.active_field == "keyword",
         ),
         CommandPaletteInputFieldViewState(
             label="Replace",
-            value=palette.grf_replacement_text,
+            value=palette.grf.replacement_text,
             placeholder="replacement text",
-            active=palette.grf_active_field == "replace",
+            active=palette.grf.active_field == "replace",
         ),
         CommandPaletteInputFieldViewState(
             label="Filter: Filename",
-            value=palette.grf_filename_filter,
+            value=palette.grf.filename_filter,
             placeholder="pattern or re:pattern",
-            active=palette.grf_active_field == "filename",
+            active=palette.grf.active_field == "filename",
         ),
         CommandPaletteInputFieldViewState(
             label="Include extensions",
-            value=palette.grf_include_extensions,
+            value=palette.grf.include_extensions,
             placeholder="e.g. py, js",
-            active=palette.grf_active_field == "include",
+            active=palette.grf.active_field == "include",
         ),
         CommandPaletteInputFieldViewState(
             label="Exclude extensions",
-            value=palette.grf_exclude_extensions,
+            value=palette.grf.exclude_extensions,
             placeholder="e.g. log, tmp",
-            active=palette.grf_active_field == "exclude",
+            active=palette.grf.active_field == "exclude",
         ),
     )
 
@@ -537,15 +537,15 @@ def _build_grep_replace_selected_input_fields(
     return (
         CommandPaletteInputFieldViewState(
             label="Keyword",
-            value=palette.grs_keyword or palette.query,
+            value=palette.grs.keyword or palette.query,
             placeholder="text or re:pattern",
-            active=palette.grs_active_field == "keyword",
+            active=palette.grs.active_field == "keyword",
         ),
         CommandPaletteInputFieldViewState(
             label="Replace",
-            value=palette.grs_replacement_text,
+            value=palette.grs.replacement_text,
             placeholder="replacement text",
-            active=palette.grs_active_field == "replace",
+            active=palette.grs.active_field == "replace",
         ),
     )
 
@@ -556,9 +556,9 @@ def _build_selected_files_grep_input_fields(
     return (
         CommandPaletteInputFieldViewState(
             label="Keyword",
-            value=palette.sfg_keyword or palette.query,
+            value=palette.sfg.keyword or palette.query,
             placeholder="text or re:pattern",
-            active=palette.sfg_active_field == "keyword",
+            active=palette.sfg.active_field == "keyword",
         ),
     )
 
@@ -572,11 +572,22 @@ def _select_find_replace_preview_window(
         state.terminal_height,
         extra_rows=3,
     )
-    title = "Replace in Found Files"
-    if state.command_palette is not None and state.command_palette.rff_preview_results:
-        file_count = len(state.command_palette.rff_preview_results)
-        total_matches = state.command_palette.rff_total_match_count
-        title = f"Replace in Found Files ({file_count} file(s), {total_matches} match(es))"
+    source = state.command_palette.source if state.command_palette else None
+    if source == "replace_in_grep_files":
+        base_title = "Replace in Grep Results"
+        preview_state = state.command_palette.grf
+    elif source == "grep_replace_selected":
+        base_title = "Replace in Selected Files"
+        preview_state = state.command_palette.grs
+    else:
+        base_title = "Replace in Found Files"
+        preview_state = state.command_palette.rff if state.command_palette else None
+
+    title = base_title
+    if preview_state and preview_state.preview_results:
+        file_count = len(preview_state.preview_results)
+        total_matches = preview_state.total_match_count
+        title = f"{base_title} ({file_count} file(s), {total_matches} match(es))"
     return _select_search_window(results, cursor_index, title=title, visible_window=visible_window)
 
 

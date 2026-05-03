@@ -228,6 +228,8 @@ uv run pip-licenses --format=plain --from=mixed --with-urls --output-file NOTICE
 
 ---
 
+> **ベータ版**: zivo は現在ベータ版です。機能追加、キーバインド見直しにより、キーバインドは変更の可能性があります。
+
 ## 開発者向け
 
 開発環境を作る場合は次を実行します。

@@ -262,7 +262,7 @@ def _select_file_search_preview_pane(
     state: AppState,
     syntax_theme: str,
 ) -> ChildPaneViewState:
-    results = state.command_palette.file_search_results
+    results = state.command_palette.file_search.results
     if not results:
         return _build_child_entries_view((), syntax_theme)
 
@@ -329,7 +329,7 @@ def _select_grep_preview_pane(
     if not state.config.display.enable_text_preview:
         return _build_child_entries_view((), syntax_theme)
 
-    results = state.command_palette.grep_search_results
+    results = state.command_palette.grep_search.results
     if not results:
         return _build_child_entries_view((), syntax_theme)
 
@@ -364,7 +364,7 @@ def _select_sfg_preview_pane(
     if not state.config.display.enable_text_preview:
         return _build_child_entries_view((), syntax_theme)
 
-    results = state.command_palette.sfg_results
+    results = state.command_palette.sfg.results
     if not results:
         return _build_child_entries_view((), syntax_theme)
 
@@ -399,13 +399,13 @@ def _select_replace_preview_pane(
     if not state.config.display.enable_text_preview:
         return _build_child_entries_view((), syntax_theme)
     if state.command_palette.source == "replace_in_found_files":
-        results = state.command_palette.rff_preview_results
+        results = state.command_palette.rff.preview_results
     elif state.command_palette.source == "replace_in_grep_files":
-        results = state.command_palette.grf_preview_results
+        results = state.command_palette.grf.preview_results
     elif state.command_palette.source == "grep_replace_selected":
-        results = state.command_palette.grs_preview_results
+        results = state.command_palette.grs.preview_results
     else:
-        results = state.command_palette.replace_preview_results
+        results = state.command_palette.replace_preview.preview_results
     if not results:
         return _build_child_entries_view((), syntax_theme)
     selected_result = results[

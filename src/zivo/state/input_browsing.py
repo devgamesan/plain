@@ -111,10 +111,8 @@ BROWSING_KEYMAP = {
     "G": "begin_go_to_path",
     "n": "create_file",
     "N": "create_dir",
-    "[": "preview_pageup",
-    "]": "preview_pagedown",
-    "{": "go_back",
-    "}": "go_forward",
+    "[": "go_back",
+    "]": "go_forward",
     "M": "open_file_manager",
     "T": "open_terminal_window",
     "home": "jump_cursor_start",
@@ -477,8 +475,6 @@ BROWSING_PARAM_DISPATCH: dict[str, BrowsingHandler] = {
     "open_terminal": handle_open_terminal_foreground,
     "open_terminal_window": handle_open_terminal_window,
     "open_file_manager": handle_open_file_manager,
-    "preview_pageup": noop_browsing_handler,
-    "preview_pagedown": noop_browsing_handler,
 }
 
 BROWSING_COMPLEX_DISPATCH: dict[str, BrowsingHandler] = {

@@ -58,10 +58,10 @@ You can open an external terminal directly from zivo. Press `t` to suspend zivo 
 | `M` | Open current directory in file manager |
 | `:` | Open command palette |
 | `q` | Quit |
-| `[` | Scroll the right-pane text preview up by a page |
-| `]` | Scroll the right-pane text preview down by a page |
-| `{` | Go back in history |
-| `}` | Go forward in history |
+| `[` | Go back in history |
+| `]` | Go forward in history |
+| `Ctrl+J` / `Ctrl+↑` | Scroll the right-pane text preview up by a page |
+| `Ctrl+K` / `Ctrl+↓` | Scroll the right-pane text preview down by a page |
 | `p` | Toggle two-pane transfer mode |
 
 ---
@@ -121,7 +121,7 @@ You can open an external terminal directly from zivo. Press `t` to suspend zivo 
 | Key | Action |
 | --- | ------ |
 | `↑` / `↓` | Move cursor through results |
-| `Ctrl+n` / `Ctrl+p` | Move cursor down/up through results |
+| `Ctrl+j` / `Ctrl+k` | Move cursor down/up through results |
 | `PageUp` / `PageDown` | Move cursor by page |
 | `Home` / `End` | Jump to first/last result |
 | `Enter` | Open selected result |
@@ -129,7 +129,7 @@ You can open an external terminal directly from zivo. Press `t` to suspend zivo 
 | `Ctrl+o` | Open selected result in GUI editor |
 | `Esc` | Close search |
 
-**Note**: In search results mode, use arrow keys to navigate. `j`/`k` keys are used for typing the search query.
+**Note**: In search results mode, use arrow keys or `Ctrl+j`/`Ctrl+k` to navigate. `j`/`k` keys are used for typing the search query.
 
 ---
 
@@ -148,7 +148,7 @@ You can open an external terminal directly from zivo. Press `t` to suspend zivo 
 
 | Key | Action |
 | --- | ------ |
-| Text input / `↑` / `↓` / `Ctrl+n` / `Ctrl+p` / `k` / `j` / `Enter` / `Esc` | Filter, select, run, or cancel commands. In `Find files` and `Grep search`, `j` / `k` are treated as text input and result navigation uses `↑` / `↓` or `Ctrl+n` / `Ctrl+p`. |
+| Text input / `↑` / `↓` / `Ctrl+j` / `Ctrl+k` / `k` / `j` / `Enter` / `Esc` | Filter, select, run, or cancel commands. In `Find files` and `Grep search`, `j` / `k` are treated as text input and result navigation uses `↑` / `↓` or `Ctrl+j` / `Ctrl+k`. |
 
 When the `Replace text` preview is open in the right pane, `Shift+↑` / `Shift+↓` scroll that preview.
 
@@ -158,7 +158,7 @@ When the `Replace text` preview is open in the right pane, `Shift+↑` / `Shift+
 
 | Key | Action |
 | --- | ------ |
-| `↑` / `↓` / `Ctrl+n` / `Ctrl+p` | Move between settings |
+| `↑` / `↓` / `Ctrl+j` / `Ctrl+k` | Move between settings |
 | `←` / `→` / `Enter` | Change the selected value |
 | `s` | Save `config.toml` |
 | `e` | Open the raw config file in a terminal editor |

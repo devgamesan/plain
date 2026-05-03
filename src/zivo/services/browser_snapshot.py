@@ -120,7 +120,7 @@ class BrowserSnapshotLoader(Protocol):
     ) -> None: ...
 
 
-@dataclass(frozen=True)
+@dataclass
 class LiveBrowserSnapshotLoader:
     """Load three-pane snapshots from the local filesystem."""
 
@@ -131,7 +131,7 @@ class LiveBrowserSnapshotLoader:
     grep_context_cache_capacity: int = DEFAULT_GREP_CONTEXT_CACHE_CAPACITY
     document_preview_loader: "DocumentPreviewLoader | None" = None
     image_preview_loader: "ImagePreviewLoader | None" = None
-    app_state: "AppState | None" = None
+    app_state: "AppState | None" = field(default=None, compare=False, repr=False)
     _directory_entries_cache: OrderedDict[str, tuple[DirectoryEntryState, ...]] = field(
         default_factory=OrderedDict,
         init=False,
@@ -663,7 +663,7 @@ def _is_permission_denied_error(error: OSError) -> bool:
     return str(error).startswith("Permission denied:")
 
 
-@dataclass(frozen=True)
+@dataclass
 class FakeBrowserSnapshotLoader:
     """Deterministic loader used by tests."""
 
@@ -679,7 +679,7 @@ class FakeBrowserSnapshotLoader:
     executed_child_pane_requests: list[tuple[str, str | None]] = field(default_factory=list)
     executed_grep_preview_requests: list[tuple[str, str, int]] = field(default_factory=list)
     invalidated_directory_listing_paths: list[tuple[str, ...]] = field(default_factory=list)
-    app_state: "AppState | None" = None
+    app_state: "AppState | None" = field(default=None, compare=False, repr=False)
 
     def load_browser_snapshot(
         self,

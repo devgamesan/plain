@@ -564,10 +564,7 @@ class zivoApp(App[None]):
 
         self._app_state = state
         if hasattr(self._snapshot_loader, "app_state"):
-            from zivo.services.browser_snapshot import LiveBrowserSnapshotLoader
-
-            if isinstance(self._snapshot_loader, LiveBrowserSnapshotLoader):
-                object.__setattr__(self._snapshot_loader, "app_state", state)
+            self._snapshot_loader.app_state = state
         return changed, tuple(effects)
 
     async def on_worker_state_changed(self, event: Worker.StateChanged) -> None:

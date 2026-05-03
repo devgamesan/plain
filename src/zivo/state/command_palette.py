@@ -212,13 +212,13 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         CommandPaletteItem(
             id="go_back",
             label="Go back",
-            shortcut="{",
+            shortcut="[",
             enabled=bool(state.history.back),
         ),
         CommandPaletteItem(
             id="go_forward",
             label="Go forward",
-            shortcut="}",
+            shortcut="]",
             enabled=bool(state.history.forward),
         ),
         CommandPaletteItem(

@@ -44,8 +44,8 @@ def test_iter_bound_keys_includes_printable_text_input_keys() -> None:
     assert "shift+up" in keys
     assert "shift+down" in keys
     assert "shift+delete" in keys
-    assert "{" in keys
-    assert "}" in keys
+    assert "[" in keys
+    assert "]" in keys
 
 
 def test_browsing_j_dispatches_move_cursor() -> None:
@@ -1033,33 +1033,17 @@ def test_browsing_capital_G_begins_go_to_path() -> None:
     assert isinstance(actions[1], BeginGoToPath)
 
 
-def test_browsing_open_bracket_is_reserved_for_preview_scroll() -> None:
+def test_browsing_open_bracket_dispatches_go_back() -> None:
     state = build_initial_app_state()
 
     actions = dispatch_key_input(state, key="[")
 
-    assert actions == ()
-
-
-def test_browsing_close_bracket_is_reserved_for_preview_scroll() -> None:
-    state = build_initial_app_state()
-
-    actions = dispatch_key_input(state, key="]")
-
-    assert actions == ()
-
-
-def test_browsing_open_brace_dispatches_go_back() -> None:
-    state = build_initial_app_state()
-
-    actions = dispatch_key_input(state, key="{")
-
     assert actions == (SetNotification(None), GoBack())
 
 
-def test_browsing_close_brace_dispatches_go_forward() -> None:
+def test_browsing_close_bracket_dispatches_go_forward() -> None:
     state = build_initial_app_state()
 
-    actions = dispatch_key_input(state, key="}")
+    actions = dispatch_key_input(state, key="]")
 
     assert actions == (SetNotification(None), GoForward())

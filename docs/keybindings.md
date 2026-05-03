@@ -58,10 +58,10 @@ You can open an external terminal directly from zivo. Press `t` to suspend zivo 
 | `M` | Open current directory in file manager |
 | `:` | Open command palette |
 | `q` | Quit |
-| `[` | Scroll the right-pane text preview up by a page |
-| `]` | Scroll the right-pane text preview down by a page |
-| `{` | Go back in history |
-| `}` | Go forward in history |
+| `[` | Go back in history |
+| `]` | Go forward in history |
+| `Ctrl+J` / `Ctrl+↑` | Scroll the right-pane text preview up by a page |
+| `Ctrl+K` / `Ctrl+↓` | Scroll the right-pane text preview down by a page |
 | `p` | Toggle two-pane transfer mode |
 
 ---

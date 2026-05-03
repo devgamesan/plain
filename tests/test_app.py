@@ -1234,12 +1234,12 @@ async def test_app_browsing_preview_scrolls_with_brackets() -> None:
         child_preview_scroll = app.query_one("#child-pane-preview-scroll", VerticalScroll)
         initial_scroll_y = child_preview_scroll.scroll_y
 
-        await app.action_dispatch_bound_key("]")
+        await app.action_dispatch_bound_key("ctrl+k")
         await asyncio.sleep(0.05)
         assert child_preview_scroll.scroll_y > initial_scroll_y
 
         scrolled_down_y = child_preview_scroll.scroll_y
-        await app.action_dispatch_bound_key("[")
+        await app.action_dispatch_bound_key("ctrl+j")
         await asyncio.sleep(0.05)
         assert child_preview_scroll.scroll_y < scrolled_down_y
 
@@ -3117,8 +3117,8 @@ async def test_app_displays_browsing_help_bar() -> None:
     split_terminal_hint = " | t term" if os.name == "posix" else ""
     expected_help = (
         "enter open | e edit | O gui editor | i info | "
-        "/ filter | s sort | . hidden | [ ] preview | q quit\n"
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
+        "/ filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
+        "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv\n"
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
 

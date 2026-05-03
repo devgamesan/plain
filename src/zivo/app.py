@@ -118,8 +118,10 @@ def _active_app_theme(state: AppState) -> str:
 
 
 _BROWSING_PREVIEW_SCROLL_KEYS: dict[str, int] = {
-    "[": -20,
-    "]": 20,
+    "ctrl+j": -20,
+    "ctrl+k": 20,
+    "ctrl+up": -20,
+    "ctrl+down": 20,
 }
 
 _REPLACE_PREVIEW_SCROLL_KEYS: dict[str, int] = {

@@ -230,7 +230,7 @@ def dispatch_command_palette_input(
     if key == "end":
         return supported(MoveCommandPaletteCursor(delta=999999))
 
-    if key == "ctrl+enter" and palette_source == "file_search":
+    if key == "ctrl+w" and palette_source == "file_search":
         from .actions_palette import OpenSearchWorkspace
 
         return supported(OpenSearchWorkspace())

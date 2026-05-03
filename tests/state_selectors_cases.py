@@ -1504,7 +1504,7 @@ def test_select_help_bar_state_for_file_search_palette() -> None:
 
     assert help_bar.lines == (
         "type filename | ↑↓ or Ctrl+j/k select | enter jump | "
-        "Ctrl+e edit | Ctrl+o GUI | esc cancel",
+        "Ctrl+W workspace | Ctrl+e edit | Ctrl+o GUI | esc cancel",
     )
 
 

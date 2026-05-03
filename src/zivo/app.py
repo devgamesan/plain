@@ -86,6 +86,7 @@ from zivo.state.actions import (
     EnterTransferDirectory,
     ExitCurrentPath,
     FocusTransferPane,
+    NavigateTransferToPath,
     OpenPathWithDefaultApp,
     RequestBrowserSnapshot,
     SetCursorPath,
@@ -585,6 +586,9 @@ class zivoApp(App[None]):
         """Handle path segment clicks from the CurrentPathBar widget."""
 
         if self._app_state.layout_mode == "transfer":
+            await self.dispatch_actions(
+                (NavigateTransferToPath(message.path),),
+            )
             return
         await self.dispatch_actions(
             (RequestBrowserSnapshot(message.path, blocking=True),),

@@ -156,6 +156,7 @@ from .actions_navigation import (
     MoveTransferCursor,
     MoveTransferCursorAndSelectRange,
     MoveTransferCursorByPage,
+    NavigateTransferToPath,
     OpenNewTab,
     OpenPathInEditor,
     OpenPathInGuiEditor,
@@ -387,6 +388,7 @@ Action = (
     | EnterTransferDirectory
     | GoToTransferParent
     | GoToTransferHome
+    | NavigateTransferToPath
     | TransferCopyToOppositePane
     | TransferMoveToOppositePane
     | PasteClipboardToTransferPane

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from rich.style import Style
 from rich.text import Text
@@ -276,7 +278,7 @@ async def test_app_current_path_bar_segment_click_navigates(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_current_path_bar_segment_click_ignored_in_transfer_mode(
+async def test_app_current_path_bar_segment_click_navigates_active_transfer_pane(
     tmp_path,
 ) -> None:
     from tests.test_app import _build_snapshot, _wait_for_snapshot_loaded
@@ -284,6 +286,7 @@ async def test_app_current_path_bar_segment_click_ignored_in_transfer_mode(
     from zivo.services import FakeBrowserSnapshotLoader
     from zivo.state import DirectoryEntryState
     from zivo.state.actions import ToggleTransferMode
+    from zivo.ui import CurrentPathBar
 
     path = str(tmp_path)
     readme = tmp_path / "README.md"
@@ -300,14 +303,26 @@ async def test_app_current_path_bar_segment_click_ignored_in_transfer_mode(
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
     async with app.run_test(size=(120, 20)):
-        from zivo.ui import CurrentPathBar
-
         await _wait_for_snapshot_loaded(app, path)
 
         await app.dispatch_actions((ToggleTransferMode(),))
         assert app.app_state.layout_mode == "transfer"
 
         await app.on_current_path_bar_path_segment_clicked(
-            CurrentPathBar.PathSegmentClicked(path="/nonexistent"),
+            CurrentPathBar.PathSegmentClicked(path=path),
         )
-        assert app.app_state.current_path == path
+
+        deadline = asyncio.get_running_loop().time() + 1.0
+        while True:
+            active_pane = (
+                app.app_state.transfer_left
+                if app.app_state.active_transfer_pane == "left"
+                else app.app_state.transfer_right
+            )
+            assert active_pane is not None
+            if active_pane.pending_snapshot_request_id is None:
+                break
+            if asyncio.get_running_loop().time() >= deadline:
+                raise AssertionError("transfer pane snapshot did not finish")
+            await asyncio.sleep(0.01)
+        assert active_pane.current_path == path

@@ -10,7 +10,7 @@ from zivo.services import (
     FakeBrowserSnapshotLoader,
     LiveBrowserSnapshotLoader,
 )
-from zivo.services.browser_snapshot import FilePreviewState
+from zivo.services.browser_snapshot import FilePreviewState, _resolve_cursor_path
 from zivo.state import BrowserSnapshot, GrepSearchResultState
 from zivo.state.models import DirectoryEntryState, PaneState
 
@@ -881,6 +881,68 @@ def test_live_browser_snapshot_loader_invalidates_selected_directory_cache_entry
         str(docs),
         str(project),
     ]
+
+
+def test_resolve_cursor_path_returns_cursor_path_when_found() -> None:
+    entries = (
+        DirectoryEntryState("/a/.hidden", ".hidden", "file", hidden=True),
+        DirectoryEntryState("/a/visible", "visible", "file"),
+    )
+    result = _resolve_cursor_path(entries, "/a/visible")
+    assert result == "/a/visible"
+
+
+def test_resolve_cursor_path_returns_none_when_entries_empty() -> None:
+    result = _resolve_cursor_path((), None)
+    assert result is None
+
+
+def test_resolve_cursor_path_skips_hidden_when_show_hidden_false() -> None:
+    entries = (
+        DirectoryEntryState("/a/.hidden", ".hidden", "dir", hidden=True),
+        DirectoryEntryState("/a/.config", ".config", "dir", hidden=True),
+        DirectoryEntryState("/a/data", "data", "dir"),
+        DirectoryEntryState("/a/src", "src", "dir"),
+    )
+    result = _resolve_cursor_path(entries, None, show_hidden=False)
+    assert result == "/a/data"
+
+
+def test_resolve_cursor_path_returns_first_entry_when_all_hidden() -> None:
+    entries = (
+        DirectoryEntryState("/a/.hidden", ".hidden", "dir", hidden=True),
+        DirectoryEntryState("/a/.config", ".config", "dir", hidden=True),
+    )
+    result = _resolve_cursor_path(entries, None, show_hidden=False)
+    assert result == "/a/.hidden"
+
+
+def test_resolve_cursor_path_does_not_skip_hidden_when_show_hidden_true() -> None:
+    entries = (
+        DirectoryEntryState("/a/.hidden", ".hidden", "dir", hidden=True),
+        DirectoryEntryState("/a/.config", ".config", "dir", hidden=True),
+        DirectoryEntryState("/a/data", "data", "dir"),
+    )
+    result = _resolve_cursor_path(entries, None, show_hidden=True)
+    assert result == "/a/.hidden"
+
+
+def test_resolve_cursor_path_returns_first_entry_when_cursor_missing() -> None:
+    entries = (
+        DirectoryEntryState("/a/src", "src", "dir"),
+        DirectoryEntryState("/a/docs", "docs", "dir"),
+    )
+    result = _resolve_cursor_path(entries, "/a/missing", show_hidden=False)
+    assert result == "/a/src"
+
+
+def test_resolve_cursor_path_skips_hidden_by_default() -> None:
+    entries = (
+        DirectoryEntryState("/a/.hidden", ".hidden", "dir", hidden=True),
+        DirectoryEntryState("/a/visible", "visible", "dir"),
+    )
+    result = _resolve_cursor_path(entries, None)
+    assert result == "/a/visible"
 
 
 def test_fake_browser_snapshot_loader_prefers_requested_cursor_path() -> None:

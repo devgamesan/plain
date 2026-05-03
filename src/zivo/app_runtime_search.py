@@ -84,6 +84,7 @@ def schedule_browser_snapshot(app: Any, effect: LoadBrowserSnapshotEffect) -> No
             app._snapshot_loader.load_browser_snapshot,
             effect.path,
             effect.cursor_path,
+            show_hidden=app._app_state.show_hidden,
             enable_image_preview=effect.enable_image_preview,
             enable_pdf_preview=effect.enable_pdf_preview,
             enable_office_preview=effect.enable_office_preview,
@@ -170,6 +171,7 @@ def schedule_progressive_browser_snapshot(app: Any, effect: LoadCurrentPaneEffec
             app._snapshot_loader.load_current_pane_snapshot,
             effect.path,
             effect.cursor_path,
+            show_hidden=app._app_state.show_hidden,
         ),
         WorkerSpec(
             name=f"progressive-snapshot-phase1:{effect.request_id}",

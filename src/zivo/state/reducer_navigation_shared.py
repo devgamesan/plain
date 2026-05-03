@@ -220,7 +220,17 @@ def promote_child_pane_to_current(
     path: str,
 ) -> AppState:
     promoted_entries = state.child_pane.entries
-    promoted_cursor_path = normalize_cursor_path(promoted_entries, None)
+    if state.show_hidden or not promoted_entries:
+        promoted_cursor_path = normalize_cursor_path(promoted_entries, None)
+    else:
+        first_visible = next(
+            (e for e in promoted_entries if not e.hidden), None
+        )
+        promoted_cursor_path = (
+            comparable_path(first_visible.path)
+            if first_visible
+            else comparable_path(promoted_entries[0].path)
+        )
     return replace(
         state,
         current_path=comparable_path(path),

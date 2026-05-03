@@ -86,6 +86,7 @@ class _RecordingSnapshotLoader:
         path: str,
         cursor_path: str | None = None,
         *,
+        show_hidden: bool = False,
         enable_image_preview: bool = True,
         enable_pdf_preview: bool = True,
         enable_office_preview: bool = True,
@@ -131,6 +132,8 @@ class _RecordingSnapshotLoader:
         self,
         path: str,
         cursor_path: str | None,
+        *,
+        show_hidden: bool = False,
     ) -> tuple[str, PaneState, PaneState]:
         self.load_current_pane_snapshot_calls.append((path, cursor_path))
         pane = PaneState(directory_path=path, entries=(), cursor_path=cursor_path)

@@ -86,8 +86,6 @@ from zivo.state.actions import (
     EnterTransferDirectory,
     ExitCurrentPath,
     FocusTransferPane,
-    GoBack,
-    GoForward,
     OpenPathWithDefaultApp,
     RequestBrowserSnapshot,
     SetCursorPath,
@@ -368,18 +366,6 @@ class zivoApp(App[None]):
             )
             event.stop()
             event.prevent_default()
-
-    async def on_mouse_down(self, event: events.MouseDown) -> None:
-        """Handle mouse back/forward buttons for history navigation."""
-
-        if event.button == 1 and event.meta and not event.shift and not event.ctrl:
-            event.stop()
-            event.prevent_default()
-            await self.dispatch_actions((GoBack(),))
-        elif event.button == 2 and event.meta and not event.shift and not event.ctrl:
-            event.stop()
-            event.prevent_default()
-            await self.dispatch_actions((GoForward(),))
 
     async def on_click(self, event: events.Click) -> None:
         """Handle bubbled mouse clicks for side panes and previews."""

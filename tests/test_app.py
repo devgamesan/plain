@@ -11,7 +11,7 @@ from rich.style import Style
 from rich.text import Text
 from textual.containers import VerticalScroll
 from textual.css.query import NoMatches
-from textual.events import Click, MouseDown
+from textual.events import Click
 from textual.widgets import DataTable, Label, Static
 
 from zivo import create_app
@@ -1554,59 +1554,6 @@ async def test_app_child_pane_file_single_click_does_nothing() -> None:
         )
 
         assert app.app_state.current_path == path
-
-
-@pytest.mark.asyncio
-async def test_app_mouse_back_forward_buttons_navigate_history() -> None:
-    root = str(Path("/tmp/zivo-mouse-nav-buttons").resolve())
-    docs = f"{root}/docs"
-    root_entries = (
-        DirectoryEntryState(docs, "docs", "dir"),
-        DirectoryEntryState(f"{root}/README.md", "README.md", "file", size_bytes=120),
-    )
-    docs_entries = (DirectoryEntryState(f"{docs}/guide.md", "guide.md", "file", size_bytes=42),)
-    loader = FakeBrowserSnapshotLoader(
-        snapshots={
-            root: _build_snapshot(
-                root,
-                root_entries,
-                child_path=docs,
-                child_entries=docs_entries,
-            ),
-            docs: BrowserSnapshot(
-                current_path=docs,
-                parent_pane=PaneState(
-                    directory_path=root,
-                    entries=root_entries,
-                    cursor_path=docs,
-                ),
-                current_pane=PaneState(
-                    directory_path=docs,
-                    entries=docs_entries,
-                    cursor_path=f"{docs}/guide.md",
-                ),
-                child_pane=PaneState(directory_path=docs, entries=()),
-            ),
-        }
-    )
-    app = create_app(snapshot_loader=loader, initial_path=root)
-
-    async with app.run_test() as pilot:
-        await _wait_for_snapshot_loaded(app, root)
-
-        await pilot.press("right")
-        await _wait_for_path(app, docs)
-        assert app.app_state.current_path == docs
-
-        back_event = MouseDown(None, 0, 0, 0, 0, 1, False, True, False)
-        await app.on_mouse_down(back_event)
-        await _wait_for_snapshot_loaded(app, root)
-        assert app.app_state.current_path == root
-
-        forward_event = MouseDown(None, 0, 0, 0, 0, 2, False, True, False)
-        await app.on_mouse_down(forward_event)
-        await _wait_for_snapshot_loaded(app, docs)
-        assert app.app_state.current_path == docs
 
 
 @pytest.mark.asyncio

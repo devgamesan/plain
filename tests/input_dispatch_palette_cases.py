@@ -119,12 +119,12 @@ def test_palette_ctrl_n_moves_cursor_down_in_grep_palette() -> None:
         ),
     )
 
-    actions = dispatch_key_input(state, key="ctrl+n")
+    actions = dispatch_key_input(state, key="ctrl+j")
 
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=1))
 
 
-def test_palette_ctrl_p_moves_cursor_up_in_grep_palette() -> None:
+def test_palette_ctrl_k_moves_cursor_up_in_grep_palette() -> None:
     from zivo.state.models import CommandPaletteState
     state = replace(
         build_initial_app_state(),
@@ -135,12 +135,12 @@ def test_palette_ctrl_p_moves_cursor_up_in_grep_palette() -> None:
         ),
     )
 
-    actions = dispatch_key_input(state, key="ctrl+p")
+    actions = dispatch_key_input(state, key="ctrl+k")
 
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=-1))
 
 
-def test_palette_ctrl_n_moves_cursor_down_in_file_search_palette() -> None:
+def test_palette_ctrl_j_moves_cursor_down_in_file_search_palette() -> None:
     from zivo.state.models import CommandPaletteState
     state = replace(
         build_initial_app_state(),
@@ -151,12 +151,12 @@ def test_palette_ctrl_n_moves_cursor_down_in_file_search_palette() -> None:
         ),
     )
 
-    actions = dispatch_key_input(state, key="ctrl+n")
+    actions = dispatch_key_input(state, key="ctrl+j")
 
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=1))
 
 
-def test_palette_ctrl_p_moves_cursor_up_in_file_search_palette() -> None:
+def test_palette_ctrl_k_moves_cursor_up_in_file_search_palette() -> None:
     from zivo.state.models import CommandPaletteState
     state = replace(
         build_initial_app_state(),
@@ -167,12 +167,12 @@ def test_palette_ctrl_p_moves_cursor_up_in_file_search_palette() -> None:
         ),
     )
 
-    actions = dispatch_key_input(state, key="ctrl+p")
+    actions = dispatch_key_input(state, key="ctrl+k")
 
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=-1))
 
 
-def test_palette_ctrl_n_moves_cursor_down_in_replace_palette() -> None:
+def test_palette_ctrl_j_moves_cursor_down_in_replace_palette() -> None:
     from zivo.state.models import CommandPaletteState
 
     state = replace(
@@ -186,12 +186,12 @@ def test_palette_ctrl_n_moves_cursor_down_in_replace_palette() -> None:
         ),
     )
 
-    actions = dispatch_key_input(state, key="ctrl+n")
+    actions = dispatch_key_input(state, key="ctrl+j")
 
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=1))
 
 
-def test_palette_ctrl_p_moves_cursor_up_in_replace_palette() -> None:
+def test_palette_ctrl_k_moves_cursor_up_in_replace_palette() -> None:
     from zivo.state.models import CommandPaletteState
 
     state = replace(
@@ -205,7 +205,7 @@ def test_palette_ctrl_p_moves_cursor_up_in_replace_palette() -> None:
         ),
     )
 
-    actions = dispatch_key_input(state, key="ctrl+p")
+    actions = dispatch_key_input(state, key="ctrl+k")
 
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=-1))
 

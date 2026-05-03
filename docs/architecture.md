@@ -306,7 +306,7 @@ stateDiagram-v2
   - `Esc` は active filter が残っている場合、選択解除より先に filter 解除を優先する
 - `PALETTE`
   - 通常コマンドだけでなく、file search / grep search / history / bookmarks / go-to-path preview の各 source を同一 UI で扱う
-  - grep search では複数入力欄を持ちつつ、結果選択の `↑↓` と `Ctrl+n/p` は既存どおり維持する
+  - grep search では複数入力欄を持ちつつ、結果選択の `↑↓` と `Ctrl+j/k` に変更する
 - `DETAIL`
   - read-only 属性ダイアログを閉じるだけのモード
 - `EXTRACT`

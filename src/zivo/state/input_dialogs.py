@@ -286,10 +286,10 @@ def dispatch_config_input(
     if key == "escape":
         return supported(DismissConfigEditor())
 
-    if key in {"up", "k", "ctrl+p"}:
+    if key in {"up", "k", "ctrl+k"}:
         return supported(MoveConfigEditorCursor(delta=-1))
 
-    if key in {"down", "j", "ctrl+n"}:
+    if key in {"down", "j", "ctrl+j"}:
         return supported(MoveConfigEditorCursor(delta=1))
 
     if key in {"left", "h"}:
@@ -308,6 +308,6 @@ def dispatch_config_input(
         return supported(ResetHelpBarConfig())
 
     return warn(
-        "Use ↑↓ or Ctrl+n/p to choose, ←→ or Enter to change, "
+        "Use ↑↓ or Ctrl+j/k to choose, ←→ or Enter to change, "
         "s to save, e to edit the file, r to reset help, or Esc to close"
     )

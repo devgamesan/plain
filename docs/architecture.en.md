@@ -306,7 +306,7 @@ Notes:
   - If an active filter exists, `Esc` clears the filter before clearing selection
 - `PALETTE`
   - Reuses one UI surface for normal commands plus file search, grep search, history, bookmarks, and go-to-path preview
-  - Keeps grep result selection on `↑↓` and `Ctrl+n/p` even though grep search now has multiple input fields
+  - Changed grep result selection to `↑↓` and `Ctrl+j/k` when grep search has multiple input fields
 - `DETAIL`
   - Read-only mode for the attribute dialog
 - `EXTRACT`

@@ -109,7 +109,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             return HelpBarState(state.config.help_bar.config)
         return HelpBarState(
             (
-                "↑↓ or Ctrl+n/p choose | ←→ or Enter change | s save | e edit file | r reset help",
+                "↑↓ or Ctrl+j/k choose | ←→ or Enter change | s save | e edit file | r reset help",
                 "esc close",
             )
         )
@@ -149,7 +149,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
                 return HelpBarState(state.config.help_bar.palette_file_search)
             return HelpBarState(
                 (
-                    "type filename | ↑↓ or Ctrl+n/p select | enter jump | "
+                    "type filename | ↑↓ or Ctrl+j/k select | enter jump | "
                     "Ctrl+e edit | Ctrl+o GUI | esc cancel",
                 )
             )
@@ -158,7 +158,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
                 return HelpBarState(state.config.help_bar.palette_grep_search)
             return HelpBarState(
                 (
-                    "type text / tab fields / ↑↓ or Ctrl+n/p select | "
+                    "type text / tab fields / ↑↓ or Ctrl+j/k select | "
                     "enter jump | Ctrl+e edit | Ctrl+o GUI | esc cancel",
                 )
             )
@@ -173,7 +173,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         ):
             return HelpBarState(
                 (
-                    "type text / tab fields / ↑↓ or Ctrl+n/p preview | "
+                    "type text / tab fields / ↑↓ or Ctrl+j/k preview | "
                     "Shift+↑↓ scroll preview | enter apply | esc cancel",
                 )
             )
@@ -183,27 +183,27 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         ):
             return HelpBarState(
                 (
-                    "type keyword / ↑↓ or Ctrl+n/p select | enter jump | "
+                    "type keyword / ↑↓ or Ctrl+j/k select | enter jump | "
                     "Ctrl+e edit | Ctrl+o GUI | esc cancel",
                 )
             )
         if state.command_palette is not None and state.command_palette.source == "history":
             if state.config.help_bar.palette_history:
                 return HelpBarState(state.config.help_bar.palette_history)
-            return HelpBarState(("type path | ↑↓ or Ctrl+n/p select | enter jump | esc cancel",))
+            return HelpBarState(("type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",))
         if state.command_palette is not None and state.command_palette.source == "bookmarks":
             if state.config.help_bar.palette_bookmarks:
                 return HelpBarState(state.config.help_bar.palette_bookmarks)
-            return HelpBarState(("type path | ↑↓ or Ctrl+n/p select | enter jump | esc cancel",))
+            return HelpBarState(("type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",))
         if state.command_palette is not None and state.command_palette.source == "go_to_path":
             if state.config.help_bar.palette_go_to_path:
                 return HelpBarState(state.config.help_bar.palette_go_to_path)
             return HelpBarState(
-                ("type path | ↑↓ or Ctrl+n/p select | tab complete | enter jump | esc cancel",)
+                ("type path | ↑↓ or Ctrl+j/k select | tab complete | enter jump | esc cancel",)
             )
         if state.config.help_bar.palette:
             return HelpBarState(state.config.help_bar.palette)
-        return HelpBarState(("type command | ↑↓ or Ctrl+n/p select | enter run | esc cancel",))
+        return HelpBarState(("type command | ↑↓ or Ctrl+j/k select | enter run | esc cancel",))
     if state.ui_mode == "BUSY":
         if state.config.help_bar.busy:
             return HelpBarState(state.config.help_bar.busy)
@@ -758,7 +758,7 @@ def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
         title=title,
         lines=tuple(lines_list),
         options=(
-            "↑↓/Ctrl+n/p choose",
+            "↑↓/Ctrl+j/k choose",
             "←→/enter change",
             "s save",
             "e edit file",

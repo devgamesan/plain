@@ -4487,7 +4487,7 @@ async def test_app_command_palette_replace_text_previews_and_applies_selected_fi
         assert "+done item" in child_pane.preview_content
         assert second_target_path not in child_pane.preview_content
 
-        await pilot.press("ctrl+n")
+        await pilot.press("ctrl+j")
 
         await _wait_for_predicate(
             lambda: select_shell_data(app.app_state).child_pane.preview_path == second_target_path,

@@ -160,8 +160,8 @@ class zivoApp(App[None]):
     SUB_TITLE = "Three-pane shell"
     TERMINAL_RESPONSE_ESCAPE_TIMEOUT_SECONDS = 0.05
     BINDINGS = [
-        Binding("ctrl+p", "dispatch_bound_key('ctrl+p')", show=False, priority=True),
-        Binding("ctrl+n", "dispatch_bound_key('ctrl+n')", show=False, priority=True),
+        Binding("ctrl+k", "dispatch_bound_key('ctrl+k')", show=False, priority=True),
+        Binding("ctrl+j", "dispatch_bound_key('ctrl+j')", show=False, priority=True),
         *[Binding(key, f"dispatch_bound_key('{key}')", show=False, priority=True)
           for key in iter_bound_keys()
         ]

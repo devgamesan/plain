@@ -208,10 +208,10 @@ def dispatch_command_palette_input(
     if key == "down" or (key == "j" and not search_palette):
         return supported(MoveCommandPaletteCursor(delta=1))
 
-    if key == "ctrl+n":
+    if key == "ctrl+j":
         return supported(MoveCommandPaletteCursor(delta=1))
 
-    if key == "ctrl+p":
+    if key == "ctrl+k":
         return supported(MoveCommandPaletteCursor(delta=-1))
 
     if key == "pageup":
@@ -369,15 +369,15 @@ def dispatch_command_palette_input(
         return warn("Use arrows, type to search, Enter, Ctrl+e for editor, or Esc")
 
     if palette_source == "replace_text":
-        return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+n/p, Enter to apply, or Esc")
+        return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+j/k, Enter to apply, or Esc")
 
     if palette_source == "replace_in_found_files":
-        return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+n/p, Enter to apply, or Esc")
+        return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+j/k, Enter to apply, or Esc")
 
     if palette_source == "replace_in_grep_files":
-        return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+n/p, Enter to apply, or Esc")
+        return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+j/k, Enter to apply, or Esc")
 
     if palette_source == "grep_replace_selected":
-        return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+n/p, Enter to apply, or Esc")
+        return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+j/k, Enter to apply, or Esc")
 
     return warn("Use arrows, type to filter, Enter to run, or Esc to cancel")

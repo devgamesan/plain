@@ -1281,14 +1281,14 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
 
     assert help_state.lines == (
         "enter open | e edit | O gui editor | i info | "
-        "/ filter | s sort | . hidden | [ ] back/forward | q quit",
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo",
+        "/ filter | s sort | . hidden | [ ] bk/fwd | q quit",
+        "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv",
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette",
     )
     assert help_state.text == (
         "enter open | e edit | O gui editor | i info | "
-        "/ filter | s sort | . hidden | [ ] back/forward | q quit\n"
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
+        "/ filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
+        "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv\n"
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
 

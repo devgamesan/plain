@@ -3117,8 +3117,8 @@ async def test_app_displays_browsing_help_bar() -> None:
     split_terminal_hint = " | t term" if os.name == "posix" else ""
     expected_help = (
         "enter open | e edit | O gui editor | i info | "
-        "/ filter | s sort | . hidden | [ ] back/forward | q quit\n"
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
+        "/ filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
+        "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv\n"
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
 

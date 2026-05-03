@@ -102,6 +102,11 @@ class CommandPalette(Container):
     def _render_query_line(cls, state: CommandPaletteViewState, render_width: int) -> Text:
         query_text = Text()
         query_text.append("> ", style="bold")
+        is_path_source = (
+            state.title.startswith("Directory History")
+            or state.title.startswith("Go to path")
+            or state.title.startswith("Bookmarks")
+        )
         placeholder = (
             "type a filename or re:pattern"
             if state.title.startswith("Find File")
@@ -110,7 +115,7 @@ class CommandPalette(Container):
             else "type text or re:pattern"
             if state.title.startswith("Replace Text")
             else "type a path"
-            if state.title.startswith("Directory History") or state.title.startswith("Go to path")
+            if is_path_source
             else "type a command"
         )
         available_width = max(1, render_width - cell_len("> "))

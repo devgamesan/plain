@@ -578,6 +578,18 @@ class zivoApp(App[None]):
 
         await self.dispatch_actions((ActivateTabByIndex(index=message.tab_index),))
 
+    async def on_current_path_bar_path_segment_clicked(
+        self,
+        message: CurrentPathBar.PathSegmentClicked,
+    ) -> None:
+        """Handle path segment clicks from the CurrentPathBar widget."""
+
+        if self._app_state.layout_mode == "transfer":
+            return
+        await self.dispatch_actions(
+            (RequestBrowserSnapshot(message.path, blocking=True),),
+        )
+
     async def on_side_pane_entry_clicked(self, message: SidePane.EntryClicked) -> None:
         """Handle left parent-pane clicks from the widget message path."""
 

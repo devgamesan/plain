@@ -114,6 +114,27 @@ def _install_textual_terminal_response_filters() -> None:
             return
         yield from original(self, sequence)
 
+    def _mouse_code_to_key_event(code: str) -> events.Key | None:
+        sgr_match = xterm_parser.XTermParser._re_sgr_mouse.match(code)
+        if sgr_match:
+            buttons = int(sgr_match.group(1))
+            state = sgr_match.group(4)
+            if state == "M":
+                if buttons == 8:
+                    return events.Key("mouse_back", None)
+                if buttons == 9:
+                    return events.Key("mouse_forward", None)
+        return None
+
+    original_parse_mouse_code = xterm_parser.XTermParser.parse_mouse_code
+
+    def _wrapped_parse_mouse_code(self, code: str) -> events.Message | None:
+        key_event = _mouse_code_to_key_event(code)
+        if key_event is not None:
+            return key_event
+        return original_parse_mouse_code(self, code)
+
     xterm_parser.XTermParser.feed = _wrapped_feed
     xterm_parser.XTermParser._sequence_to_key_events = _wrapped
+    xterm_parser.XTermParser.parse_mouse_code = _wrapped_parse_mouse_code
     _TEXTUAL_TERMINAL_RESPONSE_FILTERS_INSTALLED = True

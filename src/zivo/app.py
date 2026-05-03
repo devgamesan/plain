@@ -330,6 +330,18 @@ class zivoApp(App[None]):
             event.prevent_default()
             return
 
+        if event.key == "mouse_back":
+            event.stop()
+            event.prevent_default()
+            await self.dispatch_actions((GoBack(),))
+            return
+
+        if event.key == "mouse_forward":
+            event.stop()
+            event.prevent_default()
+            await self.dispatch_actions((GoForward(),))
+            return
+
         scroll_delta = _preview_scroll_delta(self._app_state, event.key)
         if scroll_delta is not None:
             try:
@@ -368,18 +380,6 @@ class zivoApp(App[None]):
             )
             event.stop()
             event.prevent_default()
-
-    async def on_mouse_down(self, event: events.MouseDown) -> None:
-        """Handle mouse back/forward buttons for history navigation."""
-
-        if event.button == 1 and event.meta and not event.shift and not event.ctrl:
-            event.stop()
-            event.prevent_default()
-            await self.dispatch_actions((GoBack(),))
-        elif event.button == 2 and event.meta and not event.shift and not event.ctrl:
-            event.stop()
-            event.prevent_default()
-            await self.dispatch_actions((GoForward(),))
 
     async def on_click(self, event: events.Click) -> None:
         """Handle bubbled mouse clicks for side panes and previews."""

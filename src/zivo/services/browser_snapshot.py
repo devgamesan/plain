@@ -896,6 +896,9 @@ def _resolve_cursor_path(entries, cursor_path: str | None) -> str | None:
         return cursor_path
     if not entries:
         return None
+    for entry in entries:
+        if not entry.hidden:
+            return entry.path
     return entries[0].path
 
 

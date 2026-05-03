@@ -1348,8 +1348,83 @@ async def test_app_row_selected_double_click_enters_directory() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_parent_pane_double_click_opens_file_with_default_app() -> None:
-    path = str(Path("/tmp/zivo-parent-file-open/current").resolve())
+async def test_app_parent_pane_dir_single_click_enters_directory() -> None:
+    path = str(Path("/tmp/zivo-parent-dir-click/current").resolve())
+    parent_path = str(Path(path).parent)
+    sibling_path = f"{parent_path}/sibling"
+    sibling_file = f"{sibling_path}/notes.txt"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: BrowserSnapshot(
+                current_path=path,
+                parent_pane=PaneState(
+                    directory_path=parent_path,
+                    entries=(
+                        DirectoryEntryState(path, "current", "dir"),
+                        DirectoryEntryState(sibling_path, "sibling", "dir"),
+                    ),
+                    cursor_path=path,
+                ),
+                current_pane=PaneState(
+                    directory_path=path,
+                    entries=(DirectoryEntryState(f"{path}/README.md", "README.md", "file"),),
+                    cursor_path=f"{path}/README.md",
+                ),
+                child_pane=PaneState(
+                    directory_path=path,
+                    entries=(),
+                ),
+            ),
+            sibling_path: BrowserSnapshot(
+                current_path=sibling_path,
+                parent_pane=PaneState(
+                    directory_path=parent_path,
+                    entries=(
+                        DirectoryEntryState(path, "current", "dir"),
+                        DirectoryEntryState(sibling_path, "sibling", "dir"),
+                    ),
+                    cursor_path=sibling_path,
+                ),
+                current_pane=PaneState(
+                    directory_path=sibling_path,
+                    entries=(
+                        DirectoryEntryState(sibling_file, "notes.txt", "file"),
+                    ),
+                    cursor_path=sibling_file,
+                ),
+                child_pane=PaneState(
+                    directory_path=sibling_path,
+                    entries=(),
+                    mode="preview",
+                    preview_path=sibling_file,
+                    preview_content="hello world",
+                ),
+            ),
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(120, 20)):
+        await _wait_for_snapshot_loaded(app, path)
+        await app.on_side_pane_entry_clicked(
+            SidePane.EntryClicked("parent-pane", sibling_path, double_click=False)
+        )
+        await _wait_for_snapshot_loaded(app, sibling_path)
+
+        assert app.app_state.current_path == sibling_path
+        assert app.app_state.current_pane.cursor_path == sibling_file
+        assert app.app_state.child_pane.mode == "preview"
+        assert app.app_state.child_pane.preview_path == sibling_file
+        assert app.app_state.child_pane.preview_content == "hello world"
+
+        shell = select_shell_data(app.app_state)
+        assert shell.child_pane.preview_path == sibling_file
+        assert shell.child_pane.preview_content == "hello world"
+
+
+@pytest.mark.asyncio
+async def test_app_parent_pane_file_single_click_does_nothing() -> None:
+    path = str(Path("/tmp/zivo-parent-file-single/current").resolve())
     parent_path = str(Path(path).parent)
     parent_file = f"{parent_path}/notes.txt"
     loader = FakeBrowserSnapshotLoader(
@@ -1373,7 +1448,7 @@ async def test_app_parent_pane_double_click_opens_file_with_default_app() -> Non
                     directory_path=path,
                     entries=(),
                 ),
-            )
+            ),
         }
     )
     external_launch_service = FakeExternalLaunchService()
@@ -1386,12 +1461,99 @@ async def test_app_parent_pane_double_click_opens_file_with_default_app() -> Non
     async with app.run_test():
         await _wait_for_snapshot_loaded(app, path)
         await app.on_side_pane_entry_clicked(
-            SidePane.EntryClicked("parent-pane", parent_file, double_click=True)
+            SidePane.EntryClicked("parent-pane", parent_file, double_click=False)
         )
-        await _wait_for_external_launch_count(app, 1)
 
-        assert len(external_launch_service.executed_requests) == 1
-        assert external_launch_service.executed_requests[0].path == parent_file
+        assert app.app_state.current_path == path
+        assert len(external_launch_service.executed_requests) == 0
+
+
+@pytest.mark.asyncio
+async def test_app_child_pane_dir_single_click_enters_directory() -> None:
+    path = str(Path("/tmp/zivo-child-dir-click").resolve())
+    docs_path = f"{path}/docs"
+    guide_md = f"{docs_path}/guide.md"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (
+                    DirectoryEntryState(docs_path, "docs", "dir"),
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                ),
+                child_path=path,
+                child_entries=(DirectoryEntryState(docs_path, "docs", "dir"),),
+            ),
+            docs_path: BrowserSnapshot(
+                current_path=docs_path,
+                parent_pane=PaneState(
+                    directory_path=str(Path(docs_path).parent),
+                    entries=(
+                        DirectoryEntryState(docs_path, "docs", "dir"),
+                        DirectoryEntryState(f"{path}/sibling", "sibling", "dir"),
+                    ),
+                    cursor_path=docs_path,
+                ),
+                current_pane=PaneState(
+                    directory_path=docs_path,
+                    entries=(DirectoryEntryState(guide_md, "guide.md", "file"),),
+                    cursor_path=guide_md,
+                ),
+                child_pane=PaneState(
+                    directory_path=docs_path,
+                    entries=(),
+                    mode="preview",
+                    preview_path=guide_md,
+                    preview_content="# Guide\ndetail\n",
+                ),
+            ),
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(120, 20)):
+        await _wait_for_snapshot_loaded(app, path)
+        await app.on_child_pane_entry_clicked(
+            ChildPane.EntryClicked("child-pane", docs_path, double_click=False)
+        )
+        await _wait_for_snapshot_loaded(app, docs_path)
+
+        assert app.app_state.current_path == docs_path
+        assert app.app_state.current_pane.cursor_path == guide_md
+        assert app.app_state.child_pane.mode == "preview"
+        assert app.app_state.child_pane.preview_path == guide_md
+
+        shell = select_shell_data(app.app_state)
+        assert shell.child_pane.preview_path == guide_md
+        assert shell.child_pane.preview_content is not None
+
+
+@pytest.mark.asyncio
+async def test_app_child_pane_file_single_click_does_nothing() -> None:
+    path = str(Path("/tmp/zivo-child-file-single").resolve())
+    child_file = f"{path}/notes.txt"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(f"{path}/README.md", "README.md", "file"),),
+                child_path=path,
+                child_entries=(
+                    DirectoryEntryState(f"{path}/README.md", "README.md", "file"),
+                    DirectoryEntryState(child_file, "notes.txt", "file"),
+                ),
+            ),
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(120, 20)):
+        await _wait_for_snapshot_loaded(app, path)
+        await app.on_child_pane_entry_clicked(
+            ChildPane.EntryClicked("child-pane", child_file, double_click=False)
+        )
+
+        assert app.app_state.current_path == path
 
 
 @pytest.mark.asyncio

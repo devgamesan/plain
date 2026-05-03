@@ -389,10 +389,35 @@ class zivoApp(App[None]):
         if widget_id == "parent-pane-list":
             if self._is_double_click("parent-pane", entry_path):
                 await self.dispatch_actions((RequestBrowserSnapshot(entry_path, blocking=True),))
+            else:
+                entry = next(
+                    (
+                        entry
+                        for entry in self._app_state.parent_pane.entries
+                        if entry.path == entry_path
+                    ),
+                    None,
+                )
+                if entry is not None and entry.kind == "dir":
+                    await self.dispatch_actions(
+                        (RequestBrowserSnapshot(entry_path, blocking=True),)
+                    )
             return
 
-        if widget_id == "child-pane-list" and self._is_double_click("child-pane", entry_path):
-            await self._open_or_enter_path(entry_path)
+        if widget_id == "child-pane-list":
+            if self._is_double_click("child-pane", entry_path):
+                await self._open_or_enter_path(entry_path)
+            else:
+                entry = next(
+                    (
+                        entry
+                        for entry in self._app_state.child_pane.entries
+                        if entry.path == entry_path
+                    ),
+                    None,
+                )
+                if entry is not None and entry.kind == "dir":
+                    await self._open_or_enter_path(entry_path)
 
     async def on_main_pane_entry_clicked(self, message: MainPane.EntryClicked) -> None:
         """Handle bubbled click messages from the center / transfer panes."""
@@ -552,9 +577,9 @@ class zivoApp(App[None]):
         await self.dispatch_actions((ActivateTabByIndex(index=message.tab_index),))
 
     async def on_side_pane_entry_clicked(self, message: SidePane.EntryClicked) -> None:
-        """Handle left parent-pane double clicks from the widget message path."""
+        """Handle left parent-pane clicks from the widget message path."""
 
-        if message.pane_id != "parent-pane" or not message.double_click:
+        if message.pane_id != "parent-pane":
             return
         entry = next(
             (entry for entry in self._app_state.parent_pane.entries if entry.path == message.path),
@@ -565,12 +590,24 @@ class zivoApp(App[None]):
         if entry.kind == "dir":
             await self.dispatch_actions((RequestBrowserSnapshot(message.path, blocking=True),))
             return
+        if not message.double_click:
+            return
         await self.dispatch_actions((OpenPathWithDefaultApp(message.path),))
 
     async def on_child_pane_entry_clicked(self, message: ChildPane.EntryClicked) -> None:
-        """Handle right child-pane double clicks from the widget message path."""
+        """Handle right child-pane clicks from the widget message path."""
 
         if not message.double_click:
+            entry = next(
+                (
+                    entry
+                    for entry in self._app_state.child_pane.entries
+                    if entry.path == message.path
+                ),
+                None,
+            )
+            if entry is not None and entry.kind == "dir":
+                await self._open_or_enter_path(message.path)
             return
         await self._open_or_enter_path(message.path)
 

@@ -150,6 +150,11 @@ class DismissNameConflict:
 
 
 @dataclass(frozen=True)
+class DismissAboutDialog:
+    """Dismiss the about dialog."""
+
+
+@dataclass(frozen=True)
 class DismissAttributeDialog:
     """Dismiss the pending read-only attribute dialog."""
 

@@ -1,5 +1,6 @@
 """Status, palette, and dialog selectors."""
 
+import importlib.metadata
 from pathlib import Path
 
 from zivo.models import (
@@ -683,6 +684,18 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
 
 def select_attribute_dialog_state(state: AppState) -> AttributeDialogState | None:
     """Return dialog content when the app is showing read-only attributes."""
+
+    if state.ui_mode == "ABOUT":
+        return AttributeDialogState(
+            title="About zivo",
+            lines=(
+                f"Version: {importlib.metadata.version('zivo')}",
+                "Author: devgamesan",
+                "License: MIT License",
+                "Repository: https://github.com/devgamesan/zivo",
+            ),
+            options=("enter close", "esc close"),
+        )
 
     if state.attribute_inspection is None:
         return None

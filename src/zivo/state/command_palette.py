@@ -463,6 +463,12 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 enabled=True,
             ),
             CommandPaletteItem(
+                id="show_about",
+                label="About zivo",
+                shortcut=None,
+                enabled=True,
+            ),
+            CommandPaletteItem(
                 id="edit_config",
                 label="Edit config",
                 shortcut=None,

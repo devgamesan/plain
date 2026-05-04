@@ -6,7 +6,7 @@ from datetime import datetime
 import pytest
 
 from zivo.state.models import FileSearchResultState
-from zivo.windows_paths import file_search_result_to_directory_entry
+from zivo.windows_paths import display_path, file_search_result_to_directory_entry
 
 
 def test_file_search_result_to_directory_entry_includes_size_and_modified_at(tmp_path):
@@ -148,3 +148,40 @@ def test_file_search_result_to_directory_entry_for_unicode_filename(tmp_path):
     assert entry.name == "テストファイル.txt"
     assert entry.size_bytes == len("content")
     assert entry.modified_at is not None
+
+
+def test_display_path_for_search_workspace_with_query_and_root():
+    """search workspace パスのクエリと root が正しくデコードされること"""
+    path = "search://filename%3Apy?target=all&hidden=false&root=%2Fhome"
+    result = display_path(path)
+    assert result == "search:filename:py (root:/home)"
+
+
+def test_display_path_for_search_workspace_without_root():
+    """root がない search workspace パスが正しく表示されること"""
+    path = "search://?target=all&hidden=false"
+    result = display_path(path)
+    assert result == "search:all"
+
+
+def test_display_path_for_search_workspace_with_empty_query():
+    """クエリが空の場合、'all' と表示されること"""
+    path = "search://?target=all&hidden=false&root=%2Fhome"
+    result = display_path(path)
+    assert result == "search:all (root:/home)"
+
+
+def test_display_path_for_regular_path():
+    """通常のパスがそのまま返されること"""
+    path = "/home/user/documents"
+    result = display_path(path)
+    assert result == path
+
+
+def test_display_path_for_windows_drives_root():
+    """Windows drives root が正しく表示されること"""
+    from zivo.windows_paths import WINDOWS_DRIVES_LABEL
+
+    path = "::zivo::windows-drives::"
+    result = display_path(path)
+    assert result == WINDOWS_DRIVES_LABEL

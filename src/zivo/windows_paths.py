@@ -84,6 +84,15 @@ def display_path(path: str) -> str:
 
     if is_windows_drives_root(path):
         return WINDOWS_DRIVES_LABEL
+
+    if is_search_workspace_path(path):
+        params = parse_search_workspace_path(path)
+        query = params["query"] or "all"
+        parts = [f"search:{query}"]
+        if params["root"]:
+            parts.append(f" (root:{params['root']})")
+        return "".join(parts)
+
     return path
 
 

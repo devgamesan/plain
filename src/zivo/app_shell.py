@@ -9,6 +9,7 @@ from textual.widgets import DataTable
 from zivo.models import ThreePaneShellData
 from zivo.state.models import AppState
 from zivo.ui import (
+    AboutDialog,
     AttributeDialog,
     ChildPane,
     CommandPalette,
@@ -119,11 +120,13 @@ async def refresh_shell(
         status_bar = app.query_one("#status-bar", StatusBar)
         command_palette_layer = app.query_one("#command-palette-layer", Container)
         conflict_dialog_layer = app.query_one("#conflict-dialog-layer", Container)
+        about_dialog_layer = app.query_one("#about-dialog-layer", Container)
         attribute_dialog_layer = app.query_one("#attribute-dialog-layer", Container)
         config_dialog_layer = app.query_one("#config-dialog-layer", Container)
         shell_command_dialog_layer = app.query_one("#shell-command-dialog-layer", Container)
         input_dialog_layer = app.query_one("#input-dialog-layer", Container)
         conflict_dialog = app.query_one("#conflict-dialog", ConflictDialog)
+        about_dialog = app.query_one("#about-dialog", AboutDialog)
         attribute_dialog = app.query_one("#attribute-dialog", AttributeDialog)
         config_dialog = app.query_one("#config-dialog", ConfigDialog)
         shell_command_dialog = app.query_one("#shell-command-dialog", ShellCommandDialog)
@@ -139,6 +142,8 @@ async def refresh_shell(
             "#status-bar",
             "#conflict-dialog",
             "#conflict-dialog-layer",
+            "#about-dialog",
+            "#about-dialog-layer",
             "#attribute-dialog",
             "#attribute-dialog-layer",
             "#config-dialog",
@@ -167,6 +172,13 @@ async def refresh_shell(
             Container(
                 ConflictDialog(shell.conflict_dialog, id="conflict-dialog"),
                 id="conflict-dialog-layer",
+                classes="overlay-layer dialog-layer",
+            )
+        )
+        await app.mount(
+            Container(
+                AboutDialog(shell.about_dialog, id="about-dialog"),
+                id="about-dialog-layer",
                 classes="overlay-layer dialog-layer",
             )
         )
@@ -287,6 +299,8 @@ async def refresh_shell(
     status_bar.set_state(shell.status)
     conflict_dialog_layer.display = shell.conflict_dialog is not None
     conflict_dialog.set_state(shell.conflict_dialog)
+    about_dialog_layer.display = shell.about_dialog is not None
+    about_dialog.set_state(shell.about_dialog)
     attribute_dialog_layer.display = shell.attribute_dialog is not None
     attribute_dialog.set_state(shell.attribute_dialog)
     config_dialog_layer.display = shell.config_dialog is not None

@@ -14,6 +14,7 @@ from .actions_input import (
     ConfirmFilterInput,
     CycleConfigEditorValue,
     DeletePendingInputForward,
+    DismissAboutDialog,
     DismissAttributeDialog,
     DismissConfigEditor,
     DismissNameConflict,
@@ -80,6 +81,7 @@ __all__ = [
     "ConfirmFilterInput",
     "CycleConfigEditorValue",
     "DeletePendingInputForward",
+    "DismissAboutDialog",
     "DismissAttributeDialog",
     "DismissConfigEditor",
     "DismissNameConflict",
@@ -169,6 +171,7 @@ from .actions_navigation import (
     SetCursorPath,
     SetSort,
     SetTransferCursorPath,
+    ShowAbout,
     ShowAttributes,
     ToggleHiddenFiles,
     ToggleTransferMode,
@@ -344,6 +347,7 @@ Action = (
     | SubmitShellCommand
     | CancelShellCommandInput
     | DismissNameConflict
+    | DismissAboutDialog
     | DismissAttributeDialog
     | SetFilterQuery
     | PasteIntoPendingInput
@@ -369,6 +373,7 @@ Action = (
     | OpenPathInEditor
     | OpenPathInGuiEditor
     | OpenTerminalAtPath
+    | ShowAbout
     | ShowAttributes
     | CopyPathsToClipboard
     | AddBookmark

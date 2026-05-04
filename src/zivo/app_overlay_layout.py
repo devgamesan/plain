@@ -129,9 +129,35 @@ def update_input_dialog_geometry(app: Any) -> None:
     )
 
 
+def update_about_dialog_geometry(app: Any) -> None:
+    """Constrain the about dialog overlay to the appropriate pane."""
+    try:
+        about_dialog_layer = app.query_one("#about-dialog-layer", Container)
+        browser_row = app.query_one("#browser-row")
+    except NoMatches:
+        return
+
+    target_pane = get_target_overlay_pane(app)
+    if target_pane is None:
+        return
+
+    pane_region = target_pane.region
+    row_region = browser_row.region
+    if pane_region.width <= 0 or pane_region.height <= 0:
+        return
+
+    about_dialog_layer.styles.width = pane_region.width
+    about_dialog_layer.styles.height = pane_region.height
+    about_dialog_layer.styles.offset = (
+        pane_region.x,
+        row_region.y,
+    )
+
+
 def sync_overlay_layout(app: Any, width: int | None = None) -> None:
     """Refresh side-pane visibility and overlay geometry together."""
     update_pane_visibility(app, app.size.width if width is None else width)
     update_command_palette_geometry(app)
+    update_about_dialog_geometry(app)
     update_config_dialog_geometry(app)
     update_input_dialog_geometry(app)

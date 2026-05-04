@@ -92,6 +92,7 @@ from .models import (
 )
 from .reducer import reduce_app_state
 from .selectors import (
+    select_about_dialog_state,
     select_attribute_dialog_state,
     select_child_entries,
     select_command_palette_state,
@@ -199,6 +200,7 @@ __all__ = [
     "load_browser_tab",
     "reduce_app_state",
     "resolve_parent_directory_path",
+    "select_about_dialog_state",
     "select_attribute_dialog_state",
     "select_browser_tabs",
     "select_child_entries",

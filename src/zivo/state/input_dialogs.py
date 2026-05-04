@@ -24,6 +24,7 @@ from .actions import (
     ConfirmZipCompress,
     CycleConfigEditorValue,
     DeletePendingInputForward,
+    DismissAboutDialog,
     DismissAttributeDialog,
     DismissConfigEditor,
     DismissNameConflict,
@@ -269,6 +270,15 @@ def dispatch_shell_command_input(
         return supported(SetShellCommandValue(new_value, pos + 1))
 
     return warn("Use Enter to run or Esc to cancel")
+
+
+def dispatch_about_input(
+    state: AppState, *, key: str, character: str | None
+) -> DispatchedActions:
+    if key in {"enter", "escape"}:
+        return supported(DismissAboutDialog())
+
+    return warn("Use Enter or Esc to close the about dialog")
 
 
 def dispatch_detail_input(

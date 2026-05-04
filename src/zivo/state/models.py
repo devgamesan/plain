@@ -24,6 +24,7 @@ from zivo.models.shell_data import EntryKind, NotificationLevel
 from zivo.windows_paths import resolve_parent_directory_path as resolve_parent_directory_path_impl
 
 UiMode = Literal[
+    "ABOUT",
     "BROWSING",
     "FILTER",
     "RENAME",

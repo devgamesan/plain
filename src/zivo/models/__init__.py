@@ -74,6 +74,7 @@ from .file_operations import (
 )
 from .shell_command import ShellCommandResult
 from .shell_data import (
+    AboutDialogState,
     AttributeDialogState,
     ChildPaneViewState,
     CommandPaletteInputFieldViewState,
@@ -99,6 +100,7 @@ from .shell_data import (
 )
 
 __all__ = [
+    "AboutDialogState",
     "AppConfig",
     "ActionsConfig",
     "ArchiveFormat",

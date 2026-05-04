@@ -42,6 +42,7 @@ from .selectors_shared import (
     select_visible_current_entry_states,
 )
 from .selectors_ui import (
+    select_about_dialog_state,
     select_attribute_dialog_state,
     select_command_palette_state,
     select_config_dialog_state,
@@ -130,6 +131,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         help=select_help_bar_state(state),
         command_palette=select_command_palette_state(state),
         status=select_status_bar_state(state),
+        about_dialog=select_about_dialog_state(state),
         conflict_dialog=select_conflict_dialog_state(state),
         attribute_dialog=select_attribute_dialog_state(state),
         config_dialog=select_config_dialog_state(state),

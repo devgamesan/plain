@@ -51,6 +51,7 @@ from .reducer_common import (
     run_external_launch_request,
     sync_child_pane,
 )
+from .reducer_palette_shared import notify
 from .selectors import select_target_paths
 
 
@@ -476,6 +477,14 @@ def _handle_open_terminal_at_path(
     action: OpenTerminalAtPath,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
+    # Prevent terminal launch in virtual search workspaces
+    if action.path.startswith("search://"):
+        return notify(
+            state,
+            level="error",
+            message="Cannot open terminal in search workspace",
+        )
+
     return run_external_launch_request(
         replace(state, notification=None),
         ExternalLaunchRequest(

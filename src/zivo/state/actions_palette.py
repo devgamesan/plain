@@ -292,3 +292,8 @@ class OpenGrepResultInGuiEditor:
 @dataclass(frozen=True)
 class OpenFindResultInGuiEditor:
     """Open the selected file search result in a GUI editor."""
+
+
+@dataclass(frozen=True)
+class OpenSearchWorkspace:
+    """Open search results as a virtual workspace."""

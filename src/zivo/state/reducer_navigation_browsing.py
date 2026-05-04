@@ -278,6 +278,29 @@ def _handle_go_to_parent_directory(
     action: GoToParentDirectory,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
+    # Handle virtual search workspace paths
+    if state.current_path.startswith("search://"):
+        from zivo.windows_paths import parse_search_workspace_path
+
+        params = parse_search_workspace_path(state.current_path)
+        root = params["root"]
+
+        if root:
+            return reduce_state(
+                state,
+                RequestBrowserSnapshot(
+                    root,
+                    cursor_path=None,
+                    blocking=True,
+                ),
+            )
+        else:
+            home_path = str(Path("~").expanduser().resolve())
+            return reduce_state(
+                state,
+                RequestBrowserSnapshot(home_path, blocking=True),
+            )
+
     if is_windows_drives_root(state.current_path):
         return finalize(state)
     if is_windows_path(state.current_path):

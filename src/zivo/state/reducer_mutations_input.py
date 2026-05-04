@@ -46,6 +46,7 @@ from .reducer_common import (
     validate_pending_input,
 )
 from .reducer_mutations_common import MutationHandler
+from .reducer_palette_shared import notify
 
 
 def _handle_begin_extract_archive_input(state, action, reduce_state):
@@ -199,6 +200,14 @@ def _handle_begin_rename_input(state, action, reduce_state):
 
 
 def _handle_begin_create_input(state, action, reduce_state):
+    # Prevent file/directory creation in virtual search workspaces
+    if state.current_path.startswith("search://"):
+        return notify(
+            state,
+            level="error",
+            message="Cannot create files in search workspace",
+        )
+
     prompt = "New file: " if action.kind == "file" else "New directory: "
     return finalize(
         replace(

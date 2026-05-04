@@ -151,7 +151,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             return HelpBarState(
                 (
                     "type filename | ↑↓ or Ctrl+j/k select | enter jump | "
-                    "Ctrl+e edit | Ctrl+o GUI | esc cancel",
+                    "Ctrl+w workspace | Ctrl+e edit | Ctrl+o GUI | esc cancel",
                 )
             )
         if state.command_palette is not None and state.command_palette.source == "grep_search":

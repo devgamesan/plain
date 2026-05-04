@@ -84,6 +84,15 @@ def display_path(path: str) -> str:
 
     if is_windows_drives_root(path):
         return WINDOWS_DRIVES_LABEL
+
+    if is_search_workspace_path(path):
+        params = parse_search_workspace_path(path)
+        query = params["query"] or "all"
+        parts = [f"search:{query}"]
+        if params["root"]:
+            parts.append(f" (root:{params['root']})")
+        return "".join(parts)
+
     return path
 
 
@@ -120,6 +129,18 @@ def list_windows_drive_paths() -> tuple[str, ...]:
 
 def resolve_parent_directory_path(path: str) -> tuple[str, str | None]:
     """Return the resolved path and its distinct parent, if one exists."""
+
+    # Handle virtual search workspace paths
+    if is_search_workspace_path(path):
+        params = parse_search_workspace_path(path)
+        root = params["root"]
+        if root:
+            return path, root
+        else:
+            from pathlib import Path
+
+            home = str(Path("~").expanduser().resolve())
+            return path, home
 
     if is_windows_drives_root(path):
         return WINDOWS_DRIVES_ROOT, None
@@ -216,3 +237,92 @@ def join_path(base_path: str, name: str) -> str:
     from pathlib import Path
 
     return str(Path(base_path) / name)
+
+
+def is_search_workspace_path(path: str) -> bool:
+    """Return True when the path is a virtual search workspace (search://)."""
+    return path.startswith("search://")
+
+
+def parse_search_workspace_path(path: str) -> dict[str, str | None]:
+    """Parse a search:// virtual path and extract parameters.
+
+    Args:
+        path: A search:// URL (e.g., "search://filename%3Apy?target=all&hidden=false&root=%2Fhome")
+
+    Returns:
+        A dictionary with keys: query, target, hidden, root
+    """
+    from urllib.parse import parse_qs, unquote, urlparse
+
+    parsed = urlparse(path)
+    params = parse_qs(parsed.query)
+
+    return {
+        "query": unquote(parsed.netloc) if parsed.netloc else "",
+        "target": params.get("target", [None])[0],
+        "hidden": params.get("hidden", [None])[0],
+        "root": unquote(params.get("root", [None])[0]) if params.get("root") else None,
+    }
+
+
+def file_search_result_to_directory_entry(result: object) -> object:
+    """Convert a FileSearchResultState to a DirectoryEntryState.
+
+    Args:
+        result: A FileSearchResultState instance
+
+    Returns:
+        A DirectoryEntryState with path, name, kind, size_bytes, and modified_at
+
+    Raises:
+        TypeError: If result is not a FileSearchResultState
+    """
+    from datetime import datetime
+    from pathlib import Path
+
+    from zivo.adapters.filesystem_attributes import resolve_owner_group
+    from zivo.models.shell_data import EntryKind
+
+    # Import here to avoid circular dependency
+    from zivo.state.models import DirectoryEntryState, FileSearchResultState
+
+    if isinstance(result, FileSearchResultState):
+        kind: EntryKind = "dir" if result.entry_type == "directory" else "file"
+        path = Path(result.path)
+
+        # ファイルのメタデータを取得
+        try:
+            stat_result = path.stat()
+            size_bytes = None if kind == "dir" else stat_result.st_size
+            modified_at = datetime.fromtimestamp(stat_result.st_mtime)
+            permissions_mode = stat_result.st_mode
+            hidden = path.name.startswith(".")
+            symlink = path.is_symlink()
+
+            # オーナー/グループ情報を取得
+            owner, group = resolve_owner_group(stat_result)
+
+            return DirectoryEntryState(
+                path=result.path,
+                name=path.name,
+                kind=kind,
+                size_bytes=size_bytes,
+                modified_at=modified_at,
+                hidden=hidden,
+                permissions_mode=permissions_mode,
+                owner=owner,
+                group=group,
+                symlink=symlink,
+            )
+        except (FileNotFoundError, PermissionError, OSError):
+            # ファイルが見つからない、アクセス権限がない、その他のエラーの場合
+            # 基本的な情報のみを含む DirectoryEntryState を返す
+            return DirectoryEntryState(
+                path=result.path,
+                name=path.name,
+                kind=kind,
+                hidden=path.name.startswith("."),
+            )
+
+    raise TypeError(f"Expected FileSearchResultState, got {type(result)}")

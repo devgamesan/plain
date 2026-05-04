@@ -12,9 +12,11 @@ from .actions import (
     FileSearchFailed,
     GrepSearchCompleted,
     GrepSearchFailed,
+    RequestBrowserSnapshot,
     SelectedFilesGrepKeywordChanged,
     SetFileSearchTarget,
 )
+from .actions_palette import OpenSearchWorkspace
 from .command_palette import normalize_command_palette_cursor
 from .effects import (
     LoadChildPaneSnapshotEffect,
@@ -24,6 +26,7 @@ from .effects import (
 )
 from .models import AppState, FileSearchResultState, GrepSearchResultState, NotificationState
 from .reducer_common import (
+    ReducerFn,
     filter_file_search_results,
     finalize,
     is_regex_file_search_query,
@@ -999,5 +1002,57 @@ def sync_sfg_preview(state: AppState) -> ReduceResult:
             enable_office_preview=state.config.display.enable_office_preview,
             grep_result=selected_result,
             grep_context_lines=state.config.display.grep_preview_context_lines,
+        ),
+    )
+
+
+def handle_open_search_workspace(
+    state: AppState,
+    action: OpenSearchWorkspace,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    """Open search results as a virtual workspace."""
+    from urllib.parse import quote, urlencode
+
+
+    # Get search results
+    results = state.command_palette.file_search.results
+    if not results:
+        message = state.command_palette.file_search.error_message or "No matching files"
+        return notify(state, level="warning", message=message)
+
+    # Build virtual path
+    query = state.command_palette.file_search.cache_query or ""
+    target = state.command_palette.file_search.target
+    hidden = state.show_hidden
+    root = state.command_palette.file_search.cache_root_path or state.current_path
+
+    params = {
+        "target": target,
+        "hidden": "true" if hidden else "false",
+        "root": root,
+    }
+    virtual_path = f"search://{quote(query)}?{urlencode(params, doseq=True)}"
+
+    # Cache search results in search_workspaces (keep as FileSearchResultState)
+    next_state = replace(
+        state,
+        search_workspaces={
+            **state.search_workspaces,
+            virtual_path: results,
+        },
+    )
+
+    # Switch to browser mode if in transfer mode
+    if state.layout_mode == "transfer":
+        next_state = replace(next_state, layout_mode="browser")
+
+    # Navigate to virtual path
+    return reduce_state(
+        next_state,
+        RequestBrowserSnapshot(
+            virtual_path,
+            cursor_path=None,
+            blocking=True,
         ),
     )

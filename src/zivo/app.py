@@ -563,6 +563,8 @@ class zivoApp(App[None]):
             effects.extend(result.effects)
 
         self._app_state = state
+        if hasattr(self._snapshot_loader, "app_state"):
+            self._snapshot_loader.app_state = state
         return changed, tuple(effects)
 
     async def on_worker_state_changed(self, event: Worker.StateChanged) -> None:

@@ -640,6 +640,7 @@ class AppState:
     current_pane_projection_mode: CurrentPaneProjectionMode = "full"
     current_pane_window_start: int = 0
     next_request_id: int = 1
+    search_workspaces: dict[str, tuple[DirectoryEntryState, ...]] = field(default_factory=dict)
 
 
 def browser_tab_from_app_state(state: AppState) -> BrowserTabState:

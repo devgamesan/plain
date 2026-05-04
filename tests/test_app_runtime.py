@@ -773,6 +773,36 @@ def test_handle_worker_state_changed_cleans_up_cancelled_workers_without_dispatc
     assert app.dispatched_actions == []
 
 
+def test_run_foreground_external_launch_shows_exit_message_for_terminal(
+    capsys,
+) -> None:
+    request = ExternalLaunchRequest(kind="open_terminal", path="/tmp")
+    app = _RecordingApp()
+
+    run_foreground_external_launch(
+        app,
+        RunExternalLaunchEffect(request_id=1, request=request),
+    )
+
+    captured = capsys.readouterr()
+    assert "exit" in captured.out
+
+
+def test_run_foreground_external_launch_skips_message_for_editor(
+    capsys,
+) -> None:
+    request = ExternalLaunchRequest(kind="open_editor", path="/tmp/project/README.md")
+    app = _RecordingApp()
+
+    run_foreground_external_launch(
+        app,
+        RunExternalLaunchEffect(request_id=1, request=request),
+    )
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+
+
 def test_run_foreground_external_launch_maps_suspend_failures() -> None:
     request = ExternalLaunchRequest(kind="open_editor", path="/tmp/project/README.md")
     app = _RecordingApp(suspend_error=SuspendNotSupported("suspend unavailable"))

@@ -21,7 +21,7 @@ zivo itself can be installed and started with `uv`, but some features depend on 
 
 | Feature | Tool |
 | --- | --- |
-| Image preview | `chafa` |
+| Image preview | `chafa` (Kitty graphics protocol on compatible terminals with `image_preview_mode = "kitty"` or `"auto"`) |
 | PDF preview | `pdftotext` / `poppler` |
 | Office preview | `pandoc` |
 | Grep search | `ripgrep` |
@@ -53,7 +53,7 @@ On Windows, drive roots such as `C:\` support pressing `←` to return to the dr
 Install the required dependencies from their official websites:
 
 - Document preview: [pandoc](https://pandoc.org/)
-- Image preview: [chafa](https://hpjansson.org/chafa/)
+- Image preview: [chafa](https://hpjansson.org/chafa/) (the Kitty graphics protocol requires a terminal such as [Kitty](https://sw.kovidgoyal.net/kitty/), [Ghostty](https://ghostty.org/), or [WezTerm](https://wezfurlong.org/wezterm/))
 - PDF preview (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
 - Grep search: [ripgrep](https://github.com/BurntSushi/ripgrep)
 

@@ -65,6 +65,22 @@ def read_int(
     return default
 
 
+def read_str(
+    section: dict[str, object],
+    *,
+    key: str,
+    default: str,
+    warnings: list[str],
+    section_name: str,
+) -> str:
+    value = section.get(key, default)
+    if isinstance(value, str):
+        return value
+    if key in section:
+        warnings.append(f"{section_name}.{key} must be a string; using default.")
+    return default
+
+
 def read_enum(
     section: dict[str, object],
     *,

@@ -153,7 +153,7 @@ See [Commands](docs/commands.md) for the full command list.
 - **Replace**: batch replace in selected files, found files, or grep results with diff preview
 
 ### Preview
-- Text, images (chafa), PDF (pdftotext), Office (pandoc)
+- Text, images (chafa; optional Kitty graphics protocol on compatible terminals), PDF (pdftotext), Office (pandoc)
 
 ### Transfer mode
 - Side-by-side two-pane layout for copying or moving files between directories

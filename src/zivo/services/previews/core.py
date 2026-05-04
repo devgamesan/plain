@@ -9,6 +9,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Protocol
 
+from zivo.models.config import ImagePreviewMode
+from zivo.services.terminal_detection import supports_kitty_graphics
+
 TEXT_PREVIEW_MAX_BYTES = 64 * 1024
 DEFAULT_IMAGE_PREVIEW_COLUMNS = 80
 IMAGE_PREVIEW_EXTENSIONS = frozenset(
@@ -204,11 +207,27 @@ def _strip_non_sgr_ansi(text: str) -> str:
     return _ANSI_ESCAPE_SEQUENCE_RE.sub("", text)
 
 
+def _strip_ansi_for_kitty(text: str) -> str:
+    """Strip ANSI sequences that would interfere with Kitty graphics protocol.
+
+    Unlike _strip_non_sgr_ansi, this preserves Kitty graphics protocol APC
+    strings (ESC_G ... ESC\\) so they can be passed through to the terminal.
+    """
+    text = _ANSI_OSC_SEQUENCE_RE.sub("", text)
+
+    def _replace(match: re.Match[str]) -> str:
+        sequence = match.group(0)
+        return sequence if sequence.endswith("m") else ""
+
+    text = _ANSI_CONTROL_SEQUENCE_RE.sub(_replace, text)
+    return text
+
+
 @dataclass(frozen=True)
 class FilePreviewState:
     kind: Literal["content", "message", "unavailable"]
     content: str | None = None
-    content_kind: Literal["text", "image"] = "text"
+    content_kind: Literal["text", "image", "kitty"] = "text"
     message: str | None = None
     truncated: bool = False
 
@@ -218,7 +237,7 @@ class FilePreviewState:
         content: str,
         truncated: bool,
         *,
-        content_kind: Literal["text", "image"] = "text",
+        content_kind: Literal["text", "image", "kitty"] = "text",
     ) -> "FilePreviewState":
         return cls(
             kind="content",
@@ -345,6 +364,20 @@ class PandocDocumentPreviewLoader:
         return pandoc
 
 
+def resolve_image_preview_format(image_preview_mode: ImagePreviewMode) -> str:
+    """Return the chafa format string for the given preview mode.
+
+    In auto mode, the terminal is probed at call time and "kitty" is
+    returned when the Kitty graphics protocol is available.
+    """
+    if image_preview_mode == "kitty":
+        return "kitty"
+    if image_preview_mode == "auto":
+        if supports_kitty_graphics():
+            return "kitty"
+    return "symbols"
+
+
 @dataclass
 class ChafaImagePreviewLoader:
     chafa_path: str | None = field(default=None, init=False, repr=False)
@@ -356,6 +389,7 @@ class ChafaImagePreviewLoader:
         path: Path,
         *,
         preview_columns: int,
+        image_preview_format: str = "symbols",
     ) -> FilePreviewState | None:
         chafa = self._resolve_chafa()
         if chafa is None:
@@ -364,6 +398,7 @@ class ChafaImagePreviewLoader:
             chafa,
             path,
             preview_columns=preview_columns,
+            chafa_format=image_preview_format,
         )
         try:
             result = subprocess.run(args, check=True, capture_output=True)
@@ -376,6 +411,7 @@ class ChafaImagePreviewLoader:
                 chafa,
                 path,
                 preview_columns=preview_columns,
+                chafa_format=image_preview_format,
             )
             try:
                 result = subprocess.run(fallback_args, check=True, capture_output=True)
@@ -390,6 +426,11 @@ class ChafaImagePreviewLoader:
             content = _normalize_preview_newlines(
                 result.stdout.decode("utf-8", errors="ignore")
             )
+        if image_preview_format == "kitty":
+            content = _strip_ansi_for_kitty(content)
+            if not content.strip():
+                return FilePreviewState.error()
+            return FilePreviewState.with_content(content, False, content_kind="kitty")
         content = _strip_non_sgr_ansi(content)
         if not content.strip():
             return FilePreviewState.error()
@@ -401,11 +442,12 @@ class ChafaImagePreviewLoader:
         path: Path,
         *,
         preview_columns: int,
+        chafa_format: str = "symbols",
     ) -> list[str]:
         args = [
             chafa,
             "--format",
-            "symbols",
+            chafa_format,
             "--colors",
             "full",
         ]
@@ -453,7 +495,8 @@ def _build_text_preview_cache_key(
     enable_pdf_preview: bool,
     enable_office_preview: bool,
     preview_columns: int,
-) -> tuple[str, int, int, int, bool, bool, bool, bool, int] | FilePreviewState:
+    image_preview_mode: ImagePreviewMode = "auto",
+) -> tuple[str, int, int, int, bool, bool, bool, bool, int, str] | FilePreviewState:
     preview_limit = max(1, preview_max_bytes)
     try:
         stat = path.stat()
@@ -471,6 +514,7 @@ def _build_text_preview_cache_key(
         enable_pdf_preview,
         enable_office_preview,
         max(1, preview_columns),
+        image_preview_mode,
     )
 
 
@@ -508,12 +552,18 @@ def _load_text_preview(
     document_preview_loader: DocumentPreviewLoader | None = None,
     image_preview_loader: ImagePreviewLoader | None = None,
     preview_columns: int = DEFAULT_IMAGE_PREVIEW_COLUMNS,
+    image_preview_mode: ImagePreviewMode = "auto",
 ) -> FilePreviewState:
     if _is_image_preview_candidate(path):
         if not enable_image_preview:
             return FilePreviewState.unavailable()
         loader = image_preview_loader or ChafaImagePreviewLoader()
-        preview = loader.load_preview(path, preview_columns=max(1, preview_columns))
+        fmt = resolve_image_preview_format(image_preview_mode)
+        preview = loader.load_preview(
+            path,
+            preview_columns=max(1, preview_columns),
+            image_preview_format=fmt,
+        )
         if preview is not None:
             return preview
         return FilePreviewState.with_message(IMAGE_PREVIEW_DEPENDENCY_MESSAGE)
@@ -552,7 +602,12 @@ def _load_text_preview(
             if not enable_image_preview:
                 return FilePreviewState.unavailable()
             loader = image_preview_loader or ChafaImagePreviewLoader()
-            preview = loader.load_preview(path, preview_columns=max(1, preview_columns))
+            fmt = resolve_image_preview_format(image_preview_mode)
+            preview = loader.load_preview(
+                path,
+                preview_columns=max(1, preview_columns),
+                image_preview_format=fmt,
+            )
             if preview is not None:
                 return preview
         return FilePreviewState.unsupported()
@@ -566,7 +621,12 @@ def _load_text_preview(
             if not enable_image_preview:
                 return FilePreviewState.unavailable()
             loader = image_preview_loader or ChafaImagePreviewLoader()
-            preview = loader.load_preview(path, preview_columns=max(1, preview_columns))
+            fmt = resolve_image_preview_format(image_preview_mode)
+            preview = loader.load_preview(
+                path,
+                preview_columns=max(1, preview_columns),
+                image_preview_format=fmt,
+            )
             if preview is not None:
                 return preview
         return FilePreviewState.unsupported()

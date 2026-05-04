@@ -52,6 +52,7 @@ from .actions import (
     RemoveBookmark,
     SelectAllVisibleEntries,
     SelectAllVisibleTransferEntries,
+    ShowAbout,
     ShowAttributes,
     ToggleHiddenFiles,
     ToggleTransferMode,
@@ -596,6 +597,8 @@ def _run_palette_command_item(
         return _run_grep_replace_selected_command(state, next_state, reduce_state)
     if item_id == "selected_files_grep":
         return _run_selected_files_grep_command(state, next_state, reduce_state)
+    if item_id == "show_about":
+        return reduce_state(next_state, ShowAbout())
     if item_id == "show_attributes":
         return reduce_state(next_state, ShowAttributes())
     if item_id == "copy_path":

@@ -55,6 +55,7 @@ flowchart LR
         Mutations["file_mutations.py"]
         Archive["archive_extract.py"]
         Config["config.py"]
+        Terminal["terminal_detection.py\nKitty/Ghostty detection"]
         Launch["external_launcher.py"]
         ArchiveUtils["archive_utils.py\narchive detection / destination resolution"]
     end
@@ -251,6 +252,7 @@ sequenceDiagram
 - `undo_operations.py`: executes undo for reversible file operations
 - `archive_extract.py`: handles archive preflight scanning, conflict detection, safe extraction, and progress reporting
 - `config.py`: loads, validates, saves, and renders `config.toml`
+- `terminal_detection.py`: detects Kitty graphics protocol support from environment variables (Kitty, Ghostty, WezTerm, etc.)
 - `external_launcher.py`: handles default-app launch, terminal-editor launch, external-terminal launch, and path copy
 
 ### `src/zivo/archive_utils.py`
@@ -337,7 +339,8 @@ Notes:
 - Opens files in the current terminal editor with `e`
 - Provides recursive file search, recursive grep search, attribute inspection, path copy, file-manager launch, external-terminal launch, and hidden-files toggling from the command palette
 - Extracts supported archives (`.zip`, `.tar`, `.tar.gz`, `.tar.bz2`) with conflict confirmation and progress reporting
-- Saves startup settings and bookmarks through the config overlay
+- High-fidelity image preview via the Kitty graphics protocol (auto-detected or manually selected, with dynamic resize)
+- Saves startup settings and bookmarks through the config overlay (including `image_preview_mode`)
 - Starts the embedded split terminal, forwards input, supports clipboard paste, and reports exit events
 - Keeps status bar, help bar, input bar, conflict dialog, attribute dialog, config dialog, and split terminal synchronized with application state
 

@@ -12,6 +12,7 @@ CONFIG_THEMES = SUPPORTED_APP_THEMES
 CONFIG_PREVIEW_SYNTAX_THEMES = SUPPORTED_PREVIEW_SYNTAX_THEMES
 CONFIG_PREVIEW_MAX_KIB = (64, 128, 256, 512, 1024)
 CONFIG_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+CONFIG_IMAGE_PREVIEW_MODES = ("auto", "kitty", "chafa")
 CONFIG_PASTE_ACTIONS = ("prompt", "overwrite", "skip", "rename")
 CONFIG_EDITOR_COMMANDS = (None, "nvim", "vim", "nano", "hx", "micro", "emacs -nw", "edit")
 CONFIG_FILE_SEARCH_MAX_RESULTS = (None, 100, 500, 1000, 5000, 10000)
@@ -128,6 +129,18 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
             display=replace(
                 config.display,
                 enable_image_preview=not config.display.enable_image_preview,
+            ),
+        )
+    if field_id == "display.image_preview_mode":
+        return replace(
+            config,
+            display=replace(
+                config.display,
+                image_preview_mode=cycle_choice(
+                    CONFIG_IMAGE_PREVIEW_MODES,
+                    config.display.image_preview_mode,
+                    delta,
+                ),
             ),
         )
     if field_id == "display.enable_pdf_preview":
@@ -323,6 +336,7 @@ def config_editor_field_ids() -> tuple[str, ...]:
         "display.show_directory_sizes",
         "display.enable_text_preview",
         "display.enable_image_preview",
+        "display.image_preview_mode",
         "display.enable_pdf_preview",
         "display.enable_office_preview",
         "display.preview_syntax_theme",
@@ -350,6 +364,7 @@ def config_editor_labels() -> tuple[str, ...]:
         "Show directory sizes",
         "Text preview",
         "Image preview",
+        "Image preview mode",
         "PDF preview",
         "Office preview",
         "Preview syntax theme",
@@ -430,6 +445,15 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
             "Controls image-file preview in the right pane using `chafa` output.",
             "Current behavior: image preview is "
             f"{'enabled' if config.display.enable_image_preview else 'disabled'} on startup.",
+        )
+    if field_id == "display.image_preview_mode":
+        mode = config.display.image_preview_mode
+        return (
+            "Sets the image rendering engine.",
+            "auto probes the terminal for Kitty graphics protocol support.",
+            "kitty uses chafa with the Kitty graphics protocol (requires Kitty terminal).",
+            "chafa uses chafa with Unicode symbols (works everywhere).",
+            f"Current behavior: `{mode}`.",
         )
     if field_id == "display.enable_pdf_preview":
         return (
@@ -537,13 +561,13 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
 
 CONFIG_EDITOR_CATEGORIES: tuple[tuple[str, tuple[int, ...]], ...] = (
     ("External", (0, 1)),
-    ("Theme", (3, 9)),
-    ("Preview", (5, 6, 7, 8, 10, 15, 21)),
-    ("Display", (2, 4, 11, 16)),
-    ("File Search", (20,)),
-    ("Sorting", (12, 13, 14)),
-    ("Behavior", (17, 18)),
-    ("Logging", (19,)),
+    ("Theme", (3, 10)),
+    ("Preview", (5, 6, 7, 8, 9, 11, 16, 22)),
+    ("Display", (2, 4, 12, 17)),
+    ("File Search", (21,)),
+    ("Sorting", (13, 14, 15)),
+    ("Behavior", (18, 19)),
+    ("Logging", (20,)),
 )
 
 
@@ -602,6 +626,8 @@ def format_config_field_value(field_index: int, config: AppConfig) -> str:
         return _format_bool(config.display.enable_text_preview)
     if field_id == "display.enable_image_preview":
         return _format_bool(config.display.enable_image_preview)
+    if field_id == "display.image_preview_mode":
+        return config.display.image_preview_mode
     if field_id == "display.enable_pdf_preview":
         return _format_bool(config.display.enable_pdf_preview)
     if field_id == "display.enable_office_preview":

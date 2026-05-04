@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from zivo.theme_support import SUPPORTED_APP_THEMES, SUPPORTED_PREVIEW_SYNTAX_THEMES
 
+VALID_IMAGE_PREVIEW_MODES = frozenset({"auto", "kitty", "chafa"})
 VALID_SORT_FIELDS = frozenset({"name", "modified", "size"})
 VALID_THEMES = frozenset(SUPPORTED_APP_THEMES)
 VALID_PREVIEW_SYNTAX_THEMES = frozenset(SUPPORTED_PREVIEW_SYNTAX_THEMES)

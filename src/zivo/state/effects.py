@@ -16,6 +16,7 @@ from zivo.models import (
     TextReplaceRequest,
     UndoEntry,
 )
+from zivo.models.config import ImagePreviewMode
 
 from .models import AppState, GrepSearchResultState, PaneState, TransferPaneId
 
@@ -44,6 +45,7 @@ class LoadChildPaneSnapshotEffect:
     preview_max_bytes: int = 64 * 1024
     enable_text_preview: bool = True
     enable_image_preview: bool = True
+    image_preview_mode: ImagePreviewMode = "auto"
     enable_pdf_preview: bool = True
     enable_office_preview: bool = True
     preview_columns: int = 80
@@ -71,6 +73,7 @@ class LoadParentChildEffect:
     current_pane: PaneState
     enable_text_preview: bool = True
     enable_image_preview: bool = True
+    image_preview_mode: ImagePreviewMode = "auto"
     enable_pdf_preview: bool = True
     enable_office_preview: bool = True
 

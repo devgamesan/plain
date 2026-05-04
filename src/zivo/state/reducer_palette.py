@@ -28,6 +28,7 @@ from .actions import (
     CycleGrepSearchField,
     CycleReplaceField,
     CycleSelectedFilesGrepField,
+    DismissAboutDialog,
     DismissAttributeDialog,
     FileSearchCompleted,
     FileSearchFailed,
@@ -46,6 +47,7 @@ from .actions import (
     SetGrepReplaceSelectedField,
     SetGrepSearchField,
     SetReplaceField,
+    ShowAbout,
     ShowAttributes,
     SubmitCommandPalette,
     TextReplaceApplied,
@@ -396,6 +398,36 @@ def _handle_cancel_command_palette(
     return finalize(next_state)
 
 
+def _handle_dismiss_about_dialog(
+    state: AppState,
+    action: DismissAboutDialog,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del action, reduce_state
+    return finalize(
+        replace(
+            state,
+            ui_mode="BROWSING",
+        )
+    )
+
+
+def _handle_show_about(
+    state: AppState,
+    action: ShowAbout,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del action, reduce_state
+    return finalize(
+        replace(
+            state,
+            ui_mode="ABOUT",
+            notification=None,
+            command_palette=None,
+        )
+    )
+
+
 def _handle_dismiss_attribute_dialog(
     state: AppState,
     action: DismissAttributeDialog,
@@ -478,7 +510,9 @@ _PALETTE_HANDLERS: dict[type[Action], _PaletteHandler] = {
     BeginBookmarkSearch: _dispatch_begin_bookmark_search,
     BeginGoToPath: _handle_begin_go_to_path,
     CancelCommandPalette: _handle_cancel_command_palette,
+    DismissAboutDialog: _handle_dismiss_about_dialog,
     DismissAttributeDialog: _handle_dismiss_attribute_dialog,
+    ShowAbout: _handle_show_about,
     ShowAttributes: _handle_show_attributes,
     MoveCommandPaletteCursor: lambda s, a, r: _handle_move_palette_cursor(s, a),
     SetCommandPaletteQuery: lambda s, a, r: _handle_set_palette_query(s, a),

@@ -43,8 +43,10 @@ class StubImagePreviewLoader:
     previews_by_path: dict[str, FilePreviewState] = field(default_factory=dict)
     calls: list[str] = field(default_factory=list)
 
-    def load_preview(self, path: Path, *, preview_columns: int) -> FilePreviewState | None:
-        self.calls.append(f"{path}:{preview_columns}")
+    def load_preview(
+        self, path: Path, *, preview_columns: int, image_preview_format: str = "symbols"
+    ) -> FilePreviewState | None:
+        self.calls.append(f"{path}:{preview_columns}:{image_preview_format}")
         return self.previews_by_path.get(str(path))
 
 
@@ -188,8 +190,14 @@ def test_live_browser_snapshot_loader_uses_document_preview_for_supported_docume
 
 
 def test_live_browser_snapshot_loader_uses_chafa_preview_for_supported_images(
-    tmp_path,
+    tmp_path, monkeypatch,
 ) -> None:
+    monkeypatch.setattr(
+        "zivo.services.terminal_detection.supports_kitty_graphics", lambda: False
+    )
+    monkeypatch.setattr(
+        "zivo.services.previews.core.supports_kitty_graphics", lambda: False
+    )
     project = tmp_path / "project"
     project.mkdir()
     image = project / "preview.png"
@@ -211,7 +219,7 @@ def test_live_browser_snapshot_loader_uses_chafa_preview_for_supported_images(
     assert snapshot.child_pane.preview_path == str(image)
     assert snapshot.child_pane.preview_content == "\x1b[31m@@\x1b[0m\n"
     assert snapshot.child_pane.preview_kind == "image"
-    assert preview_loader.calls == [f"{image}:80"]
+    assert preview_loader.calls == [f"{image}:80:symbols"]
 
 
 def test_live_browser_snapshot_loader_skips_image_preview_when_disabled(tmp_path) -> None:
@@ -543,7 +551,15 @@ def test_chafa_image_preview_loader_returns_error_when_command_fails(
     assert preview == FilePreviewState.error()
 
 
-def test_live_browser_snapshot_loader_detects_png_signature_without_extension(tmp_path) -> None:
+def test_live_browser_snapshot_loader_detects_png_signature_without_extension(
+    tmp_path, monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "zivo.services.terminal_detection.supports_kitty_graphics", lambda: False
+    )
+    monkeypatch.setattr(
+        "zivo.services.previews.core.supports_kitty_graphics", lambda: False
+    )
     project = tmp_path / "project"
     project.mkdir()
     image = project / "preview.bin"
@@ -565,7 +581,7 @@ def test_live_browser_snapshot_loader_detects_png_signature_without_extension(tm
     assert snapshot.child_pane.preview_path == str(image)
     assert snapshot.child_pane.preview_content == "\x1b[31m@@\x1b[0m\n"
     assert snapshot.child_pane.preview_kind == "image"
-    assert preview_loader.calls == [f"{image}:80"]
+    assert preview_loader.calls == [f"{image}:80:symbols"]
 
 
 def test_live_browser_snapshot_loader_uses_pdftotext_for_pdf_preview(

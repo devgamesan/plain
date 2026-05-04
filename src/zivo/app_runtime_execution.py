@@ -321,6 +321,9 @@ def run_foreground_external_launch(app: Any, effect: RunExternalLaunchEffect) ->
 
     try:
         with suspend_context:
+            if effect.request.kind == "open_terminal":
+                print("Zivo is suspended. Type 'exit' to return.")
+                sys.stdout.flush()
             app._external_launch_service.execute(effect.request)
     except OSError as error:
         app.refresh(repaint=True, layout=True)

@@ -34,6 +34,7 @@ from .shared import (
     HELP_BAR_FIELDS,
     VALID_CUSTOM_ACTION_MODES,
     VALID_CUSTOM_ACTION_WHEN,
+    VALID_IMAGE_PREVIEW_MODES,
     VALID_LOG_LEVELS,
     VALID_PASTE_ACTIONS,
     VALID_PREVIEW_MAX_KIB,
@@ -157,6 +158,15 @@ def load_display_config(section: object, warnings: list[str]) -> DisplayConfig:
             default=config.enable_image_preview,
             warnings=warnings,
             section_name="display",
+        ),
+        image_preview_mode=read_enum(
+            validated,
+            key="image_preview_mode",
+            default=config.image_preview_mode,
+            valid_values=VALID_IMAGE_PREVIEW_MODES,
+            valid_display="auto, kitty, chafa",
+            section_name="display",
+            warnings=warnings,
         ),
         enable_pdf_preview=read_bool(
             validated,

@@ -22,7 +22,8 @@ If the file does not exist yet, zivo creates it automatically with default value
 | `display` | `show_hidden_files` | `true` / `false` | Default hidden-file visibility when the app starts. |
 | `display` | `show_directory_sizes` | `true` / `false` | Shows recursive directory sizes in the current pane. Defaults to `true`. Large directories can be expensive to scan. zivo also calculates sizes automatically while the main pane is sorted by `size`. |
 | `display` | `enable_text_preview` | `true` / `false` | Shows text-file previews in the right pane. Defaults to `true`. grep result context preview follows the same setting. |
-| `display` | `enable_image_preview` | `true` / `false` | Shows image-file previews in the right pane through `chafa`. Defaults to `true`. When `chafa` is missing, zivo shows a dependency message instead of failing. |
+| `display` | `enable_image_preview` | `true` / `false` | Shows image-file previews in the right pane through `chafa`. Defaults to `true`. When `chafa` is missing, zivo shows a dependency message instead of failing. Set `image_preview_mode` to `kitty` for high-fidelity image rendering on compatible terminals. |
+| `display` | `image_preview_mode` | `auto` / `kitty` / `chafa` | Selects the image preview backend. Defaults to `auto`. `auto` detects terminal support — uses the Kitty graphics protocol on Kitty, Ghostty, or compatible terminals; falls back to chafa Unicode symbols otherwise. `kitty` forces Kitty graphics protocol (requires a compatible terminal). `chafa` forces the legacy Unicode symbol output. |
 | `display` | `enable_pdf_preview` | `true` / `false` | Enables PDF preview conversion through `pdftotext`. Defaults to `true`. When disabled, PDF files fall back to the usual unsupported-file message. |
 | `display` | `enable_office_preview` | `true` / `false` | Enables `pandoc`-based preview conversion for `docx`, `xlsx`, and `pptx` files. Defaults to `true`. When disabled, those formats fall back to the usual unsupported-file message. |
 | `display` | `show_help_bar` | `true` / `false` | Shows the help bar at the bottom of the screen. Defaults to `true`. The help bar is always shown when the command palette is open, regardless of this setting. |
@@ -62,6 +63,7 @@ show_hidden_files = false
 show_directory_sizes = true
 enable_text_preview = true
 enable_image_preview = true
+image_preview_mode = "auto"
 enable_pdf_preview = true
 enable_office_preview = true
 show_help_bar = true

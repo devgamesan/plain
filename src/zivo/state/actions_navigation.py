@@ -143,6 +143,11 @@ class OpenTerminalAtPath:
 
 
 @dataclass(frozen=True)
+class ShowAbout:
+    """Show the about dialog."""
+
+
+@dataclass(frozen=True)
 class ShowAttributes:
     """Open the attribute dialog for the current single target."""
 

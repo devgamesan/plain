@@ -808,7 +808,7 @@ def test_move_config_editor_cursor_clamps_to_visible_settings() -> None:
     next_state = _reduce_state(state, MoveConfigEditorCursor(delta=99))
 
     assert next_state.config_editor is not None
-    assert next_state.config_editor.cursor_index == 19
+    assert next_state.config_editor.cursor_index == 20
 
 def test_cycle_config_editor_editor_command_updates_draft_and_dirty_state() -> None:
     state = replace(
@@ -989,7 +989,7 @@ def test_cycle_config_editor_pdf_preview_updates_draft_and_dirty_state() -> None
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=7,
+            cursor_index=8,
         ),
     )
 
@@ -1006,7 +1006,7 @@ def test_cycle_config_editor_office_preview_updates_draft_and_dirty_state() -> N
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=8,
+            cursor_index=9,
         ),
     )
 
@@ -1023,7 +1023,7 @@ def test_cycle_config_editor_preview_syntax_theme_updates_draft_and_dirty_state(
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=9,
+            cursor_index=10,
         ),
     )
 
@@ -1040,7 +1040,7 @@ def test_cycle_config_editor_preview_max_kib_updates_draft_and_dirty_state() -> 
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=10,
+            cursor_index=11,
         ),
     )
 
@@ -1266,7 +1266,7 @@ def test_cycle_config_editor_file_search_max_results_updates_draft() -> None:
             config_editor=ConfigEditorState(
                 path="/tmp/zivo/config.toml",
                 draft=original_state.config,
-                cursor_index=20,  # file_search.max_results
+                cursor_index=21,  # file_search.max_results
             ),
         )
 

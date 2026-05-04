@@ -24,6 +24,7 @@ from zivo.models.shell_data import EntryKind, NotificationLevel
 from zivo.windows_paths import resolve_parent_directory_path as resolve_parent_directory_path_impl
 
 UiMode = Literal[
+    "ABOUT",
     "BROWSING",
     "FILTER",
     "RENAME",
@@ -71,6 +72,7 @@ ConfigFieldId = Literal[
     "display.show_directory_sizes",
     "display.enable_text_preview",
     "display.enable_image_preview",
+    "display.image_preview_mode",
     "display.enable_pdf_preview",
     "display.enable_office_preview",
     "display.theme",
@@ -117,7 +119,7 @@ class PaneState:
     preview_path: str | None = None
     preview_title: str | None = None
     preview_content: str | None = None
-    preview_kind: Literal["text", "image"] = "text"
+    preview_kind: Literal["text", "image", "kitty"] = "text"
     preview_message: str | None = None
     preview_truncated: bool = False
     preview_start_line: int | None = None

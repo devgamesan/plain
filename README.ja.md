@@ -152,7 +152,7 @@ zivo-cd
 - **置換**: 選択ファイル、ファイル検索結果、grep 結果を対象に diff 確認後一括置換
 
 ### プレビュー
-- テキスト / 画像（chafa）/ PDF（pdftotext）/ Office（pandoc）
+- テキスト / 画像（chafa、対応端末では Kitty graphics protocol も利用可能）/ PDF（pdftotext）/ Office（pandoc）
 
 ### Transfer モード
 - 2 ペインを左右に並べ、選択ファイルを反対側のペインへコピーまたは移動

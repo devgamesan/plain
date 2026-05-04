@@ -5,6 +5,7 @@ import string
 from .input_browsing import BROWSING_KEYMAP, dispatch_browsing_input
 from .input_common import BrowsingHandler, DispatchedActions, warn
 from .input_dialogs import (
+    dispatch_about_input,
     dispatch_config_input,
     dispatch_confirm_input,
     dispatch_detail_input,
@@ -61,6 +62,8 @@ def dispatch_key_input(
     """データドリブンなキーディスパッチ."""
     character = _normalize_input_character(state, key=key, character=character)
 
+    if state.ui_mode == "ABOUT":
+        return dispatch_about_input(state, key=key, character=character)
     if state.ui_mode == "FILTER":
         return dispatch_filter_input(state, key=key, character=character)
     if state.ui_mode == "CONFIRM":

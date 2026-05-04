@@ -21,7 +21,8 @@ zivo は起動時にユーザー設定用の `config.toml` を読み込みます
 | `display` | `show_hidden_files` | `true` / `false` | 起動時の隠しファイル表示状態です。 |
 | `display` | `show_directory_sizes` | `true` / `false` | ペイン内に再帰ディレクトリサイズを表示します。既定値は `true` です。大きいディレクトリでは計算コストがかかる場合があります。中央ペインを `size` ソートしている間は、この設定が `false` でも自動計算されます。 |
 | `display` | `enable_text_preview` | `true` / `false` | 右ペインのテキストファイルプレビューを表示します。既定値は `true` です。grep 結果のコンテキストプレビューも同じ設定に従います。 |
-| `display` | `enable_image_preview` | `true` / `false` | `chafa` を使った画像プレビューを右ペインで表示します。既定値は `true` です。`chafa` が未導入の場合は失敗ではなく依存不足メッセージを表示します。 |
+| `display` | `enable_image_preview` | `true` / `false` | `chafa` を使った画像プレビューを右ペインで表示します。既定値は `true` です。`chafa` が未導入の場合は失敗ではなく依存不足メッセージを表示します。`image_preview_mode` を `kitty` にすると、対応端末で高精細な画像表示が可能です。 |
+| `display` | `image_preview_mode` | `auto` / `kitty` / `chafa` | 画像プレビュー方式を選択します。既定値は `auto` です。`auto` では端末を自動検出し、Kitty/Ghostty 等の対応端末では Kitty graphics protocol、非対応端末では chafa Unicode 記号を使います。`kitty` は強制的に Kitty graphics protocol を使用します（対応端末必須）。`chafa` は従来の Unicode 記号出力を使用します。 |
 | `display` | `enable_pdf_preview` | `true` / `false` | `pdftotext` を使った PDF プレビューを有効にします。既定値は `true` です。無効にすると PDF は通常の非対応メッセージへ戻ります。 |
 | `display` | `enable_office_preview` | `true` / `false` | `docx` / `xlsx` / `pptx` のプレビューを `pandoc` 変換で有効にします。既定値は `true` です。無効にすると、これらの形式は通常の非対応メッセージへ戻ります。 |
 | `display` | `show_help_bar` | `true` / `false` | 画面下部のヘルプバーを表示します。既定値は `true` です。コマンドパレットが開いている場合は、この設定に関係なく常に表示されます。 |
@@ -61,6 +62,7 @@ show_hidden_files = false
 show_directory_sizes = true
 enable_text_preview = true
 enable_image_preview = true
+image_preview_mode = "auto"
 enable_pdf_preview = true
 enable_office_preview = true
 show_help_bar = true

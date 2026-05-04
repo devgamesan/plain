@@ -1,4 +1,5 @@
 import asyncio
+import shutil
 import threading
 from contextlib import nullcontext
 from dataclasses import dataclass, field, replace
@@ -74,7 +75,7 @@ class _RecordingSnapshotLoader:
         default_factory=list
     )
     load_child_pane_snapshot_calls: list[
-        tuple[str, str | None, int, bool, bool, bool, bool, int]
+        tuple[str, str | None, int, bool, bool, str, bool, bool, int]
     ] = field(default_factory=list)
     load_current_pane_snapshot_calls: list[tuple[str, str | None]] = field(default_factory=list)
 
@@ -110,6 +111,7 @@ class _RecordingSnapshotLoader:
         preview_max_bytes: int = 64 * 1024,
         enable_text_preview: bool = True,
         enable_image_preview: bool = True,
+        image_preview_mode: str = "auto",
         enable_pdf_preview: bool = True,
         enable_office_preview: bool = True,
         preview_columns: int = 80,
@@ -121,6 +123,7 @@ class _RecordingSnapshotLoader:
                 preview_max_bytes,
                 enable_text_preview,
                 enable_image_preview,
+                image_preview_mode,
                 enable_pdf_preview,
                 enable_office_preview,
                 preview_columns,
@@ -537,8 +540,12 @@ def test_start_child_pane_snapshot_passes_preview_max_bytes_to_loader() -> None:
     assert len(app.run_worker_calls) == 1
     worker_fn = app.run_worker_calls[0]["worker_fn"]
     worker_fn()
+    fallback = max(1, shutil.get_terminal_size().columns // 3)
     assert app._snapshot_loader.load_child_pane_snapshot_calls == [
-        ("/tmp/project", "/tmp/project/README.md", 128 * 1024, True, True, True, True, 80)
+        (
+            "/tmp/project", "/tmp/project/README.md",
+            128 * 1024, True, True, "auto", True, True, fallback,
+        )
     ]
 
 
@@ -764,6 +771,36 @@ def test_handle_worker_state_changed_cleans_up_cancelled_workers_without_dispatc
     assert app._active_grep_search_cancel_event is None
     assert app._active_grep_search_request_id is None
     assert app.dispatched_actions == []
+
+
+def test_run_foreground_external_launch_shows_exit_message_for_terminal(
+    capsys,
+) -> None:
+    request = ExternalLaunchRequest(kind="open_terminal", path="/tmp")
+    app = _RecordingApp()
+
+    run_foreground_external_launch(
+        app,
+        RunExternalLaunchEffect(request_id=1, request=request),
+    )
+
+    captured = capsys.readouterr()
+    assert "exit" in captured.out
+
+
+def test_run_foreground_external_launch_skips_message_for_editor(
+    capsys,
+) -> None:
+    request = ExternalLaunchRequest(kind="open_editor", path="/tmp/project/README.md")
+    app = _RecordingApp()
+
+    run_foreground_external_launch(
+        app,
+        RunExternalLaunchEffect(request_id=1, request=request),
+    )
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
 
 
 def test_run_foreground_external_launch_maps_suspend_failures() -> None:

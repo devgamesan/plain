@@ -87,6 +87,7 @@ def render_display_section(config: AppConfig) -> str:
         f"show_directory_sizes = {render_bool(config.display.show_directory_sizes)}\n"
         f"enable_text_preview = {render_bool(config.display.enable_text_preview)}\n"
         f"enable_image_preview = {render_bool(config.display.enable_image_preview)}\n"
+        f'image_preview_mode = "{config.display.image_preview_mode}"\n'
         f"enable_pdf_preview = {render_bool(config.display.enable_pdf_preview)}\n"
         f"enable_office_preview = {render_bool(config.display.enable_office_preview)}\n"
         f'theme = "{config.display.theme}"\n'

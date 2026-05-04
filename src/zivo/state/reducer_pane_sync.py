@@ -168,6 +168,7 @@ def sync_child_pane(
             preview_max_bytes=state.config.display.preview_max_kib * 1024,
             enable_text_preview=state.config.display.enable_text_preview,
             enable_image_preview=state.config.display.enable_image_preview,
+            image_preview_mode=state.config.display.image_preview_mode,
             enable_pdf_preview=state.config.display.enable_pdf_preview,
             enable_office_preview=state.config.display.enable_office_preview,
         ),

@@ -55,6 +55,7 @@ flowchart LR
         Mutations["file_mutations.py"]
         Archive["archive_extract.py"]
         Config["config.py"]
+        Terminal["terminal_detection.py\nKitty/Ghostty 検出"]
         Launch["external_launcher.py"]
         ArchiveUtils["archive_utils.py\narchive 判定 / 展開先解決"]
     end
@@ -251,6 +252,7 @@ sequenceDiagram
 - `undo_operations.py`: reversible file operations の undo 実行を担当する
 - `archive_extract.py`: archive 事前走査、競合検出、安全な展開、進捗通知を担当する
 - `config.py`: `config.toml` の読み込み、検証、保存、既定値レンダリングを担当する
+- `terminal_detection.py`: Kitty graphics protocol 対応端末（Kitty/Ghostty/WezTerm 等）の環境変数ベース検出を担当する
 - `external_launcher.py`: 既定アプリ起動、terminal editor 起動、外部 terminal 起動、パスコピーを担当する
 
 ### `src/zivo/archive_utils.py`
@@ -337,7 +339,8 @@ stateDiagram-v2
 - `e` による現在の terminal 内 editor 起動
 - コマンドパレットからの再帰 file search、再帰 grep search、属性表示、path copy、既定 file manager 起動、外部 terminal 起動、hidden files 切り替え
 - 対応 archive (`.zip` / `.tar` / `.tar.gz` / `.tar.bz2`) の展開、競合確認、進捗表示
-- config overlay による起動時設定と bookmark の保存
+- Kitty graphics protocol を利用した高精細画像プレビュー（自動検出または手動設定、動的リサイズ対応）
+- config overlay による起動時設定と bookmark の保存（`image_preview_mode` を含む）
 - 埋め込み split terminal の起動、入力、clipboard paste、終了通知
 - status bar / help bar / input bar / conflict dialog / attribute dialog / config dialog / split terminal の状態連動表示
 

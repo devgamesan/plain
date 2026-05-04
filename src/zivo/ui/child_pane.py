@@ -63,6 +63,8 @@ class ChildPane(Vertical):
         self._last_render_signature: object | None = None
         self._last_clicked_path: str | None = None
         self._hovered_path: str | None = None
+        self._chafa_cached_content: str | None = None
+        self._last_chafa_width: int = 0
 
     @property
     def list_view_id(self) -> str | None:
@@ -183,8 +185,11 @@ class ChildPane(Vertical):
             rendered = self._refresh_rendered_content(force=True)
             if not rendered:
                 self.call_after_refresh(self._refresh_rendered_content)
-        if preview_identity_changed and state.is_preview:
-            self.call_after_refresh(lambda: scroll_widget.scroll_home(animate=False))
+        if preview_identity_changed:
+            object.__setattr__(self, "_chafa_cached_content", None)
+            object.__setattr__(self, "_last_chafa_width", 0)
+            if state.is_preview:
+                self.call_after_refresh(lambda: scroll_widget.scroll_home(animate=False))
 
     def _refresh_rendered_content(self, *, force: bool = False) -> bool:
         render_signature = self._render_signature(self._state)
@@ -200,7 +205,39 @@ class ChildPane(Vertical):
                     and render_signature == self._last_render_signature
                 ):
                     return True
-                widget.update(self._render_preview(self._state, render_width))
+                if (
+                    self._state.preview_kind == "image"
+                    and self._state.preview_path
+                    and render_width != self._last_chafa_width
+                ):
+                    try:
+                        from pathlib import Path as FsPath
+
+                        from zivo.services.previews.core import (
+                            ChafaImagePreviewLoader,
+                        )
+
+                        loader = ChafaImagePreviewLoader()
+                        result = loader.load_preview(
+                            FsPath(self._state.preview_path),
+                            preview_columns=render_width,
+                            image_preview_format="symbols",
+                        )
+                        if result and result.content:
+                            object.__setattr__(
+                                self, "_chafa_cached_content", result.content
+                            )
+                        object.__setattr__(self, "_last_chafa_width", render_width)
+                    except Exception:
+                        pass
+
+                widget.update(
+                    self._render_preview(
+                        self._state,
+                        render_width,
+                        chafa_override=self._chafa_cached_content,
+                    )
+                )
                 self._last_render_width = render_width
                 self._last_render_signature = render_signature
                 if self._state.preview_kind == "kitty" and self._state.preview_content:
@@ -258,7 +295,11 @@ class ChildPane(Vertical):
         return max(0, widget.size.width - self.PREVIEW_HORIZONTAL_PADDING)
 
     @staticmethod
-    def _render_preview(state: ChildPaneViewState, render_width: int):
+    def _render_preview(
+        state: ChildPaneViewState,
+        render_width: int,
+        chafa_override: str | None = None,
+    ):
         if state.preview_message is not None:
             return Text(state.preview_message, style="italic dim")
 
@@ -266,7 +307,8 @@ class ChildPane(Vertical):
             return Text()
 
         if state.preview_kind == "image":
-            return _render_image_preview_text(state.preview_content)
+            content = chafa_override if chafa_override is not None else state.preview_content
+            return _render_image_preview_text(content)
 
         if state.preview_kind == "kitty":
             return _render_kitty_preview_text(state.preview_content)

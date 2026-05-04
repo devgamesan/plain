@@ -521,11 +521,10 @@ def test_child_pane_refresh_rendered_content_skips_duplicate_preview_render(
     pane._preview_widget = lambda: preview_widget  # type: ignore[method-assign]
 
     _guess_preview_lexer.cache_clear()
-    monkeypatch.setattr(
-        ChildPane,
-        "_render_preview",
-        staticmethod(lambda state, render_width: f"{state.preview_path}:{render_width}"),
+    _mock_render = staticmethod(
+        lambda state, render_width, chafa_override=None: f"{state.preview_path}:{render_width}"
     )
+    monkeypatch.setattr(ChildPane, "_render_preview", _mock_render)
 
     assert pane._refresh_rendered_content() is True
     assert pane._refresh_rendered_content() is True

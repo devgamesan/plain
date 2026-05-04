@@ -1,4 +1,5 @@
 import asyncio
+import shutil
 import threading
 from contextlib import nullcontext
 from dataclasses import dataclass, field, replace
@@ -539,8 +540,12 @@ def test_start_child_pane_snapshot_passes_preview_max_bytes_to_loader() -> None:
     assert len(app.run_worker_calls) == 1
     worker_fn = app.run_worker_calls[0]["worker_fn"]
     worker_fn()
+    fallback = max(1, shutil.get_terminal_size().columns // 3)
     assert app._snapshot_loader.load_child_pane_snapshot_calls == [
-        ("/tmp/project", "/tmp/project/README.md", 128 * 1024, True, True, "auto", True, True, 80)
+        (
+            "/tmp/project", "/tmp/project/README.md",
+            128 * 1024, True, True, "auto", True, True, fallback,
+        )
     ]
 
 

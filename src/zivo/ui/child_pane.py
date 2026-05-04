@@ -301,22 +301,56 @@ class ChildPane(Vertical):
     def _write_kitty_content(self, content: str) -> None:
         """Write Kitty graphics protocol escape sequence to the terminal.
 
-        This runs after the current Textual frame has been flushed so
-        the raw bytes reach the terminal without being split by the
-        cell-based rendering pipeline.
+        Re-runs chafa when the available preview width changes so the
+        image always fills the pane without overflowing the terminal.
         """
-        if not content:
-            return
         try:
             import os
+            from pathlib import Path as FsPath
+
+            from zivo.services.previews.core import (
+                ChafaImagePreviewLoader,
+                resolve_image_preview_format,
+            )
 
             scroll = self._preview_scroll_widget()
             region = scroll.region
             if region.x < 0 or region.y < 0:
                 return
-            ansi_pos = f"\033[{region.y + 1};{region.x + 1}H"
-            delete_old = "\033_Ga=d,d=A\033\\"
-            payload = (delete_old + ansi_pos + content).encode("utf-8")
+
+            pane_width = max(1, scroll.size.width - 2)
+
+            mode = getattr(self._state, "image_preview_mode", "auto")
+            fmt = resolve_image_preview_format(mode)
+            if fmt != "kitty":
+                return
+
+            path = self._state.preview_path
+            last_width = getattr(self, "_last_kitty_width", None)
+
+            if pane_width != last_width and path:
+                loader = ChafaImagePreviewLoader()
+                result = loader.load_preview(
+                    FsPath(path),
+                    preview_columns=pane_width,
+                    image_preview_format="kitty",
+                )
+                if result and result.content:
+                    content = result.content
+                    object.__setattr__(self, "_kitty_cached", content)
+                object.__setattr__(self, "_last_kitty_width", pane_width)
+            else:
+                cached = getattr(self, "_kitty_cached", None)
+                if cached is not None:
+                    content = cached
+
+            if not content:
+                return
+
+            row = region.y + 1
+            col = region.x + 1
+            write = f"\033_Ga=d,d=A\033\\\033[{row};{col}H{content}"
+            payload = write.encode("utf-8")
             try:
                 tty_fd = os.open("/dev/tty", os.O_WRONLY)
                 try:

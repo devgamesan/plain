@@ -8,6 +8,47 @@ import pytest
 from zivo.adapters import LocalFilesystemAdapter
 
 
+class _FakeScandir:
+    def __init__(self, entries):
+        self._entries = entries
+
+    def __enter__(self):
+        return iter(self._entries)
+
+    def __exit__(self, exc_type, exc, traceback):
+        return False
+
+
+class _FakeDirEntry:
+    def __init__(
+        self,
+        *,
+        name: str,
+        path: str,
+        kind: str = "file",
+        fail_is_dir: bool = False,
+        fail_stat: bool = False,
+    ) -> None:
+        self.name = name
+        self.path = path
+        self._kind = kind
+        self._fail_is_dir = fail_is_dir
+        self._fail_stat = fail_stat
+
+    def is_symlink(self) -> bool:
+        return False
+
+    def is_dir(self, follow_symlinks: bool = True) -> bool:
+        if self._fail_is_dir:
+            raise PermissionError("permission denied")
+        return self._kind == "dir"
+
+    def stat(self):
+        if self._fail_stat:
+            raise PermissionError("permission denied")
+        return SimpleNamespace(st_size=12, st_mtime=0, st_mode=0o100644)
+
+
 def test_local_filesystem_adapter_lists_entries_with_lightweight_directory_metadata(
     tmp_path,
 ) -> None:
@@ -62,6 +103,34 @@ def test_local_filesystem_adapter_list_directory_skips_owner_group_resolution(
     monkeypatch.setattr("builtins.__import__", _unexpected_import)
 
     entries = adapter.list_directory(str(tmp_path))
+
+    assert [entry.name for entry in entries] == ["docs", "README.md"]
+
+
+def test_local_filesystem_adapter_skips_entries_with_permission_denied_metadata(
+    monkeypatch,
+) -> None:
+    readable_file = _FakeDirEntry(name="README.md", path="/mnt/c/README.md")
+    readable_dir = _FakeDirEntry(name="docs", path="/mnt/c/docs", kind="dir")
+    blocked_kind = _FakeDirEntry(
+        name="blocked-kind",
+        path="/mnt/c/blocked-kind",
+        fail_is_dir=True,
+    )
+    blocked_stat = _FakeDirEntry(
+        name="blocked-stat",
+        path="/mnt/c/blocked-stat",
+        fail_stat=True,
+    )
+
+    def _fake_scandir(directory):
+        assert str(directory) == "/mnt/c"
+        return _FakeScandir((readable_file, blocked_kind, readable_dir, blocked_stat))
+
+    monkeypatch.setattr(os, "scandir", _fake_scandir)
+    adapter = LocalFilesystemAdapter()
+
+    entries = adapter.list_directory("/mnt/c")
 
     assert [entry.name for entry in entries] == ["docs", "README.md"]
 

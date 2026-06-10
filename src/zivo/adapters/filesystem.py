@@ -73,6 +73,8 @@ def _build_directory_entry_summary(entry: os.DirEntry[str]) -> DirectoryEntrySta
     hidden = entry.name.startswith(".")
     try:
         kind = "dir" if entry.is_dir(follow_symlinks=False) else "file"
+    except PermissionError:
+        return None
     except FileNotFoundError:
         if is_symlink:
             return DirectoryEntryState(
@@ -88,6 +90,8 @@ def _build_directory_entry_summary(entry: os.DirEntry[str]) -> DirectoryEntrySta
         try:
             if entry.is_dir():
                 kind = "dir"
+        except PermissionError:
+            return None
         except FileNotFoundError:
             return DirectoryEntryState(
                 path=entry.path,
@@ -99,6 +103,8 @@ def _build_directory_entry_summary(entry: os.DirEntry[str]) -> DirectoryEntrySta
 
     try:
         stat_result = entry.stat()
+    except PermissionError:
+        return None
     except FileNotFoundError:
         if is_symlink:
             return DirectoryEntryState(

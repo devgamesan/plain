@@ -15,7 +15,7 @@ def test_filter_q_updates_query_instead_of_exiting() -> None:
     assert actions == (SetNotification(None), SetFilterQuery("q", active=True))
 
 
-def test_chmod_ctrl_r_toggles_recursive_execution() -> None:
+def test_chmod_tab_toggles_recursive_execution() -> None:
     state = replace(
         build_initial_app_state(),
         ui_mode="CHMOD",
@@ -25,7 +25,7 @@ def test_chmod_ctrl_r_toggles_recursive_execution() -> None:
         ),
     )
 
-    actions = dispatch_key_input(state, key="ctrl+r")
+    actions = dispatch_key_input(state, key="tab")
 
     assert actions == (SetNotification(None), TogglePendingInputRecursive())
 

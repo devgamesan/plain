@@ -154,7 +154,7 @@ def dispatch_input_dialog_input(
     if key == "escape":
         return supported(CancelPendingInput())
 
-    if key == "ctrl+r" and state.ui_mode in {"CHMOD", "CHOWN"}:
+    if key == "tab" and state.ui_mode in {"CHMOD", "CHOWN"}:
         return supported(TogglePendingInputRecursive())
 
     if key == "enter":

@@ -2519,7 +2519,7 @@ def test_select_input_dialog_state_shows_recursive_safety_details() -> None:
 
     assert input_dialog is not None
     assert input_dialog.title == "Change Permissions"
-    assert input_dialog.hint == "ctrl+r toggle recursive | enter apply | esc cancel"
+    assert input_dialog.hint == "tab toggle recursive | enter apply | esc cancel"
     assert input_dialog.details == (
         "Targets: 1 (1 directory)",
         "Recursive: No",

@@ -65,7 +65,7 @@
 #### Permission / Owner 変更
 - [ ] コマンドパレットに「Change permissions」と「Change owner」が各 1 件ずつ表示されること
 - [ ] 両ダイアログで対象数・種別・symlink を辿らない方針が実行前に表示されること
-- [ ] `Recursive` の既定値が `No` で、Ctrl+R で切り替えられること
+- [ ] `Recursive` の既定値が `No` で、Tab で切り替えられること
 - [ ] `Recursive: Yes` ではディレクトリ配下に適用され、symlink とそのリンク先は変更されないこと
 - [ ] Search Workspace と native Windows ではこれらのコマンドが表示されないこと
 

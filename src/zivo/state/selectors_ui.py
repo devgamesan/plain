@@ -353,7 +353,7 @@ def select_input_dialog_state(state: AppState) -> InputDialogState | None:
         value=state.pending_input.value,
         cursor_pos=state.pending_input.cursor_pos,
         hint=(
-            "ctrl+r toggle recursive | enter apply | esc cancel"
+            "tab toggle recursive | enter apply | esc cancel"
             if state.ui_mode in {"CHMOD", "CHOWN"}
             else
             "tab complete | enter apply | esc cancel"

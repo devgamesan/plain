@@ -174,13 +174,6 @@ class DeleteConfirmationState:
 
 
 @dataclass(frozen=True)
-class EmptyTrashConfirmationState:
-    """Pending confirmation dialog state for empty trash operation."""
-
-    platform: Literal["linux", "darwin"]
-
-
-@dataclass(frozen=True)
 class ExitConfirmationState:
     """Pending confirmation dialog state for application exit."""
 
@@ -618,7 +611,6 @@ class AppState:
     command_palette: CommandPaletteState | None = None
     paste_conflict: PasteConflictState | None = None
     delete_confirmation: DeleteConfirmationState | None = None
-    empty_trash_confirmation: EmptyTrashConfirmationState | None = None
     exit_confirmation: ExitConfirmationState | None = None
     name_conflict: NameConflictState | None = None
     archive_extract_confirmation: ArchiveExtractConfirmationState | None = None

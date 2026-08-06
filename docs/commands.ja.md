@@ -39,7 +39,6 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 | `Open in GUI editor` | 単一ファイルが選択中またはフォーカス中のとき | フォーカス中のファイルを設定済みの GUI エディタで開きます。 |
 | `Copy path` | 対象が 1 件以上あるとき | 選択中のパス一覧、または未選択時はフォーカス中のパスをシステムクリップボードへコピーします。 |
 | `Move to trash` | 対象が 1 件以上あるとき | 選択中の項目、またはフォーカス項目をゴミ箱へ移動します（既定では確認あり、設定で変更可能）。Windows では `send2trash` 経由で Recycle Bin を使います。 |
-| `Empty trash` | 常に表示 | ゴミ箱内のすべての項目を完全に削除します。実行前に確認ダイアログを表示します。Windows では PowerShell の `Clear-RecycleBin` を使用してごみ箱を空にします。 |
 | `Open in file manager` | 常に表示 | 現在ディレクトリを OS のファイルマネージャで開きます。 |
 | `Open current directory in GUI editor` | 常に表示 | zivo の current directory を設定済みの GUI エディタで開きます。 |
 | `Open terminal` | 常に表示 | `config.toml` の設定を優先しつつ、zivo の current directory を起点に外部ターミナルを起動します。 |

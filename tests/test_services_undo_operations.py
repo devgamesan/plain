@@ -58,9 +58,6 @@ class StubTrashService:
     def get_trash_path(self) -> str | None:
         return "/tmp/trash"
 
-    def empty_trash(self) -> tuple[int, str]:
-        raise NotImplementedError
-
     def capture_restorable_trash(self, path, send_to_trash):
         raise NotImplementedError
 

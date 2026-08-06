@@ -19,7 +19,6 @@ from .actions import (
     BeginCreateInput,
     BeginCustomActionConfirmation,
     BeginDeleteTargets,
-    BeginEmptyTrash,
     BeginExitCurrentPath,
     BeginExtractArchiveInput,
     BeginFileSearch,
@@ -487,10 +486,6 @@ def _run_paste_clipboard_command(
     return reduce_state(state, PasteClipboard())
 
 
-def _run_empty_trash_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
-    return reduce_state(state, BeginEmptyTrash())
-
-
 def _run_open_file_manager_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
     return reduce_state(state, OpenPathWithDefaultApp(state.current_path))
 
@@ -705,8 +700,6 @@ def _run_palette_command_item(
         return _run_open_in_gui_editor_command(state, next_state, reduce_state)
     if item_id == "delete_targets":
         return _run_delete_targets_command(state, next_state, reduce_state)
-    if item_id == "empty_trash":
-        return _run_empty_trash_command(next_state, reduce_state)
     if item_id == "open_file_manager":
         return _run_open_file_manager_command(next_state, reduce_state)
     if item_id == "open_current_directory_in_gui_editor":

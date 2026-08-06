@@ -1,6 +1,6 @@
 """Shared helpers for mutation reducer handlers."""
 
-from typing import Callable, Literal
+from typing import Callable
 
 from zivo.models import (
     PasteAppliedChange,
@@ -18,20 +18,6 @@ from .reducer_common import ReducerFn
 MutationHandler = Callable[[AppState, Action, ReducerFn], ReduceResult | None]
 
 _UNDO_STACK_LIMIT = 20
-
-
-def detect_platform() -> Literal["linux", "darwin", "windows"] | None:
-    """Detect the current platform."""
-    import platform as platform_module
-
-    system = platform_module.system()
-    if system == "Linux":
-        return "linux"
-    if system == "Darwin":
-        return "darwin"
-    if system == "Windows":
-        return "windows"
-    return None
 
 
 def push_undo_entry(state: AppState, entry: UndoEntry | None) -> tuple[UndoEntry, ...]:

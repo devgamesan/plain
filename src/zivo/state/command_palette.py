@@ -509,16 +509,6 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 )
             )
 
-    if not is_search_workspace:
-        items.append(
-            CommandPaletteItem(
-                id="empty_trash",
-                label="Empty trash",
-                shortcut=None,
-                enabled=_is_empty_trash_supported(),
-            )
-        )
-
     items.extend(
         [
             CommandPaletteItem(
@@ -882,11 +872,6 @@ def _transfer_single_target_entry(state: AppState):
         if entry.path == target_path:
             return entry
     return None
-
-
-def _is_empty_trash_supported() -> bool:
-    """Check if empty trash is supported on current platform."""
-    return platform.system() in ("Linux", "Darwin", "Windows")
 
 
 def _is_split_terminal_supported() -> bool:

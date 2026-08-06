@@ -40,12 +40,10 @@ from .actions_input import (
 from .actions_mutations import (
     BeginCustomActionConfirmation,
     BeginDeleteTargets,
-    BeginEmptyTrash,
     BeginExitCurrentPath,
     CancelArchiveExtractConfirmation,
     CancelCustomActionConfirmation,
     CancelDeleteConfirmation,
-    CancelEmptyTrashConfirmation,
     CancelExitConfirmation,
     CancelPasteConflict,
     CancelReplaceConfirmation,
@@ -55,7 +53,6 @@ from .actions_mutations import (
     ConfirmArchiveExtract,
     ConfirmCustomAction,
     ConfirmDeleteTargets,
-    ConfirmEmptyTrash,
     ConfirmExitCurrentPath,
     ConfirmReplaceTargets,
     ConfirmSymlinkOverwrite,
@@ -109,13 +106,11 @@ __all__ = [
     "SubmitShellCommand",
     # Mutation actions
     "BeginDeleteTargets",
-    "BeginEmptyTrash",
     "BeginExitCurrentPath",
     "BeginCustomActionConfirmation",
     "CancelArchiveExtractConfirmation",
     "CancelCustomActionConfirmation",
     "CancelDeleteConfirmation",
-    "CancelEmptyTrashConfirmation",
     "CancelExitConfirmation",
     "CancelPasteConflict",
     "CancelReplaceConfirmation",
@@ -125,7 +120,6 @@ __all__ = [
     "ConfirmArchiveExtract",
     "ConfirmCustomAction",
     "ConfirmDeleteTargets",
-    "ConfirmEmptyTrash",
     "ConfirmExitCurrentPath",
     "ConfirmReplaceTargets",
     "ConfirmSymlinkOverwrite",
@@ -439,9 +433,6 @@ Action = (
     | CancelPasteConflict
     | ConfirmDeleteTargets
     | CancelDeleteConfirmation
-    | BeginEmptyTrash
-    | ConfirmEmptyTrash
-    | CancelEmptyTrashConfirmation
     | BeginExitCurrentPath
     | ConfirmExitCurrentPath
     | CancelExitConfirmation

@@ -87,21 +87,6 @@ class CancelDeleteConfirmation:
 
 
 @dataclass(frozen=True)
-class BeginEmptyTrash:
-    """Begin the empty trash operation with confirmation."""
-
-
-@dataclass(frozen=True)
-class ConfirmEmptyTrash:
-    """Confirm the empty trash request."""
-
-
-@dataclass(frozen=True)
-class CancelEmptyTrashConfirmation:
-    """Dismiss the pending empty trash confirmation dialog."""
-
-
-@dataclass(frozen=True)
 class BeginExitCurrentPath:
     """Begin the exit confirmation flow."""
 

@@ -1442,7 +1442,6 @@ def test_command_palette_items_for_search_workspace_are_limited_to_safe_actions(
     assert "Compress as zip" not in labels
     assert "Extract archive" not in labels
     assert "Move to trash" not in labels
-    assert "Empty trash" not in labels
     assert "Open in file manager" not in labels
     assert "Open current directory in GUI editor" not in labels
     assert "Open terminal here" not in labels

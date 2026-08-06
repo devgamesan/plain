@@ -4,7 +4,6 @@ from .actions import (
     CancelArchiveExtractConfirmation,
     CancelCustomActionConfirmation,
     CancelDeleteConfirmation,
-    CancelEmptyTrashConfirmation,
     CancelExitConfirmation,
     CancelFilterInput,
     CancelGrepExport,
@@ -17,7 +16,6 @@ from .actions import (
     ConfirmArchiveExtract,
     ConfirmCustomAction,
     ConfirmDeleteTargets,
-    ConfirmEmptyTrash,
     ConfirmExitCurrentPath,
     ConfirmFilterInput,
     ConfirmReplaceTargets,
@@ -83,13 +81,6 @@ def dispatch_confirm_input(
         if key == "enter":
             return supported(ConfirmDeleteTargets())
         return warn("Use Enter to confirm delete or Esc to cancel")
-
-    if state.empty_trash_confirmation is not None:
-        if key == "escape":
-            return supported(CancelEmptyTrashConfirmation())
-        if key == "enter":
-            return supported(ConfirmEmptyTrash())
-        return warn("Use Enter to confirm empty trash or Esc to cancel")
 
     if state.exit_confirmation is not None:
         if key == "escape":

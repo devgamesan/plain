@@ -67,85 +67,6 @@ def test_linux_trash_service_restores_record(tmp_path, monkeypatch) -> None:
     assert metadata_path.exists() is False
 
 
-def test_macos_empty_trash_counts_items_and_calls_osascript(tmp_path, monkeypatch) -> None:
-    trash_dir = tmp_path / ".Trash"
-    trash_dir.mkdir()
-    (trash_dir / "file1.txt").write_text("data")
-    (trash_dir / "folder1").mkdir()
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-
-    mock_run = MagicMock(return_value=MagicMock(returncode=0, stderr=""))
-    monkeypatch.setattr("zivo.services.trash_operations.subprocess.run", mock_run)
-
-    service = MacOsTrashService()
-    count, error = service.empty_trash()
-
-    assert count == 2
-    assert error == ""
-    mock_run.assert_called_once_with(
-        ["osascript", "-e", 'tell application "Finder" to empty trash'],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-
-def test_macos_empty_trash_skips_ds_store_in_count(tmp_path, monkeypatch) -> None:
-    trash_dir = tmp_path / ".Trash"
-    trash_dir.mkdir()
-    (trash_dir / ".DS_Store").write_text("metadata")
-    (trash_dir / "real_file.txt").write_text("data")
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-
-    mock_run = MagicMock(return_value=MagicMock(returncode=0, stderr=""))
-    monkeypatch.setattr("zivo.services.trash_operations.subprocess.run", mock_run)
-
-    service = MacOsTrashService()
-    count, error = service.empty_trash()
-
-    assert count == 1
-    assert error == ""
-
-
-def test_macos_empty_trash_returns_zero_when_trash_missing(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-
-    service = MacOsTrashService()
-    count, error = service.empty_trash()
-
-    assert count == 0
-    assert error == ""
-
-
-def test_macos_empty_trash_returns_zero_when_only_ds_store(tmp_path, monkeypatch) -> None:
-    trash_dir = tmp_path / ".Trash"
-    trash_dir.mkdir()
-    (trash_dir / ".DS_Store").write_text("metadata")
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-
-    service = MacOsTrashService()
-    count, error = service.empty_trash()
-
-    assert count == 0
-    assert error == ""
-
-
-def test_macos_empty_trash_returns_error_on_osascript_failure(tmp_path, monkeypatch) -> None:
-    trash_dir = tmp_path / ".Trash"
-    trash_dir.mkdir()
-    (trash_dir / "file.txt").write_text("data")
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-
-    mock_run = MagicMock(return_value=MagicMock(returncode=1, stderr="not authorized"))
-    monkeypatch.setattr("zivo.services.trash_operations.subprocess.run", mock_run)
-
-    service = MacOsTrashService()
-    count, error = service.empty_trash()
-
-    assert count == 0
-    assert "Full Disk Access" in error
-
-
 def test_macos_capture_restorable_trash_creates_record(tmp_path, monkeypatch) -> None:
     trash_dir = tmp_path / ".Trash"
     trash_dir.mkdir()
@@ -360,34 +281,6 @@ def test_windows_trash_service_capture_handles_powershell_failure(
 
     assert sent_to_trash == ["C:/Users/test/docs"]
     assert record is None
-
-
-def test_windows_empty_trash_powershell_success(monkeypatch) -> None:
-    mock_run = MagicMock(return_value=MagicMock(returncode=0, stderr=""))
-    monkeypatch.setattr("zivo.services.trash_operations.subprocess.run", mock_run)
-
-    count, error = WindowsTrashService().empty_trash()
-
-    assert count == 1
-    assert error == ""
-    mock_run.assert_called_once_with(
-        ["powershell.exe", "-NoProfile", "-Command", "Clear-RecycleBin -Force"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-
-def test_windows_empty_trash_powershell_failure(monkeypatch) -> None:
-    mock_run = MagicMock(
-        return_value=MagicMock(returncode=1, stderr="access denied")
-    )
-    monkeypatch.setattr("zivo.services.trash_operations.subprocess.run", mock_run)
-
-    count, error = WindowsTrashService().empty_trash()
-
-    assert count == 0
-    assert error == "Failed to empty Recycle Bin"
 
 
 def test_windows_trash_service_restore_succeeds(monkeypatch) -> None:

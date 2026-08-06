@@ -39,7 +39,6 @@ The tab strip is only shown when two or more browser tabs are open.
 | `Open in GUI editor` | Exactly one file is selected or focused | Opens the focused file in a configured GUI editor. |
 | `Copy path` | At least one target is selected or focused | Copies the selected path list, or the focused path when nothing is selected, to the system clipboard. |
 | `Move to trash` | At least one target is selected or focused | Moves the selected items, or the focused item, to trash (confirmation is enabled by default and can be configured). On Windows this uses the Recycle Bin via `send2trash`. |
-| `Empty trash` | Always | Permanently deletes all items from the trash. Shows a confirmation dialog before emptying. On Windows this uses PowerShell's `Clear-RecycleBin` to empty the Recycle Bin. |
 | `Open in file manager` | Always | Opens the current directory in the OS file manager. |
 | `Open current directory in GUI editor` | Always | Opens zivo's current directory in the configured GUI editor. |
 | `Open terminal` | Always | Launches an external terminal rooted at zivo's current directory, using `config.toml` templates before built-in fallbacks. |

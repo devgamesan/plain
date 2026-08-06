@@ -579,19 +579,6 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
             options=("enter confirm", "esc cancel"),
         )
 
-    if state.empty_trash_confirmation is not None:
-        confirmation = state.empty_trash_confirmation
-        platform_name = "Linux" if confirmation.platform == "linux" else "macOS"
-        message = (
-            f"Permanently delete all items from the {platform_name} trash? "
-            "This cannot be undone."
-        )
-        return ConflictDialogState(
-            title="Empty Trash Confirmation",
-            message=message,
-            options=("enter confirm", "esc cancel"),
-        )
-
     if state.archive_extract_confirmation is not None:
         confirmation = state.archive_extract_confirmation
         destination_name = Path(confirmation.first_conflict_path).name

@@ -25,8 +25,6 @@ from zivo.state.actions import (
     BeginChownInput,
     BeginCreateInput,
     BeginExtractArchiveInput,
-    BeginRecursiveChmodInput,
-    BeginRecursiveChownInput,
     BeginRenameInput,
     BeginSymlinkInput,
     BeginZipCompressInput,
@@ -36,6 +34,7 @@ from zivo.state.actions import (
     DismissNameConflict,
     SetPendingInputValue,
     SubmitPendingInput,
+    TogglePendingInputRecursive,
 )
 
 
@@ -106,7 +105,7 @@ def test_submit_chmod_input_rejects_invalid_octal_mode() -> None:
     )
 
 
-def test_begin_recursive_chmod_input_sets_initial_value_from_first_target_permissions() -> None:
+def test_toggle_chmod_recursive_sets_initial_value_from_first_target_permissions() -> None:
     state = build_initial_app_state()
     docs_entry = replace(state.current_pane.entries[0], permissions_mode=0o40755)
     state = replace(
@@ -119,7 +118,7 @@ def test_begin_recursive_chmod_input_sets_initial_value_from_first_target_permis
 
     next_state = _reduce_state(
         state,
-        BeginRecursiveChmodInput(
+        BeginChmodInput(
             paths=(
                 "/home/tadashi/develop/zivo/docs",
                 "/home/tadashi/develop/zivo/README.md",
@@ -127,9 +126,11 @@ def test_begin_recursive_chmod_input_sets_initial_value_from_first_target_permis
         ),
     )
 
+    next_state = _reduce_state(next_state, TogglePendingInputRecursive())
+
     assert next_state.ui_mode == "CHMOD"
     assert next_state.pending_input == PendingInputState(
-        prompt="Permissions recursively: ",
+        prompt="Permissions: ",
         value="755",
         cursor_pos=3,
         chmod_target_paths=(
@@ -186,7 +187,7 @@ def test_begin_chown_input_sets_initial_value_from_target_owner_and_group() -> N
     )
 
 
-def test_begin_recursive_chown_input_sets_initial_value_from_first_target() -> None:
+def test_toggle_chown_recursive_sets_initial_value_from_first_target() -> None:
     state = build_initial_app_state()
     docs_entry = replace(state.current_pane.entries[0], owner="alice", group="staff")
     state = replace(
@@ -199,7 +200,7 @@ def test_begin_recursive_chown_input_sets_initial_value_from_first_target() -> N
 
     next_state = _reduce_state(
         state,
-        BeginRecursiveChownInput(
+        BeginChownInput(
             paths=(
                 "/home/tadashi/develop/zivo/docs",
                 "/home/tadashi/develop/zivo/README.md",
@@ -207,9 +208,11 @@ def test_begin_recursive_chown_input_sets_initial_value_from_first_target() -> N
         ),
     )
 
+    next_state = _reduce_state(next_state, TogglePendingInputRecursive())
+
     assert next_state.ui_mode == "CHOWN"
     assert next_state.pending_input == PendingInputState(
-        prompt="Owner recursively: ",
+        prompt="Owner: ",
         value="alice:staff",
         cursor_pos=11,
         chown_target_paths=(

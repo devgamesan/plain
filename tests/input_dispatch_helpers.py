@@ -103,6 +103,7 @@ from zivo.state.actions import (
     SubmitGrepExport,
     SubmitPendingInput,
     ToggleHiddenFiles,
+    TogglePendingInputRecursive,
     ToggleSelectionAndAdvance,
     ToggleTransferMode,
     UndoLastOperation,

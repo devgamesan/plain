@@ -77,6 +77,9 @@ test_select_help_bar_state_for_history_palette = (
 test_select_input_bar_state_for_create_mode = (
     cases.test_select_input_bar_state_for_create_mode
 )
+test_select_input_dialog_state_shows_recursive_safety_details = (
+    cases.test_select_input_dialog_state_shows_recursive_safety_details
+)
 test_select_input_bar_state_for_filter_mode = (
     cases.test_select_input_bar_state_for_filter_mode
 )

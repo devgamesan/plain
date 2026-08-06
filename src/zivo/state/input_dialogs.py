@@ -44,6 +44,7 @@ from .actions import (
     SubmitGrepExport,
     SubmitPendingInput,
     SubmitShellCommand,
+    TogglePendingInputRecursive,
 )
 from .input_common import DispatchedActions, supported, warn
 from .models import AppState
@@ -152,6 +153,9 @@ def dispatch_input_dialog_input(
 ) -> DispatchedActions:
     if key == "escape":
         return supported(CancelPendingInput())
+
+    if key == "ctrl+r" and state.ui_mode in {"CHMOD", "CHOWN"}:
+        return supported(TogglePendingInputRecursive())
 
     if key == "enter":
         return supported(SubmitPendingInput())

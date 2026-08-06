@@ -2502,6 +2502,31 @@ def test_select_input_bar_state_for_create_mode() -> None:
     assert input_dialog.hint == "enter apply | esc cancel"
 
 
+def test_select_input_dialog_state_shows_recursive_safety_details() -> None:
+    state = build_initial_app_state()
+    target = state.current_pane.entries[0]
+    state = replace(
+        state,
+        ui_mode="CHMOD",
+        pending_input=PendingInputState(
+            prompt="Permissions: ",
+            value="755",
+            chmod_target_paths=(target.path,),
+        ),
+    )
+
+    input_dialog = select_input_dialog_state(state)
+
+    assert input_dialog is not None
+    assert input_dialog.title == "Change Permissions"
+    assert input_dialog.hint == "ctrl+r toggle recursive | enter apply | esc cancel"
+    assert input_dialog.details == (
+        "Targets: 1 (1 directory)",
+        "Recursive: No",
+        "Symlinks are skipped and never followed.",
+    )
+
+
 def test_select_input_bar_state_for_symlink_mode() -> None:
     state = replace(
         build_initial_app_state(),

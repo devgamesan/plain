@@ -113,6 +113,7 @@ You can open an external terminal directly from zivo. Press `t` to suspend zivo 
 | `Esc` | Cancel |
 | `Tab` | Complete (where supported) |
 | `Ctrl+v` | Paste from clipboard |
+| `Ctrl+R` | Toggle `Recursive: No/Yes` in Change permissions / Change owner dialogs |
 
 ---
 

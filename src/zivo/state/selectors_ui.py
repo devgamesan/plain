@@ -288,17 +288,9 @@ def select_input_dialog_state(state: AppState) -> InputDialogState | None:
     if state.pending_input is None:
         return None
     if state.ui_mode == "CHMOD":
-        title = (
-            "Change Permissions Recursively"
-            if state.pending_input.chmod_recursive
-            else "Change Permissions"
-        )
+        title = "Change Permissions"
     elif state.ui_mode == "CHOWN":
-        title = (
-            "Change Owner Recursively"
-            if state.pending_input.chown_recursive
-            else "Change Owner"
-        )
+        title = "Change Owner"
     elif state.ui_mode == "RENAME":
         title = "Rename"
     elif state.ui_mode == "EXTRACT":
@@ -311,16 +303,64 @@ def select_input_dialog_state(state: AppState) -> InputDialogState | None:
         title = "New File"
     else:
         title = "New Directory"
+    details: tuple[str, ...] = ()
+    if state.ui_mode in {"CHMOD", "CHOWN"}:
+        target_paths = (
+            state.pending_input.chmod_target_paths
+            if state.ui_mode == "CHMOD"
+            else state.pending_input.chown_target_paths
+        ) or ()
+        recursive = (
+            state.pending_input.chmod_recursive
+            if state.ui_mode == "CHMOD"
+            else state.pending_input.chown_recursive
+        )
+        entries = (
+            state.transfer_left.pane.entries
+            if state.layout_mode == "transfer"
+            and state.active_transfer_pane == "left"
+            and state.transfer_left is not None
+            else state.transfer_right.pane.entries
+            if state.layout_mode == "transfer" and state.transfer_right is not None
+            else state.current_pane.entries
+        )
+        entry_by_path = {entry.path: entry for entry in entries}
+        selected_entries = tuple(
+            entry_by_path[path] for path in target_paths if path in entry_by_path
+        )
+        directories = sum(entry.kind == "dir" for entry in selected_entries)
+        files = sum(entry.kind == "file" for entry in selected_entries)
+        symlinks = sum(entry.symlink for entry in selected_entries)
+        kinds = ", ".join(
+            part
+            for part in (
+                f"{files} file{'s' if files != 1 else ''}" if files else "",
+                f"{directories} director{'ies' if directories != 1 else 'y'}"
+                if directories
+                else "",
+                f"{symlinks} symlink{'s' if symlinks != 1 else ''}" if symlinks else "",
+            )
+            if part
+        ) or "unknown types"
+        details = (
+            f"Targets: {len(target_paths)} ({kinds})",
+            f"Recursive: {'Yes' if recursive else 'No'}",
+            "Symlinks are skipped and never followed.",
+        )
     return InputDialogState(
         title=title,
         prompt=state.pending_input.prompt,
         value=state.pending_input.value,
         cursor_pos=state.pending_input.cursor_pos,
         hint=(
+            "ctrl+r toggle recursive | enter apply | esc cancel"
+            if state.ui_mode in {"CHMOD", "CHOWN"}
+            else
             "tab complete | enter apply | esc cancel"
             if state.ui_mode == "SYMLINK"
             else "enter apply | esc cancel"
         ),
+        details=details,
     )
 
 

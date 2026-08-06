@@ -35,22 +35,8 @@ class BeginChmodInput:
 
 
 @dataclass(frozen=True)
-class BeginRecursiveChmodInput:
-    """Enter recursive chmod input mode for one or more paths."""
-
-    paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
 class BeginChownInput:
     """Enter chown input mode for one or more paths."""
-
-    paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class BeginRecursiveChownInput:
-    """Enter recursive chown input mode for one or more paths."""
 
     paths: tuple[str, ...]
 
@@ -123,6 +109,11 @@ class SetPendingInputValue:
 
     value: str
     cursor_pos: int
+
+
+@dataclass(frozen=True)
+class TogglePendingInputRecursive:
+    """Toggle recursive execution for a chmod or chown input dialog."""
 
 
 @dataclass(frozen=True)

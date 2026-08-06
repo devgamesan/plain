@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from zivo.models import (
     AppConfig,
     ChmodRequest,
+    ChownRequest,
     CreatePathRequest,
     CreateSymlinkRequest,
     CreateZipArchiveRequest,
@@ -14,6 +15,7 @@ from zivo.models import (
     ExtractArchiveRequest,
     PasteRequest,
     RecursiveChmodRequest,
+    RecursiveChownRequest,
     RenameRequest,
     TextReplaceRequest,
     UndoEntry,
@@ -127,6 +129,8 @@ class RunFileMutationEffect:
         | DeleteRequest
         | ChmodRequest
         | RecursiveChmodRequest
+        | ChownRequest
+        | RecursiveChownRequest
     )
 
 

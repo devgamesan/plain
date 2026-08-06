@@ -316,7 +316,7 @@ class zivoApp(App[None]):
         if (
             event.key == "ctrl+v"
             and self._app_state.ui_mode
-            in {"CHMOD", "RENAME", "CREATE", "EXTRACT", "ZIP", "SYMLINK"}
+            in {"CHMOD", "CHOWN", "RENAME", "CREATE", "EXTRACT", "ZIP", "SYMLINK"}
             and self._app_state.pending_input is not None
         ):
             text = self._external_launch_service.get_from_clipboard()
@@ -363,6 +363,7 @@ class zivoApp(App[None]):
 
         if self._app_state.ui_mode in {
             "CHMOD",
+            "CHOWN",
             "RENAME",
             "CREATE",
             "EXTRACT",
@@ -803,4 +804,3 @@ def _initial_sort_state(config: AppConfig) -> SortState:
         descending=config.display.default_sort_descending,
         directories_first=config.display.directories_first,
     )
-

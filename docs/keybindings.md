@@ -10,22 +10,22 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 
 ### Contextual help bar
 
-The help bar has two rows. The contextual row shows up to five target-focused actions, while the discovery row keeps common feature entry points visible:
+The help bar has two rows. The contextual row shows up to five target-focused actions, or six when the sixth item is a trailing `Paste` action, while the discovery row keeps common feature entry points visible:
 
 ```text
 enter Open | e Edit | space Select | c Copy | x Cut
-/ Filter | f Find | g Grep | q Quit | : More
+/ Filter | f Find | g Grep | q Quit | : Commands
 ```
 
 | State | Primary actions |
 | --- | --- |
 | File under cursor | `Enter Open`, `e Edit`, `Space Select`, `c Copy`, `x Cut` |
-| Directory under cursor | `Enter Enter directory`, `Space Select`, `c Copy`, `x Cut` |
+| Directory under cursor | `Enter Open dir`, `Space Select`, `c Copy`, `x Cut` |
 | One or more selected | `c Copy`, `x Cut`, `d Move to trash`, `r Rename`, `Esc Clear selection` |
-| Clipboard available | `v Paste` is prioritized |
+| Clipboard available | `v Paste` is shown last when it fits; otherwise use `: Commands` |
 | Empty directory | `n New file`, `N New directory`, and `v Paste` when available |
 
-In Search Workspace, the discovery row uses `Filter`, `Sort`, `Hidden`, `Quit`, and `: More`, because Find/Grep and destructive transfer actions are unavailable there. Transfer mode uses pane focus and copy/move-to-pane actions in the discovery row. Pressing `:` or clicking `: More` opens the existing command palette. Clicking any other item sends the same action through the central dispatcher as its keyboard shortcut. Dialogs show only their own confirm/apply and cancel actions.
+In Search Workspace, the discovery row uses `Filter`, `Sort`, `Show hidden`/`Hide hidden`, `Quit`, and `: Commands`, because Find/Grep and destructive transfer actions are unavailable there. Transfer mode uses pane focus and copy/move-to-pane actions in the discovery row. Pressing `:` or clicking `: Commands` opens the existing command palette. Clicking any other item sends the same action through the central dispatcher as its keyboard shortcut. Dialogs show only their own confirm/apply and cancel actions.
 
 | Key | Action |
 | --- | ------ |

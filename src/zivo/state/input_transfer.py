@@ -80,7 +80,28 @@ TRANSFER_KEYMAP = {
     "shift+tab",
     ":",
     "p",
+    "q",
 }
+
+TRANSFER_HELP_LINES = (
+    (
+        ("[ ]", "focus"),
+        ("y", "copy-to-pane"),
+        ("m", "move-to-pane"),
+        ("p/Esc", "close"),
+        ("q", "quit"),
+    ),
+    (
+        ("Space", "select"),
+        ("c", "copy"),
+        ("x", "cut"),
+        ("v", "paste"),
+        ("d", "delete"),
+        ("r", "rename"),
+        ("z", "undo"),
+    ),
+    ((".", "hidden"), ("N", "new-dir"), (":", "palette")),
+)
 
 
 def dispatch_transfer_input(

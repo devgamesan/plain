@@ -88,31 +88,6 @@ class BookmarkConfig:
 
 
 @dataclass(frozen=True)
-class HelpBarConfig:
-    """Custom help bar text for each UI mode."""
-
-    browsing: tuple[str, ...] = ()
-    transfer: tuple[str, ...] = ()
-    filter: tuple[str, ...] = ()
-    rename: tuple[str, ...] = ()
-    create: tuple[str, ...] = ()
-    extract: tuple[str, ...] = ()
-    zip: tuple[str, ...] = ()
-    palette: tuple[str, ...] = ()
-    palette_file_search: tuple[str, ...] = ()
-    palette_grep_search: tuple[str, ...] = ()
-    palette_history: tuple[str, ...] = ()
-    palette_bookmarks: tuple[str, ...] = ()
-    palette_go_to_path: tuple[str, ...] = ()
-    shell: tuple[str, ...] = ()
-    config: tuple[str, ...] = ()
-    confirm_delete: tuple[str, ...] = ()
-    confirm_exit: tuple[str, ...] = ()
-    detail: tuple[str, ...] = ()
-    busy: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
 class FileSearchConfig:
     """File search behavior settings."""
 
@@ -149,7 +124,6 @@ class AppConfig:
     behavior: BehaviorConfig = field(default_factory=BehaviorConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     bookmarks: BookmarkConfig = field(default_factory=BookmarkConfig)
-    help_bar: HelpBarConfig = field(default_factory=HelpBarConfig)
     file_search: FileSearchConfig = field(default_factory=FileSearchConfig)
     actions: ActionsConfig = field(default_factory=ActionsConfig)
 

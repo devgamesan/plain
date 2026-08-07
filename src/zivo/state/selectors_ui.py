@@ -74,22 +74,19 @@ def select_status_bar_state(state: AppState) -> StatusBarState:
     )
 
 
+def _format_help_line(shortcuts: tuple[tuple[str, str], ...]) -> str:
+    return " | ".join(f"{key} {label}" for key, label in shortcuts)
+
+
 def select_help_bar_state(state: AppState) -> HelpBarState:
     """Return the help content for the active mode."""
 
     if state.ui_mode == "CONFIRM":
         if state.delete_confirmation is not None:
-            if (
-                state.delete_confirmation.mode == "trash"
-                and state.config.help_bar.confirm_delete
-            ):
-                return HelpBarState(state.config.help_bar.confirm_delete)
             if state.delete_confirmation.mode == "permanent":
                 return HelpBarState(("enter confirm permanent delete | esc cancel",))
             return HelpBarState(("enter confirm delete | esc cancel",))
         if state.exit_confirmation is not None:
-            if state.config.help_bar.confirm_exit:
-                return HelpBarState(state.config.help_bar.confirm_exit)
             return HelpBarState(("enter confirm exit | esc cancel",))
         if state.archive_extract_confirmation is not None:
             return HelpBarState(("enter continue extraction | esc return to input",))
@@ -103,15 +100,11 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             return HelpBarState(("enter return to input | esc return to input",))
         return HelpBarState(("resolve conflict in dialog",))
     if state.ui_mode == "DETAIL":
-        if state.config.help_bar.detail:
-            return HelpBarState(state.config.help_bar.detail)
         return HelpBarState(("enter close | esc close",))
     if state.ui_mode == "CONFIG":
-        if state.config.help_bar.config:
-            return HelpBarState(state.config.help_bar.config)
         return HelpBarState(
             (
-                "↑↓ or Ctrl+j/k choose | ←→ or Enter change | s save | e edit file | r reset help",
+                "↑↓ or Ctrl+j/k choose | ←→ or Enter change | s save | e edit file",
                 "esc close",
             )
         )
@@ -120,39 +113,25 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         if state.shell_command is not None and state.shell_command.result is not None:
             return HelpBarState(("press esc to close",))
         # コマンド入力状態の場合
-        if state.config.help_bar.shell:
-            return HelpBarState(state.config.help_bar.shell)
         return HelpBarState(("type command | enter run | esc cancel",))
     if state.ui_mode == "FILTER":
-        if state.config.help_bar.filter:
-            return HelpBarState(state.config.help_bar.filter)
         return HelpBarState(("type filter | enter/down apply | esc clear",))
     if state.ui_mode == "CHMOD":
         return HelpBarState(("type octal mode | enter apply | esc cancel",))
     if state.ui_mode == "CHOWN":
         return HelpBarState(("type owner[:group] | enter apply | esc cancel",))
     if state.ui_mode == "RENAME":
-        if state.config.help_bar.rename:
-            return HelpBarState(state.config.help_bar.rename)
         return HelpBarState(("type name | enter apply | esc cancel",))
     if state.ui_mode == "CREATE":
-        if state.config.help_bar.create:
-            return HelpBarState(state.config.help_bar.create)
         return HelpBarState(("type name | enter apply | esc cancel",))
     if state.ui_mode == "EXTRACT":
-        if state.config.help_bar.extract:
-            return HelpBarState(state.config.help_bar.extract)
         return HelpBarState(("type destination path | enter extract | esc cancel",))
     if state.ui_mode == "ZIP":
-        if state.config.help_bar.zip:
-            return HelpBarState(state.config.help_bar.zip)
         return HelpBarState(("type zip path | enter compress | esc cancel",))
     if state.ui_mode == "SYMLINK":
         return HelpBarState(("type destination path | tab complete | enter create | esc cancel",))
     if state.ui_mode == "PALETTE":
         if state.command_palette is not None and state.command_palette.source == "file_search":
-            if state.config.help_bar.palette_file_search:
-                return HelpBarState(state.config.help_bar.palette_file_search)
             return HelpBarState(
                 (
                     "type filename | ↑↓ or Ctrl+j/k select | enter jump | "
@@ -160,8 +139,6 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
                 )
             )
         if state.command_palette is not None and state.command_palette.source == "grep_search":
-            if state.config.help_bar.palette_grep_search:
-                return HelpBarState(state.config.help_bar.palette_grep_search)
             return HelpBarState(
                 (
                     "type text / tab fields / ↑↓ or Ctrl+j/k select | "
@@ -170,36 +147,20 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
                 )
             )
         if state.command_palette is not None and state.command_palette.source == "history":
-            if state.config.help_bar.palette_history:
-                return HelpBarState(state.config.help_bar.palette_history)
             return HelpBarState(("type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",))
         if state.command_palette is not None and state.command_palette.source == "bookmarks":
-            if state.config.help_bar.palette_bookmarks:
-                return HelpBarState(state.config.help_bar.palette_bookmarks)
             return HelpBarState(("type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",))
         if state.command_palette is not None and state.command_palette.source == "go_to_path":
-            if state.config.help_bar.palette_go_to_path:
-                return HelpBarState(state.config.help_bar.palette_go_to_path)
             return HelpBarState(
                 ("type path | ↑↓ or Ctrl+j/k select | tab complete | enter jump | esc cancel",)
             )
-        if state.config.help_bar.palette:
-            return HelpBarState(state.config.help_bar.palette)
         return HelpBarState(("type command | ↑↓ or Ctrl+j/k select | enter run | esc cancel",))
     if state.ui_mode == "BUSY":
-        if state.config.help_bar.busy:
-            return HelpBarState(state.config.help_bar.busy)
         return HelpBarState(("processing...",))
     if state.layout_mode == "transfer":
-        if state.config.help_bar.transfer:
-            return HelpBarState(state.config.help_bar.transfer)
-        return HelpBarState(
-            (
-                "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit",
-                "Space select | c copy | x cut | v paste | d delete | r rename | z undo",
-                ". hidden | N new-dir | : palette",
-            )
-        )
+        from .input_transfer import TRANSFER_HELP_LINES
+
+        return HelpBarState(tuple(_format_help_line(line) for line in TRANSFER_HELP_LINES))
     if is_search_workspace_path(state.current_path):
         return HelpBarState(
             (
@@ -209,15 +170,15 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
                 ": palette",
             )
         )
-    if state.config.help_bar.browsing:
-        return HelpBarState(state.config.help_bar.browsing)
     split_terminal_hint = " | t term" if is_split_terminal_supported() else ""
+    from .input_browsing import BROWSING_HELP_LINES
+
     return HelpBarState(
         (
-            "enter open | e edit | O gui editor | i info | "
-            "/ filter | s sort | . hidden | [ ] bk/fwd | q quit",
-            "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv",
-            f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette",
+            _format_help_line(BROWSING_HELP_LINES[0]),
+            f"{_format_help_line(BROWSING_HELP_LINES[1])} | ctrl+j/k prv",
+            f"{_format_help_line(BROWSING_HELP_LINES[2][:-1])}{split_terminal_hint} | "
+            f"{_format_help_line(BROWSING_HELP_LINES[2][-1:])}",
         )
     )
 
@@ -797,7 +758,6 @@ def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
             "←→/enter change",
             "s save",
             "e edit file",
-            "r reset help",
             "esc close",
         ),
     )

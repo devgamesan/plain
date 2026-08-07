@@ -10,7 +10,6 @@ from zivo.models import (
     EditorConfig,
     FileSearchConfig,
     GuiEditorConfig,
-    HelpBarConfig,
     LoggingConfig,
     TerminalConfig,
 )
@@ -522,10 +521,6 @@ def test_render_app_config_round_trips_full_config(tmp_path) -> None:
             level="WARNING",
         ),
         bookmarks=BookmarkConfig(paths=bookmark_paths),
-        help_bar=HelpBarConfig(
-            browsing=("j/k: move", "enter: open"),
-            shell=("ctrl+t: terminal",),
-        ),
     )
     config_path.write_text(render_app_config(config), encoding="utf-8")
 
@@ -533,6 +528,20 @@ def test_render_app_config_round_trips_full_config(tmp_path) -> None:
 
     assert result.warnings == ()
     assert result.config == config
+
+
+def test_loader_ignores_legacy_help_bar_section_and_save_removes_it(tmp_path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        "[help_bar]\nbrowsing = [\"outdated help\"]\n",
+        encoding="utf-8",
+    )
+
+    result = AppConfigLoader(config_path_resolver=lambda: config_path).load()
+
+    assert result.config == AppConfig()
+    assert result.warnings == ("[help_bar] is no longer supported and has been ignored.",)
+    assert "[help_bar]" not in render_app_config(result.config)
 
 
 def test_loader_created_default_config_round_trips_without_warnings(tmp_path) -> None:

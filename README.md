@@ -12,7 +12,7 @@
 
 zivo is a TUI file manager designed to be usable without memorizing dozens of shortcuts.
 
-It keeps common actions visible in the help bar, and lets you run everything else from the command palette. You can browse, preview, search, grep, replace, and transfer files without leaving the terminal.
+By default, it keeps actions relevant to the current state visible in the help bar, and lets you run everything else from the command palette. You can browse, preview, search, grep, replace, and transfer files without leaving the terminal.
 
 ---
 
@@ -27,7 +27,7 @@ It keeps common actions visible in the help bar, and lets you run everything els
 
 ## Highlights
 
-- **No memorization required**: common actions are always visible in the help bar
+- **No memorization required**: relevant standard shortcuts are shown in the help bar
 - **Command palette**: press `:` to search and run available actions
 - **Three-pane preview**: preview directories, text, images, PDF, and Office files
 - **Transfer mode**: copy and move files between two directories side by side
@@ -36,7 +36,7 @@ It keeps common actions visible in the help bar, and lets you run everything els
 
 ---
 
-Browse directories across three panes while previewing files on the right. Use file search and grep to quickly jump to any file. Common actions are always visible in the help bar, so you never feel lost.
+Browse directories across three panes while previewing files on the right. Use file search and grep to quickly jump to any file. The help bar follows the current state and standard keybindings, so you never feel lost.
 
 ![](docs/resources/basic_operation.gif)
 
@@ -98,14 +98,14 @@ zivo-cd
 
 ## Basic controls
 
-Common actions are always shown in the help bar.
+By default, actions relevant to the current state are shown in the help bar.
 You can also press `:` to open the command palette and search for available actions.
 
 | Key | Action |
 |---|---|
 | `↑` / `↓` or `j` / `k` | Move cursor |
 | `Enter` | Open file / enter directory |
-| `Backspace` / `←` | Go to parent directory |
+| `←` / `h` | Go to parent directory |
 | `Space` | Toggle selection |
 | `:` | Open command palette |
 | `/` | Filter entries |
@@ -165,7 +165,7 @@ See [Commands](docs/commands.md) for the full command list.
 ### Customization
 - **Settings overlay**: interactively edit and save startup configuration
 - **Custom actions**: add external tools to the command palette
-- **config.toml**: configure themes, sorting, preview visibility, delete confirmation, and more
+- **config.toml**: configure themes, sorting, preview visibility, help-bar visibility, delete confirmation, and more
 
 ### External integration
 - **Editor**: open files in terminal or GUI editor
@@ -181,6 +181,7 @@ See [Commands](docs/commands.md) for the full command list.
 zivo automatically creates `config.toml` on first launch.
 You can configure themes, previews, sorting, editor integration, delete confirmation, and more.
 You can also add custom command palette actions for external tools.
+Help text itself is generated from the current state and standard keybindings.
 
 See [Configuration](docs/configuration.md) for details.
 See [Custom Actions](docs/custom-actions.md) for custom action examples and safety notes.

@@ -164,7 +164,6 @@ When the `Replace text` preview is open in the right pane, `Shift+↑` / `Shift+
 | `←` / `→` / `Enter` | Change the selected value |
 | `s` | Save `config.toml` |
 | `e` | Open the raw config file in a terminal editor |
-| `r` | Reset help bar text to the built-in defaults |
 | `Esc` | Close the config editor |
 
 ---

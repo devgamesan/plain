@@ -25,7 +25,6 @@ from .actions_input import (
     MoveShellCommandCursor,
     PasteIntoPendingInput,
     PasteIntoShellCommand,
-    ResetHelpBarConfig,
     SaveConfigEditor,
     SetFilterQuery,
     SetPendingInputCursor,
@@ -92,7 +91,6 @@ __all__ = [
     "MoveShellCommandCursor",
     "PasteIntoPendingInput",
     "PasteIntoShellCommand",
-    "ResetHelpBarConfig",
     "SaveConfigEditor",
     "SetFilterQuery",
     "SetPendingInputCursor",
@@ -350,7 +348,6 @@ Action = (
     | MoveConfigEditorCursor
     | CycleConfigEditorValue
     | SaveConfigEditor
-    | ResetHelpBarConfig
     | SetPendingInputValue
     | TogglePendingInputRecursive
     | MovePendingInputCursor

@@ -99,11 +99,6 @@ class SaveConfigEditor:
 
 
 @dataclass(frozen=True)
-class ResetHelpBarConfig:
-    """Reset help bar configuration to defaults."""
-
-
-@dataclass(frozen=True)
 class SetPendingInputValue:
     """Update the rename/create text input value and cursor position."""
 

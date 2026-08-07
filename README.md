@@ -32,7 +32,7 @@ It keeps common actions visible in the help bar, and lets you run everything els
 - **Three-pane preview**: preview directories, text, images, PDF, and Office files
 - **Transfer mode**: copy and move files between two directories side by side
 - **Search and grep**: find files, grep recursively, and open files from results
-- **Replace with preview**: replace in grep results or files, review diffs before applying
+- **Replace with preview**: choose a scope, review diffs, then apply a batch replacement
 
 ---
 
@@ -151,7 +151,7 @@ See [Commands](docs/commands.md) for the full command list.
 ### Search and replace
 - **Find files**: recursive filename search
 - **Search contents**: recursive grep via ripgrep with directory, current-file, selected-files, or Search Workspace scopes and common filename / extension filters
-- **Replace**: batch replace in selected files, found files, or grep results with diff preview
+- **Replace**: one scope-aware flow for current file, selected files, directories, found files, and grep result files
 
 ### Preview
 - Text, images (chafa; optional Kitty graphics protocol on compatible terminals), PDF (pdftotext), Office (pandoc)

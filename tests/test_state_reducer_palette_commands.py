@@ -1056,12 +1056,8 @@ def test_select_command_palette_disables_replace_text_for_hidden_selected_file()
     )
 
     assert palette_state is not None
-    assert [item.label for item in palette_state.items] == [
-        "Replace text in selected files",
-        "Replace text in found files",
-        "Replace text in grep results",
-    ]
-    assert palette_state.items[0].enabled is False
+    assert [item.label for item in palette_state.items] == ["Replace text"]
+    assert palette_state.items[0].enabled is True
 
 def test_submit_command_palette_removes_current_directory_bookmark() -> None:
     state = _reduce_state(

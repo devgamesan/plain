@@ -14,6 +14,7 @@ from .models import (
     GrepSearchResultState,
     GrepSearchScope,
     ReplaceFieldId,
+    ReplaceScope,
 )
 
 
@@ -47,24 +48,24 @@ class BeginGoToPath:
 
 @dataclass(frozen=True)
 class BeginTextReplace:
-    """Open the command palette in text-replace mode for selected files."""
+    """Open the command palette in the unified text-replace mode."""
 
-    target_paths: tuple[str, ...]
+    target_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
 class BeginFindAndReplace:
-    """Open the command palette in find-and-replace mode."""
+    """Legacy action retained while callers migrate to BeginTextReplace."""
 
 
 @dataclass(frozen=True)
 class BeginGrepReplace:
-    """Open the command palette in grep-and-replace mode."""
+    """Legacy action retained while callers migrate to BeginTextReplace."""
 
 
 @dataclass(frozen=True)
 class BeginGrepReplaceSelected:
-    """Open the command palette in grep-and-replace-selected mode."""
+    """Legacy action retained while callers migrate to BeginTextReplace."""
 
     target_paths: tuple[str, ...]
 
@@ -74,6 +75,13 @@ class SetGrepSearchScope:
     """Change the scope of the shared content search."""
 
     scope: GrepSearchScope
+
+
+@dataclass(frozen=True)
+class SetReplaceScope:
+    """Change the target scope of the unified text replacement flow."""
+
+    scope: ReplaceScope
 
 
 @dataclass(frozen=True)
@@ -146,47 +154,37 @@ class CycleReplaceField:
 
 @dataclass(frozen=True)
 class SetFindReplaceField:
-    """Update one find-and-replace input field."""
-
     field: FindReplaceFieldId
     value: str
 
 
 @dataclass(frozen=True)
 class CycleFindReplaceField:
-    """Move focus between find-and-replace input fields."""
-
     delta: int
 
 
 @dataclass(frozen=True)
 class SetGrepReplaceField:
-    """Update one grep-and-replace input field."""
-
     field: GrepReplaceFieldId
     value: str
 
 
 @dataclass(frozen=True)
 class CycleGrepReplaceField:
-    """Move focus between grep-and-replace input fields."""
-
     delta: int
 
 
 @dataclass(frozen=True)
 class SetGrepReplaceSelectedField:
-    """Update one grep-replace-selected input field."""
-
     field: GrepReplaceSelectedFieldId
     value: str
 
 
 @dataclass(frozen=True)
 class CycleGrepReplaceSelectedField:
-    """Move focus between grep-replace-selected input fields."""
-
     delta: int
+
+
 
 
 @dataclass(frozen=True)

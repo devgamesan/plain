@@ -470,6 +470,13 @@ def handle_file_search_completed(
     state: AppState,
     action: FileSearchCompleted,
 ) -> ReduceResult:
+    from .reducer_palette_replace_scope import (
+        handle_file_search_completed as handle_replace_file_search_completed,
+    )
+
+    replace_result = handle_replace_file_search_completed(state, action)
+    if replace_result is not None:
+        return replace_result
     if (
         state.command_palette is not None
         and state.command_palette.source == "replace_in_found_files"
@@ -580,6 +587,14 @@ def handle_grep_search_completed(
 ) -> ReduceResult:
     if action.request_id != state.pending_grep_search_request_id:
         return finalize(state)
+
+    from .reducer_palette_replace_scope import (
+        handle_grep_search_completed as handle_replace_grep_search_completed,
+    )
+
+    replace_result = handle_replace_grep_search_completed(state, action)
+    if replace_result is not None:
+        return replace_result
 
     if (
         state.command_palette is not None

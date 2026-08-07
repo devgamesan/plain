@@ -22,10 +22,7 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 | `Toggle transfer mode` / `Close transfer mode` | 常に表示 | 通常の 3 ペインブラウザと 2 ペイン転送レイアウトを切り替えます。 |
 | `Undo last file operation` | Undo 履歴があるとき | 直前の Undo 対象リネーム、貼り付け、ゴミ箱移動を取り消します。 |
 | `Select all` | 現在ディレクトリに表示中の項目が 1 件以上あるとき | 現在ディレクトリで表示中の項目をすべて選択します。 |
-| `Replace text in selected files` | ファイルがフォーカス中、または現在ディレクトリで 1 件以上のファイルが選択中のとき | 選択中のファイル、または未選択時はフォーカス中のファイルを対象に 2 フィールドの置換パレットを開きます。一致したファイル一覧がパレットに表示され、右ペインに選択中ファイルの diff を表示します。一括置換を実行します。 |
-| `Replace text in found files` | 常に表示 | 3 フィールドの置換パレット（filename、find、replace）を開きます。ファイル名パターンでファイルを検索し、find/replace テキストで置換をプレビューします。右ペインに diff プレビューを表示し、置換を適用します。 |
-| `Replace text in grep results` | 常に表示 | 5 フィールドの置換パレット（keyword、replace、filename filter、include extensions、exclude extensions）を開きます。keyword は grep 検索語と置換対象テキストを兼ねます。keyword を入力して grep 検索し、replacement を入力して変更をプレビューします。filename と拡張子フィルターで対象ファイルを絞り込めます。右ペインに diff プレビューを表示し、置換を適用します。 |
-| `Grep and replace in selected files` | ファイルがフォーカス中、または現在ディレクトリで 1 件以上のファイルが選択中のとき | 選択中のファイル、または未選択時はフォーカス中のファイルを対象に 2 フィールドの置換パレット（keyword、replace）を開きます。keyword で grep 検索し、一致した行がパレットに表示されます。右ペインに diff プレビューを表示し、置換を適用します。 |
+| `Replace text` | 常に表示 | Scope を選べる単一の置換パレットを開きます。初期 Scope は選択状態に応じて Selected files、Current file、Current directory になります。Current file、Selected files、Current directory、Found files、Grep result files を選択でき、利用できない Scope は理由を表示します。Find/Replace は常に表示し、再帰検索する Scope では filename と拡張子フィルターも表示します。右ペインに diff をプレビューしてから確認・適用します。 |
 | `Show attributes` | 単一対象が選択中またはフォーカス中のとき | 読み取り専用の属性ダイアログを開きます。 |
 | `Rename` | 単一対象が選択中またはフォーカス中のとき | 単一対象のリネーム入力を開始します。 |
 | `Change permissions` | Linux / macOS / WSL の実ファイルシステム上の 1 件以上の対象が選択中またはフォーカス中のとき | 選択中の全対象、または未選択時はフォーカス対象の permission 変更入力を開始します。`755` や `644` のような 3 桁 octal mode を入力します。ダイアログには対象数・種別と、symlink をスキップしてリンク先を辿らない方針が表示されます。`Recursive` の既定値は `No` で、`Tab` により `Yes` を選ぶとディレクトリ配下にも適用します。検索ワークスペースと native Windows では表示しません。Windows は `chmod` 経由で POSIX permission bit を表現できないため対象外です。 |

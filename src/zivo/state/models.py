@@ -59,7 +59,14 @@ CommandPaletteSource = Literal[
 ]
 GrepSearchScope = Literal["current_directory", "selected_entries", "search_workspace"]
 GrepSearchFieldId = Literal["keyword", "scope", "filename", "include", "exclude"]
-ReplaceFieldId = Literal["find", "replace"]
+ReplaceScope = Literal[
+    "current_file",
+    "selected_files",
+    "current_directory",
+    "found_files",
+    "grep_result_files",
+]
+ReplaceFieldId = Literal["scope", "find", "replace", "filename", "include", "exclude"]
 FindReplaceFieldId = Literal["filename", "find", "replace"]
 GrepReplaceFieldId = Literal["keyword", "replace", "filename", "include", "exclude"]
 GrepReplaceSelectedFieldId = Literal["keyword", "replace"]
@@ -248,12 +255,7 @@ class AttributeInspectionState:
 class ReplaceConfirmationState:
     """Pending confirmation dialog state for text replacement operations."""
 
-    mode: Literal[
-        "replace_text",
-        "replace_in_found_files",
-        "replace_in_grep_files",
-        "grep_replace_selected",
-    ]
+    mode: Literal["replace_text"]
     find_text: str
     replacement_text: str
     target_paths: tuple[str, ...]
@@ -456,6 +458,13 @@ class ReplacePreviewPaletteState:
     find_text: str = ""
     replacement_text: str = ""
     active_field: ReplaceFieldId = "find"
+    scope: ReplaceScope = "current_directory"
+    filename_filter: str = ""
+    include_extensions: str = ""
+    exclude_extensions: str = ""
+    file_results: tuple[FileSearchResultState, ...] = ()
+    grep_results: tuple[GrepSearchResultState, ...] = ()
+    scope_message: str | None = None
     preview_results: tuple[ReplacePreviewResultState, ...] = ()
     error_message: str | None = None
     status_message: str | None = None
@@ -519,12 +528,12 @@ class CommandPaletteState:
     replace_preview: ReplacePreviewPaletteState = field(
         default_factory=ReplacePreviewPaletteState,
     )
-    history_and_navigation: HistoryAndNavigationPaletteState = field(
-        default_factory=HistoryAndNavigationPaletteState
-    )
     rff: RffPaletteState = field(default_factory=RffPaletteState)
     grs: GrsPaletteState = field(default_factory=GrsPaletteState)
     grf: GrfPaletteState = field(default_factory=GrfPaletteState)
+    history_and_navigation: HistoryAndNavigationPaletteState = field(
+        default_factory=HistoryAndNavigationPaletteState
+    )
 
 
 @dataclass(frozen=True)

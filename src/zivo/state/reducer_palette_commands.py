@@ -22,10 +22,7 @@ from .actions import (
     BeginExitCurrentPath,
     BeginExtractArchiveInput,
     BeginFileSearch,
-    BeginFindAndReplace,
     BeginGoToPath,
-    BeginGrepReplace,
-    BeginGrepReplaceSelected,
     BeginGrepSearch,
     BeginHistorySearch,
     BeginRenameInput,
@@ -204,25 +201,8 @@ def _run_replace_text_command(
     next_state: AppState,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
-    target_paths = selected_current_file_paths(state)
-    if not target_paths:
-        return notify(
-            next_state,
-            level="warning",
-            message=(
-                "Replace text requires a selected file or file selection "
-                "in the current directory"
-            ),
-        )
-    return reduce_state(next_state, BeginTextReplace(target_paths=target_paths))
-
-
-def _run_find_and_replace_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
-    return reduce_state(state, BeginFindAndReplace())
-
-
-def _run_grep_replace_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
-    return reduce_state(state, BeginGrepReplace())
+    del state
+    return reduce_state(next_state, BeginTextReplace())
 
 
 def handle_show_attributes_command(state: AppState) -> ReduceResult:
@@ -507,24 +487,6 @@ def _run_create_symlink_command(
     return reduce_state(next_state, BeginSymlinkInput(source_path=target_path))
 
 
-def _run_grep_replace_selected_command(
-    state: AppState,
-    next_state: AppState,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    target_paths = selected_current_file_paths(state)
-    if not target_paths:
-        return notify(
-            next_state,
-            level="warning",
-            message=(
-                "Grep replace requires a selected file or file selection "
-                "in the current directory"
-            ),
-        )
-    return reduce_state(next_state, BeginGrepReplaceSelected(target_paths=target_paths))
-
-
 def _run_custom_action_command(
     state: AppState,
     next_state: AppState,
@@ -605,12 +567,6 @@ def _run_palette_command_item(
         return _run_select_all_command(next_state, reduce_state)
     if item_id == "replace_text":
         return _run_replace_text_command(state, next_state, reduce_state)
-    if item_id == "replace_in_found_files":
-        return _run_find_and_replace_command(next_state, reduce_state)
-    if item_id == "replace_in_grep_files":
-        return _run_grep_replace_command(next_state, reduce_state)
-    if item_id == "grep_replace_selected":
-        return _run_grep_replace_selected_command(state, next_state, reduce_state)
     if item_id == "show_about":
         return reduce_state(next_state, ShowAbout())
     if item_id == "show_attributes":

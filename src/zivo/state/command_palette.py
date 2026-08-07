@@ -200,7 +200,6 @@ def normalize_command_palette_cursor(state: AppState, cursor_index: int) -> int:
 
 def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]:
     target_paths = select_target_paths(state)
-    replace_target_paths = select_target_file_paths(state)
     single_target_entry = select_single_target_entry(state)
     has_target = bool(target_paths)
     has_single_target = single_target_entry is not None
@@ -318,27 +317,9 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         ),
         CommandPaletteItem(
             id="replace_text",
-            label="Replace text in selected files",
-            shortcut=None,
-            enabled=bool(replace_target_paths),
-        ),
-        CommandPaletteItem(
-            id="replace_in_found_files",
-            label="Replace text in found files",
+            label="Replace text",
             shortcut=None,
             enabled=True,
-        ),
-        CommandPaletteItem(
-            id="replace_in_grep_files",
-            label="Replace text in grep results",
-            shortcut=None,
-            enabled=True,
-        ),
-        CommandPaletteItem(
-            id="grep_replace_selected",
-            label="Grep and replace in selected files",
-            shortcut=None,
-            enabled=bool(replace_target_paths),
         ),
     ]
 

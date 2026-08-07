@@ -151,7 +151,7 @@ zivo から直接外部ターミナルを開けます。`t` を押すと zivo �
 | --- | ------ |
 | 文字入力 / `↑` / `↓` / `Ctrl+j` / `Ctrl+k` / `k` / `j` / `Enter` / `Esc` | コマンドを絞り込み、選択、実行、キャンセル。`Find files` と `Grep search` では `j` / `k` は文字入力として扱われ、結果のナビゲーションには `↑` / `↓` または `Ctrl+j` / `Ctrl+k` を使用します。 |
 
-`Replace text` のプレビューが右ペインに表示されている間は、`Shift+↑` / `Shift+↓` でそのプレビューをスクロールできます。（この説明は `Replace text in selected files`、`Replace text in found files`、`Replace text in grep results`、`Grep and replace in selected files` すべてに適用されます）
+`Replace text` のプレビューが右ペインに表示されている間は、`Shift+↑` / `Shift+↓` でそのプレビューをスクロールできます。Scope にかかわらず適用されます。
 
 ---
 

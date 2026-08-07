@@ -462,7 +462,20 @@ def _build_file_search_input_fields(
 def _build_replace_input_fields(
     palette: CommandPaletteState,
 ) -> tuple[CommandPaletteInputFieldViewState, ...]:
-    return (
+    scope_labels = {
+        "current_file": "Current file",
+        "selected_files": "Selected files",
+        "current_directory": "Current directory",
+        "found_files": "Found files",
+        "grep_result_files": "Grep result files",
+    }
+    fields = [
+        CommandPaletteInputFieldViewState(
+            label="Scope",
+            value=scope_labels[palette.replace_preview.scope],
+            placeholder="choose scope",
+            active=palette.replace_preview.active_field == "scope",
+        ),
         CommandPaletteInputFieldViewState(
             label="Find",
             value=palette.replace_preview.find_text,
@@ -475,7 +488,41 @@ def _build_replace_input_fields(
             placeholder="replacement text",
             active=palette.replace_preview.active_field == "replace",
         ),
-    )
+    ]
+    if palette.replace_preview.scope == "found_files":
+        fields.insert(
+            1,
+            CommandPaletteInputFieldViewState(
+                label="Filename",
+                value=palette.replace_preview.filename_filter,
+                placeholder="pattern or re:pattern",
+                active=palette.replace_preview.active_field == "filename",
+            ),
+        )
+    elif palette.replace_preview.scope in {"current_directory", "grep_result_files"}:
+        fields.extend(
+            (
+                CommandPaletteInputFieldViewState(
+                    label="Filter: Filename",
+                    value=palette.replace_preview.filename_filter,
+                    placeholder="pattern or re:pattern",
+                    active=palette.replace_preview.active_field == "filename",
+                ),
+                CommandPaletteInputFieldViewState(
+                    label="Include extensions",
+                    value=palette.replace_preview.include_extensions,
+                    placeholder="e.g. py, js",
+                    active=palette.replace_preview.active_field == "include",
+                ),
+                CommandPaletteInputFieldViewState(
+                    label="Exclude extensions",
+                    value=palette.replace_preview.exclude_extensions,
+                    placeholder="e.g. log, tmp",
+                    active=palette.replace_preview.active_field == "exclude",
+                ),
+            )
+        )
+    return tuple(fields)
 
 
 def _build_find_replace_input_fields(

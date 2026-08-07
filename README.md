@@ -28,7 +28,7 @@ By default, it keeps actions relevant to the current state visible in the help b
 ## Highlights
 
 - **No memorization required**: relevant standard shortcuts are shown in the help bar
-- **Command palette**: press `:` to search and run available actions
+- **Context-aware command palette**: press `:` to browse fixed Navigate, File, Search, View, System, and Custom actions sections
 - **Three-pane preview**: preview directories, text, images, PDF, and Office files
 - **Transfer mode**: copy and move files between two directories side by side
 - **Search and grep**: find files, grep recursively, and open files from results
@@ -110,7 +110,7 @@ You can also press `:` to open the command palette and search for available acti
 | `:` | Open command palette |
 | `/` | Filter entries |
 | `f` | Find files |
-| `g` | Search contents |
+| `g` | Grep search |
 | `p` | Toggle Transfer mode |
 | `q` | Quit |
 
@@ -120,8 +120,9 @@ See [Keybindings](docs/keybindings.md) for the full list.
 
 ## Command palette
 
-Press `:` to search and run available actions.
-This is useful for less frequently used operations or actions whose keybindings you do not remember.
+Press `:` to search and run available actions. With an empty query, the palette shows fixed Navigate, File, Search, View, System, and Custom actions sections. The full list is scrollable with the mouse wheel; `↑` / `↓` and `Ctrl+j` / `Ctrl+k` keep the selected row visible.
+
+Search accepts common aliases and keywords such as `duplicate` for Copy, `trash` for Move to trash, `grep` or `search contents` for Grep search, and `shell` for opening a terminal. Results are ranked deterministically. Commands that do not apply remain searchable but are dimmed with a concrete reason; pressing Enter on one shows the same reason as a warning. Registered custom actions are always listed, while actions that do not satisfy their configured context conditions are disabled with a reason; they are also searchable by name.
 
 See [Commands](docs/commands.md) for the full command list.
 
@@ -150,7 +151,7 @@ See [Commands](docs/commands.md) for the full command list.
 
 ### Search and replace
 - **Find files**: recursive filename search
-- **Search contents**: recursive grep via ripgrep with directory, current-file, selected-files, or Search Workspace scopes and common filename / extension filters
+- **Grep search**: recursive content search via ripgrep with directory, current-file, selected-files, or Search Workspace scopes and common filename / extension filters
 - **Replace**: one scope-aware flow for current file, selected files, directories, found files, and grep result files
 
 ### Preview

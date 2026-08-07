@@ -451,8 +451,8 @@ def test_submit_command_palette_opens_new_tab_in_transfer_mode() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="commands",
-            query="",
-            cursor_index=7,  # new_tab
+            query="new tab",
+            cursor_index=0,
         ),
     )
 
@@ -488,8 +488,8 @@ def test_submit_command_palette_closes_current_tab_in_transfer_mode() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="commands",
-            query="",
-            cursor_index=10,  # close_current_tab
+            query="close current tab",
+            cursor_index=0,
         ),
     )
 
@@ -796,7 +796,7 @@ def test_set_command_palette_query_updates_windows_drive_candidates(monkeypatch)
 
 def test_submit_command_palette_runs_copy_path_flow() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("copy"))
+    state = _reduce_state(state, SetCommandPaletteQuery("copy path"))
 
     result = reduce_app_state(state, SubmitCommandPalette())
 
@@ -1132,7 +1132,7 @@ def test_submit_command_palette_go_forward_is_unavailable_without_history() -> N
     assert result.state.command_palette is not None
     assert result.state.notification == NotificationState(
         level="warning",
-        message="Go forward is not available yet",
+        message="No directory history in this direction",
     )
 
 def test_submit_command_palette_reloads_directory() -> None:
@@ -1276,7 +1276,7 @@ def test_submit_command_palette_uses_selected_paths_for_copy_path() -> None:
         ),
     )
     state = _reduce_state(state, BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("copy"))
+    state = _reduce_state(state, SetCommandPaletteQuery("copy path"))
 
     result = reduce_app_state(state, SubmitCommandPalette())
 

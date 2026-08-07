@@ -135,13 +135,18 @@ Screen {
     margin: 0 0 1 0;
 }
 
-#command-palette-items {
+#command-palette-items-scroll {
     height: auto;
     max-height: 1fr;
+    scrollbar-size-vertical: 1;
 }
 
-#command-palette.-expanded #command-palette-items {
+#command-palette.-expanded #command-palette-items-scroll {
     height: 1fr;
+}
+
+#command-palette-items {
+    height: auto;
 }
 
 #status-bar {

@@ -1377,9 +1377,10 @@ def test_select_command_palette_state_marks_selected_and_enabled_items() -> None
 
     assert palette_state is not None
     assert palette_state.title.startswith("Command Palette")
-    assert [item.label for item in palette_state.items[:2]] == [
-        "Find files",
-        "Search contents",
+    assert [item.category for item in palette_state.items[:3]] == [
+        "Navigate",
+        "Navigate",
+        "Navigate",
     ]
     assert palette_state.items[0].selected is True
     assert palette_state.items[0].enabled is True
@@ -1410,7 +1411,7 @@ def test_removed_direct_shortcuts_remain_available_without_palette_shortcuts() -
     assert all(items[label].shortcut is None for label in labels)
 
 
-def test_command_palette_items_for_search_workspace_are_limited_to_safe_actions() -> None:
+def test_command_palette_items_for_search_workspace_explain_unavailable_actions() -> None:
     state = replace(
         build_search_workspace_state(),
         config=AppConfig(
@@ -1422,10 +1423,10 @@ def test_command_palette_items_for_search_workspace_are_limited_to_safe_actions(
         command_palette=CommandPaletteState(),
     )
 
-    labels = [
-        item.label
-        for item in command_palette_module.get_command_palette_items(state)
-    ]
+    items = {
+        item.label: item for item in command_palette_module.get_command_palette_items(state)
+    }
+    labels = list(items)
 
     assert "History search" in labels
     assert "Show bookmarks" in labels
@@ -1448,30 +1449,29 @@ def test_command_palette_items_for_search_workspace_are_limited_to_safe_actions(
     assert "About zivo" in labels
     assert "Edit config" in labels
 
-    assert "Find files" not in labels
-    assert "Grep search" not in labels
-    assert "Reload directory" not in labels
-    assert "Toggle transfer mode" not in labels
-    assert "Replace text in selected files" not in labels
-    assert "Replace text in found files" not in labels
-    assert "Replace text in grep results" not in labels
-    assert "Grep in selected files" not in labels
-    assert "Grep and replace in selected files" not in labels
-    assert "Format project" not in labels
-    assert "Rename" not in labels
-    assert "Change permissions" not in labels
-    assert "Change owner" not in labels
-    assert "Make symlink" not in labels
-    assert "Compress as zip" not in labels
-    assert "Extract archive" not in labels
-    assert "Move to trash" not in labels
-    assert "Open current directory with file manager" not in labels
-    assert "Open current directory with terminal" not in labels
-    assert "Run shell command" not in labels
-    assert "Remove bookmark" not in labels
-    assert "Bookmark this directory" not in labels
-    assert "Create file" not in labels
-    assert "Create directory" not in labels
+    assert "Find files" in labels
+    assert "Grep search" in labels
+    assert "Reload directory" in labels
+    assert "Toggle transfer mode" in labels
+    assert "Format project" in labels
+    assert items["Format project"].enabled is False
+    assert items["Format project"].disabled_reason == "Unavailable in Search Workspace"
+    for label in (
+        "Rename",
+        "Change permissions",
+        "Change owner",
+        "Make symlink",
+        "Compress as zip",
+        "Extract archive",
+        "Move to trash",
+        "Open current directory with file manager",
+        "Open current directory with terminal",
+        "Run shell command",
+        "Create file",
+        "Create directory",
+    ):
+        assert items[label].enabled is False
+        assert items[label].disabled_reason == "Unavailable in Search Workspace"
 
 
 def test_command_palette_distinguishes_file_and_current_directory_launchers() -> None:
@@ -3153,8 +3153,8 @@ class TestCommandPaletteDynamicWindow:
         assert len(palette_state.items) == 25
         assert palette_state.has_more_items is False
 
-    def test_default_command_palette_uses_terminal_height_for_visible_window(self) -> None:
-        """通常のコマンド一覧も端末高に応じて表示件数が増えること."""
+    def test_default_command_palette_keeps_all_commands_scrollable(self) -> None:
+        """通常のコマンド一覧は末尾までスクロールできること."""
 
         state = replace(
             _reduce_state(build_initial_app_state(), BeginCommandPalette()),
@@ -3164,7 +3164,7 @@ class TestCommandPaletteDynamicWindow:
         palette_state = select_command_palette_state(state)
 
         assert palette_state is not None
-        assert len(palette_state.items) == 14
+        assert len(palette_state.items) > 14
         assert palette_state.has_more_items is True
 
 
@@ -3194,12 +3194,12 @@ def test_command_palette_includes_tab_commands_with_lowercase_shortcuts() -> Non
 def test_command_palette_includes_undo_item_and_disables_when_empty() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
 
-    palette_state = select_command_palette_state(state)
-
-    assert palette_state is not None
-    items = {item.label: item for item in palette_state.items}
+    items = {
+        item.label: item for item in command_palette_module.get_command_palette_items(state)
+    }
     assert items["Undo last file operation"].shortcut == "z"
     assert items["Undo last file operation"].enabled is False
+    assert items["Undo last file operation"].disabled_reason == "No operation to undo"
 
 
 def test_command_palette_enables_undo_item_when_stack_is_present() -> None:
@@ -3208,10 +3208,9 @@ def test_command_palette_enables_undo_item_when_stack_is_present() -> None:
         undo_stack=(UndoEntry(kind="paste_copy", steps=(UndoDeletePathStep("/tmp/copied"),)),),
     )
 
-    palette_state = select_command_palette_state(state)
-
-    assert palette_state is not None
-    items = {item.label: item for item in palette_state.items}
+    items = {
+        item.label: item for item in command_palette_module.get_command_palette_items(state)
+    }
     assert items["Undo last file operation"].enabled is True
 
 

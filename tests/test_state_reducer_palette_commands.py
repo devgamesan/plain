@@ -1006,6 +1006,17 @@ def test_go_query_promotes_existing_direct_path(tmp_path) -> None:
     assert items[0].path == str(destination.resolve())
 
 
+def test_go_view_announces_source_filters() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginGo())
+
+    view = select_command_palette_state(state)
+
+    assert view is not None
+    assert view.footer_message is not None
+    assert "@bookmark" in view.footer_message
+    assert "@history" in view.footer_message
+
+
 def test_go_query_supports_source_filters(tmp_path) -> None:
     bookmarked = tmp_path / "bookmarked"
     recent = tmp_path / "recent"

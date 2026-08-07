@@ -481,6 +481,11 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
                 if source_filter == "bookmarks"
                 else "Type a path or destination"
             ),
+            footer_message=(
+                "Filters: @bookmark @history @tab @home | arrows select, Enter go"
+                if source_filter == "all"
+                else "Bookmarks filter active | type to search, Enter go"
+            ),
         )
 
     if state.command_palette.source == "bookmarks":

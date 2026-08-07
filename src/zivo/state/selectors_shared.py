@@ -272,6 +272,7 @@ def _build_command_palette_items_view(
     empty_message: str | None = None,
     *,
     selected_override: bool | None = None,
+    footer_message: str | None = None,
 ) -> CommandPaletteViewState:
     """コマンドパレットのアイテムビューを構築する共通関数。"""
     items = get_command_palette_items(state)
@@ -301,6 +302,7 @@ def _build_command_palette_items_view(
         ),
         empty_message=empty_message or "No items",
         has_more_items=len(items) > len(visible_items),
+        footer_message=footer_message,
     )
 
 

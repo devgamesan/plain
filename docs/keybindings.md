@@ -163,7 +163,7 @@ When the `Replace text` preview is open in the right pane, `Shift+↑` / `Shift+
 | `↑` / `↓` / `Ctrl+j` / `Ctrl+k` | Move between settings |
 | `←` / `→` / `Enter` | Change the selected value |
 | `s` | Save `config.toml` |
-| `e` | Open the raw config file in a terminal editor |
+| `e` | Open `config.toml` to edit advanced settings in a terminal editor |
 | `Esc` | Close the config editor |
 
 ---

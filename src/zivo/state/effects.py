@@ -223,11 +223,12 @@ class RunTextReplaceApplyEffect:
 
 @dataclass(frozen=True)
 class RunConfigSaveEffect:
-    """Persist the current config editor draft to disk."""
+    """Persist application config to disk."""
 
     request_id: int
     path: str
     config: AppConfig
+    preserve_unmanaged: bool = False
 
 
 @dataclass(frozen=True)

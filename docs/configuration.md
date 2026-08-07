@@ -9,6 +9,21 @@ If the file does not exist yet, zivo creates it automatically with default value
 - macOS: `~/Library/Application Support/zivo/config.toml`
 - Windows: `%APPDATA%\\zivo\\config.toml`
 
+## Config Editor scope
+
+The in-app Config Editor is intentionally limited to frequently changed basic settings:
+
+- terminal and GUI editor presets
+- theme and hidden-file visibility
+- text, image, PDF, and Office preview enablement
+- default sort field, direction, and directories-first behavior
+- delete confirmation
+
+Press `e` in Config Editor to open `config.toml` for advanced settings such as
+preview details, terminal templates, paste behavior, logging, file-search limits,
+custom actions, or future settings. Saving basic settings from the UI updates only
+those settings and preserves advanced, unknown, and custom TOML values.
+
 ## Settings Reference
 
 | Section | Key | Values | Description |

@@ -808,7 +808,7 @@ def test_move_config_editor_cursor_clamps_to_visible_settings() -> None:
     next_state = _reduce_state(state, MoveConfigEditorCursor(delta=99))
 
     assert next_state.config_editor is not None
-    assert next_state.config_editor.cursor_index == 20
+    assert next_state.config_editor.cursor_index == 18
 
 def test_cycle_config_editor_editor_command_updates_draft_and_dirty_state() -> None:
     state = replace(
@@ -1073,6 +1073,7 @@ def test_save_config_editor_emits_config_save_effect() -> None:
             request_id=1,
             path="/tmp/zivo/config.toml",
             config=result.state.config_editor.draft,
+            preserve_unmanaged=True,
         ),
     )
 

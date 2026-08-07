@@ -359,6 +359,52 @@ def test_config_save_service_writes_normalized_config_file(tmp_path) -> None:
     assert "grep_preview_context_lines = 7" in written
 
 
+def test_config_save_service_preserves_advanced_and_unknown_settings(tmp_path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """# Keep this comment.
+
+[display]
+show_hidden_files = false
+theme = "textual-dark"
+preview_max_kib = 1024
+custom_preview_option = "keep"
+
+[behavior]
+confirm_delete = true
+confirm_exit = false
+
+[custom_plugin]
+enabled = true
+""",
+        encoding="utf-8",
+    )
+
+    saved_path = LiveConfigSaveService().save(
+        path=str(config_path),
+        config=AppConfig(
+            display=DisplayConfig(
+                show_hidden_files=True,
+                theme="tokyo-night",
+            ),
+            behavior=BehaviorConfig(confirm_delete=False),
+        ),
+        preserve_unmanaged=True,
+    )
+
+    written = config_path.read_text(encoding="utf-8")
+    assert saved_path == str(config_path)
+    assert "# Keep this comment." in written
+    assert "show_hidden_files = true" in written
+    assert 'theme = "tokyo-night"' in written
+    assert "preview_max_kib = 1024" in written
+    assert 'custom_preview_option = "keep"' in written
+    assert "confirm_delete = false" in written
+    assert "confirm_exit = false" in written
+    assert "[custom_plugin]" in written
+    assert "enabled = true" in written
+
+
 def test_loader_accepts_all_supported_builtin_themes(tmp_path) -> None:
     config_path = tmp_path / "config.toml"
 

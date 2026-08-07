@@ -8,6 +8,18 @@ zivo は起動時にユーザー設定用の `config.toml` を読み込みます
 - macOS: `~/Library/Application Support/zivo/config.toml`
 - Windows: `%APPDATA%\\zivo\\config.toml`
 
+## Config Editor の対象範囲
+
+アプリ内の Config Editor は、頻繁に変更する基本設定に限定しています。
+
+- ターミナル／GUI エディタのプリセット
+- テーマと隠しファイル表示
+- テキスト・画像・PDF・Office プレビューの有効化
+- 既定のソート項目、順序、ディレクトリ優先
+- 削除確認
+
+Config Editor で `e` を押すと `config.toml` を開き、高度設定を編集できます。プレビュー詳細、terminal templates、貼り付け動作、logging、file search の上限、custom actions、将来追加される設定はここで管理します。UI で基本設定を保存しても、高度設定・未知の設定・独自の TOML 値は保持されます。
+
 ## 設定項目一覧
 
 | セクション | キー | 値 | 説明 |

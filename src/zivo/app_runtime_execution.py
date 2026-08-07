@@ -61,6 +61,7 @@ def schedule_config_save(app: Any, effect: RunConfigSaveEffect) -> None:
             app._config_save_service.save,
             path=effect.path,
             config=effect.config,
+            preserve_unmanaged=effect.preserve_unmanaged,
         ),
         WorkerSpec(
             name=f"config-save:{effect.request_id}",

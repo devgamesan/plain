@@ -110,7 +110,7 @@ You can also press `:` to open the command palette and search for available acti
 | `:` | Open command palette |
 | `/` | Filter entries |
 | `f` | Find files |
-| `g` | Grep search |
+| `g` | Search contents |
 | `p` | Toggle Transfer mode |
 | `q` | Quit |
 
@@ -150,7 +150,7 @@ See [Commands](docs/commands.md) for the full command list.
 
 ### Search and replace
 - **Find files**: recursive filename search
-- **Grep search**: recursive grep via ripgrep (filename / extension filters)
+- **Search contents**: recursive grep via ripgrep with directory, current-file, selected-files, or Search Workspace scopes and common filename / extension filters
 - **Replace**: batch replace in selected files, found files, or grep results with diff preview
 
 ### Preview

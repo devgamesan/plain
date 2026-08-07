@@ -12,6 +12,7 @@ from .models import (
     GrepReplaceSelectedFieldId,
     GrepSearchFieldId,
     GrepSearchResultState,
+    GrepSearchScope,
     ReplaceFieldId,
 )
 
@@ -24,6 +25,9 @@ class BeginFileSearch:
 @dataclass(frozen=True)
 class BeginGrepSearch:
     """Open the command palette in grep search mode."""
+
+    scope: GrepSearchScope | None = None
+    target_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -66,24 +70,10 @@ class BeginGrepReplaceSelected:
 
 
 @dataclass(frozen=True)
-class BeginSelectedFilesGrep:
-    """Open the command palette in selected-files-grep mode."""
+class SetGrepSearchScope:
+    """Change the scope of the shared content search."""
 
-    target_paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class SelectedFilesGrepKeywordChanged:
-    """Update the keyword for selected-files-grep."""
-
-    keyword: str
-
-
-@dataclass(frozen=True)
-class CycleSelectedFilesGrepField:
-    """Cycle between fields in selected-files-grep."""
-
-    delta: int
+    scope: GrepSearchScope
 
 
 @dataclass(frozen=True)

@@ -12,7 +12,6 @@ from zivo.windows_paths import display_path, is_search_workspace_path
 from .entry_state_helpers import select_visible_entry_states
 from .models import AppState
 from .selectors import (
-    select_current_entry_for_path,
     select_has_visible_current_entries,
     select_single_target_entry,
     select_target_file_paths,
@@ -202,7 +201,6 @@ def normalize_command_palette_cursor(state: AppState, cursor_index: int) -> int:
 def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]:
     target_paths = select_target_paths(state)
     replace_target_paths = select_target_file_paths(state)
-    selected_files_grep_target_paths = _selected_files_grep_target_paths(state)
     single_target_entry = select_single_target_entry(state)
     has_target = bool(target_paths)
     has_single_target = single_target_entry is not None
@@ -220,7 +218,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         ),
         CommandPaletteItem(
             id="grep_search",
-            label="Grep search",
+            label="Search contents",
             shortcut="g",
             enabled=True,
         ),
@@ -335,12 +333,6 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             label="Replace text in grep results",
             shortcut=None,
             enabled=True,
-        ),
-        CommandPaletteItem(
-            id="selected_files_grep",
-            label="Grep in selected files",
-            shortcut=None,
-            enabled=bool(selected_files_grep_target_paths),
         ),
         CommandPaletteItem(
             id="grep_replace_selected",
@@ -761,23 +753,6 @@ def _hidden_files_label(state: AppState) -> str:
 
 def _replace_target_file_paths(state: AppState) -> tuple[str, ...]:
     return select_target_file_paths(state)
-
-
-def _selected_files_grep_target_paths(state: AppState) -> tuple[str, ...]:
-    """Return target file paths for selected-files-grep."""
-    target_paths = select_target_paths(state)
-    if state.current_pane.selected_paths:
-        return tuple(
-            path
-            for path in target_paths
-            if (entry := select_current_entry_for_path(state, path)) is not None
-            and entry.kind == "file"
-        )
-
-    cursor_entry = select_current_entry_for_path(state, state.current_pane.cursor_path)
-    if cursor_entry is None or cursor_entry.kind != "file":
-        return ()
-    return (cursor_entry.path,)
 
 
 def _active_transfer_pane_state(state: AppState):

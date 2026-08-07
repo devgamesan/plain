@@ -38,7 +38,7 @@ You can open an external terminal directly from zivo. Press `t` to suspend zivo 
 | `O` | Open file in GUI editor |
 | `!` | Execute shell command |
 | `f` | Find files (recursive search) |
-| `g` | Grep search |
+| `g` | Search contents |
 | `/` | Filter files |
 | `H` | Show history |
 | `b` | Show bookmarks |

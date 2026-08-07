@@ -11,8 +11,7 @@ The tab strip is only shown when two or more browser tabs are open.
 | `Previous tab` | Two or more tabs are open | Activates the previous browser tab. |
 | `Close current tab` | Two or more tabs are open | Closes the active browser tab. The last remaining tab cannot be closed. |
 | `Find files` | Always | Opens recursive file search. |
-| `Grep search` | Always | Opens recursive grep search (`ripgrep` / `rg` required on `PATH`) with keyword, filename, include-extension, and exclude-extension filters. |
-| `Grep in selected files` | A file is focused or one or more files are selected in the current directory | Opens grep search limited to the selected files, or the focused file when nothing is explicitly selected. Type a keyword to search within those files via grep, and matching lines appear in the palette. |
+| `Search contents` | Always | Opens the shared recursive content search (`ripgrep` / `rg` required on `PATH`). Choose current directory, selected files/directories, or Search Workspace (available only while browsing one); keyword, filename, include-extension, and exclude-extension filters are available in every scope. Selected directories are searched recursively. |
 | `History search` | Always | Opens directory history list and jump to a selected directory. |
 | `Show bookmarks` | Always | Opens the saved bookmark list and jumps to the selected directory. |
 | `Go back` | Directory history has a previous entry | Moves to the previous directory in history. |

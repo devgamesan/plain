@@ -4041,7 +4041,7 @@ async def test_app_grep_search_long_results_stay_single_line_in_palette(tmp_path
         results_by_query={
             (path, "todo", (), (), False): tuple(
                 GrepSearchResultState(
-                    path=f"{path}/src/module_{index}.py",
+                        path=f"{path}/seed.txt",
                     display_path=(
                         f"src/features/search/module_{index}/"
                         "very/deeply/nested/package/file_with_a_name_that_should_not_wrap.py"
@@ -4123,7 +4123,7 @@ async def test_app_grep_search_passes_include_and_exclude_extensions(tmp_path) -
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press("g")
         await pilot.press("t", "o", "d", "o")
-        await pilot.press("tab", "tab", "m", "d")
+        await pilot.press("tab", "tab", "tab", "m", "d")
         await pilot.press("tab", "l", "o", "g")
 
         expected_request = (
@@ -4173,7 +4173,7 @@ async def test_app_grep_search_filters_results_by_filename(tmp_path) -> None:
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press("g")
         await pilot.press("t", "o", "d", "o")
-        await pilot.press("tab", "R", "E", "A", "D")
+        await pilot.press("tab", "left", "tab", "R", "E", "A", "D")
 
         await _wait_for_request_count(grep_search_service, 1, timeout=1.0)
         expected_labels = ["README.md:1: TODO: readme"]

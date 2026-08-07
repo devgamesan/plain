@@ -11,8 +11,7 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 | `Previous tab` | 2 タブ以上開いているとき | 前のブラウズタブへ切り替えます。 |
 | `Close current tab` | 2 タブ以上開いているとき | アクティブなブラウズタブを閉じます。最後の 1 タブは閉じられません。 |
 | `Find files` | 常に表示 | 再帰ファイル検索を開きます。 |
-| `Grep search` | 常に表示 | 再帰 grep 検索を開きます（`ripgrep` / `rg` が `PATH` 上に必要）。keyword / filename / include extension / exclude extension の各フィルタを利用できます。 |
-| `Grep in selected files` | カレントディレクトリでファイルが1つフォーカスされているか、1つ以上のファイルが選択されているとき | 選択されたファイル、または何も選択されていない場合はフォーカスされたファイルに限定してgrep検索を開きます。キーワードを入力してgrep検索を行い、一致した行がパレットに表示されます。 |
+| `Search contents` | 常に表示 | 共通の再帰コンテンツ検索を開きます（`ripgrep` / `rg` が `PATH` 上に必要）。current directory / selected files/directories / Search Workspace（Search Workspace を開いているときだけ選択可能）の scope を選択でき、keyword / filename / include extension / exclude extension の各フィルタを共通で利用できます。選択したディレクトリは再帰的に検索します。 |
 | `History search` | 常に表示 | ディレクトリ履歴リストを開き、選択したディレクトリへ移動します。 |
 | `Show bookmarks` | 常に表示 | 保存済みのブックマークリストを開き、選択したディレクトリへ移動します。 |
 | `Go back` | ディレクトリ履歴に戻り先があるとき | 履歴を一つ戻ります。 |

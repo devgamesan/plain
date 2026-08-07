@@ -35,7 +35,6 @@ from .selectors_shared import (
     _build_grep_replace_selected_input_fields,
     _build_grep_search_input_fields,
     _build_replace_input_fields,
-    _build_selected_files_grep_input_fields,
     _format_config_line,
     _format_custom_editor_hint,
     _format_modified_label_from_timestamp,
@@ -168,16 +167,6 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
                     "type text / tab fields / ↑↓ or Ctrl+j/k select | "
                     "enter jump | Ctrl+e edit | Ctrl+o GUI | "
                     "Ctrl+x export | esc cancel",
-                )
-            )
-        if (
-            state.command_palette is not None
-            and state.command_palette.source == "selected_files_grep"
-        ):
-            return HelpBarState(
-                (
-                    "type keyword / ↑↓ or Ctrl+j/k select | enter jump | "
-                    "Ctrl+e edit | Ctrl+o GUI | Ctrl+x export | esc cancel",
                 )
             )
         if state.command_palette is not None and state.command_palette.source == "history":
@@ -514,28 +503,6 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             has_more_items=(
                 len(state.command_palette.grs.preview_results) > len(visible_results)
             ),
-        )
-    if state.command_palette.source == "selected_files_grep":
-        visible_results, title = _select_grep_search_window(
-            state,
-            state.command_palette.sfg.results,
-            cursor_index,
-        )
-        return CommandPaletteViewState(
-            title=title,
-            query=state.command_palette.sfg.keyword,
-            items=tuple(
-                CommandPaletteItemViewState(
-                    label=result.display_label,
-                    shortcut=None,
-                    enabled=True,
-                    selected=index == cursor_index,
-                )
-                for index, result in visible_results
-            ),
-            empty_message=_selected_files_grep_empty_message(state),
-            input_fields=_build_selected_files_grep_input_fields(state.command_palette),
-            has_more_items=(len(state.command_palette.sfg.results) > len(visible_results)),
         )
     if state.command_palette.source == "history":
         return _build_command_palette_items_view(
@@ -876,11 +843,15 @@ def _file_search_empty_message(state: AppState) -> str:
     ):
         return state.command_palette.file_search.error_message
     return "No matching files"
-
-
 def _grep_search_empty_message(state: AppState) -> str:
     if state.pending_grep_search_request_id is not None:
         return "Searching matches..."
+    if (
+        state.command_palette is not None
+        and state.command_palette.source == "grep_search"
+        and state.command_palette.grep_search.scope_message is not None
+    ):
+        return state.command_palette.grep_search.scope_message
     if (
         state.command_palette is not None
         and state.command_palette.source == "grep_search"
@@ -979,17 +950,3 @@ def _grep_replace_selected_empty_message(state: AppState) -> str:
     if state.command_palette.grs.total_match_count > 0:
         return "Preview shown in right pane. Press Enter to apply."
     return "No matching files"
-
-
-def _selected_files_grep_empty_message(state: AppState) -> str:
-    if state.pending_grep_search_request_id is not None:
-        return "Searching..."
-    if state.command_palette is None or state.command_palette.source != "selected_files_grep":
-        return ""
-    if state.command_palette.sfg.error_message is not None:
-        return state.command_palette.sfg.error_message
-    if not state.command_palette.sfg.keyword.strip():
-        return "Type a search keyword"
-    if not state.command_palette.sfg.results:
-        return "No matches found in selected files"
-    return ""

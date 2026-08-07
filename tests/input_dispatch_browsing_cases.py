@@ -914,7 +914,7 @@ def test_grep_palette_pageup_accounts_for_extra_input_rows() -> None:
 
     actions = dispatch_key_input(state, key="pageup")
 
-    assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=-12))
+    assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=-9))
 
 
 def test_grep_palette_pagedown_accounts_for_extra_input_rows() -> None:
@@ -926,7 +926,7 @@ def test_grep_palette_pagedown_accounts_for_extra_input_rows() -> None:
 
     actions = dispatch_key_input(state, key="pagedown")
 
-    assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=12))
+    assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=9))
 
 
 def test_browsing_s_cycles_sort_state() -> None:

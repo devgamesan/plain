@@ -56,14 +56,13 @@ CommandPaletteSource = Literal[
     "replace_in_found_files",
     "replace_in_grep_files",
     "grep_replace_selected",
-    "selected_files_grep",
 ]
-GrepSearchFieldId = Literal["keyword", "include", "exclude"]
+GrepSearchScope = Literal["current_directory", "selected_entries", "search_workspace"]
+GrepSearchFieldId = Literal["keyword", "scope", "filename", "include", "exclude"]
 ReplaceFieldId = Literal["find", "replace"]
 FindReplaceFieldId = Literal["filename", "find", "replace"]
 GrepReplaceFieldId = Literal["keyword", "replace", "filename", "include", "exclude"]
 GrepReplaceSelectedFieldId = Literal["keyword", "replace"]
-SelectedFilesGrepFieldId = Literal["keyword"]
 FileSearchTarget = Literal["files", "directories", "all"]
 FileSearchFieldId = Literal["keyword", "target"]
 DirectorySizeStatus = Literal["pending", "ready", "failed"]
@@ -426,15 +425,6 @@ class HistoryAndNavigationPaletteState:
 
 
 @dataclass(frozen=True)
-class SfgPaletteState:
-    target_paths: tuple[str, ...] = ()
-    keyword: str = ""
-    active_field: SelectedFilesGrepFieldId = "keyword"
-    results: tuple[GrepSearchResultState, ...] = ()
-    error_message: str | None = None
-
-
-@dataclass(frozen=True)
 class FileSearchPaletteState:
     results: tuple[FileSearchResultState, ...] = ()
     error_message: str | None = None
@@ -454,6 +444,9 @@ class GrepSearchPaletteState:
     include_extensions: str = ""
     exclude_extensions: str = ""
     active_field: GrepSearchFieldId = "keyword"
+    scope: GrepSearchScope = "current_directory"
+    target_paths: tuple[str, ...] = ()
+    scope_message: str | None = None
     results: tuple[GrepSearchResultState, ...] = ()
     error_message: str | None = None
 
@@ -532,7 +525,6 @@ class CommandPaletteState:
     rff: RffPaletteState = field(default_factory=RffPaletteState)
     grs: GrsPaletteState = field(default_factory=GrsPaletteState)
     grf: GrfPaletteState = field(default_factory=GrfPaletteState)
-    sfg: SfgPaletteState = field(default_factory=SfgPaletteState)
 
 
 @dataclass(frozen=True)

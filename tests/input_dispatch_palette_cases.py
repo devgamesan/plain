@@ -405,13 +405,13 @@ def test_palette_ctrl_x_dispatches_begin_for_grep_source() -> None:
     assert actions == (SetNotification(None), BeginGrepExport())
 
 
-def test_palette_ctrl_x_works_for_sfg_source() -> None:
+def test_palette_ctrl_x_works_for_grep_search_source() -> None:
     state = replace(
         build_initial_app_state(),
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
-            source="selected_files_grep",
-            sfg=SfgPaletteState(
+            source="grep_search",
+            grep_search=GrepSearchPaletteState(
                 keyword="test",
                 results=(
                     GrepSearchResultState(

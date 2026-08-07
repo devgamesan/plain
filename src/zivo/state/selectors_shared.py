@@ -58,7 +58,7 @@ SIDE_PANE_SORT = SortState(field="name", descending=False, directories_first=Tru
 COMMAND_PALETTE_VISIBLE_WINDOW = 8
 MIN_SEARCH_VISIBLE_WINDOW = 3
 _SEARCH_OVERHEAD_ROWS = 10
-_GREP_SEARCH_EXTRA_INPUT_ROWS = 2
+_GREP_SEARCH_EXTRA_INPUT_ROWS = 3
 _FILE_SEARCH_EXTRA_INPUT_ROWS = 1
 MIN_CURRENT_PANE_VISIBLE_WINDOW = 5
 _CURRENT_PANE_OVERHEAD_ROWS = 9
@@ -409,6 +409,16 @@ def _build_grep_search_input_fields(
             active=palette.grep_search.active_field == "keyword",
         ),
         CommandPaletteInputFieldViewState(
+            label="Scope",
+            value={
+                "current_directory": "current directory",
+                "selected_entries": "selected files/directories",
+                "search_workspace": "Search Workspace",
+            }[palette.grep_search.scope],
+            placeholder="use left/right to change",
+            active=palette.grep_search.active_field == "scope",
+        ),
+        CommandPaletteInputFieldViewState(
             label="Filter: Filename",
             value=palette.grep_search.filename_filter,
             placeholder="pattern or re:pattern",
@@ -545,19 +555,6 @@ def _build_grep_replace_selected_input_fields(
             value=palette.grs.replacement_text,
             placeholder="replacement text",
             active=palette.grs.active_field == "replace",
-        ),
-    )
-
-
-def _build_selected_files_grep_input_fields(
-    palette: CommandPaletteState,
-) -> tuple[CommandPaletteInputFieldViewState, ...]:
-    return (
-        CommandPaletteInputFieldViewState(
-            label="Keyword",
-            value=palette.sfg.keyword or palette.query,
-            placeholder="text or re:pattern",
-            active=palette.sfg.active_field == "keyword",
         ),
     )
 

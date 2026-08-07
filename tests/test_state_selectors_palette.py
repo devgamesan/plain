@@ -88,12 +88,3 @@ test_select_command_palette_state_windows_large_file_search_results = (
 test_select_command_palette_state_windows_large_grep_search_results = (
     cases.test_select_command_palette_state_windows_large_grep_search_results
 )
-test_selected_files_grep_command_opens_palette = (
-    cases.test_selected_files_grep_command_opens_palette
-)
-test_selected_files_grep_item_disabled_without_selection = (
-    cases.test_selected_files_grep_item_disabled_without_selection
-)
-test_selected_files_grep_item_enabled_with_selection = (
-    cases.test_selected_files_grep_item_enabled_with_selection
-)

@@ -28,8 +28,6 @@ def _get_current_grep_results(state: AppState) -> tuple[GrepSearchResultState, .
     source = state.command_palette.source
     if source == "grep_search":
         return state.command_palette.grep_search.results
-    if source == "selected_files_grep":
-        return state.command_palette.sfg.results
     if source == "replace_in_grep_files":
         return state.command_palette.grf.grep_results
     if source == "grep_replace_selected":
@@ -43,8 +41,6 @@ def _get_current_grep_keyword(state: AppState) -> str:
     source = state.command_palette.source
     if source == "grep_search":
         return state.command_palette.grep_search.keyword
-    if source == "selected_files_grep":
-        return state.command_palette.sfg.keyword
     if source == "replace_in_grep_files":
         return state.command_palette.grf.keyword
     if source == "grep_replace_selected":

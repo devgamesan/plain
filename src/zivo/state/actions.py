@@ -190,7 +190,6 @@ from .actions_palette import (
     BeginGrepReplaceSelected,
     BeginGrepSearch,
     BeginHistorySearch,
-    BeginSelectedFilesGrep,
     BeginTextReplace,
     CancelCommandPalette,
     CancelGrepExport,
@@ -200,7 +199,6 @@ from .actions_palette import (
     CycleGrepReplaceSelectedField,
     CycleGrepSearchField,
     CycleReplaceField,
-    CycleSelectedFilesGrepField,
     FileSearchCompleted,
     FileSearchFailed,
     GrepExportCompleted,
@@ -213,7 +211,6 @@ from .actions_palette import (
     OpenGrepResultInEditor,
     OpenGrepResultInGuiEditor,
     OpenSearchWorkspace,
-    SelectedFilesGrepKeywordChanged,
     SetCommandPaletteQuery,
     SetFileSearchTarget,
     SetFindReplaceField,
@@ -222,6 +219,7 @@ from .actions_palette import (
     SetGrepReplaceField,
     SetGrepReplaceSelectedField,
     SetGrepSearchField,
+    SetGrepSearchScope,
     SetReplaceField,
     SubmitCommandPalette,
     SubmitGrepExport,
@@ -304,16 +302,14 @@ Action = (
     | BeginFindAndReplace
     | BeginGrepReplace
     | BeginGrepReplaceSelected
-    | BeginSelectedFilesGrep
-    | SelectedFilesGrepKeywordChanged
     | CycleFileSearchField
     | SetFileSearchTarget
-    | CycleSelectedFilesGrepField
     | BeginCommandPalette
     | CancelCommandPalette
     | MoveCommandPaletteCursor
     | SetCommandPaletteQuery
     | SetGrepSearchField
+    | SetGrepSearchScope
     | CycleGrepSearchField
     | SetReplaceField
     | CycleReplaceField

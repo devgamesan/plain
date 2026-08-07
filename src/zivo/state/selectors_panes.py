@@ -247,8 +247,6 @@ def _select_command_palette_preview_pane(
         return _select_file_search_preview_pane(state, syntax_theme)
     if state.command_palette.source == "grep_search":
         return _select_grep_preview_pane(state, syntax_theme)
-    if state.command_palette.source == "selected_files_grep":
-        return _select_sfg_preview_pane(state, syntax_theme)
     if state.command_palette.source in {
         "replace_text",
         "replace_in_found_files",

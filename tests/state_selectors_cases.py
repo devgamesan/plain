@@ -1,3 +1,5 @@
+# ruff: noqa: F821
+
 import os
 from dataclasses import replace
 from stat import S_IFREG
@@ -46,7 +48,6 @@ from zivo.state import (
     ReplacePreviewPaletteState,
     ReplacePreviewResultState,
     RffPaletteState,
-    SfgPaletteState,
     ZipCompressConfirmationState,
     build_initial_app_state,
     build_placeholder_app_state,
@@ -71,7 +72,6 @@ from zivo.state.actions import (
     BeginCommandPalette,
     BeginCreateInput,
     BeginFilterInput,
-    BeginSelectedFilesGrep,
     ConfirmFilterInput,
     CutTargets,
     OpenNewTab,
@@ -1379,7 +1379,7 @@ def test_select_command_palette_state_marks_selected_and_enabled_items() -> None
     assert palette_state.title.startswith("Command Palette")
     assert [item.label for item in palette_state.items[:2]] == [
         "Find files",
-        "Grep search",
+        "Search contents",
     ]
     assert palette_state.items[0].selected is True
     assert palette_state.items[0].enabled is True
@@ -1792,12 +1792,21 @@ def test_select_command_palette_state_for_grep_search_includes_input_fields() ->
     assert palette_state is not None
     assert [field.label for field in palette_state.input_fields] == [
         "Keyword",
+        "Scope",
         "Filter: Filename",
         "Include extensions",
         "Exclude extensions",
     ]
-    assert [field.value for field in palette_state.input_fields] == ["todo", "main", "py,ts", "log"]
-    assert [field.active for field in palette_state.input_fields] == [False, False, False, True]
+    assert [field.value for field in palette_state.input_fields] == [
+        "todo", "current directory", "main", "py,ts", "log"
+    ]
+    assert [field.active for field in palette_state.input_fields] == [
+        False,
+        False,
+        False,
+        False,
+        True,
+    ]
 
 
 def test_select_command_palette_state_for_text_replace_includes_input_fields() -> None:
@@ -2461,9 +2470,9 @@ def test_select_command_palette_state_windows_large_grep_search_results() -> Non
     palette_state = select_command_palette_state(state)
 
     assert palette_state is not None
-    assert palette_state.title == "Grep (5-16 / 20)"
-    assert len(palette_state.items) == 12
-    assert palette_state.items[6].selected is True
+    assert palette_state.title == "Grep (6-16 / 20)"
+    assert len(palette_state.items) == 11
+    assert palette_state.items[5].selected is True
     assert palette_state.has_more_items is True
 
 

@@ -41,6 +41,7 @@ from zivo.state.actions import (
     SetGrepReplaceField,
     SetGrepReplaceSelectedField,
     SetReplaceField,
+    SetReplaceScope,
     SubmitCommandPalette,
     TextReplaceApplied,
     TextReplaceApplyFailed,
@@ -82,6 +83,36 @@ def test_begin_text_replace_enters_replace_mode() -> None:
     assert state.command_palette.source == "replace_text"
     assert state.command_palette.replace_preview.target_paths == (
         "/home/tadashi/develop/zivo/README.md",
+    )
+
+
+def test_begin_text_replace_prefers_selected_files_scope() -> None:
+    path = "/home/tadashi/develop/zivo/README.md"
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(DirectoryEntryState(path, "README.md", "file"),),
+            cursor_path=path,
+            selected_paths=frozenset({path}),
+        ),
+    )
+
+    result = reduce_app_state(state, BeginTextReplace())
+
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.replace_preview.scope == "selected_files"
+    assert result.state.command_palette.replace_preview.target_paths == (path,)
+
+
+def test_replace_scope_reports_unavailable_selected_files() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginTextReplace())
+
+    result = reduce_app_state(state, SetReplaceScope(scope="selected_files"))
+
+    assert result.state.notification == NotificationState(
+        level="warning",
+        message="Selected files requires one or more selected files",
     )
 
 def test_set_replace_field_starts_preview_effect() -> None:
@@ -880,13 +911,13 @@ def test_cancel_grf_returns_to_browsing() -> None:
     assert state.ui_mode == "BROWSING"
     assert state.command_palette is None
 
-def test_submit_command_palette_begins_grep_replace() -> None:
+def test_submit_command_palette_begins_unified_replace() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery(query="replace text in grep"))
+    state = _reduce_state(state, SetCommandPaletteQuery(query="replace text"))
 
     result = reduce_app_state(state, SubmitCommandPalette())
     assert result.state.command_palette is not None
-    assert result.state.command_palette.source == "replace_in_grep_files"
+    assert result.state.command_palette.source == "replace_text"
 
 def test_grf_grep_search_completed_deduplicates_file_paths() -> None:
     state = _reduce_state(build_initial_app_state(), BeginGrepReplace())

@@ -1840,9 +1840,30 @@ def test_select_command_palette_state_for_text_replace_includes_input_fields() -
 
     assert palette_state is not None
     assert palette_state.title == "Replace Text (1 file(s), 2 match(es)) (1-1 / 1)"
-    assert [field.label for field in palette_state.input_fields] == ["Find", "Replace"]
-    assert [field.value for field in palette_state.input_fields] == ["todo", "done"]
-    assert [field.active for field in palette_state.input_fields] == [False, True]
+    assert [field.label for field in palette_state.input_fields] == [
+        "Scope",
+        "Find",
+        "Replace",
+        "Filter: Filename",
+        "Include extensions",
+        "Exclude extensions",
+    ]
+    assert [field.value for field in palette_state.input_fields] == [
+        "Current directory",
+        "todo",
+        "done",
+        "",
+        "",
+        "",
+    ]
+    assert [field.active for field in palette_state.input_fields] == [
+        False,
+        False,
+        True,
+        False,
+        False,
+        False,
+    ]
     assert [item.label for item in palette_state.items] == [
         "README.md (2): 8: todo item"
     ]
@@ -2079,11 +2100,7 @@ def test_select_command_palette_state_shows_replace_text_for_selected_files() ->
     )
 
     assert palette_state is not None
-    assert [item.label for item in palette_state.items] == [
-        "Replace text in selected files",
-        "Replace text in found files",
-        "Replace text in grep results",
-    ]
+    assert [item.label for item in palette_state.items] == ["Replace text"]
     assert palette_state.items[0].enabled is True
 
 
@@ -2103,11 +2120,7 @@ def test_select_command_palette_state_shows_replace_text_for_cursor_file() -> No
     )
 
     assert palette_state is not None
-    assert [item.label for item in palette_state.items] == [
-        "Replace text in selected files",
-        "Replace text in found files",
-        "Replace text in grep results",
-    ]
+    assert [item.label for item in palette_state.items] == ["Replace text"]
     assert palette_state.items[0].enabled is True
 
 

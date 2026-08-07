@@ -225,10 +225,8 @@
 - [ ] 複数選択時、すべてのパスがコピーされること
 
 #### テキスト置換
-- [ ] 「Replace text in selected files」で選択ファイルのテキスト置換ができること
-- [ ] 「Replace text in found files」でファイル検索結果のテキスト置換ができること
-- [ ] 「Replace text in grep results」で grep 検索結果のテキスト置換ができること
-- [ ] 「Grep and replace in selected files」で選択ファイルの grep 検索と置換ができること
+- [ ] 「Replace text」で Current file、Selected files、Current directory、Found files、Grep result files の置換を確認できること
+- [ ] 利用できない Scope に理由が表示され、実行前 diff と対象件数を確認できること
 - [ ] 置換プレビューが右ペインに表示されること
 - [ ] Shift+↑/↓ で置換プレビューをスクロールできること
 

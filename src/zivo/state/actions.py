@@ -221,6 +221,7 @@ from .actions_palette import (
     SetGrepSearchField,
     SetGrepSearchScope,
     SetReplaceField,
+    SetReplaceScope,
     SubmitCommandPalette,
     SubmitGrepExport,
     TextReplaceApplied,
@@ -312,6 +313,7 @@ Action = (
     | SetGrepSearchScope
     | CycleGrepSearchField
     | SetReplaceField
+    | SetReplaceScope
     | CycleReplaceField
     | SetFindReplaceField
     | CycleFindReplaceField

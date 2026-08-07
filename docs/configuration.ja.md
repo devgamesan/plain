@@ -15,9 +15,9 @@ zivo は起動時にユーザー設定用の `config.toml` を読み込みます
 | `terminal` | `linux` | shell 形式コマンド文字列の配列 | Linux 向けの任意ターミナル起動コマンドです。作業ディレクトリは `{path}` で埋め込みます。空文字や不正なエントリは無視されます。 |
 | `terminal` | `macos` | shell 形式コマンド文字列の配列 | macOS 向けの任意ターミナル起動コマンドです。検証ルールは Linux と同じです。 |
 | `terminal` | `windows` | shell 形式コマンド文字列の配列 | Windows / WSL 向けの任意ターミナル起動コマンドです。 |
-| `editor` | `command` | shell 形式の文字列。例: `nvim -u NONE` | `e` で起動するターミナルエディタです。ファイルパスは自動で末尾に付与されるため、設定値には含めません。GUI エディタや不正なコマンドは無視されます。 |
-| `gui_editor` | `command` | shell 形式のコマンドテンプレート | 行・列情報がある場合に使う GUI エディタ起動コマンドです。`{path}`、`{line}`、`{column}` を利用できます。既定値は `code --goto {path}:{line}:{column}` です。Config 画面では VS Code、VSCodium、Cursor、Sublime Text、Zed、JetBrains IDEA、PyCharm、WebStorm、Kate のプリセットへ切り替えられます。 |
-| `gui_editor` | `fallback_command` | shell 形式のコマンドテンプレート | 位置情報なしでパスを開く場合、または `command` が失敗した場合に使う GUI エディタ起動コマンドです。`{path}` を利用できます。既定値は `code {path}` です。任意の raw テンプレートは保持され、Config 画面では custom として表示されます。 |
+| `editor` | `command` | shell 形式の文字列。例: `nvim -u NONE` | `Edit with terminal editor`（`e`）で起動するターミナルエディタです。ファイルパスは自動で末尾に付与されるため、設定値には含めません。GUI エディタや不正なコマンドは無視されます。 |
+| `gui_editor` | `command` | shell 形式のコマンドテンプレート | `Edit with GUI editor` で行・列情報がある場合に使う GUI エディタ起動コマンドです。`{path}`、`{line}`、`{column}` を利用できます。既定値は `code --goto {path}:{line}:{column}` です。Config 画面では VS Code、VSCodium、Cursor、Sublime Text、Zed、JetBrains IDEA、PyCharm、WebStorm、Kate のプリセットへ切り替えられます。 |
+| `gui_editor` | `fallback_command` | shell 形式のコマンドテンプレート | `Edit with GUI editor` で位置情報なしのパスを開く場合、または `command` が失敗した場合に使う GUI エディタ起動コマンドです。`{path}` を利用できます。既定値は `code {path}` です。任意の raw テンプレートは保持され、Config 画面では custom として表示されます。現在ディレクトリを GUI エディタで開くには custom action を使用します。 |
 | `display` | `show_hidden_files` | `true` / `false` | 起動時の隠しファイル表示状態です。 |
 | `display` | `show_directory_sizes` | `true` / `false` | ペイン内に再帰ディレクトリサイズを表示します。既定値は `true` です。大きいディレクトリでは計算コストがかかる場合があります。中央ペインを `size` ソートしている間は、この設定が `false` でも自動計算されます。 |
 | `display` | `enable_text_preview` | `true` / `false` | 右ペインのテキストファイルプレビューを表示します。既定値は `true` です。grep 結果のコンテキストプレビューも同じ設定に従います。 |

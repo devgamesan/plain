@@ -1418,8 +1418,8 @@ def test_command_palette_items_for_search_workspace_are_limited_to_safe_actions(
     assert "Exit" in labels
     assert "Select all" in labels
     assert "Show attributes" in labels
-    assert "Open in editor" in labels
-    assert "Open in GUI editor" in labels
+    assert "Edit with terminal editor" in labels
+    assert "Edit with GUI editor" in labels
     assert "Copy path" in labels
     assert "Show hidden files" in labels
     assert "About zivo" in labels
@@ -1442,14 +1442,27 @@ def test_command_palette_items_for_search_workspace_are_limited_to_safe_actions(
     assert "Compress as zip" not in labels
     assert "Extract archive" not in labels
     assert "Move to trash" not in labels
-    assert "Open in file manager" not in labels
-    assert "Open current directory in GUI editor" not in labels
-    assert "Open terminal here" not in labels
+    assert "Open current directory with file manager" not in labels
+    assert "Open current directory with terminal" not in labels
     assert "Run shell command" not in labels
     assert "Remove bookmark" not in labels
     assert "Bookmark this directory" not in labels
     assert "Create file" not in labels
     assert "Create directory" not in labels
+
+
+def test_command_palette_distinguishes_file_and_current_directory_launchers() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+
+    items = {item.id: item for item in command_palette_module.get_command_palette_items(state)}
+
+    assert items["open"].label == "Open"
+    assert items["open"].enabled is False
+    assert items["edit_with_terminal_editor"].enabled is False
+    assert items["edit_with_gui_editor"].enabled is False
+    assert items["open_current_directory_with_file_manager"].enabled is True
+    assert items["open_current_directory_with_terminal"].enabled is True
+    assert "open_current_directory_in_gui_editor" not in items
 
 
 def test_select_command_palette_state_shows_single_target_commands_when_filtered() -> None:

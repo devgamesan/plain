@@ -227,11 +227,13 @@ sequenceDiagram
   - `Show attributes`
   - `Rename`
   - `Extract archive`
-  - `Open in editor`
+  - `Open`
+  - `Edit with terminal editor`
+  - `Edit with GUI editor`
   - `Copy path`
   - `Move to trash`
-  - `Open in file manager`
-  - `Open terminal here`
+  - `Open current directory with file manager`
+  - `Open current directory with terminal`
   - `Bookmark this directory` / `Remove bookmark`
   - `Show hidden files` / `Hide hidden files`
   - `Edit config`

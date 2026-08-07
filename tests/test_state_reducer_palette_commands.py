@@ -870,6 +870,24 @@ def test_submit_command_palette_opens_current_directory_in_file_manager() -> Non
         ),
     )
 
+
+def test_submit_command_palette_opens_selected_file_with_default_app() -> None:
+    path = "/home/tadashi/develop/zivo/README.md"
+    state = _reduce_state(build_initial_app_state(), SetCursorPath(path))
+    state = _reduce_state(state, BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("open"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "BROWSING"
+    assert result.effects == (
+        RunExternalLaunchEffect(
+            request_id=state.next_request_id,
+            request=ExternalLaunchRequest(kind="open_file", path=path),
+        ),
+    )
+
+
 def test_submit_command_palette_warns_when_query_has_no_match() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
     state = _reduce_state(state, SetCommandPaletteQuery("zzz"))
@@ -896,9 +914,11 @@ def test_submit_command_palette_toggles_hidden_files() -> None:
         message="Hidden files shown",
     )
 
-def test_submit_command_palette_runs_open_terminal_flow() -> None:
+def test_submit_command_palette_opens_current_directory_with_terminal() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("open terminal"))
+    state = _reduce_state(
+        state, SetCommandPaletteQuery("current directory with terminal")
+    )
 
     result = reduce_app_state(state, SubmitCommandPalette())
 

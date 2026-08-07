@@ -5200,7 +5200,7 @@ async def test_app_command_palette_copy_path_copies_cursor_target() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_command_palette_open_terminal_launches_current_directory() -> None:
+async def test_app_command_palette_opens_current_directory_with_terminal() -> None:
     path = str(Path("/tmp/zivo-open-terminal").resolve())
     launch_service = FakeExternalLaunchService()
     loader = FakeBrowserSnapshotLoader(
@@ -5224,7 +5224,11 @@ async def test_app_command_palette_open_terminal_launches_current_directory() ->
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press(":")
-        await pilot.press("o", "p", "e", "n", " ", "t", "e", "r", "m", "i", "n", "a", "l")
+        await pilot.press(
+            "c", "u", "r", "r", "e", "n", "t", " ", "d", "i", "r", "e", "c",
+            "t", "o", "r", "y", " ", "w", "i", "t", "h", " ", "t", "e", "r",
+            "m", "i", "n", "a", "l",
+        )
         await pilot.press("enter")
         await _wait_for_external_launch_count(app, 1)
 

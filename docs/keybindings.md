@@ -34,8 +34,8 @@ Choose the terminal action by task: press `!` for a short non-interactive comman
 | `Delete` | Move selected items to trash (fn + Delete on macOS) |
 | `Shift+Delete` | Permanently delete selected items (fn + Shift + Delete on macOS) |
 | `i` | Show file attributes |
-| `e` | Open file in terminal editor |
-| `O` | Open file in GUI editor |
+| `e` | Edit selected file with terminal editor |
+| `O` | Edit selected file with GUI editor |
 | `!` | Run a short non-interactive shell command in the current directory; the dialog shows cwd and retains output/error details |
 | `f` | Find files (recursive search) |
 | `g` | Search contents |
@@ -49,13 +49,13 @@ Choose the terminal action by task: press `!` for a short non-interactive comman
 | `s` | Cycle sort |
 | `R` | Reload directory |
 | `t` | Open foreground shell (suspend zivo, open interactive shell in current terminal, resume on exit) |
-| `T` | Open terminal at current directory (separate window for independent work) |
+| `T` | Open current directory with terminal (separate window for independent work) |
 | `o` | Open new tab |
 | `w` | Close current tab |
 | `1`-`9`, `0` | Switch to tab 1-9, or tab 10 with `0` |
 | `tab` | Switch to next tab |
 | `shift+tab` | Switch to previous tab |
-| `M` | Open current directory in file manager |
+| `M` | Open current directory with file manager |
 | `:` | Open command palette |
 | `q` | Quit |
 | `[` | Go back in history |
@@ -126,8 +126,8 @@ Choose the terminal action by task: press `!` for a short non-interactive comman
 | `PageUp` / `PageDown` | Move cursor by page |
 | `Home` / `End` | Jump to first/last result |
 | `Enter` | Open selected result |
-| `Ctrl+e` | Open selected result in editor |
-| `Ctrl+o` | Open selected result in GUI editor |
+| `Ctrl+e` | Edit selected result with terminal editor |
+| `Ctrl+o` | Edit selected result with GUI editor |
 | `Ctrl+x` | Export grep results to file (Single Line / Context / JSON) |
 | `Esc` | Close search |
 

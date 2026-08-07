@@ -232,6 +232,7 @@ class ShellCommandDialogState:
     prompt: str
     command: str
     options: tuple[str, ...]
+    guidance: str | None = None
     cursor_pos: int = 0
     result: ShellCommandResult | None = None
 

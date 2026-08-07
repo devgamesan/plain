@@ -169,8 +169,9 @@ See [Commands](docs/commands.md) for the full command list.
 
 ### External integration
 - **Editor**: open files in terminal or GUI editor
-- **Terminal**: launch an external terminal in the current directory
-- **Shell command**: run a command in the current directory
+- **Foreground shell**: suspend zivo for interactive work in the current terminal
+- **Terminal**: launch an external terminal window in the current directory for independent work
+- **Run command**: run a short non-interactive command in the current directory, with retained exit/output/error details
 - **File manager**: open the current directory in the OS file manager
 - **Clipboard**: copy paths to the system clipboard
 

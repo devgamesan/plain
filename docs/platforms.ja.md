@@ -70,6 +70,10 @@ macOS では、使用しているターミナルアプリに **フルディス�
 - WSL では `wslu` のインストールを推奨します。`wslview` が利用可能になり、GUI 連携のブリッジ動作に使われます。
 - zivo は WSL 上で `wslview`、`explorer.exe`、`clip.exe` のような Windows 側ブリッジを優先し、WSLg や Linux デスクトップ向けのフォールバックも維持します。
 
+## シェルコマンドの構文
+
+Run command（`!`）は macOS・Linux・WSL では現在の shell 環境を使い、未設定時は `/bin/bash` にフォールバックします。Windows では `powershell.exe`、`pwsh`、`cmd.exe` の順に優先するため、POSIX `sh` ではなく選ばれた shell の構文で入力してください。Run command は短い非対話作業向けです。プロンプトや TUI アプリには foreground shell（`t`）、独立した長時間作業には外部ターミナル（`T`）を使います。
+
 ---
 
 ## GUI 連携に関する注意

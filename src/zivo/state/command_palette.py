@@ -32,7 +32,6 @@ class CommandPaletteItem:
     keywords: tuple[str, ...] = ()
     context_priority: int = 100
     disabled_reason: str | None = None
-    section: str | None = None
 
 
 @dataclass(frozen=True)
@@ -742,7 +741,6 @@ def _prepare_command_palette_items(
                 keywords=metadata.keywords,
                 context_priority=metadata.context_priority,
                 disabled_reason=reason,
-                section=None,
             )
         )
 
@@ -1030,7 +1028,9 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
 
 
 def _matches_query(item: CommandPaletteItem, query: str) -> bool:
-    return _command_match_score(item, query) is not None
+    if not query:
+        return True
+    return query.casefold() in item.label.casefold()
 
 
 def _command_match_score(item: CommandPaletteItem, query: str) -> int | None:

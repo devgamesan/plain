@@ -492,6 +492,10 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
     visible_items = tuple(enumerate(items))
     title = "Command Palette"
     selected_item = items[cursor_index] if items else None
+    rendered_line_count = len(items)
+    if not state.command_palette.query.strip():
+        section_count = len({item.category for item in items})
+        rendered_line_count += section_count + max(0, section_count - 1)
     return CommandPaletteViewState(
         title=title,
         query=state.command_palette.query,
@@ -504,12 +508,11 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
                 command_id=item.id,
                 category=item.category,
                 disabled_reason=item.disabled_reason,
-                section=item.section,
             )
             for index, item in visible_items
         ),
         empty_message="No matching commands",
-        has_more_items=len(items) > visible_window,
+        has_more_items=rendered_line_count > visible_window,
         footer_message=(
             selected_item.disabled_reason
             if selected_item is not None and not selected_item.enabled

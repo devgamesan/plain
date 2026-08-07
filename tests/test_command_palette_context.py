@@ -40,9 +40,8 @@ def test_empty_palette_starts_with_fixed_categories() -> None:
 
     items = get_command_palette_items(state)
 
-    assert all(item.section is None for item in items)
-    assert [item.category for item in items if item.section is None] == sorted(
-        (item.category for item in items if item.section is None),
+    assert [item.category for item in items] == sorted(
+        (item.category for item in items),
         key=lambda category: ("Navigate", "File", "Search", "View", "System").index(category),
     )
 
@@ -92,8 +91,37 @@ def test_custom_actions_remain_searchable_by_name() -> None:
     assert items[0].category == "Custom actions"
 
 
+def test_context_mismatched_custom_action_remains_visible_with_reason() -> None:
+    state = replace(
+        build_initial_app_state(),
+        config=AppConfig(
+            actions=ActionsConfig(
+                custom=(
+                    CustomActionConfig(
+                        name="Lint Python file",
+                        command=("ruff", "check", "{file}"),
+                        when="single_file",
+                        extensions=("py",),
+                    ),
+                )
+            )
+        ),
+    )
+    state = reduce_state(state, BeginCommandPalette())
+
+    item = next(
+        item
+        for item in get_command_palette_items(state)
+        if item.id == "custom_action:0"
+    )
+
+    assert item.enabled is False
+    assert item.disabled_reason == "Select one matching file for this custom action"
+
+
 @pytest.mark.asyncio
 async def test_command_palette_scrolls_to_a_selected_tail_command() -> None:
+    categories = ("Navigate", "File", "Search", "View", "System")
     state = CommandPaletteViewState(
         title="Command Palette",
         query="",
@@ -103,7 +131,7 @@ async def test_command_palette_scrolls_to_a_selected_tail_command() -> None:
                 shortcut=None,
                 enabled=True,
                 selected=index == 29,
-                category="System",
+                category=categories[min(index // 6, len(categories) - 1)],
             )
             for index in range(30)
         ),
@@ -116,4 +144,4 @@ async def test_command_palette_scrolls_to_a_selected_tail_command() -> None:
         await pilot.pause()
         scroll = app.query_one("#command-palette-items-scroll", VerticalScroll)
         assert scroll.virtual_size.height > scroll.region.height
-        assert scroll.scroll_y > 0
+        assert scroll.scroll_y == scroll.max_scroll_y

@@ -128,12 +128,13 @@ class CommandPalette(Container):
         )
         selected_line = selected_index
         if show_sections:
-            sections: list[str] = []
+            current_section: str | None = None
             for item in self.state.items[: selected_index + 1]:
-                section = item.section or item.category
-                if section not in sections:
-                    sections.append(section)
-            selected_line += len(sections)
+                if item.category != current_section:
+                    if current_section is not None:
+                        selected_line += 1
+                    selected_line += 1
+                    current_section = item.category
         viewport_height = scroll_widget.content_region.height or scroll_widget.size.height
         if viewport_height <= 0:
             return
@@ -214,7 +215,7 @@ class CommandPalette(Container):
         show_sections = state.title.startswith("Command Palette") and not state.query.strip()
         current_section: str | None = None
         for index, item in enumerate(state.items):
-            section = item.section or item.category
+            section = item.category
             if show_sections and section != current_section:
                 if len(rendered):
                     rendered.append("\n")

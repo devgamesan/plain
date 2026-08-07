@@ -173,7 +173,6 @@ class CommandPaletteItemViewState:
     command_id: str | None = None
     category: str = "System"
     disabled_reason: str | None = None
-    section: str | None = None
 
 
 @dataclass(frozen=True)

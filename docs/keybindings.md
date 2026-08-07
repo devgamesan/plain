@@ -6,7 +6,7 @@ Complete list of keybindings for all zivo modes.
 
 ## Normal Mode
 
-You can open an external terminal directly from zivo. Press `t` to suspend zivo and open an interactive shell in the current terminal at zivo's current directory. When you exit the shell, zivo resumes automatically. Alternatively, press `T` to launch a separate terminal window.
+Choose the terminal action by task: press `!` for a short non-interactive command, `t` to suspend zivo and work interactively in a foreground shell, or `T` to launch a separate terminal window for independent work. The foreground shell starts in zivo's current directory and zivo resumes when you exit it.
 
 | Key | Action |
 | --- | ------ |
@@ -36,7 +36,7 @@ You can open an external terminal directly from zivo. Press `t` to suspend zivo 
 | `i` | Show file attributes |
 | `e` | Open file in terminal editor |
 | `O` | Open file in GUI editor |
-| `!` | Execute shell command |
+| `!` | Run a short non-interactive shell command in the current directory; the dialog shows cwd and retains output/error details |
 | `f` | Find files (recursive search) |
 | `g` | Search contents |
 | `/` | Filter files |
@@ -48,8 +48,8 @@ You can open an external terminal directly from zivo. Press `t` to suspend zivo 
 | `.` | Toggle hidden files |
 | `s` | Cycle sort |
 | `R` | Reload directory |
-| `t` | Open terminal in foreground (suspend zivo, open shell in current terminal, resume on exit) |
-| `T` | Open terminal at current directory (separate window) |
+| `t` | Open foreground shell (suspend zivo, open interactive shell in current terminal, resume on exit) |
+| `T` | Open terminal at current directory (separate window for independent work) |
 | `o` | Open new tab |
 | `w` | Close current tab |
 | `1`-`9`, `0` | Switch to tab 1-9, or tab 10 with `0` |

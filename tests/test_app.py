@@ -5310,6 +5310,8 @@ async def test_app_command_palette_runs_shell_command_and_shows_result() -> None
 
         assert app.app_state.ui_mode == "SHELL"
         assert title.renderable == "Run Shell Command"
+        guidance = dialog.query_one("#shell-command-dialog-guidance", Static)
+        assert guidance.renderable == "Runs in the background; use t for interactive commands."
 
         await pilot.press("p", "w", "d", "enter")
         # 結果が表示されるまで待機
@@ -5327,6 +5329,10 @@ async def test_app_command_palette_runs_shell_command_and_shows_result() -> None
         assert dialog.display is True
         # タイトルが結果表示モードになっていること
         assert title.renderable == "Shell Command Result"
+
+        await pilot.press("r")
+        await asyncio.sleep(0.1)
+        assert shell_command_service.executed_commands == [(path, "pwd"), (path, "pwd")]
 
         # ESCキーでダイアログを閉じる
         await pilot.press("escape")

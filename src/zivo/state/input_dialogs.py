@@ -31,6 +31,7 @@ from .actions import (
     MovePendingInputCursor,
     MoveShellCommandCursor,
     OpenPathInEditor,
+    OpenTerminalAtPath,
     ResolvePasteConflict,
     SaveConfigEditor,
     SetFilterQuery,
@@ -214,7 +215,11 @@ def dispatch_shell_command_input(
     if state.shell_command is not None and state.shell_command.result is not None:
         if key == "escape":
             return supported(CancelShellCommandInput())
-        return warn("Press Esc to close")
+        if key == "r":
+            return supported(SubmitShellCommand())
+        if key == "t":
+            return supported(OpenTerminalAtPath(state.shell_command.cwd))
+        return warn("Use r to rerun, t to open a terminal, or Esc to close")
 
     if key == "escape":
         return supported(CancelShellCommandInput())

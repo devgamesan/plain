@@ -111,7 +111,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     if state.ui_mode == "SHELL":
         # 結果表示状態の場合
         if state.shell_command is not None and state.shell_command.result is not None:
-            return HelpBarState(("press esc to close",))
+            return HelpBarState(("r rerun | t terminal | esc close",))
         # コマンド入力状態の場合
         return HelpBarState(("type command | enter run | esc cancel",))
     if state.ui_mode == "FILTER":
@@ -777,7 +777,7 @@ def select_shell_command_dialog_state(state: AppState) -> ShellCommandDialogStat
             prompt="Command: ",
             command=state.shell_command.command,
             cursor_pos=state.shell_command.cursor_pos,
-            options=("esc close",),
+            options=("r rerun", "t terminal", "esc close"),
             result=state.shell_command.result,
         )
 
@@ -789,6 +789,7 @@ def select_shell_command_dialog_state(state: AppState) -> ShellCommandDialogStat
         command=state.shell_command.command,
         cursor_pos=state.shell_command.cursor_pos,
         options=("enter run", "esc cancel"),
+        guidance="Runs in the background; use t for interactive commands.",
         result=None,
     )
 

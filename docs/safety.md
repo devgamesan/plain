@@ -63,8 +63,8 @@ zivo includes several safety mechanisms to prevent accidents during file operati
 ## Shell Command Execution
 
 - Press `!` to execute a one-line shell command.
-- Commands run in the background as a separate process, preventing unintended termination of zivo.
-- The first output line or a failure summary is shown in the status bar.
+- Commands run in the background as a separate process, preventing unintended termination of zivo. They are not suitable for prompts, TUI apps, or other interactive input; use `t` for a foreground shell instead.
+- The dialog identifies the working directory and keeps the exit code, stdout, and stderr available after completion. Press `r` to rerun the command or `t` to open its directory in an external terminal.
 
 ---
 

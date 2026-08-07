@@ -35,9 +35,9 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 | `Move to trash` | 対象が 1 件以上あるとき | 選択中の項目、またはフォーカス項目をゴミ箱へ移動します（既定では確認あり、設定で変更可能）。Windows では `send2trash` 経由で Recycle Bin を使います。 |
 | `Open in file manager` | 常に表示 | 現在ディレクトリを OS のファイルマネージャで開きます。 |
 | `Open current directory in GUI editor` | 常に表示 | zivo の current directory を設定済みの GUI エディタで開きます。 |
-| `Open terminal` | 常に表示 | `config.toml` の設定を優先しつつ、zivo の current directory を起点に外部ターミナルを起動します。 |
-| `Run shell command` | 常に表示 | 1 行シェルコマンド入力ダイアログを開き、現在ディレクトリでバックグラウンド実行します。完了後は先頭の出力行、または失敗要約を status bar に表示します。Windows では `powershell.exe`、次に `pwsh`、最後に `cmd.exe` を優先するため、構文は選ばれた Windows shell に従います。 |
-| カスタムアクション | 各 `[[actions.custom]]` の `when` と `extensions` 条件に一致するとき | `config.toml` に登録したアクションを表示します。実行前に展開後 command/cwd/mode を確認します。詳しくは [カスタムアクション](custom-actions.ja.md) を参照してください。 |
+| `Open terminal` | 常に表示 | `config.toml` の設定を優先しつつ、zivo の current directory を起点に別ウィンドウの外部ターミナルを起動します。独立した作業や長時間の作業に使います。 |
+| `Run shell command` | 常に表示 | 1 行入力から、現在ディレクトリで短い非対話コマンドをバックグラウンド実行します。ダイアログで cwd を確認でき、結果には exit code、stdout、stderr を保持します。結果画面で `r` を押すと再実行、`t` を押すと同じ cwd の外部ターミナルを開きます。対話コマンドには通常画面の `t` による foreground shell を使います。Windows では `powershell.exe`、次に `pwsh`、最後に `cmd.exe` を優先するため、構文は選ばれた Windows shell に従います。 |
+| カスタムアクション | 各 `[[actions.custom]]` の `when` と `extensions` 条件に一致するとき | `config.toml` に登録した再利用可能な名前付きアクションを表示します。実行前に展開後 command/cwd/mode を確認します。定型の非対話処理には `background`、対話処理には `terminal`、独立作業には `terminal_window` を使います。詳しくは [カスタムアクション](custom-actions.ja.md) を参照してください。 |
 | `Bookmark this directory` / `Remove bookmark` | 常に表示 | 現在ディレクトリを `[bookmarks].paths` に追加または削除します。ラベルは現在状態を反映します。 |
 | `Show hidden files` / `Hide hidden files` | 常に表示 | ブラウザ 3 ペインの隠しファイル表示を切り替えます。ラベルは現在状態を反映します。 |
 | `Edit config` | 常に表示 | 起動時設定を編集するオーバーレイを開きます。優先ターミナルエディタ、GUI エディタプリセット、外部ターミナル起動モード、隠しファイル表示、ディレクトリサイズ表示、テキストプレビュー表示、画像プレビュー表示、画像プレビュー方式、PDF プレビュー表示、Office プレビュー表示、テーマ、ソート、貼り付け競合時の既定動作、削除確認の有無などを編集できます。オーバーレイ内には選択中の設定が何を変えるかの説明も表示されるため、README を見返さなくても挙動を判断できます。テーマ変更はその場で即時プレビューされます。 |

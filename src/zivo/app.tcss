@@ -319,6 +319,10 @@ Screen {
     color: $text-muted;
 }
 
+#shell-command-dialog-guidance {
+    color: $text-muted;
+}
+
 #shell-command-dialog-input {
     margin: 1 0;
 }

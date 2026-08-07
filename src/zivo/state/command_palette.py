@@ -2,7 +2,7 @@
 
 import os
 import platform
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from zivo.archive_utils import is_supported_archive_path
 from zivo.models import CustomActionContext, custom_action_matches
@@ -28,6 +28,113 @@ class CommandPaletteItem:
     shortcut: str | None
     enabled: bool
     path: str | None = None
+    category: str = "System"
+    keywords: tuple[str, ...] = ()
+    context_priority: int = 100
+    disabled_reason: str | None = None
+    section: str | None = None
+
+
+@dataclass(frozen=True)
+class CommandPaletteMetadata:
+    """Stable discovery metadata shared by palette evaluation and rendering."""
+
+    category: str
+    keywords: tuple[str, ...] = ()
+    context_priority: int = 100
+
+
+_COMMAND_METADATA: dict[str, CommandPaletteMetadata] = {
+    "file_search": CommandPaletteMetadata("Search", ("find", "files", "filename"), 20),
+    "grep_search": CommandPaletteMetadata(
+        "Search", ("grep", "search", "search contents", "text", "content", "contents"), 21
+    ),
+    "history_search": CommandPaletteMetadata("Navigate", ("history", "recent"), 30),
+    "bookmark_search": CommandPaletteMetadata("Navigate", ("bookmark", "saved"), 31),
+    "go_back": CommandPaletteMetadata("Navigate", ("back", "previous"), 32),
+    "go_forward": CommandPaletteMetadata("Navigate", ("forward", "next"), 33),
+    "go_to_path": CommandPaletteMetadata("Navigate", ("go", "path", "directory"), 34),
+    "go_to_home_directory": CommandPaletteMetadata("Navigate", ("home", "~"), 35),
+    "reload_directory": CommandPaletteMetadata("View", ("reload", "refresh"), 70),
+    "undo_last_operation": CommandPaletteMetadata("System", ("undo", "revert"), 50),
+    "new_tab": CommandPaletteMetadata("Navigate", ("tab", "open"), 60),
+    "next_tab": CommandPaletteMetadata("Navigate", ("tab", "forward"), 61),
+    "previous_tab": CommandPaletteMetadata("Navigate", ("tab", "back"), 62),
+    "close_current_tab": CommandPaletteMetadata("Navigate", ("tab", "close"), 63),
+    "exit": CommandPaletteMetadata("System", ("quit", "close", "exit"), 95),
+    "toggle_transfer_mode": CommandPaletteMetadata(
+        "Navigate", ("transfer", "two pane", "dual pane"), 80
+    ),
+    "select_all": CommandPaletteMetadata("File", ("select", "all", "mark"), 40),
+    "replace_text": CommandPaletteMetadata(
+        "File", ("replace", "substitute", "edit text"), 45
+    ),
+    "show_attributes": CommandPaletteMetadata(
+        "View", ("attributes", "properties", "info", "stat"), 42
+    ),
+    "rename": CommandPaletteMetadata("File", ("rename", "move", "name"), 12),
+    "change_permissions": CommandPaletteMetadata(
+        "File", ("permissions", "chmod", "mode"), 75
+    ),
+    "change_owner": CommandPaletteMetadata("File", ("owner", "group", "chown"), 76),
+    "create_symlink": CommandPaletteMetadata(
+        "File", ("symlink", "link", "symbolic"), 77
+    ),
+    "compress_as_zip": CommandPaletteMetadata(
+        "File", ("compress", "zip", "archive"), 78
+    ),
+    "extract_archive": CommandPaletteMetadata(
+        "File", ("extract", "unzip", "archive", "expand"), 79
+    ),
+    "open": CommandPaletteMetadata("File", ("open", "launch", "view"), 10),
+    "edit_with_terminal_editor": CommandPaletteMetadata(
+        "File", ("edit", "editor", "terminal", "vim", "nano"), 11
+    ),
+    "edit_with_gui_editor": CommandPaletteMetadata(
+        "File", ("edit", "editor", "gui", "code"), 13
+    ),
+    "copy_path": CommandPaletteMetadata("File", ("path", "clipboard"), 8),
+    "copy_targets": CommandPaletteMetadata(
+        "File", ("copy", "duplicate", "yank"), 14
+    ),
+    "cut_targets": CommandPaletteMetadata("File", ("cut", "move"), 15),
+    "paste_clipboard": CommandPaletteMetadata(
+        "File", ("paste", "clipboard", "insert"), 16
+    ),
+    "delete_targets": CommandPaletteMetadata(
+        "File", ("delete", "trash", "remove"), 17
+    ),
+    "open_current_directory_with_file_manager": CommandPaletteMetadata(
+        "System", ("open", "folder", "file manager", "explorer"), 82
+    ),
+    "open_current_directory_with_terminal": CommandPaletteMetadata(
+        "System", ("terminal", "shell", "console"), 81
+    ),
+    "run_shell_command": CommandPaletteMetadata(
+        "System", ("shell", "command", "terminal", "console"), 83
+    ),
+    "add_bookmark": CommandPaletteMetadata("Navigate", ("bookmark", "save"), 55),
+    "remove_bookmark": CommandPaletteMetadata("Navigate", ("bookmark", "remove"), 55),
+    "toggle_hidden": CommandPaletteMetadata(
+        "View", ("hidden", "dotfiles", "show", "hide"), 71
+    ),
+    "show_about": CommandPaletteMetadata("System", ("about", "version", "help"), 98),
+    "edit_config": CommandPaletteMetadata(
+        "System", ("config", "settings", "preferences"), 90
+    ),
+    "create_file": CommandPaletteMetadata("File", ("new", "file", "create", "touch"), 18),
+    "create_dir": CommandPaletteMetadata(
+        "File", ("new", "directory", "folder", "create", "mkdir"), 19
+    ),
+    "transfer_copy_to_opposite_pane": CommandPaletteMetadata(
+        "File", ("copy", "transfer", "other pane"), 20
+    ),
+    "transfer_move_to_opposite_pane": CommandPaletteMetadata(
+        "File", ("move", "transfer", "other pane"), 21
+    ),
+}
+
+_CATEGORY_ORDER = ("Navigate", "File", "Search", "View", "System", "Custom actions")
 
 
 SEARCH_WORKSPACE_COMMAND_IDS = frozenset(
@@ -160,16 +267,12 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
 
     query = state.command_palette.query
 
-    if state.layout_mode == "transfer":
-        return tuple(
-            item
-            for item in _build_transfer_command_palette_items(state)
-            if _matches_query(item, query)
-        )
-
-    return tuple(
-        item for item in _build_command_palette_items(state) if _matches_query(item, query)
+    items = (
+        _build_transfer_command_palette_items(state)
+        if state.layout_mode == "transfer"
+        else _build_command_palette_items(state)
     )
+    return _prepare_command_palette_items(state, items, query)
 
 
 def normalize_command_palette_cursor(state: AppState, cursor_index: int) -> int:
@@ -217,7 +320,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         ),
         CommandPaletteItem(
             id="grep_search",
-            label="Search contents",
+            label="Grep search",
             shortcut="g",
             enabled=True,
         ),
@@ -521,9 +624,218 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         ]
     )
 
-    if is_search_workspace:
-        return tuple(item for item in items if item.id in SEARCH_WORKSPACE_COMMAND_IDS)
+    existing_ids = {item.id for item in items}
+    items.extend(
+        item for item in _build_contextual_command_items(state) if item.id not in existing_ids
+    )
     return tuple(items)
+
+
+def _build_contextual_command_items(state: AppState) -> tuple[CommandPaletteItem, ...]:
+    """Build target-dependent commands even when they are currently unavailable."""
+
+    target_paths = select_target_paths(state)
+    single_target = select_single_target_entry(state)
+    has_target = bool(target_paths)
+    has_single_target = single_target is not None
+    search_workspace = is_search_workspace_path(state.current_path)
+    chmod_supported = _is_chmod_supported()
+    items = (
+        CommandPaletteItem("show_attributes", "Show attributes", None, has_single_target),
+        CommandPaletteItem("rename", "Rename", "r", has_single_target and not search_workspace),
+        CommandPaletteItem(
+            "change_permissions",
+            "Change permissions",
+            None,
+            has_target and chmod_supported and not search_workspace,
+        ),
+        CommandPaletteItem(
+            "change_owner",
+            "Change owner",
+            None,
+            has_target and chmod_supported and not search_workspace,
+        ),
+        CommandPaletteItem(
+            "create_symlink", "Make symlink", None, has_single_target and not search_workspace
+        ),
+        CommandPaletteItem(
+            "compress_as_zip", "Compress as zip", None, has_target and not search_workspace
+        ),
+        CommandPaletteItem(
+            "extract_archive",
+            "Extract archive",
+            None,
+            bool(
+                has_single_target
+                and single_target is not None
+                and single_target.kind == "file"
+                and is_supported_archive_path(single_target.path)
+                and not search_workspace
+            ),
+        ),
+        CommandPaletteItem(
+            "open",
+            "Open",
+            "enter",
+            bool(has_single_target and single_target and single_target.kind == "file"),
+        ),
+        CommandPaletteItem(
+            "edit_with_terminal_editor",
+            "Edit with terminal editor",
+            "e",
+            bool(has_single_target and single_target and single_target.kind == "file"),
+        ),
+        CommandPaletteItem(
+            "edit_with_gui_editor",
+            "Edit with GUI editor",
+            None,
+            bool(has_single_target and single_target and single_target.kind == "file"),
+        ),
+        CommandPaletteItem("copy_path", "Copy path", None, has_target),
+        CommandPaletteItem("copy_targets", "Copy selection or cursor target", "c", has_target),
+        CommandPaletteItem(
+            "cut_targets",
+            "Cut selection or cursor target",
+            "x",
+            has_target and not search_workspace,
+        ),
+        CommandPaletteItem(
+            "paste_clipboard",
+            "Paste clipboard",
+            "v",
+            bool(state.clipboard.paths) and not search_workspace,
+        ),
+        CommandPaletteItem(
+            "delete_targets", "Move to trash", "d", has_target and not search_workspace
+        ),
+    )
+    return items
+
+
+def _prepare_command_palette_items(
+    state: AppState,
+    items: tuple[CommandPaletteItem, ...],
+    query: str,
+) -> tuple[CommandPaletteItem, ...]:
+    """Apply shared metadata, availability reasons, and deterministic ranking."""
+
+    search_workspace = is_search_workspace_path(state.current_path)
+    decorated: list[CommandPaletteItem] = []
+    for item in items:
+        metadata = _COMMAND_METADATA.get(
+            item.id,
+            CommandPaletteMetadata(
+                "Custom actions" if item.id.startswith("custom_action:") else item.category
+            ),
+        )
+        enabled = item.enabled
+        reason = item.disabled_reason
+        if search_workspace and item.id not in SEARCH_WORKSPACE_COMMAND_IDS:
+            enabled = False
+            reason = "Unavailable in Search Workspace"
+        elif not enabled and reason is None:
+            reason = _disabled_reason(state, item.id)
+        decorated.append(
+            replace(
+                item,
+                enabled=enabled,
+                category=metadata.category,
+                keywords=metadata.keywords,
+                context_priority=metadata.context_priority,
+                disabled_reason=reason,
+                section=None,
+            )
+        )
+
+    if query.strip():
+        ranked = [
+            (score, index, item)
+            for index, item in enumerate(decorated)
+            if (score := _command_match_score(item, query)) is not None
+        ]
+        ranked.sort(
+            key=lambda row: (
+                row[0],
+                not row[2].enabled,
+                row[2].context_priority,
+                _category_index(row[2].category),
+                row[1],
+            )
+        )
+        return tuple(item for _score, _index, item in ranked)
+
+    indexed = list(enumerate(decorated))
+    indexed.sort(
+        key=lambda row: (
+            _category_index(row[1].category),
+            row[1].context_priority,
+            row[0],
+        )
+    )
+    return tuple(item for _index, item in indexed)
+
+
+def _category_index(category: str) -> int:
+    try:
+        return _CATEGORY_ORDER.index(category)
+    except ValueError:
+        return len(_CATEGORY_ORDER)
+
+
+def _disabled_reason(state: AppState, item_id: str) -> str:
+    """Explain why a command cannot run in the current state."""
+
+    target = select_single_target_entry(state)
+    has_target = bool(select_target_paths(state))
+    if item_id in {"go_back", "go_forward"}:
+        return "No directory history in this direction"
+    if item_id == "undo_last_operation":
+        return "No operation to undo"
+    if item_id in {"next_tab", "previous_tab", "close_current_tab"}:
+        return "Requires at least two tabs"
+    if item_id == "select_all":
+        return "No visible entries to select"
+    if item_id in {"show_attributes"}:
+        return "Select one target to inspect"
+    if item_id in {"rename", "create_symlink"}:
+        return "Select one target to use this command"
+    if item_id in {"change_permissions", "change_owner"} and not _is_chmod_supported():
+        return "Unavailable on Windows"
+    if item_id in {
+        "change_permissions",
+        "change_owner",
+        "compress_as_zip",
+        "copy_path",
+        "copy_targets",
+        "cut_targets",
+        "delete_targets",
+    }:
+        return "Select at least one target to use this command"
+    if item_id in {"open", "edit_with_terminal_editor", "edit_with_gui_editor"}:
+        if target is None:
+            return "Select one file to use this command"
+        return "Select one file to use this command"
+    if item_id == "extract_archive":
+        return "Select one supported archive file"
+    if item_id == "paste_clipboard":
+        return "Clipboard is empty"
+    if item_id in {
+        "open_current_directory_with_file_manager",
+        "open_current_directory_with_terminal",
+        "run_shell_command",
+    }:
+        return "Unavailable in Search Workspace"
+    if item_id in {
+        "add_bookmark",
+        "remove_bookmark",
+        "create_file",
+        "create_dir",
+        "toggle_transfer_mode",
+    }:
+        return "Unavailable in Search Workspace"
+    if not has_target:
+        return "Requires a selected or focused target"
+    return "Unavailable in the current context"
 
 
 def _build_custom_action_items(state: AppState) -> list[CommandPaletteItem]:
@@ -710,10 +1022,34 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
 
 
 def _matches_query(item: CommandPaletteItem, query: str) -> bool:
-    if not query:
-        return True
-    lowered_query = query.casefold()
-    return lowered_query in item.label.casefold()
+    return _command_match_score(item, query) is not None
+
+
+def _command_match_score(item: CommandPaletteItem, query: str) -> int | None:
+    """Return a small deterministic score, where lower values rank first."""
+
+    normalized_query = " ".join(query.casefold().split())
+    if not normalized_query:
+        return 0
+    label = item.label.casefold()
+    keywords = tuple(keyword.casefold() for keyword in item.keywords)
+    if normalized_query == label:
+        return 0
+    if label.startswith(normalized_query):
+        return 1
+    words = tuple(label.replace("/", " ").replace("-", " ").split())
+    if any(word.startswith(normalized_query) for word in words):
+        return 2
+    if normalized_query in label or any(normalized_query in keyword for keyword in keywords):
+        return 3
+    if any(_is_subsequence(normalized_query, candidate) for candidate in (label, *keywords)):
+        return 4
+    return None
+
+
+def _is_subsequence(query: str, candidate: str) -> bool:
+    iterator = iter(candidate)
+    return all(any(character == expected for character in iterator) for expected in query)
 
 
 def _display_path(path: str) -> str:

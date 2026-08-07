@@ -214,6 +214,9 @@ sequenceDiagram
 ### `src/zivo/state/command_palette.py`
 
 - palette 候補の構築と query フィルタリングを担当する
+- 標準コマンドの安定 ID、カテゴリ、keywords、shortcut、context priority、無効理由を共有メタデータとして管理する
+- カテゴリ順と決定的な一致スコアで候補を安定ソートする
+- 無効候補も残し、selector と reducer が同じ disabled reason を表示・通知に利用する
 - 通常 palette には次の候補がある
   - `Find files`
   - `Grep search`

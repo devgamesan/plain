@@ -5,6 +5,12 @@ Lower-frequency attribute, path-copy, bookmark-edit, go-to-path, external-launch
 In transfer mode, the command palette only shows commands that are available for the active transfer pane.
 The tab strip is only shown when two or more browser tabs are open.
 
+When the query is empty, the palette shows the fixed `Navigate`, `File`, `Search`, `View`, `System`, and `Custom actions` sections. Category order and command ranking are deterministic and do not use usage history or telemetry.
+
+The complete command list is scrollable with the mouse wheel. Keyboard cursor movement (`↑` / `↓` or `Ctrl+j` / `Ctrl+k`) automatically keeps the selected row visible.
+
+Search also matches command keywords and common aliases. Exact label matches rank first, followed by label prefixes, word prefixes, partial matches, and deterministic fuzzy matches. Disabled commands remain searchable and show a concrete reason; pressing Enter reports the same reason without executing the command. Custom actions remain governed by their configured context conditions and are searchable by name.
+
 | Command | Shown when | Behavior / Notes |
 | --- | --- | --- |
 | `New tab` | Always | Opens a new browser tab initialized from the current directory. |
@@ -12,7 +18,7 @@ The tab strip is only shown when two or more browser tabs are open.
 | `Previous tab` | Two or more tabs are open | Activates the previous browser tab. |
 | `Close current tab` | Two or more tabs are open | Closes the active browser tab. The last remaining tab cannot be closed. |
 | `Find files` | Always | Opens recursive file search. |
-| `Search contents` | Always | Opens the shared recursive content search (`ripgrep` / `rg` required on `PATH`). Choose current directory, selected files/directories, or Search Workspace (available only while browsing one); keyword, filename, include-extension, and exclude-extension filters are available in every scope. Selected directories are searched recursively. |
+| `Grep search` | Always | Opens the shared recursive content search (`ripgrep` / `rg` required on `PATH`). The legacy phrase `search contents` is also a search alias. Choose current directory, selected files/directories, or Search Workspace (available only while browsing one); keyword, filename, include-extension, and exclude-extension filters are available in every scope. Selected directories are searched recursively. |
 | `History search` | Always | Opens directory history list and jump to a selected directory. |
 | `Show bookmarks` | Always | Opens the saved bookmark list and jumps to the selected directory. |
 | `Go back` | Directory history has a previous entry | Moves to the previous directory in history. |

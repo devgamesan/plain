@@ -170,6 +170,10 @@ class CommandPaletteItemViewState:
     shortcut: str | None
     enabled: bool
     selected: bool = False
+    command_id: str | None = None
+    category: str = "System"
+    disabled_reason: str | None = None
+    section: str | None = None
 
 
 @dataclass(frozen=True)
@@ -192,6 +196,7 @@ class CommandPaletteViewState:
     empty_message: str
     input_fields: tuple[CommandPaletteInputFieldViewState, ...] = ()
     has_more_items: bool = False
+    footer_message: str | None = None
 
 
 @dataclass(frozen=True)

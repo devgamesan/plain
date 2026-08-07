@@ -214,6 +214,9 @@ sequenceDiagram
 ### `src/zivo/state/command_palette.py`
 
 - Builds palette items and filters them by query
+- Owns shared metadata for stable command IDs, categories, keywords, shortcuts, context priority, and disabled reasons
+- Applies deterministic category and match ranking to the command list
+- Keeps disabled candidates searchable so selectors and reducers can reuse the same reason text
 - The default command palette includes:
   - `Find files`
   - `Grep search`

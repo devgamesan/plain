@@ -39,7 +39,6 @@ from .selectors_shared import (
     _format_modified_label_from_timestamp,
     _format_permissions_label,
     _format_size_label,
-    _select_command_palette_window,
     _select_file_search_window,
     _select_find_replace_preview_window,
     _select_grep_search_window,
@@ -486,12 +485,13 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
         )
 
     items = get_command_palette_items(state)
+    # Keep the complete command list in the view model so the widget can scroll
+    # to commands below the fold. Search-result palettes retain their bounded
+    # windows because those sources can contain thousands of filesystem rows.
     visible_window = compute_search_visible_window(state.terminal_height)
-    visible_items, title = _select_command_palette_window(
-        items,
-        cursor_index,
-        visible_window=visible_window,
-    )
+    visible_items = tuple(enumerate(items))
+    title = "Command Palette"
+    selected_item = items[cursor_index] if items else None
     return CommandPaletteViewState(
         title=title,
         query=state.command_palette.query,
@@ -501,11 +501,20 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
                 shortcut=item.shortcut,
                 enabled=item.enabled,
                 selected=index == cursor_index,
+                command_id=item.id,
+                category=item.category,
+                disabled_reason=item.disabled_reason,
+                section=item.section,
             )
             for index, item in visible_items
         ),
         empty_message="No matching commands",
-        has_more_items=len(items) > len(visible_items),
+        has_more_items=len(items) > visible_window,
+        footer_message=(
+            selected_item.disabled_reason
+            if selected_item is not None and not selected_item.enabled
+            else None
+        ),
     )
 
 

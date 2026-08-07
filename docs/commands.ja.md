@@ -5,6 +5,12 @@
 Transferモードでは、アクティブな転送ペインで実行できるコマンドだけをコマンドパレットに表示します。
 タブバーは 2 タブ以上開いている場合にだけ表示されます。
 
+クエリが空の場合は、`Navigate`、`File`、`Search`、`View`、`System`、`Custom actions` の固定カテゴリを表示します。カテゴリ順とコマンド順位は決定的で、利用履歴やテレメトリは使用しません。
+
+コマンド一覧全体はマウスホイールでスクロールできます。キーボードのカーソル移動（`↑` / `↓` または `Ctrl+j` / `Ctrl+k`）では、選択行が自動的に表示範囲へ追従します。
+
+検索ではコマンドの keywords と一般的な別名にも一致します。ラベル完全一致、ラベル前方一致、単語前方一致、部分一致、決定的な fuzzy 一致の順で順位付けします。無効なコマンドも検索対象に残り、具体的な理由を表示します。無効項目で Enter を押すと実行せず同じ理由を warning で通知します。カスタムアクションは設定済みの context 条件を維持し、名前で検索できます。
+
 | コマンド | 表示条件 | 動作 / 補足 |
 | --- | --- | --- |
 | `New tab` | 常に表示 | 現在ディレクトリを初期値にした新しいブラウズタブを開きます。 |
@@ -12,7 +18,7 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 | `Previous tab` | 2 タブ以上開いているとき | 前のブラウズタブへ切り替えます。 |
 | `Close current tab` | 2 タブ以上開いているとき | アクティブなブラウズタブを閉じます。最後の 1 タブは閉じられません。 |
 | `Find files` | 常に表示 | 再帰ファイル検索を開きます。 |
-| `Search contents` | 常に表示 | 共通の再帰コンテンツ検索を開きます（`ripgrep` / `rg` が `PATH` 上に必要）。current directory / selected files/directories / Search Workspace（Search Workspace を開いているときだけ選択可能）の scope を選択でき、keyword / filename / include extension / exclude extension の各フィルタを共通で利用できます。選択したディレクトリは再帰的に検索します。 |
+| `Grep search` | 常に表示 | 共通の再帰コンテンツ検索を開きます（`ripgrep` / `rg` が `PATH` 上に必要）。従来の `search contents` も検索用 alias として利用できます。current directory / selected files/directories / Search Workspace（Search Workspace を開いているときだけ選択可能）の scope を選択でき、keyword / filename / include extension / exclude extension の各フィルタを共通で利用できます。選択したディレクトリは再帰的に検索します。 |
 | `History search` | 常に表示 | ディレクトリ履歴リストを開き、選択したディレクトリへ移動します。 |
 | `Show bookmarks` | 常に表示 | 保存済みのブックマークリストを開き、選択したディレクトリへ移動します。 |
 | `Go back` | ディレクトリ履歴に戻り先があるとき | 履歴を一つ戻ります。 |

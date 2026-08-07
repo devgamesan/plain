@@ -293,6 +293,10 @@ def _build_command_palette_items_view(
                         selected_override if selected_override is not None else True
                     ) and index == cursor_index
                 ),
+                command_id=item.id,
+                category=item.category,
+                disabled_reason=item.disabled_reason,
+                section=item.section,
             )
             for index, item in visible_items
         ),

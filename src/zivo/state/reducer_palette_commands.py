@@ -635,7 +635,8 @@ def handle_submit_commands_palette(state: AppState, reduce_state: ReducerFn) -> 
         return notify(
             state,
             level="warning",
-            message=f"{selected_item.label} is not available yet",
+            message=selected_item.disabled_reason
+            or f"{selected_item.label} is not available in the current context",
         )
     next_state = restore_browsing_from_palette(state)
     return _run_palette_command_item(state, next_state, selected_item.id, reduce_state)

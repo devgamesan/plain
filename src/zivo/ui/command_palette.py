@@ -3,7 +3,7 @@
 from rich.cells import cell_len
 from rich.style import Style
 from rich.text import Text
-from textual.containers import Container
+from textual.containers import Container, VerticalScroll
 from textual.events import Click
 from textual.widgets import Static
 
@@ -31,7 +31,11 @@ class CommandPalette(Container):
     def compose(self):
         yield Static("Command Palette", id="command-palette-title")
         yield Static("", id="command-palette-query")
-        yield Static("", id="command-palette-items")
+        yield VerticalScroll(
+            Static("", id="command-palette-items"),
+            id="command-palette-items-scroll",
+        )
+        yield Static("", id="command-palette-footer")
 
     def on_mount(self) -> None:
         self.set_state(self.state)
@@ -73,16 +77,20 @@ class CommandPalette(Container):
         title_widget = self.query_one("#command-palette-title", Static)
         query_widget = self.query_one("#command-palette-query", Static)
         items_widget = self.query_one("#command-palette-items", Static)
+        footer_widget = self.query_one("#command-palette-footer", Static)
 
         if state is None:
             self.remove_class("-expanded")
             title_widget.update("Command Palette")
             query_widget.update("")
             items_widget.update("")
+            footer_widget.display = False
+            footer_widget.update("")
             return
 
         self.set_class(state.has_more_items, "-expanded")
         title_widget.update(state.title)
+        footer_widget.display = bool(state.footer_message)
         query_width = self._resolve_render_width(query_widget)
         items_width = self._resolve_render_width(items_widget)
         if state.input_fields:
@@ -90,6 +98,53 @@ class CommandPalette(Container):
         else:
             query_widget.update(self._render_query_line(state, query_width))
         items_widget.update(self._render_items(state, items_width))
+        footer_widget.update(
+            Text(
+                truncate_middle(
+                    state.footer_message,
+                    self._resolve_render_width(footer_widget),
+                ),
+                style="yellow",
+            )
+            if state.footer_message
+            else ""
+        )
+        self.call_after_refresh(self._scroll_selected_item)
+
+    def _scroll_selected_item(self) -> None:
+        """Keep the selected row visible when cursor navigation crosses the fold."""
+
+        if self.state is None:
+            return
+        scroll_widget = self.query_one("#command-palette-items-scroll", VerticalScroll)
+        selected_index = next(
+            (index for index, item in enumerate(self.state.items) if item.selected),
+            None,
+        )
+        if selected_index is None:
+            return
+        show_sections = (
+            self.state.title.startswith("Command Palette") and not self.state.query.strip()
+        )
+        selected_line = selected_index
+        if show_sections:
+            sections: list[str] = []
+            for item in self.state.items[: selected_index + 1]:
+                section = item.section or item.category
+                if section not in sections:
+                    sections.append(section)
+            selected_line += len(sections)
+        viewport_height = scroll_widget.content_region.height or scroll_widget.size.height
+        if viewport_height <= 0:
+            return
+        target_y = max(0, selected_line - viewport_height + 1)
+        scroll_widget.scroll_to(
+            y=target_y,
+            animate=False,
+            force=True,
+            immediate=True,
+        )
+        scroll_widget.refresh()
 
     @staticmethod
     def _resolve_render_width(widget: Static) -> int:
@@ -156,7 +211,16 @@ class CommandPalette(Container):
             return Text(state.empty_message, style="dim", no_wrap=True, overflow="ellipsis")
 
         rendered = Text(no_wrap=True, overflow="ellipsis")
+        show_sections = state.title.startswith("Command Palette") and not state.query.strip()
+        current_section: str | None = None
         for index, item in enumerate(state.items):
+            section = item.section or item.category
+            if show_sections and section != current_section:
+                if len(rendered):
+                    rendered.append("\n")
+                rendered.append(section, style="bold dim")
+                rendered.append("\n")
+                current_section = section
             line = Text()
             if item.selected and item.enabled:
                 style = "reverse"

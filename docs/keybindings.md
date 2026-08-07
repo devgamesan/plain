@@ -35,7 +35,7 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 | `e` | Edit selected file with terminal editor |
 | `!` | Run a short non-interactive shell command in the current directory; the dialog shows cwd and retains output/error details |
 | `f` | Find files (recursive search) |
-| `g` | Search contents |
+| `g` | Grep search |
 | `/` | Filter files |
 | `b` | Show bookmarks |
 | `~` | Go to home directory |

@@ -46,7 +46,6 @@ from .selectors_ui import (
     select_command_palette_state,
     select_config_dialog_state,
     select_conflict_dialog_state,
-    select_grep_export_dialog_state,
     select_help_bar_state,
     select_input_bar_state,
     select_input_dialog_state,
@@ -136,7 +135,6 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         config_dialog=select_config_dialog_state(state),
         shell_command_dialog=select_shell_command_dialog_state(state),
         input_dialog=select_input_dialog_state(state),
-        grep_export_dialog=select_grep_export_dialog_state(state),
     )
     if state.layout_mode != "transfer":
         return shell

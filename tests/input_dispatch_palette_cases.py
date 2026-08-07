@@ -365,7 +365,7 @@ def test_palette_backspace_updates_rff_field() -> None:
     )
 
 
-def test_palette_ctrl_x_opens_grep_export_when_grep_search_results() -> None:
+def test_palette_ctrl_x_saves_grep_results_when_grep_search_results() -> None:
     state = replace(
         build_initial_app_state(),
         ui_mode="PALETTE",
@@ -387,10 +387,10 @@ def test_palette_ctrl_x_opens_grep_export_when_grep_search_results() -> None:
 
     actions = dispatch_key_input(state, key="ctrl+x")
 
-    assert actions == (SetNotification(None), BeginGrepExport())
+    assert actions == (SetNotification(None), SaveGrepResults())
 
 
-def test_palette_ctrl_x_dispatches_begin_for_grep_source() -> None:
+def test_palette_ctrl_x_dispatches_save_for_grep_source() -> None:
     state = replace(
         build_initial_app_state(),
         ui_mode="PALETTE",
@@ -402,7 +402,7 @@ def test_palette_ctrl_x_dispatches_begin_for_grep_source() -> None:
 
     actions = dispatch_key_input(state, key="ctrl+x")
 
-    assert actions == (SetNotification(None), BeginGrepExport())
+    assert actions == (SetNotification(None), SaveGrepResults())
 
 
 def test_palette_ctrl_x_works_for_grep_search_source() -> None:
@@ -427,4 +427,4 @@ def test_palette_ctrl_x_works_for_grep_search_source() -> None:
 
     actions = dispatch_key_input(state, key="ctrl+x")
 
-    assert actions == (SetNotification(None), BeginGrepExport())
+    assert actions == (SetNotification(None), SaveGrepResults())

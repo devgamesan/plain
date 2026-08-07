@@ -497,10 +497,8 @@ def schedule_grep_export(app: Any, effect: RunGrepExportEffect) -> None:
         partial(
             app._grep_export_service.export,
             output_path=effect.output_path,
-            format=effect.format,
             context_lines=effect.context_lines,
             results=effect.results,
-            search_query=effect.search_query,
         ),
         WorkerSpec(
             name=f"grep-export:{effect.request_id}",

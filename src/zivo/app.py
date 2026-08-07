@@ -102,7 +102,6 @@ from zivo.ui import (
     ConfigDialog,
     ConflictDialog,
     CurrentPathBar,
-    GrepExportDialog,
     HelpBar,
     InputDialog,
     MainPane,
@@ -291,11 +290,6 @@ class zivoApp(App[None]):
         yield Container(
             InputDialog(shell.input_dialog, id="input-dialog"),
             id="input-dialog-layer",
-            classes="overlay-layer dialog-layer",
-        )
-        yield Container(
-            GrepExportDialog(shell.grep_export_dialog, id="grep-export-dialog"),
-            id="grep-export-dialog-layer",
             classes="overlay-layer dialog-layer",
         )
         yield HelpBar(shell.help, id="help-bar")

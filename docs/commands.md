@@ -22,6 +22,7 @@ The tab strip is only shown when two or more browser tabs are open.
 | `Toggle transfer mode` / `Close transfer mode` | Always | Switches between the normal three-pane browser and the two-pane transfer layout. |
 | `Undo last file operation` | Undo history is not empty | Reverses the most recent undoable rename, paste, or trash operation. |
 | `Select all` | Current directory has at least one visible entry | Selects every currently visible entry in the current directory, respecting hidden-file visibility and any active filter. |
+| `Save results` | Grep search results are shown | Saves the current grep results to `grep_results.txt` in the current directory, including the configured grep preview context lines. Existing files are left unchanged. |
 | `Replace text` | Always | Opens one scope-aware replacement palette. Scope is initially Selected files, Current file, or Current directory according to the current selection. Select Current file, Selected files, Current directory, Found files, or Grep result files; unavailable scopes explain why. Find/Replace is always shown, while filename and extension filters are shown when the scope searches recursively. The right pane shows a diff preview before confirmation. |
 | `Show attributes` | Exactly one target is selected or focused | Opens the read-only attribute dialog for the selected item. |
 | `Rename` | Exactly one target is selected or focused | Starts rename input for a single target. |

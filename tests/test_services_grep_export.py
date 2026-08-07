@@ -1,6 +1,5 @@
-"""Tests for the grep export service."""
+"""Tests for the grep results save service."""
 
-import json
 from pathlib import Path
 
 import pytest
@@ -9,215 +8,56 @@ from zivo.services.grep_export import FakeGrepExportService, LiveGrepExportServi
 from zivo.state.models import GrepSearchResultState
 
 
-def _make_results(*items: tuple[str, int, str]) -> tuple[GrepSearchResultState, ...]:
-    return tuple(
-        GrepSearchResultState(
-            path=f"/root/{path}",
-            display_path=path,
-            line_number=line,
-            line_text=text,
-        )
-        for path, line, text in items
+def _result(path: Path, line_number: int, line_text: str) -> GrepSearchResultState:
+    return GrepSearchResultState(
+        path=str(path),
+        display_path=path.name,
+        line_number=line_number,
+        line_text=line_text,
     )
 
 
-_RESULTS = _make_results(
-    ("src/main.py", 10, "def hello():"),
-    ("src/main.py", 42, "    return result"),
-    ("README.md", 5, "# Project"),
-)
+def test_fake_service_records_save_request() -> None:
+    service = FakeGrepExportService()
+
+    result = service.export(output_path="/tmp/out.txt", context_lines=3, results=())
+
+    assert result == "/tmp/out.txt"
+    assert service.exported == [
+        {"output_path": "/tmp/out.txt", "context_lines": 3, "result_count": 0}
+    ]
 
 
-class TestFakeGrepExportService:
-    def test_export_records_call(self) -> None:
-        service = FakeGrepExportService()
-        result = service.export(
-            output_path="/tmp/out.txt",
-            format="single_line",
-            context_lines=3,
-            results=_RESULTS,
-            search_query="hello",
-        )
-        assert result == "/tmp/out.txt"
-        assert len(service.exported) == 1
-        assert service.exported[0]["output_path"] == "/tmp/out.txt"
-        assert service.exported[0]["format"] == "single_line"
-        assert service.exported[0]["result_count"] == 3
-        assert service.exported[0]["search_query"] == "hello"
+def test_fake_service_reports_configured_failure() -> None:
+    service = FakeGrepExportService(failure_message="Disk full")
 
-    def test_export_failure(self) -> None:
-        service = FakeGrepExportService(failure_message="Disk full")
-        with pytest.raises(OSError, match="Disk full"):
-            service.export(
-                output_path="/tmp/out.txt",
-                format="single_line",
-                context_lines=3,
-                results=_RESULTS,
-            )
-
-    def test_export_empty_results(self) -> None:
-        service = FakeGrepExportService()
-        result = service.export(
-            output_path="/tmp/out.txt",
-            format="single_line",
-            context_lines=3,
-            results=(),
-        )
-        assert result == "/tmp/out.txt"
+    with pytest.raises(OSError, match="Disk full"):
+        service.export(output_path="/tmp/out.txt", context_lines=3, results=())
 
 
-class TestLiveGrepExportServiceSingleLine:
-    def test_basic(self, tmp_path: Path) -> None:
-        output = tmp_path / "out.txt"
-        service = LiveGrepExportService()
-        service.export(
-            output_path=str(output),
-            format="single_line",
-            context_lines=3,
-            results=_RESULTS,
-        )
-        content = output.read_text()
-        assert "src/main.py:10: def hello():" in content
-        assert "src/main.py:42:     return result" in content
-        assert "README.md:5: # Project" in content
+def test_live_service_writes_result_and_configured_context(tmp_path: Path) -> None:
+    source = tmp_path / "main.py"
+    source.write_text("one\ntwo\nneedle\nfour\nfive\n")
+    output = tmp_path / "grep_results.txt"
+    service = LiveGrepExportService()
 
-    def test_empty_results(self, tmp_path: Path) -> None:
-        output = tmp_path / "out.txt"
-        service = LiveGrepExportService()
-        service.export(
-            output_path=str(output),
-            format="single_line",
-            context_lines=3,
-            results=(),
-        )
-        assert output.read_text() == ""
+    service.export(
+        output_path=str(output),
+        context_lines=1,
+        results=(_result(source, 3, "needle"),),
+    )
 
-    def test_creates_parent_directories(self, tmp_path: Path) -> None:
-        output = tmp_path / "sub" / "deep" / "out.txt"
-        service = LiveGrepExportService()
-        service.export(
-            output_path=str(output),
-            format="single_line",
-            context_lines=3,
-            results=_RESULTS,
-        )
-        assert output.exists()
-
-    def test_overwrites_existing_file(self, tmp_path: Path) -> None:
-        output = tmp_path / "out.txt"
-        output.write_text("existing content")
-        service = LiveGrepExportService()
-        service.export(
-            output_path=str(output),
-            format="single_line",
-            context_lines=3,
-            results=_RESULTS,
-        )
-        assert output.read_text().startswith("src/main.py:")
+    assert output.read_text() == "main.py:3: needle\n2: two\n3: needle\n4: four\n"
 
 
-class TestLiveGrepExportServiceContext:
-    def test_with_context_lines(self, tmp_path: Path) -> None:
-        source = tmp_path / "src" / "main.py"
-        source.parent.mkdir(parents=True)
-        source.write_text("line1\nline2\nline3\nline4\nline5\nline6\nline7\n")
-        results = (
-            GrepSearchResultState(
-                path=str(source),
-                display_path="src/main.py",
-                line_number=4,
-                line_text="line4",
-            ),
-        )
-        output = tmp_path / "out.txt"
-        service = LiveGrepExportService()
-        service.export(
-            output_path=str(output),
-            format="context",
-            context_lines=1,
-            results=results,
-        )
-        content = output.read_text()
-        assert "src/main.py:4: line4" in content
-        assert "3: line3" in content
-        assert "5: line5" in content
+def test_live_service_handles_missing_context_file(tmp_path: Path) -> None:
+    output = tmp_path / "grep_results.txt"
+    service = LiveGrepExportService()
 
-    def test_context_empty_results(self, tmp_path: Path) -> None:
-        output = tmp_path / "out.txt"
-        service = LiveGrepExportService()
-        service.export(
-            output_path=str(output),
-            format="context",
-            context_lines=3,
-            results=(),
-        )
-        assert output.read_text() == ""
+    service.export(
+        output_path=str(output),
+        context_lines=3,
+        results=(_result(tmp_path / "missing.py", 1, "needle"),),
+    )
 
-    def test_context_missing_source_file(self, tmp_path: Path) -> None:
-        results = _make_results(("nonexistent.py", 1, "content"))
-        output = tmp_path / "out.txt"
-        service = LiveGrepExportService()
-        service.export(
-            output_path=str(output),
-            format="context",
-            context_lines=3,
-            results=results,
-        )
-        content = output.read_text()
-        assert "nonexistent.py:1: content" in content
-
-
-class TestLiveGrepExportServiceJson:
-    def test_basic_json(self, tmp_path: Path) -> None:
-        output = tmp_path / "out.json"
-        service = LiveGrepExportService()
-        service.export(
-            output_path=str(output),
-            format="json",
-            context_lines=3,
-            results=_RESULTS,
-            search_query="hello",
-        )
-        data = json.loads(output.read_text())
-        assert data["query"] == "hello"
-        assert data["total_results"] == 3
-        assert data["context_lines"] == 3
-        assert "exported_at" in data
-        assert len(data["results"]) == 3
-        assert data["results"][0]["display_path"] == "src/main.py"
-        assert data["results"][0]["line_number"] == 10
-        assert data["results"][0]["text"] == "def hello():"
-
-    def test_json_empty_results(self, tmp_path: Path) -> None:
-        output = tmp_path / "out.json"
-        service = LiveGrepExportService()
-        service.export(
-            output_path=str(output),
-            format="json",
-            context_lines=3,
-            results=(),
-            search_query="",
-        )
-        data = json.loads(output.read_text())
-        assert data["total_results"] == 0
-        assert data["results"] == []
-
-
-class TestLiveGrepExportServiceProgress:
-    def test_progress_callback_called(self, tmp_path: Path) -> None:
-        output = tmp_path / "out.txt"
-        service = LiveGrepExportService()
-        calls: list[tuple[int, int]] = []
-
-        def progress(current: int, total: int) -> None:
-            calls.append((current, total))
-
-        service.export(
-            output_path=str(output),
-            format="single_line",
-            context_lines=3,
-            results=_RESULTS,
-            progress_callback=progress,
-        )
-        assert len(calls) == 1
-        assert calls[0] == (3, 3)
+    assert output.read_text() == "missing.py:1: needle\n"

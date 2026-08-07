@@ -10,7 +10,6 @@ from .input_dialogs import (
     dispatch_confirm_input,
     dispatch_detail_input,
     dispatch_filter_input,
-    dispatch_grep_export_input,
     dispatch_input_dialog_input,
     dispatch_shell_command_input,
 )
@@ -81,8 +80,6 @@ def dispatch_key_input(
         return dispatch_input_dialog_input(state, key=key, character=character)
     if state.ui_mode == "SHELL":
         return dispatch_shell_command_input(state, key=key, character=character)
-    if state.ui_mode == "GREP_EXPORT":
-        return dispatch_grep_export_input(state, key=key, character=character)
     if state.layout_mode == "transfer":
         return dispatch_transfer_input(state, key=key, character=character)
     return dispatch_browsing_input(
@@ -113,7 +110,6 @@ def _normalize_input_character(
         "ZIP",
         "SYMLINK",
         "SHELL",
-        "GREP_EXPORT",
     }:
         return resolved_character
 

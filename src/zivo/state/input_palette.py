@@ -5,7 +5,6 @@ import os
 from zivo.windows_paths import is_search_workspace_path
 
 from .actions import (
-    BeginGrepExport,
     CancelCommandPalette,
     CycleFileSearchField,
     CycleFindReplaceField,
@@ -18,6 +17,7 @@ from .actions import (
     OpenFindResultInGuiEditor,
     OpenGrepResultInEditor,
     OpenGrepResultInGuiEditor,
+    SaveGrepResults,
     SetCommandPaletteQuery,
     SetFileSearchTarget,
     SetFindReplaceField,
@@ -332,8 +332,8 @@ def dispatch_command_palette_input(
             "replace_in_grep_files",
             "grep_replace_selected",
         }:
-            return supported(BeginGrepExport())
-        return warn("No grep results to export")
+            return supported(SaveGrepResults())
+        return warn("No grep results to save")
 
     if character and character.isprintable():
         if palette_source == "file_search":
@@ -393,11 +393,11 @@ def dispatch_command_palette_input(
         if state.command_palette is not None and state.command_palette.source == "grep_search":
             return warn(
                 "Use Tab/Shift+Tab, type, arrows, Enter, "
-                "Ctrl+e editor, Ctrl+x export, or Esc"
+                "Ctrl+e editor, Ctrl+x save results, or Esc"
             )
         return warn(
             "Use arrows, type to search, Enter, "
-            "Ctrl+e editor, Ctrl+x export, or Esc"
+            "Ctrl+e editor, Ctrl+x save results, or Esc"
         )
 
     if palette_source == "replace_text":

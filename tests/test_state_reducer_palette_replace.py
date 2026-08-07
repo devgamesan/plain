@@ -115,6 +115,16 @@ def test_replace_scope_reports_unavailable_selected_files() -> None:
         message="Selected files requires one or more selected files",
     )
 
+
+def test_replace_scope_can_change_with_left_or_right_navigation() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginTextReplace())
+
+    result = reduce_app_state(state, SetReplaceScope(scope="found_files"))
+
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.replace_preview.scope == "found_files"
+    assert result.state.command_palette.cursor_index == 0
+
 def test_set_replace_field_starts_preview_effect() -> None:
     state = _reduce_state(
         build_initial_app_state(),

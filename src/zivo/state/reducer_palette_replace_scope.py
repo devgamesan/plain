@@ -114,8 +114,11 @@ def handle_set_replace_scope(state: AppState, action: SetReplaceScope) -> Reduce
     return finalize(
         replace(
             state,
-            command_palette=replace(state.command_palette, replace_preview=next_palette),
-            cursor_index=0,
+            command_palette=replace(
+                state.command_palette,
+                replace_preview=next_palette,
+                cursor_index=0,
+            ),
             pending_file_search_request_id=None,
             pending_grep_search_request_id=None,
             pending_replace_preview_request_id=None,

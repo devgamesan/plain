@@ -472,6 +472,13 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             "home": "Home",
         }.get(source_filter)
         title = f"Go — {filter_title}" if filter_title else "Go"
+        footer_message = {
+            "all": "Filters: @bookmark @history @tab @home | arrows select, Enter go",
+            "bookmarks": "Bookmarks filter active | type to search, Enter go",
+            "recent": "Recent filter active | type to search, Enter go",
+            "open_tabs": "Open tabs filter active | type to search, Enter go",
+            "home": "Home filter active | type to search, Enter go",
+        }[source_filter]
         return _build_command_palette_items_view(
             state,
             cursor_index,
@@ -481,11 +488,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
                 if source_filter == "bookmarks"
                 else "Type a path or destination"
             ),
-            footer_message=(
-                "Filters: @bookmark @history @tab @home | arrows select, Enter go"
-                if source_filter == "all"
-                else "Bookmarks filter active | type to search, Enter go"
-            ),
+            footer_message=footer_message,
         )
 
     if state.command_palette.source == "bookmarks":

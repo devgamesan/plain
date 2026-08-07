@@ -196,8 +196,7 @@ def handle_submit_go_palette(state: AppState, reduce_state: ReducerFn) -> Reduce
         return notify(state, level="warning", message="Destination is no longer available")
     candidate = candidates[cursor]
     if (
-        state.command_palette.history_and_navigation.go_source_filter == "all"
-        and candidate.tab_index is not None
+        candidate.tab_index is not None
         and "open_tab" in candidate.sources
     ):
         next_state = restore_browsing_from_palette(state)

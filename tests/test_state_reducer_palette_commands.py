@@ -1017,6 +1017,34 @@ def test_go_view_announces_source_filters() -> None:
     assert "@history" in view.footer_message
 
 
+def test_bookmark_go_view_updates_filter_announcement_from_query() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginBookmarkSearch())
+    state = _reduce_state(state, SetCommandPaletteQuery("@history"))
+
+    view = select_command_palette_state(state)
+
+    assert view is not None
+    assert view.title == "Go — Recent"
+    assert view.footer_message == "Recent filter active | type to search, Enter go"
+
+
+def test_bookmark_go_query_activates_open_tab_after_filter_override() -> None:
+    from zivo.state.models import browser_tab_from_app_state
+
+    state = build_initial_app_state()
+    active_tab = replace(browser_tab_from_app_state(state), current_path="/tmp/current")
+    other_tab = replace(browser_tab_from_app_state(state), current_path="/tmp/other")
+    state = replace(state, current_path="/tmp/current", browser_tabs=(active_tab, other_tab))
+    state = _reduce_state(state, BeginBookmarkSearch())
+    state = _reduce_state(state, SetCommandPaletteQuery("@tab"))
+    state = _reduce_state(state, MoveCommandPaletteCursor(1))
+
+    result = _reduce_state(state, SubmitCommandPalette())
+
+    assert result.active_tab_index == 1
+    assert result.current_path == "/tmp/other"
+
+
 def test_go_query_supports_source_filters(tmp_path) -> None:
     bookmarked = tmp_path / "bookmarked"
     recent = tmp_path / "recent"

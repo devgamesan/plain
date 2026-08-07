@@ -36,6 +36,7 @@ from .actions_input import (
     TogglePendingInputRecursive,
 )
 from .actions_mutations import (
+    AdvancePermanentDeleteConfirmation,
     BeginCustomActionConfirmation,
     BeginDeleteTargets,
     BeginExitCurrentPath,
@@ -101,6 +102,7 @@ __all__ = [
     "SubmitPendingInput",
     "SubmitShellCommand",
     # Mutation actions
+    "AdvancePermanentDeleteConfirmation",
     "BeginDeleteTargets",
     "BeginExitCurrentPath",
     "BeginCustomActionConfirmation",
@@ -243,6 +245,8 @@ from .actions_runtime import (
     CurrentPaneSnapshotLoaded,
     CustomActionCompleted,
     CustomActionFailed,
+    DeletePreparationCompleted,
+    DeletePreparationFailed,
     DirectorySizesFailed,
     DirectorySizesLoaded,
     ExternalLaunchCompleted,
@@ -404,6 +408,7 @@ Action = (
     | TransferMoveToOppositePane
     | PasteClipboardToTransferPane
     | BeginDeleteTargets
+    | AdvancePermanentDeleteConfirmation
     | BeginCustomActionConfirmation
     | ToggleSelection
     | ToggleSelectionAndAdvance
@@ -443,6 +448,8 @@ Action = (
     | TransferPaneSnapshotFailed
     | DirectorySizesLoaded
     | DirectorySizesFailed
+    | DeletePreparationCompleted
+    | DeletePreparationFailed
     | ClipboardPasteNeedsResolution
     | ClipboardPasteCompleted
     | ClipboardPasteFailed

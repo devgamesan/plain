@@ -175,6 +175,18 @@ class DeleteConfirmationState:
 
     paths: tuple[str, ...]
     mode: DeleteMode = "trash"
+    total_size_bytes: int | None = None
+    contains_directory: bool = False
+    failed_paths: tuple[str, ...] = ()
+    additional_confirmation_armed: bool = False
+
+    @property
+    def requires_additional_confirmation(self) -> bool:
+        """Return whether permanent deletion needs a second explicit action."""
+
+        return self.mode == "permanent" and (
+            len(self.paths) > 1 or self.contains_directory
+        )
 
 
 @dataclass(frozen=True)
@@ -620,6 +632,7 @@ class AppState:
     pending_child_pane_request_id: int | None = None
     pending_paste_request_id: int | None = None
     pending_file_mutation_request_id: int | None = None
+    pending_delete_prepare_request_id: int | None = None
     pending_archive_prepare_request_id: int | None = None
     pending_archive_extract_request_id: int | None = None
     pending_zip_compress_prepare_request_id: int | None = None

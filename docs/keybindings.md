@@ -6,7 +6,7 @@ Complete list of keybindings for all zivo modes.
 
 ## Normal Mode
 
-Choose the terminal action by task: press `!` for a short non-interactive command, `t` to suspend zivo and work interactively in a foreground shell, or `T` to launch a separate terminal window for independent work. The foreground shell starts in zivo's current directory and zivo resumes when you exit it.
+Press `!` for a short non-interactive command or `t` to suspend zivo and work interactively in a foreground shell. Use the `:` command palette for external application launches and other lower-frequency actions. The foreground shell starts in zivo's current directory and zivo resumes when you exit it.
 
 | Key | Action |
 | --- | ------ |
@@ -25,7 +25,6 @@ Choose the terminal action by task: press `!` for a short non-interactive comman
 | `x` | Cut selected items |
 | `v` | Paste from clipboard |
 | `z` | Undo the last reversible file operation |
-| `C` | Copy paths to clipboard |
 | `r` | Rename selected item |
 | `n` | Create new file |
 | `N` | Create new directory |
@@ -33,29 +32,21 @@ Choose the terminal action by task: press `!` for a short non-interactive comman
 | `D` | Permanently delete selected items |
 | `Delete` | Move selected items to trash (fn + Delete on macOS) |
 | `Shift+Delete` | Permanently delete selected items (fn + Shift + Delete on macOS) |
-| `i` | Show file attributes |
 | `e` | Edit selected file with terminal editor |
-| `O` | Edit selected file with GUI editor |
 | `!` | Run a short non-interactive shell command in the current directory; the dialog shows cwd and retains output/error details |
 | `f` | Find files (recursive search) |
 | `g` | Search contents |
 | `/` | Filter files |
-| `H` | Show history |
 | `b` | Show bookmarks |
-| `B` | Toggle current directory bookmark |
-| `G` | Go to path |
 | `~` | Go to home directory |
 | `.` | Toggle hidden files |
 | `s` | Cycle sort |
-| `R` | Reload directory |
 | `t` | Open foreground shell (suspend zivo, open interactive shell in current terminal, resume on exit) |
-| `T` | Open current directory with terminal (separate window for independent work) |
 | `o` | Open new tab |
 | `w` | Close current tab |
 | `1`-`9`, `0` | Switch to tab 1-9, or tab 10 with `0` |
 | `tab` | Switch to next tab |
 | `shift+tab` | Switch to previous tab |
-| `M` | Open current directory with file manager |
 | `:` | Open command palette |
 | `q` | Quit |
 | `[` | Go back in history |
@@ -88,12 +79,13 @@ Choose the terminal action by task: press `!` for a short non-interactive comman
 | `y` | Copy focused-pane targets to opposite pane (copy-to-pane) |
 | `m` | Move focused-pane targets to opposite pane (move-to-pane) |
 | `d` | Delete focused-pane targets to trash |
+| `D` | Permanently delete focused-pane targets |
+| `Delete` / `Shift+Delete` | Move to trash / permanently delete |
 | `r` | Rename focused or single selected entry |
 | `z` | Undo the last file operation |
 | `.` | Toggle hidden files |
 | `N` | Create new directory in the focused pane |
 | `b` | Show bookmarks |
-| `H` | Show history |
 | `:` | Open a transfer-mode command palette with transfer-available commands only |
 | `o` | Open new tab |
 | `w` | Close current tab |
@@ -180,5 +172,8 @@ When the `Replace text` preview is open in the right pane, `Shift+↑` / `Shift+
 
 | Key | Action |
 | --- | ------ |
-| `Enter` / `Esc` | Confirm or cancel trash / permanent delete |
+| `Enter` / `Esc` | Confirm or cancel trash and single-file permanent delete |
+| `Enter` then `D` | Two-step confirmation for multiple targets or directories |
 | `o` / `s` / `r` / `Esc` | Resolve a paste conflict with overwrite / skip / rename / cancel |
+
+The direct keys `i`, `C`, `B`, `G`, `M`, `O`, `T`, `H`, and `R` are intentionally unbound. Their attribute, path-copy, bookmark, navigation, external-launch, history, and reload commands remain available from the command palette.

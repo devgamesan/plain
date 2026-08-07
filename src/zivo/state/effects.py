@@ -135,6 +135,14 @@ class RunFileMutationEffect:
 
 
 @dataclass(frozen=True)
+class RunDeletePreparationEffect:
+    """Inspect permanent-delete targets before showing confirmation."""
+
+    request_id: int
+    request: DeleteRequest
+
+
+@dataclass(frozen=True)
 class RunUndoEffect:
     """Execute an undo operation outside the reducer."""
 
@@ -275,6 +283,7 @@ Effect = (
     | RunAttributeInspectionEffect
     | RunClipboardPasteEffect
     | RunFileMutationEffect
+    | RunDeletePreparationEffect
     | RunUndoEffect
     | RunArchivePreparationEffect
     | RunArchiveExtractEffect

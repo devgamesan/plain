@@ -8,6 +8,7 @@ from zivo.models import (
     CreateZipArchivePreparationResult,
     CreateZipArchiveResult,
     CustomActionResult,
+    DeletePreparationResult,
     ExtractArchivePreparationResult,
     ExtractArchiveResult,
     FileMutationResult,
@@ -36,6 +37,7 @@ from zivo.state import (
     RunClipboardPasteEffect,
     RunConfigSaveEffect,
     RunCustomActionEffect,
+    RunDeletePreparationEffect,
     RunDirectorySizeEffect,
     RunExternalLaunchEffect,
     RunFileMutationEffect,
@@ -68,6 +70,8 @@ from zivo.state.actions import (
     CurrentPaneSnapshotLoaded,
     CustomActionCompleted,
     CustomActionFailed,
+    DeletePreparationCompleted,
+    DeletePreparationFailed,
     DirectorySizesFailed,
     DirectorySizesLoaded,
     ExternalLaunchCompleted,
@@ -199,6 +203,21 @@ def complete_file_mutation(effect: Effect, result: FileMutationResult) -> tuple[
         FileMutationCompleted(
             request_id=effect.request_id,
             result=result,
+        ),
+    )
+
+
+def complete_delete_preparation(
+    effect: RunDeletePreparationEffect,
+    result: DeletePreparationResult,
+) -> tuple[Any, ...]:
+    return (
+        DeletePreparationCompleted(
+            request_id=effect.request_id,
+            request=result.request,
+            total_size_bytes=result.total_size_bytes,
+            contains_directory=result.contains_directory,
+            failed_paths=result.failed_paths,
         ),
     )
 
@@ -418,6 +437,7 @@ failed_transfer_pane_snapshot = make_failed_handler(
 )
 failed_clipboard_paste = make_failed_handler(ClipboardPasteFailed)
 failed_file_mutation = make_failed_handler(FileMutationFailed)
+failed_delete_preparation = make_failed_handler(DeletePreparationFailed)
 failed_archive_preparation = make_failed_handler(ArchivePreparationFailed)
 failed_archive_extract = make_failed_handler(ArchiveExtractFailed)
 failed_zip_compress_preparation = make_failed_handler(ZipCompressPreparationFailed)
@@ -481,6 +501,7 @@ RESULT_COMPLETE_HANDLERS: tuple[tuple[type[Any], CompleteActionHandler], ...] = 
     (CreateZipArchivePreparationResult, complete_zip_compress_preparation),
     (CreateZipArchiveResult, complete_zip_compress),
     (FileMutationResult, complete_file_mutation),
+    (DeletePreparationResult, complete_delete_preparation),
     (UndoResult, complete_undo),
     (CustomActionResult, complete_custom_action),
 )
@@ -516,6 +537,7 @@ FAILED_ACTION_HANDLERS: tuple[tuple[type[Any], FailureActionHandler], ...] = (
     (RunZipCompressEffect, failed_zip_compress),
     (RunClipboardPasteEffect, failed_clipboard_paste),
     (RunFileMutationEffect, failed_file_mutation),
+    (RunDeletePreparationEffect, failed_delete_preparation),
     (RunConfigSaveEffect, failed_config_save),
     (RunDirectorySizeEffect, failed_directory_sizes),
     (RunAttributeInspectionEffect, failed_attribute_inspection),

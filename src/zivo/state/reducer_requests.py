@@ -35,6 +35,7 @@ from .effects import (
     RunArchiveExtractEffect,
     RunArchivePreparationEffect,
     RunClipboardPasteEffect,
+    RunDeletePreparationEffect,
     RunExternalLaunchEffect,
     RunFileMutationEffect,
     RunUndoEffect,
@@ -110,6 +111,22 @@ def run_file_mutation_request(
     return ReduceResult(
         state=next_state,
         effects=(RunFileMutationEffect(request_id=request_id, request=request),),
+    )
+
+
+def run_delete_prepare_request(state, request: DeleteRequest) -> ReduceResult:
+    request_id = state.next_request_id
+    next_state = replace(
+        state,
+        notification=NotificationState(level="info", message="Inspecting delete targets"),
+        delete_confirmation=None,
+        pending_delete_prepare_request_id=request_id,
+        next_request_id=request_id + 1,
+        ui_mode="BUSY",
+    )
+    return ReduceResult(
+        state=next_state,
+        effects=(RunDeletePreparationEffect(request_id=request_id, request=request),),
     )
 
 

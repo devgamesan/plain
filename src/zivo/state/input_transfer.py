@@ -9,8 +9,6 @@ from .actions import (
     BeginCreateInput,
     BeginDeleteTargets,
     BeginExitCurrentPath,
-    BeginGoToPath,
-    BeginHistorySearch,
     BeginRenameInput,
     ClearTransferSelection,
     CloseCurrentTab,
@@ -40,10 +38,12 @@ from .models import AppState, PaneState, TransferPaneState
 from .selectors import compute_current_pane_visible_window
 
 TRANSFER_KEYMAP = {
-    "G",
+    "D",
     "N",
     "c",
     "d",
+    "delete",
+    "shift+delete",
     "o",
     "r",
     "v",
@@ -69,7 +69,6 @@ TRANSFER_KEYMAP = {
     "l",
     "right",
     "h",
-    "H",
     "left",
     "y",
     "m",
@@ -96,12 +95,15 @@ TRANSFER_HELP_LINES = (
         ("c", "copy"),
         ("x", "cut"),
         ("v", "paste"),
-        ("d", "delete"),
+        ("d", "trash"),
+        ("D", "permanent"),
         ("r", "rename"),
         ("z", "undo"),
     ),
     ((".", "hidden"), ("N", "new-dir"), (":", "palette")),
 )
+
+REMOVED_DIRECT_KEYS = frozenset({"i", "C", "B", "G", "M", "O", "T", "H", "R"})
 
 
 def dispatch_transfer_input(
@@ -115,6 +117,9 @@ def dispatch_transfer_input(
     if transfer is None:
         return supported(ToggleTransferMode())
     visible_paths = _visible_paths(state, transfer.pane)
+
+    if key in REMOVED_DIRECT_KEYS:
+        return ()
 
     direct_tab_actions = _dispatch_direct_tab_input(state, key=key)
     if direct_tab_actions:
@@ -202,7 +207,7 @@ def dispatch_transfer_input(
     if key == "N":
         return supported(BeginCreateInput("dir"))
 
-    if key == "d":
+    if key in {"d", "delete", "D", "shift+delete"}:
         selected_paths = tuple(
             path
             for path in visible_paths
@@ -211,9 +216,15 @@ def dispatch_transfer_input(
         target_paths = selected_paths if selected_paths else (
             (transfer.pane.cursor_path,) if transfer.pane.cursor_path else ()
         )
+        mode = "permanent" if key in {"D", "shift+delete"} else "trash"
         if not target_paths:
-            return warn("Nothing to delete")
-        return supported(BeginDeleteTargets(target_paths, mode="trash"))
+            message = (
+                "Nothing to permanently delete"
+                if mode == "permanent"
+                else "Nothing to delete"
+            )
+            return warn(message)
+        return supported(BeginDeleteTargets(target_paths, mode=mode))
 
     if key == "r":
         selected_paths = tuple(
@@ -225,12 +236,6 @@ def dispatch_transfer_input(
         if len(target_paths) != 1:
             return warn("Rename requires a single target")
         return supported(BeginRenameInput(target_paths[0]))
-
-    if key == "G":
-        return supported(BeginGoToPath())
-
-    if key == "H":
-        return supported(BeginHistorySearch())
 
     if key == "c":
         selected_paths = tuple(
@@ -263,7 +268,7 @@ def dispatch_transfer_input(
 
     return warn(
         "Use [], space, c copy, x cut, v paste, y copy-to-pane, "
-        "m move-to-pane, d delete, r rename, z undo, b bookmarks, H history, "
+        "m move-to-pane, d trash, D permanent-delete, r rename, z undo, b bookmarks, "
         ". hidden, o new-tab, w close-tab, or p/Esc to close"
     )
 

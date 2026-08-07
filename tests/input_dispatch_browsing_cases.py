@@ -135,12 +135,8 @@ def test_search_workspace_blocks_unavailable_browsing_shortcuts() -> None:
         "n",
         "N",
         "t",
-        "T",
-        "R",
         "p",
         "!",
-        "B",
-        "M",
     ):
         actions = dispatch_key_input(state, key=key)
 
@@ -152,6 +148,12 @@ def test_search_workspace_blocks_unavailable_browsing_shortcuts() -> None:
                 )
             ),
         )
+
+
+def test_removed_direct_shortcuts_are_unbound_in_browsing_and_search_workspace() -> None:
+    for state in (build_initial_app_state(), build_search_workspace_state()):
+        for key in ("i", "C", "B", "G", "M", "O", "T", "H", "R"):
+            assert dispatch_key_input(state, key=key, character=key) == ()
 
 
 def test_browsing_prefix_key_starts_multi_key_sequence(monkeypatch) -> None:
@@ -417,30 +419,6 @@ def test_browsing_capital_N_begins_create_directory() -> None:
     assert actions[1].kind == "dir"
 
 
-def test_browsing_capital_B_adds_bookmark_for_current_directory() -> None:
-    state = build_initial_app_state()
-
-    actions = dispatch_key_input(state, key="B")
-
-    assert actions == (
-        SetNotification(None),
-        AddBookmark(path="/home/tadashi/develop/zivo"),
-    )
-
-
-def test_browsing_capital_B_removes_bookmark_for_current_directory() -> None:
-    state = build_initial_app_state(
-        config=AppConfig(bookmarks=BookmarkConfig(paths=("/home/tadashi/develop/zivo",)))
-    )
-
-    actions = dispatch_key_input(state, key="B")
-
-    assert actions == (
-        SetNotification(None),
-        RemoveBookmark(path="/home/tadashi/develop/zivo"),
-    )
-
-
 def test_browsing_lowercase_c_dispatches_copy_targets() -> None:
     state = build_initial_app_state()
 
@@ -477,22 +455,6 @@ def test_browsing_z_dispatches_undo_last_operation() -> None:
     actions = dispatch_key_input(state, key="z", character="z")
 
     assert actions == (SetNotification(None), UndoLastOperation())
-
-
-def test_browsing_capital_C_dispatches_copy_paths_to_clipboard() -> None:
-    state = build_initial_app_state()
-
-    actions = dispatch_key_input(state, key="C")
-
-    assert actions == (SetNotification(None), CopyPathsToClipboard())
-
-
-def test_browsing_i_dispatches_show_attributes() -> None:
-    state = build_initial_app_state()
-
-    actions = dispatch_key_input(state, key="i", character="i")
-
-    assert actions == (SetNotification(None), ShowAttributes())
 
 
 def test_browsing_dot_toggles_hidden_files() -> None:
@@ -560,17 +522,6 @@ def test_browsing_enter_on_file_dispatches_open_with_default_app() -> None:
     )
 
 
-def test_browsing_shift_m_dispatches_open_file_manager() -> None:
-    state = build_initial_app_state()
-
-    actions = dispatch_key_input(state, key="M", character="M")
-
-    assert actions == (
-        SetNotification(None),
-        OpenPathWithDefaultApp("/home/tadashi/develop/zivo"),
-    )
-
-
 def test_browsing_e_on_file_dispatches_open_in_editor() -> None:
     state = build_initial_app_state()
     state = replace(
@@ -589,24 +540,6 @@ def test_browsing_e_on_file_dispatches_open_in_editor() -> None:
     )
 
 
-def test_browsing_shift_o_on_file_dispatches_open_in_gui_editor() -> None:
-    state = build_initial_app_state()
-    state = replace(
-        state,
-        current_pane=replace(
-            state.current_pane,
-            cursor_path="/home/tadashi/develop/zivo/README.md",
-        ),
-    )
-
-    actions = dispatch_key_input(state, key="O", character="O")
-
-    assert actions == (
-        SetNotification(None),
-        OpenPathInGuiEditor("/home/tadashi/develop/zivo/README.md"),
-    )
-
-
 def test_browsing_e_on_directory_warns() -> None:
     state = build_initial_app_state()
 
@@ -617,14 +550,6 @@ def test_browsing_e_on_directory_warns() -> None:
             NotificationState(level="warning", message="Editor launch requires a file")
         ),
     )
-
-
-def test_browsing_capital_R_reloads_current_directory() -> None:
-    state = build_initial_app_state()
-
-    actions = dispatch_key_input(state, key="R")
-
-    assert actions == (SetNotification(None), ReloadDirectory())
 
 
 def test_browsing_lowercase_r_begins_rename_for_single_target() -> None:
@@ -1083,24 +1008,6 @@ def test_browsing_tilde_goes_to_home_directory() -> None:
     actions = dispatch_key_input(state, key="~")
 
     assert actions == (SetNotification(None), GoToHomeDirectory())
-
-
-def test_browsing_capital_H_begins_history_search() -> None:
-    state = build_initial_app_state()
-
-    actions = dispatch_key_input(state, key="H")
-
-    assert len(actions) == 2
-    assert isinstance(actions[1], BeginHistorySearch)
-
-
-def test_browsing_capital_G_begins_go_to_path() -> None:
-    state = build_initial_app_state()
-
-    actions = dispatch_key_input(state, key="G")
-
-    assert len(actions) == 2
-    assert isinstance(actions[1], BeginGoToPath)
 
 
 def test_browsing_open_bracket_dispatches_go_back() -> None:

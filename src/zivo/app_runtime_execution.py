@@ -21,6 +21,7 @@ from zivo.state import (
     RunClipboardPasteEffect,
     RunConfigSaveEffect,
     RunCustomActionEffect,
+    RunDeletePreparationEffect,
     RunExternalLaunchEffect,
     RunFileMutationEffect,
     RunGrepExportEffect,
@@ -216,6 +217,20 @@ def schedule_file_mutation(app: Any, effect: RunFileMutationEffect) -> None:
         WorkerSpec(
             name=f"file-mutation:{effect.request_id}",
             group="file-mutation",
+            description=str(effect.request),
+            exclusive=True,
+        ),
+    )
+
+
+def schedule_delete_preparation(app: Any, effect: RunDeletePreparationEffect) -> None:
+    run_worker(
+        app,
+        effect,
+        partial(app._file_mutation_service.prepare_delete, effect.request),
+        WorkerSpec(
+            name=f"delete-preparation:{effect.request_id}",
+            group="delete-preparation",
             description=str(effect.request),
             exclusive=True,
         ),

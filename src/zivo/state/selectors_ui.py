@@ -82,7 +82,12 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
 
     if state.ui_mode == "CONFIRM":
         if state.delete_confirmation is not None:
-            if state.delete_confirmation.mode == "permanent":
+            confirmation = state.delete_confirmation
+            if confirmation.additional_confirmation_armed:
+                return HelpBarState(("D permanently delete | esc cancel",))
+            if confirmation.requires_additional_confirmation:
+                return HelpBarState(("enter review permanent delete | esc cancel",))
+            if confirmation.mode == "permanent":
                 return HelpBarState(("enter confirm permanent delete | esc cancel",))
             return HelpBarState(("enter confirm delete | esc cancel",))
         if state.exit_confirmation is not None:
@@ -163,8 +168,8 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     if is_search_workspace_path(state.current_path):
         return HelpBarState(
             (
-                "enter open | e edit | O gui editor | i info | "
-                "/ filter | s sort | . hidden | [ ] bk/fwd | q quit",
+                "enter open | e edit | / filter | s sort | . hidden | "
+                "[ ] bk/fwd | q quit",
                 "space select | c copy | z undo | ctrl+j/k prv",
                 ": palette",
             )
@@ -510,25 +515,46 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
     if state.delete_confirmation is not None:
         confirmation = state.delete_confirmation
         target_count = len(confirmation.paths)
-        first_name = Path(confirmation.paths[0]).name
         noun = "item" if target_count == 1 else "items"
         if confirmation.mode == "permanent":
-            message = f"Permanently delete {target_count} {noun}? This cannot be undone."
-            if target_count > 1:
-                message = (
-                    f"Permanently delete {target_count} items? "
-                    f"The first target is {first_name}. This cannot be undone."
-                )
-            title = "Permanent Delete Confirmation"
+            names = tuple(Path(path).name or path for path in confirmation.paths[:3])
+            names_label = ", ".join(names)
+            remaining_count = max(0, target_count - len(names))
+            if remaining_count:
+                names_label = f"{names_label}, and {remaining_count} more"
+            size_label = _format_size_label(confirmation.total_size_bytes)
+            size_note = (
+                f"at least {size_label}; size unavailable for "
+                f"{len(confirmation.failed_paths)} path(s)"
+                if confirmation.failed_paths
+                else size_label
+            )
+            message = (
+                f"Permanently delete {target_count} {noun} ({size_note})? "
+                f"Targets: {names_label}. This cannot be undone."
+            )
+            if confirmation.additional_confirmation_armed:
+                title = "Final Permanent Delete Confirmation"
+                message = f"{message} Press D to permanently delete now."
+                options = ("D permanently delete", "esc cancel")
+            elif confirmation.requires_additional_confirmation:
+                title = "Permanent Delete Confirmation"
+                message = f"{message} Press Enter to continue to the final confirmation."
+                options = ("enter review", "esc cancel")
+            else:
+                title = "Permanent Delete Confirmation"
+                options = ("enter confirm", "esc cancel")
         else:
+            first_name = Path(confirmation.paths[0]).name
             message = f"Move {target_count} {noun} to trash?"
             if target_count > 1:
                 message = f"Move {target_count} items to trash? The first target is {first_name}."
             title = "Delete Confirmation"
+            options = ("enter confirm", "esc cancel")
         return ConflictDialogState(
             title=title,
             message=message,
-            options=("enter confirm", "esc cancel"),
+            options=options,
         )
 
     if state.archive_extract_confirmation is not None:

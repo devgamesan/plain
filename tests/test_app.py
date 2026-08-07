@@ -20,6 +20,7 @@ from zivo.app_overlay_layout import update_pane_visibility
 from zivo.models import (
     AppConfig,
     BehaviorConfig,
+    DeletePreparationResult,
     DeleteRequest,
     DisplayConfig,
     EditorConfig,
@@ -2413,7 +2414,7 @@ async def test_app_left_on_windows_drive_root_returns_to_drive_list(monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_app_capital_R_keeps_cursor_when_entry_still_exists() -> None:
+async def test_app_palette_reload_keeps_cursor_when_entry_still_exists() -> None:
     path = str(Path("/tmp/zivo-reload").resolve())
     initial_entries = (
         DirectoryEntryState(f"{path}/docs", "docs", "dir"),
@@ -2448,7 +2449,8 @@ async def test_app_capital_R_keeps_cursor_when_entry_still_exists() -> None:
             child_entries=(DirectoryEntryState(f"{path}/src/main.py", "main.py", "file"),),
         )
 
-        await pilot.press("R")
+        await pilot.press(":")
+        await pilot.press("r", "e", "l", "o", "a", "d", "enter")
         await _wait_for_snapshot_loaded(app, path)
 
         current_table = app.query_one("#current-pane-table", DataTable)
@@ -2457,7 +2459,7 @@ async def test_app_capital_R_keeps_cursor_when_entry_still_exists() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_capital_R_falls_back_to_first_row_when_cursor_disappears() -> None:
+async def test_app_palette_reload_falls_back_to_first_row_when_cursor_disappears() -> None:
     path = str(Path("/tmp/zivo-reload-fallback").resolve())
     initial_entries = (
         DirectoryEntryState(f"{path}/docs", "docs", "dir"),
@@ -2488,7 +2490,8 @@ async def test_app_capital_R_falls_back_to_first_row_when_cursor_disappears() ->
             child_entries=(DirectoryEntryState(f"{path}/docs/spec.md", "spec.md", "file"),),
         )
 
-        await pilot.press("R")
+        await pilot.press(":")
+        await pilot.press("r", "e", "l", "o", "a", "d", "enter")
         await _wait_for_snapshot_loaded(app, path)
 
         current_table = app.query_one("#current-pane-table", DataTable)
@@ -2497,7 +2500,7 @@ async def test_app_capital_R_falls_back_to_first_row_when_cursor_disappears() ->
 
 
 @pytest.mark.asyncio
-async def test_app_capital_R_drops_selection_for_missing_entries() -> None:
+async def test_app_palette_reload_drops_selection_for_missing_entries() -> None:
     path = str(Path("/tmp/zivo-reload-selection").resolve())
     initial_entries = (
         DirectoryEntryState(f"{path}/docs", "docs", "dir"),
@@ -2528,7 +2531,8 @@ async def test_app_capital_R_drops_selection_for_missing_entries() -> None:
             child_entries=(DirectoryEntryState(f"{path}/src/main.py", "main.py", "file"),),
         )
 
-        await pilot.press("R")
+        await pilot.press(":")
+        await pilot.press("r", "e", "l", "o", "a", "d", "enter")
         await _wait_for_snapshot_loaded(app, path)
 
         summary_bar = await _wait_for_summary_bar(app)
@@ -3117,8 +3121,7 @@ async def test_app_displays_browsing_help_bar() -> None:
     app = create_app(snapshot_loader=loader, initial_path=path)
     split_terminal_hint = " | t term" if os.name == "posix" else ""
     expected_help = (
-        "enter open | e edit | O gui editor | i info | "
-        "/ filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
+        "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
         "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv\n"
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
@@ -3225,7 +3228,8 @@ async def test_app_displays_transfer_help_bar() -> None:
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
         "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit\n"
-        "Space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
+        "Space select | c copy | x cut | v paste | d trash | D permanent | "
+        "r rename | z undo\n"
         ". hidden | N new-dir | : palette"
     )
 
@@ -3526,7 +3530,9 @@ async def test_app_go_to_path_shows_candidates_and_tabs_to_selected_directory(tm
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("G")
+        await pilot.press(":")
+        await pilot.press("g", "o", "space", "t", "o", "space", "p", "a", "t", "h")
+        await pilot.press("enter")
         await pilot.press("d", "o")
         await asyncio.sleep(0.05)
 
@@ -3578,7 +3584,9 @@ async def test_app_go_to_path_submit_after_completion_stays_on_completed_directo
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("G")
+        await pilot.press(":")
+        await pilot.press("g", "o", "space", "t", "o", "space", "p", "a", "t", "h")
+        await pilot.press("enter")
         await pilot.press("d", "o", "tab", "enter")
         await _wait_for_snapshot_loaded(app, docs_path)
 
@@ -5874,7 +5882,7 @@ async def test_app_delete_confirmation_round_trip() -> None:
                 message="Trashed 2 items",
                 removed_paths=(docs, src),
             )
-        }
+        },
     )
     app = create_app(
         snapshot_loader=loader,
@@ -5986,7 +5994,14 @@ async def test_app_permanent_delete_always_confirms() -> None:
                 message="Deleted 2 items permanently",
                 removed_paths=(docs, src),
             )
-        }
+        },
+        preparation_results={
+            delete_request: DeletePreparationResult(
+                request=delete_request,
+                total_size_bytes=8192,
+                contains_directory=True,
+            )
+        },
     )
     app = create_app(
         snapshot_loader=loader,
@@ -6011,12 +6026,21 @@ async def test_app_permanent_delete_always_confirms() -> None:
 
         help_bar = app.query_one("#help-bar", HelpBar)
         dialog = app.query_one("#conflict-dialog", ConflictDialog)
+        dialog_message = dialog.query_one("#conflict-dialog-message", Static)
 
         assert app.app_state.ui_mode == "CONFIRM"
-        assert str(help_bar.renderable) == "enter confirm permanent delete | esc cancel"
+        assert str(help_bar.renderable) == "enter review permanent delete | esc cancel"
         assert dialog.display is True
+        assert "2 items (8.0KiB)" in str(dialog_message.renderable)
+        assert "Targets: docs, src" in str(dialog_message.renderable)
+        assert "This cannot be undone" in str(dialog_message.renderable)
 
         await pilot.press("enter")
+        await asyncio.sleep(0.05)
+
+        assert str(help_bar.renderable) == "D permanently delete | esc cancel"
+
+        await pilot.press("D")
         await asyncio.sleep(0.05)
 
         status_bar = await _wait_for_status_bar(app)

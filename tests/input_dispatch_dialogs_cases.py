@@ -320,6 +320,44 @@ def test_delete_confirm_escape_cancels_confirmation() -> None:
     assert actions == (SetNotification(None), CancelDeleteConfirmation())
 
 
+def test_risky_permanent_delete_enter_arms_additional_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        delete_confirmation=DeleteConfirmationState(
+            paths=("/home/tadashi/develop/zivo/docs",),
+            mode="permanent",
+            contains_directory=True,
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="enter")
+
+    assert actions == (SetNotification(None), AdvancePermanentDeleteConfirmation())
+
+
+def test_armed_permanent_delete_requires_uppercase_d() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        delete_confirmation=DeleteConfirmationState(
+            paths=("/home/tadashi/develop/zivo/docs",),
+            mode="permanent",
+            contains_directory=True,
+            additional_confirmation_armed=True,
+        ),
+    )
+
+    assert dispatch_key_input(state, key="enter") != (
+        SetNotification(None),
+        ConfirmDeleteTargets(),
+    )
+    assert dispatch_key_input(state, key="D") == (
+        SetNotification(None),
+        ConfirmDeleteTargets(),
+    )
+
+
 def test_zip_compress_confirm_enter_dispatches_confirmation() -> None:
     state = replace(
         build_initial_app_state(),

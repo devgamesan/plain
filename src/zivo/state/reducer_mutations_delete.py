@@ -5,12 +5,15 @@ from dataclasses import replace
 from zivo.models import DeleteRequest
 
 from .actions import (
+    AdvancePermanentDeleteConfirmation,
     BeginDeleteTargets,
     BeginExitCurrentPath,
     CancelDeleteConfirmation,
     CancelExitConfirmation,
     ConfirmDeleteTargets,
     ConfirmExitCurrentPath,
+    DeletePreparationCompleted,
+    DeletePreparationFailed,
     ExitCurrentPath,
 )
 from .effects import ExitCurrentPathEffect
@@ -19,14 +22,19 @@ from .models import (
     ExitConfirmationState,
     NotificationState,
 )
-from .reducer_common import finalize, run_file_mutation_request
+from .reducer_common import finalize, run_delete_prepare_request, run_file_mutation_request
 from .reducer_mutations_common import MutationHandler
 
 
 def _handle_begin_delete_targets(state, action, reduce_state):
     if not action.paths:
         return finalize(state)
-    if action.mode == "permanent" or state.confirm_delete:
+    if action.mode == "permanent":
+        return run_delete_prepare_request(
+            state,
+            DeleteRequest(paths=action.paths, mode="permanent"),
+        )
+    if state.confirm_delete:
         return finalize(
             replace(
                 state,
@@ -69,6 +77,11 @@ def _handle_begin_delete_targets(state, action, reduce_state):
 def _handle_confirm_delete_targets(state, action, reduce_state):
     if state.delete_confirmation is None:
         return finalize(state)
+    if (
+        state.delete_confirmation.requires_additional_confirmation
+        and not state.delete_confirmation.additional_confirmation_armed
+    ):
+        return finalize(state)
     return run_file_mutation_request(
         replace(
             state,
@@ -80,6 +93,59 @@ def _handle_confirm_delete_targets(state, action, reduce_state):
             paths=state.delete_confirmation.paths,
             mode=state.delete_confirmation.mode,
         ),
+    )
+
+
+def _handle_advance_permanent_delete_confirmation(state, action, reduce_state):
+    confirmation = state.delete_confirmation
+    if (
+        confirmation is None
+        or not confirmation.requires_additional_confirmation
+        or confirmation.additional_confirmation_armed
+    ):
+        return finalize(state)
+    return finalize(
+        replace(
+            state,
+            delete_confirmation=replace(
+                confirmation,
+                additional_confirmation_armed=True,
+            ),
+        )
+    )
+
+
+def _handle_delete_preparation_completed(state, action, reduce_state):
+    if action.request_id != state.pending_delete_prepare_request_id:
+        return finalize(state)
+    return finalize(
+        replace(
+            state,
+            ui_mode="CONFIRM",
+            notification=None,
+            pending_delete_prepare_request_id=None,
+            delete_confirmation=DeleteConfirmationState(
+                paths=action.request.paths,
+                mode="permanent",
+                total_size_bytes=action.total_size_bytes,
+                contains_directory=action.contains_directory,
+                failed_paths=action.failed_paths,
+            ),
+        )
+    )
+
+
+def _handle_delete_preparation_failed(state, action, reduce_state):
+    if action.request_id != state.pending_delete_prepare_request_id:
+        return finalize(state)
+    return finalize(
+        replace(
+            state,
+            ui_mode="BROWSING",
+            pending_delete_prepare_request_id=None,
+            delete_confirmation=None,
+            notification=NotificationState(level="error", message=action.message),
+        )
     )
 
 
@@ -151,6 +217,9 @@ DELETE_MUTATION_HANDLERS: dict[type, MutationHandler] = {
     BeginDeleteTargets: _handle_begin_delete_targets,
     BeginExitCurrentPath: _handle_begin_exit_current_path,
     ConfirmDeleteTargets: _handle_confirm_delete_targets,
+    AdvancePermanentDeleteConfirmation: _handle_advance_permanent_delete_confirmation,
+    DeletePreparationCompleted: _handle_delete_preparation_completed,
+    DeletePreparationFailed: _handle_delete_preparation_failed,
     ConfirmExitCurrentPath: _handle_confirm_exit_current_path,
     CancelDeleteConfirmation: _handle_cancel_delete_confirmation,
     CancelExitConfirmation: _handle_cancel_exit_confirmation,

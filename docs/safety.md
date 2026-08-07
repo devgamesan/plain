@@ -17,6 +17,8 @@ zivo includes several safety mechanisms to prevent accidents during file operati
 
 - Press `D` or `Shift+Delete` to permanently delete selected items.
 - Permanent delete always asks for confirmation regardless of the `behavior.confirm_delete` setting.
+- The confirmation shows the target count, total size, up to three representative names, and whether any sizes could not be read.
+- Multiple targets or any directory require two explicit steps: press `Enter` to review, then uppercase `D` to delete.
 - Unlike trash, these operations cannot be undone.
 
 ---

@@ -27,6 +27,7 @@ from zivo.state.actions import (
     ActivatePreviousTab,
     ActivateTabByIndex,
     AddBookmark,
+    AdvancePermanentDeleteConfirmation,
     BeginBookmarkSearch,
     BeginCommandPalette,
     BeginCreateInput,

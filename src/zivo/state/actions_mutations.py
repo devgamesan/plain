@@ -82,6 +82,11 @@ class ConfirmDeleteTargets:
 
 
 @dataclass(frozen=True)
+class AdvancePermanentDeleteConfirmation:
+    """Arm the explicit second step for risky permanent deletion."""
+
+
+@dataclass(frozen=True)
 class CancelDeleteConfirmation:
     """Dismiss the pending delete confirmation dialog."""
 

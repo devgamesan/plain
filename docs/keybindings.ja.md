@@ -8,6 +8,25 @@ zivo の全モードにおけるキーバインディング一覧です。
 
 短い非対話コマンドは `!`、zivo を一時停止して現在のターミナルで対話的に作業する場合は `t` を使います。外部アプリ起動や低頻度操作は `:` のコマンドパレットから実行します。foreground shell は zivo のカレントディレクトリで開き、終了すると zivo が自動で再開します。
 
+### 状況適応型ヘルプバー
+
+ヘルプバーは2段構成です。1段目は対象に応じた最大5件の操作、2段目は主要機能の入口を表示します。
+
+```text
+enter Open | e Edit | space Select | c Copy | x Cut
+/ Filter | f Find | g Grep | q Quit | : More
+```
+
+| 状態 | 主な表示操作 |
+| --- | --- |
+| ファイルにカーソル | `Enter Open`、`e Edit`、`Space Select`、`c Copy`、`x Cut` |
+| ディレクトリにカーソル | `Enter Enter directory`、`Space Select`、`c Copy`、`x Cut` |
+| 1件以上を選択中 | `c Copy`、`x Cut`、`d Move to trash`、`r Rename`、`Esc Clear selection` |
+| クリップボード保持中 | `v Paste` を優先表示 |
+| 空ディレクトリ | `n New file`、`N New directory`、可能なら `v Paste` |
+
+Search Workspaceでは `Filter`、`Sort`、`Hidden`、`Quit`、`: More` を表示します。Find/Grepや利用不能な削除・転送操作は表示しません。Transferモードではペインフォーカス、ペイン間Copy/Move、Quit、`: More`を表示します。`:` キーまたは `: More` のクリックで既存のコマンドパレットを開けます。その他の項目をクリックした場合も、対応するキー入力と同じ中央dispatcher経路でActionを実行します。ダイアログ表示中は、そのダイアログ固有の確定・適用とキャンセルだけを表示します。
+
 | キー | 動作 |
 | --- | ------ |
 | `j` / `↓` | 下へ移動 |

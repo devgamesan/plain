@@ -31,10 +31,12 @@ from .actions import (
     BeginSymlinkInput,
     BeginTextReplace,
     BeginZipCompressInput,
+    ClearSelection,
     CloseCurrentTab,
     CopyPathsToClipboard,
     CopyTargets,
     CutTargets,
+    EnterCursorDirectory,
     GoBack,
     GoForward,
     GoToHomeDirectory,
@@ -53,6 +55,7 @@ from .actions import (
     ShowAbout,
     ShowAttributes,
     ToggleHiddenFiles,
+    ToggleSelectionAndAdvance,
     ToggleTransferMode,
     TransferCopyToOppositePane,
     TransferMoveToOppositePane,
@@ -199,6 +202,24 @@ def _run_select_all_command(state: AppState, reduce_state: ReducerFn) -> ReduceR
         )
     visible_paths = tuple(entry.path for entry in select_visible_current_entry_states(state))
     return reduce_state(state, SelectAllVisibleEntries(visible_paths))
+
+
+def _run_toggle_selection_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
+    cursor_path = state.current_pane.cursor_path
+    if cursor_path is None:
+        return finalize(state)
+    visible_paths = tuple(entry.path for entry in select_visible_current_entry_states(state))
+    return reduce_state(
+        state,
+        ToggleSelectionAndAdvance(path=cursor_path, visible_paths=visible_paths),
+    )
+
+
+def _run_enter_directory_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
+    entry = single_target_entry(state)
+    if entry is None or entry.kind != "dir":
+        return finalize(state)
+    return reduce_state(state, EnterCursorDirectory())
 
 
 def _run_replace_text_command(
@@ -572,6 +593,12 @@ def _run_palette_command_item(
         return _run_cut_targets_command(state, next_state, reduce_state)
     if item_id == "paste_clipboard":
         return _run_paste_clipboard_command(next_state, reduce_state)
+    if item_id == "toggle_selection":
+        return _run_toggle_selection_command(next_state, reduce_state)
+    if item_id == "enter_directory":
+        return _run_enter_directory_command(next_state, reduce_state)
+    if item_id == "clear_selection":
+        return reduce_state(next_state, ClearSelection())
     if item_id == "transfer_copy_to_opposite_pane":
         return reduce_state(next_state, TransferCopyToOppositePane())
     if item_id == "transfer_move_to_opposite_pane":

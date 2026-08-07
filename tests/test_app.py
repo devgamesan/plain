@@ -26,6 +26,7 @@ from zivo.models import (
     EditorConfig,
     ExternalLaunchRequest,
     FileMutationResult,
+    HelpBarAction,
     PasteConflict,
     PasteConflictPrompt,
     PasteExecutionResult,
@@ -3137,11 +3138,9 @@ async def test_app_displays_browsing_help_bar() -> None:
         }
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
-    split_terminal_hint = " | t term" if os.name == "posix" else ""
     expected_help = (
-        "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv\n"
-        f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
+        "enter Enter dir | space Select | c Copy | x Cut\n"
+        "/ Filter | f Find | g Grep | q Quit | : More"
     )
 
     async with app.run_test():
@@ -3149,6 +3148,29 @@ async def test_app_displays_browsing_help_bar() -> None:
         help_bar = await _wait_for_help_bar_text(app, expected_help)
 
         assert str(help_bar.renderable) == expected_help
+
+
+@pytest.mark.asyncio
+async def test_app_help_bar_more_click_uses_command_palette_dispatch() -> None:
+    path = str(Path("/tmp/zivo-help-click").resolve())
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(f"{path}/README.md", "README.md", "file"),),
+                child_path=f"{path}/README.md",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test():
+        await _wait_for_snapshot_loaded(app, path)
+        await app.on_help_bar_action_clicked(
+            HelpBar.ActionClicked(HelpBarAction("command_palette", "More", ":"))
+        )
+
+        assert app._app_state.ui_mode == "PALETTE"
 
 
 @pytest.mark.asyncio
@@ -3245,10 +3267,8 @@ async def test_app_displays_transfer_help_bar() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
-        "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit\n"
-        "Space select | c copy | x cut | v paste | d trash | D permanent | "
-        "r rename | z undo\n"
-        ". hidden | N new-dir | : palette"
+        "c Copy | x Cut | space Select\n"
+        "[ ] Focus | y Copy pane | m Move pane | q Quit | : More"
     )
 
     async with app.run_test() as pilot:

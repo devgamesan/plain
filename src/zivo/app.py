@@ -603,6 +603,14 @@ class zivoApp(App[None]):
 
         await self.dispatch_actions((ActivateTabByIndex(index=message.tab_index),))
 
+    async def on_help_bar_action_clicked(self, message: HelpBar.ActionClicked) -> None:
+        """Route HelpBar clicks through the central keyboard dispatcher."""
+
+        key = message.action.dispatch_key or message.action.key
+        actions = dispatch_key_input(self._app_state, key=key)
+        if actions:
+            await self.dispatch_actions(actions)
+
     async def on_current_path_bar_path_segment_clicked(
         self,
         message: CurrentPathBar.PathSegmentClicked,

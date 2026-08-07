@@ -11,8 +11,11 @@ from zivo.models import (
     CurrentPaneRowUpdate,
     CurrentPaneSizeUpdate,
     CurrentSummaryState,
+    HelpBarAction,
+    HelpBarState,
     PaneEntry,
 )
+from zivo.ui.help_bar import HelpBar
 from zivo.ui.pane_rendering import _FileEntryLabelCache
 from zivo.ui.panes import (
     ChildPane,
@@ -63,6 +66,34 @@ def test_truncate_middle_preserves_file_extension_when_possible() -> None:
 def test_truncate_middle_handles_extremely_narrow_widths() -> None:
     assert truncate_middle("README.md", 1) == "~"
     assert truncate_middle("README.md", 2) == "~d"
+
+
+def test_help_bar_keeps_more_as_the_last_action_when_width_is_limited() -> None:
+    actions = (
+        HelpBarAction("open", "Open", "enter"),
+        HelpBarAction("edit", "Edit", "e"),
+        HelpBarAction("select", "Select", "space"),
+        HelpBarAction("filter", "Filter", "/"),
+        HelpBarAction("sort", "Sort", "s"),
+        HelpBarAction("command_palette", "More", ":"),
+    )
+
+    fitted = HelpBar._fit_actions(actions, 35)
+
+    assert len(fitted) <= 5
+    assert fitted[-1].action_id == "command_palette"
+    assert [action.action_id for action in fitted] == ["open", "edit", "command_palette"]
+
+
+def test_help_bar_state_text_uses_action_labels() -> None:
+    state = HelpBarState(
+        actions=(
+            HelpBarAction("open", "Open", "enter"),
+            HelpBarAction("command_palette", "More", ":"),
+        )
+    )
+
+    assert state.text == "enter Open | : More"
 
 
 def test_build_entry_label_truncates_full_name_detail_string() -> None:

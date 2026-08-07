@@ -173,15 +173,41 @@ class TabBarState:
 
 
 @dataclass(frozen=True)
-class HelpBarState:
-    """Compact help summary rendered above the status bar."""
+class HelpBarAction:
+    """A contextual action displayed in the help bar."""
 
-    lines: tuple[str, ...]
+    action_id: str
+    label: str
+    key: str
+    priority: int = 0
+    dispatch_key: str | None = None
+
+    @property
+    def text(self) -> str:
+        """Return the compact key/label representation."""
+
+        return f"{self.key} {self.label}"
+
+
+@dataclass(frozen=True)
+class HelpBarState:
+    """Contextual and discovery actions rendered above the status bar."""
+
+    lines: tuple[str, ...] = ()
+    actions: tuple[HelpBarAction, ...] = ()
+    discovery_actions: tuple[HelpBarAction, ...] = ()
 
     @property
     def text(self) -> str:
         """Return the rendered help content."""
 
+        if self.actions or self.discovery_actions:
+            rows: tuple[str, ...] = ()
+            if self.actions:
+                rows += (" | ".join(action.text for action in self.actions),)
+            if self.discovery_actions:
+                rows += (" | ".join(action.text for action in self.discovery_actions),)
+            return "\n".join(rows)
         return "\n".join(self.lines)
 
 

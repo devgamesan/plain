@@ -128,7 +128,7 @@ Choose the terminal action by task: press `!` for a short non-interactive comman
 | `Enter` | Open selected result |
 | `Ctrl+e` | Edit selected result with terminal editor |
 | `Ctrl+o` | Edit selected result with GUI editor |
-| `Ctrl+x` | Export grep results to file (Single Line / Context / JSON) |
+| `Ctrl+x` | Save grep results to `grep_results.txt` in the current directory, including the configured context lines. |
 | `Esc` | Close search |
 
 **Note**: In search results mode, use arrow keys or `Ctrl+j`/`Ctrl+k` to navigate. `j`/`k` keys are used for typing the search query.

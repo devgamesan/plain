@@ -178,41 +178,6 @@ Screen {
     align-horizontal: center;
 }
 
-#grep-export-dialog-layer {
-    align-horizontal: center;
-}
-
-#grep-export-dialog {
-    display: none;
-    height: auto;
-    min-height: 6;
-    margin: 0 2;
-    padding: 1 2;
-    border: round $accent;
-    background: $surface;
-}
-
-#grep-export-dialog-title {
-    text-style: bold;
-    color: $accent;
-}
-
-#grep-export-dialog-filename {
-    margin: 1 0;
-}
-
-#grep-export-dialog-format {
-    margin: 0 0 1 0;
-    color: $text;
-}
-
-#grep-export-dialog-options {
-    padding: 0 1;
-    background: $boost;
-    color: $text-muted;
-    text-style: bold;
-}
-
 .dialog-layer {
     align: center middle;
 }

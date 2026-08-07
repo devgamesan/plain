@@ -8,8 +8,6 @@ from zivo.models.shell_command import ShellCommandResult
 EntryKind = Literal["dir", "file"]
 NotificationLevel = Literal["info", "warning", "error"]
 PreviewKind = Literal["text", "image"]
-GrepExportFormat = Literal["single_line", "context", "json"]
-GrepExportFormat = Literal["single_line", "context", "json"]
 
 
 @dataclass(frozen=True)
@@ -238,17 +236,6 @@ class ShellCommandDialogState:
 
 
 @dataclass(frozen=True)
-class GrepExportDialogViewState:
-    """Display data for the grep export dialog overlay."""
-
-    filename: str
-    format: GrepExportFormat
-    context_lines: int
-    cursor_pos: int
-    options: tuple[str, ...]
-
-
-@dataclass(frozen=True)
 class InputDialogState:
     """Display data for the rename/create input dialog overlay."""
 
@@ -282,7 +269,6 @@ class ThreePaneShellData:
     config_dialog: ConfigDialogState | None = None
     shell_command_dialog: ShellCommandDialogState | None = None
     input_dialog: InputDialogState | None = None
-    grep_export_dialog: GrepExportDialogViewState | None = None
     layout_mode: Literal["browser", "transfer"] = "browser"
     transfer_left: TransferPaneViewState | None = None
     transfer_right: TransferPaneViewState | None = None

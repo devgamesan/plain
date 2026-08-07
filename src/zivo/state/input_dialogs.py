@@ -6,7 +6,6 @@ from .actions import (
     CancelDeleteConfirmation,
     CancelExitConfirmation,
     CancelFilterInput,
-    CancelGrepExport,
     CancelPasteConflict,
     CancelPendingInput,
     CancelReplaceConfirmation,
@@ -35,13 +34,10 @@ from .actions import (
     ResolvePasteConflict,
     SaveConfigEditor,
     SetFilterQuery,
-    SetGrepExportFilename,
-    SetGrepExportFormat,
     SetPendingInputCursor,
     SetPendingInputValue,
     SetShellCommandCursor,
     SetShellCommandValue,
-    SubmitGrepExport,
     SubmitPendingInput,
     SubmitShellCommand,
     TogglePendingInputRecursive,
@@ -320,70 +316,4 @@ def dispatch_config_input(
     return warn(
         "Use ↑↓ or Ctrl+j/k to choose, ←→ or Enter to change, "
         "s to save, e to edit the file, or Esc to close"
-    )
-
-
-def dispatch_grep_export_input(
-    state: AppState,
-    *,
-    key: str,
-    character: str | None,
-) -> DispatchedActions:
-    if state.grep_export_dialog is None:
-        return supported(CancelGrepExport())
-
-    if key == "escape":
-        return supported(CancelGrepExport())
-
-    if key == "enter":
-        return supported(SubmitGrepExport())
-
-    if key == "f":
-        current = state.grep_export_dialog.format
-        next_format = {"single_line": "context", "context": "json", "json": "single_line"}[current]
-        return supported(SetGrepExportFormat(next_format))  # type: ignore[arg-type]
-
-    if key == "backspace":
-        dialog = state.grep_export_dialog
-        if dialog.cursor_pos == 0:
-            return supported()
-        pos = dialog.cursor_pos
-        new_value = dialog.filename[: pos - 1] + dialog.filename[pos:]
-        return supported(SetGrepExportFilename(new_value, pos - 1))
-
-    if key == "delete":
-        dialog = state.grep_export_dialog
-        pos = dialog.cursor_pos
-        if pos >= len(dialog.filename):
-            return supported()
-        new_value = dialog.filename[:pos] + dialog.filename[pos + 1 :]
-        return supported(SetGrepExportFilename(new_value, pos))
-
-    if key == "left":
-        dialog = state.grep_export_dialog
-        if dialog.cursor_pos > 0:
-            return supported(SetGrepExportFilename(dialog.filename, dialog.cursor_pos - 1))
-        return supported()
-
-    if key == "right":
-        dialog = state.grep_export_dialog
-        if dialog.cursor_pos < len(dialog.filename):
-            return supported(SetGrepExportFilename(dialog.filename, dialog.cursor_pos + 1))
-        return supported()
-
-    if key == "home":
-        return supported(SetGrepExportFilename(state.grep_export_dialog.filename, 0))
-
-    if key == "end":
-        end_pos = len(state.grep_export_dialog.filename)
-        return supported(SetGrepExportFilename(state.grep_export_dialog.filename, end_pos))
-
-    if character and character.isprintable():
-        dialog = state.grep_export_dialog
-        pos = dialog.cursor_pos
-        new_value = dialog.filename[:pos] + character + dialog.filename[pos:]
-        return supported(SetGrepExportFilename(new_value, pos + 1))
-
-    return warn(
-        "Type filename, [f] Format, [Enter] Export, [Esc] Cancel"
     )

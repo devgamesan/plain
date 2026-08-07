@@ -183,14 +183,12 @@ from .actions_palette import (
     BeginFileSearch,
     BeginFindAndReplace,
     BeginGoToPath,
-    BeginGrepExport,
     BeginGrepReplace,
     BeginGrepReplaceSelected,
     BeginGrepSearch,
     BeginHistorySearch,
     BeginTextReplace,
     CancelCommandPalette,
-    CancelGrepExport,
     CycleFileSearchField,
     CycleFindReplaceField,
     CycleGrepReplaceField,
@@ -209,11 +207,10 @@ from .actions_palette import (
     OpenGrepResultInEditor,
     OpenGrepResultInGuiEditor,
     OpenSearchWorkspace,
+    SaveGrepResults,
     SetCommandPaletteQuery,
     SetFileSearchTarget,
     SetFindReplaceField,
-    SetGrepExportFilename,
-    SetGrepExportFormat,
     SetGrepReplaceField,
     SetGrepReplaceSelectedField,
     SetGrepSearchField,
@@ -221,7 +218,6 @@ from .actions_palette import (
     SetReplaceField,
     SetReplaceScope,
     SubmitCommandPalette,
-    SubmitGrepExport,
     TextReplaceApplied,
     TextReplaceApplyFailed,
     TextReplacePreviewCompleted,
@@ -287,11 +283,7 @@ Action = (
     | SetTerminalHeight
     | BeginFileSearch
     | BeginGrepSearch
-    | BeginGrepExport
-    | CancelGrepExport
-    | SetGrepExportFormat
-    | SetGrepExportFilename
-    | SubmitGrepExport
+    | SaveGrepResults
     | GrepExportCompleted
     | GrepExportFailed
     | BeginHistorySearch

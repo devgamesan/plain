@@ -9,7 +9,6 @@ from zivo.models import (
     CommandPaletteViewState,
     ConfigDialogState,
     ConflictDialogState,
-    GrepExportDialogViewState,
     HelpBarState,
     InputBarState,
     InputDialogState,
@@ -213,21 +212,6 @@ def select_input_bar_state(state: AppState) -> InputBarState | None:
         )
 
     return None
-
-
-def select_grep_export_dialog_state(state: AppState) -> GrepExportDialogViewState | None:
-    """Return dialog content when the app is in grep export mode."""
-
-    if state.ui_mode != "GREP_EXPORT" or state.grep_export_dialog is None:
-        return None
-    dialog = state.grep_export_dialog
-    return GrepExportDialogViewState(
-        filename=dialog.filename,
-        format=dialog.format,
-        context_lines=dialog.context_lines,
-        cursor_pos=dialog.cursor_pos,
-        options=("[f] Format", "[Enter] Export", "[Esc] Cancel"),
-    )
 
 
 def select_input_dialog_state(state: AppState) -> InputDialogState | None:

@@ -5,7 +5,6 @@ from .command_palette import CommandPalette
 from .config_dialog import ConfigDialog
 from .conflict_dialog import ConflictDialog
 from .current_path_bar import CurrentPathBar
-from .grep_export_dialog import GrepExportDialog
 from .help_bar import HelpBar
 from .input_bar import InputBar
 from .input_dialog import InputDialog
@@ -21,7 +20,6 @@ __all__ = [
     "ConfigDialog",
     "ConflictDialog",
     "CurrentPathBar",
-    "GrepExportDialog",
     "ChildPane",
     "HelpBar",
     "InputBar",

@@ -22,6 +22,7 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 | `Toggle transfer mode` / `Close transfer mode` | 常に表示 | 通常の 3 ペインブラウザと 2 ペイン転送レイアウトを切り替えます。 |
 | `Undo last file operation` | Undo 履歴があるとき | 直前の Undo 対象リネーム、貼り付け、ゴミ箱移動を取り消します。 |
 | `Select all` | 現在ディレクトリに表示中の項目が 1 件以上あるとき | 現在ディレクトリで表示中の項目をすべて選択します。 |
+| `Save results` | grep 検索結果を表示中 | 現在の grep 結果を現在のディレクトリの `grep_results.txt` へ保存します。設定済みの grep プレビュー context 行を含み、既存ファイルは変更しません。 |
 | `Replace text` | 常に表示 | Scope を選べる単一の置換パレットを開きます。初期 Scope は選択状態に応じて Selected files、Current file、Current directory になります。Current file、Selected files、Current directory、Found files、Grep result files を選択でき、利用できない Scope は理由を表示します。Find/Replace は常に表示し、再帰検索する Scope では filename と拡張子フィルターも表示します。右ペインに diff をプレビューしてから確認・適用します。 |
 | `Show attributes` | 単一対象が選択中またはフォーカス中のとき | 読み取り専用の属性ダイアログを開きます。 |
 | `Rename` | 単一対象が選択中またはフォーカス中のとき | 単一対象のリネーム入力を開始します。 |

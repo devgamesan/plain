@@ -7,7 +7,6 @@ from zivo.models import TextReplacePreviewResult, TextReplaceResult
 from .models import (
     FileSearchResultState,
     FindReplaceFieldId,
-    GrepExportFormat,
     GrepReplaceFieldId,
     GrepReplaceSelectedFieldId,
     GrepSearchFieldId,
@@ -289,33 +288,8 @@ class OpenSearchWorkspace:
 
 
 @dataclass(frozen=True)
-class BeginGrepExport:
-    """Open the grep export dialog."""
-
-
-@dataclass(frozen=True)
-class CancelGrepExport:
-    """Close the grep export dialog."""
-
-
-@dataclass(frozen=True)
-class SetGrepExportFormat:
-    """Change the grep export format."""
-
-    format: GrepExportFormat
-
-
-@dataclass(frozen=True)
-class SetGrepExportFilename:
-    """Set the export filename."""
-
-    filename: str
-    cursor_pos: int
-
-
-@dataclass(frozen=True)
-class SubmitGrepExport:
-    """Execute the grep export."""
+class SaveGrepResults:
+    """Save the current grep results to the default text file."""
 
 
 @dataclass(frozen=True)

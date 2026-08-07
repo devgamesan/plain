@@ -15,7 +15,6 @@ from zivo.ui import (
     ConfigDialog,
     ConflictDialog,
     CurrentPathBar,
-    GrepExportDialog,
     HelpBar,
     InputDialog,
     MainPane,
@@ -124,13 +123,11 @@ async def refresh_shell(
         config_dialog_layer = app.query_one("#config-dialog-layer", Container)
         shell_command_dialog_layer = app.query_one("#shell-command-dialog-layer", Container)
         input_dialog_layer = app.query_one("#input-dialog-layer", Container)
-        grep_export_dialog_layer = app.query_one("#grep-export-dialog-layer", Container)
         conflict_dialog = app.query_one("#conflict-dialog", ConflictDialog)
         attribute_dialog = app.query_one("#attribute-dialog", AttributeDialog)
         config_dialog = app.query_one("#config-dialog", ConfigDialog)
         shell_command_dialog = app.query_one("#shell-command-dialog", ShellCommandDialog)
         input_dialog = app.query_one("#input-dialog", InputDialog)
-        grep_export_dialog = app.query_one("#grep-export-dialog", GrepExportDialog)
     except NoMatches:
         selectors = (
             "#current-path-bar",
@@ -298,8 +295,6 @@ async def refresh_shell(
     shell_command_dialog.set_state(shell.shell_command_dialog)
     input_dialog_layer.display = shell.input_dialog is not None
     input_dialog.set_state(shell.input_dialog)
-    grep_export_dialog_layer.display = shell.grep_export_dialog is not None
-    grep_export_dialog.set_state(shell.grep_export_dialog)
 
     if app_state.ui_mode == "BROWSING":
         if app_state.layout_mode == "transfer" and app_state.active_transfer_pane == "right":

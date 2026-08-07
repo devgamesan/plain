@@ -22,7 +22,7 @@ from zivo.models import (
 )
 from zivo.models.config import ImagePreviewMode
 
-from .models import AppState, GrepExportFormat, GrepSearchResultState, PaneState, TransferPaneId
+from .models import AppState, GrepSearchResultState, PaneState, TransferPaneId
 
 
 @dataclass(frozen=True)
@@ -254,10 +254,8 @@ class RunGrepExportEffect:
 
     request_id: int
     output_path: str
-    format: GrepExportFormat
     context_lines: int
     results: tuple[GrepSearchResultState, ...]
-    search_query: str = ""
 
 
 @dataclass(frozen=True)

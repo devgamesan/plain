@@ -7,12 +7,13 @@ from zivo.models import TextReplacePreviewResult, TextReplaceResult
 from .models import (
     FileSearchResultState,
     FindReplaceFieldId,
-    GrepExportFormat,
     GrepReplaceFieldId,
     GrepReplaceSelectedFieldId,
     GrepSearchFieldId,
     GrepSearchResultState,
+    GrepSearchScope,
     ReplaceFieldId,
+    ReplaceScope,
 )
 
 
@@ -24,6 +25,9 @@ class BeginFileSearch:
 @dataclass(frozen=True)
 class BeginGrepSearch:
     """Open the command palette in grep search mode."""
+
+    scope: GrepSearchScope | None = None
+    target_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -43,47 +47,40 @@ class BeginGoToPath:
 
 @dataclass(frozen=True)
 class BeginTextReplace:
-    """Open the command palette in text-replace mode for selected files."""
+    """Open the command palette in the unified text-replace mode."""
 
-    target_paths: tuple[str, ...]
+    target_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
 class BeginFindAndReplace:
-    """Open the command palette in find-and-replace mode."""
+    """Legacy action retained while callers migrate to BeginTextReplace."""
 
 
 @dataclass(frozen=True)
 class BeginGrepReplace:
-    """Open the command palette in grep-and-replace mode."""
+    """Legacy action retained while callers migrate to BeginTextReplace."""
 
 
 @dataclass(frozen=True)
 class BeginGrepReplaceSelected:
-    """Open the command palette in grep-and-replace-selected mode."""
+    """Legacy action retained while callers migrate to BeginTextReplace."""
 
     target_paths: tuple[str, ...]
 
 
 @dataclass(frozen=True)
-class BeginSelectedFilesGrep:
-    """Open the command palette in selected-files-grep mode."""
+class SetGrepSearchScope:
+    """Change the scope of the shared content search."""
 
-    target_paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class SelectedFilesGrepKeywordChanged:
-    """Update the keyword for selected-files-grep."""
-
-    keyword: str
+    scope: GrepSearchScope
 
 
 @dataclass(frozen=True)
-class CycleSelectedFilesGrepField:
-    """Cycle between fields in selected-files-grep."""
+class SetReplaceScope:
+    """Change the target scope of the unified text replacement flow."""
 
-    delta: int
+    scope: ReplaceScope
 
 
 @dataclass(frozen=True)
@@ -156,47 +153,37 @@ class CycleReplaceField:
 
 @dataclass(frozen=True)
 class SetFindReplaceField:
-    """Update one find-and-replace input field."""
-
     field: FindReplaceFieldId
     value: str
 
 
 @dataclass(frozen=True)
 class CycleFindReplaceField:
-    """Move focus between find-and-replace input fields."""
-
     delta: int
 
 
 @dataclass(frozen=True)
 class SetGrepReplaceField:
-    """Update one grep-and-replace input field."""
-
     field: GrepReplaceFieldId
     value: str
 
 
 @dataclass(frozen=True)
 class CycleGrepReplaceField:
-    """Move focus between grep-and-replace input fields."""
-
     delta: int
 
 
 @dataclass(frozen=True)
 class SetGrepReplaceSelectedField:
-    """Update one grep-replace-selected input field."""
-
     field: GrepReplaceSelectedFieldId
     value: str
 
 
 @dataclass(frozen=True)
 class CycleGrepReplaceSelectedField:
-    """Move focus between grep-replace-selected input fields."""
-
     delta: int
+
+
 
 
 @dataclass(frozen=True)
@@ -301,33 +288,8 @@ class OpenSearchWorkspace:
 
 
 @dataclass(frozen=True)
-class BeginGrepExport:
-    """Open the grep export dialog."""
-
-
-@dataclass(frozen=True)
-class CancelGrepExport:
-    """Close the grep export dialog."""
-
-
-@dataclass(frozen=True)
-class SetGrepExportFormat:
-    """Change the grep export format."""
-
-    format: GrepExportFormat
-
-
-@dataclass(frozen=True)
-class SetGrepExportFilename:
-    """Set the export filename."""
-
-    filename: str
-    cursor_pos: int
-
-
-@dataclass(frozen=True)
-class SubmitGrepExport:
-    """Execute the grep export."""
+class SaveGrepResults:
+    """Save the current grep results to the default text file."""
 
 
 @dataclass(frozen=True)

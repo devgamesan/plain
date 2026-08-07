@@ -82,23 +82,13 @@ class ConfirmDeleteTargets:
 
 
 @dataclass(frozen=True)
+class AdvancePermanentDeleteConfirmation:
+    """Arm the explicit second step for risky permanent deletion."""
+
+
+@dataclass(frozen=True)
 class CancelDeleteConfirmation:
     """Dismiss the pending delete confirmation dialog."""
-
-
-@dataclass(frozen=True)
-class BeginEmptyTrash:
-    """Begin the empty trash operation with confirmation."""
-
-
-@dataclass(frozen=True)
-class ConfirmEmptyTrash:
-    """Confirm the empty trash request."""
-
-
-@dataclass(frozen=True)
-class CancelEmptyTrashConfirmation:
-    """Dismiss the pending empty trash confirmation dialog."""
 
 
 @dataclass(frozen=True)

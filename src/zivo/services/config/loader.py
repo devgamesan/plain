@@ -17,7 +17,6 @@ from zivo.models import (
     EditorConfig,
     FileSearchConfig,
     GuiEditorConfig,
-    HelpBarConfig,
     LoggingConfig,
     TerminalConfig,
 )
@@ -31,7 +30,6 @@ from .path import ConfigPathResolver, resolve_config_path
 from .render import render_default_config
 from .schema import read_bool, read_enum, read_int, validate_section_dict
 from .shared import (
-    HELP_BAR_FIELDS,
     VALID_CUSTOM_ACTION_MODES,
     VALID_CUSTOM_ACTION_WHEN,
     VALID_IMAGE_PREVIEW_MODES,
@@ -88,8 +86,7 @@ class AppConfigLoader:
                 warnings=("Config root must be a TOML table; using defaults.",),
             )
 
-        return ConfigLoadResult(
-            config=AppConfig(
+        config = AppConfig(
                 terminal=load_terminal_config(document.get("terminal"), warnings),
                 editor=load_editor_config(document.get("editor"), warnings),
                 gui_editor=load_gui_editor_config(document.get("gui_editor"), warnings),
@@ -97,10 +94,13 @@ class AppConfigLoader:
                 behavior=load_behavior_config(document.get("behavior"), warnings),
                 logging=load_logging_config(document.get("logging"), warnings),
                 bookmarks=load_bookmark_config(document.get("bookmarks"), warnings),
-                help_bar=load_help_bar_config(document.get("help_bar"), warnings),
                 file_search=load_file_search_config(document.get("file_search"), warnings),
                 actions=load_actions_config(document.get("actions"), warnings),
-            ),
+            )
+        if "help_bar" in document:
+            warnings.append("[help_bar] is no longer supported and has been ignored.")
+        return ConfigLoadResult(
+            config=config,
             path=str(path),
             warnings=tuple(warnings),
         )
@@ -391,41 +391,6 @@ def load_bookmark_config(section: object, warnings: list[str]) -> BookmarkConfig
         paths.append(str(expanded.resolve(strict=False)))
 
     return BookmarkConfig(paths=tuple(dict.fromkeys(paths)))
-
-
-def load_help_bar_config(section: object, warnings: list[str]) -> HelpBarConfig:
-    validated = validate_section_dict(section, "help_bar", warnings)
-    if validated is None:
-        return HelpBarConfig()
-
-    values = {
-        field: load_help_lines(validated, field, warnings) for field in HELP_BAR_FIELDS
-    }
-    return HelpBarConfig(**values)
-
-
-def load_help_lines(
-    section: dict[str, object],
-    key: str,
-    warnings: list[str],
-) -> tuple[str, ...]:
-    raw_value = section.get(key)
-    if raw_value is None:
-        return ()
-    if not isinstance(raw_value, list):
-        warnings.append(f"help_bar.{key} must be an array of strings; ignoring it.")
-        return ()
-
-    lines: list[str] = []
-    for index, item in enumerate(raw_value):
-        field_name = f"help_bar.{key}[{index}]"
-        if not isinstance(item, str):
-            warnings.append(f"{field_name} must be a string; ignoring it.")
-            continue
-        if item.strip():
-            lines.append(item.strip())
-
-    return tuple(lines)
 
 
 def load_file_search_config(section: object, warnings: list[str]) -> FileSearchConfig:

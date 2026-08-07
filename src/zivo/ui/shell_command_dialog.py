@@ -23,6 +23,7 @@ class ShellCommandDialog(Container):
     def compose(self):
         yield Static("", id="shell-command-dialog-title")
         yield Static("", id="shell-command-dialog-cwd")
+        yield Static("", id="shell-command-dialog-guidance")
         yield Static("", id="shell-command-dialog-input")
         yield Static("", id="shell-command-dialog-result")
         yield Static("", id="shell-command-dialog-options")
@@ -38,6 +39,7 @@ class ShellCommandDialog(Container):
         if state is None:
             self.query_one("#shell-command-dialog-title", Static).update("")
             self.query_one("#shell-command-dialog-cwd", Static).update("")
+            self.query_one("#shell-command-dialog-guidance", Static).update("")
             self.query_one("#shell-command-dialog-input", Static).update("")
             self.query_one("#shell-command-dialog-result", Static).update("")
             self.query_one("#shell-command-dialog-options", Static).update("")
@@ -45,6 +47,7 @@ class ShellCommandDialog(Container):
 
         self.query_one("#shell-command-dialog-title", Static).update(state.title)
         self.query_one("#shell-command-dialog-cwd", Static).update(f"Directory: {state.cwd}")
+        self.query_one("#shell-command-dialog-guidance", Static).update(state.guidance or "")
         self.query_one("#shell-command-dialog-input", Static).update(
             self._render_input(state.prompt, state.command, state.cursor_pos)
         )

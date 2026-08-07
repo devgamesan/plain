@@ -22,7 +22,13 @@ from .models import (
 from .reducer_common import ReducerFn, finalize, is_regex_file_search_query
 from .selectors import select_visible_current_entry_states
 
-GREP_SEARCH_FIELDS: tuple[GrepSearchFieldId, ...] = ("keyword", "filename", "include", "exclude")
+GREP_SEARCH_FIELDS: tuple[GrepSearchFieldId, ...] = (
+    "keyword",
+    "scope",
+    "filename",
+    "include",
+    "exclude",
+)
 REPLACE_FIELDS: tuple[ReplaceFieldId, ...] = ("find", "replace")
 FIND_REPLACE_FIELDS: tuple[FindReplaceFieldId, ...] = ("filename", "find", "replace")
 GREP_REPLACE_FIELDS: tuple[GrepReplaceFieldId, ...] = (

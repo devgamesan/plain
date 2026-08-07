@@ -6,6 +6,7 @@ from pathlib import Path
 
 from zivo.models import (
     ChmodRequest,
+    ChownRequest,
     CreatePathRequest,
     CreateSymlinkRequest,
     CreateZipArchiveRequest,
@@ -15,6 +16,8 @@ from zivo.models import (
     FileMutationResult,
     PasteRequest,
     PasteSummary,
+    RecursiveChmodRequest,
+    RecursiveChownRequest,
     RenameRequest,
     UndoEntry,
 )
@@ -32,6 +35,7 @@ from .effects import (
     RunArchiveExtractEffect,
     RunArchivePreparationEffect,
     RunClipboardPasteEffect,
+    RunDeletePreparationEffect,
     RunExternalLaunchEffect,
     RunFileMutationEffect,
     RunUndoEffect,
@@ -42,7 +46,14 @@ from .models import HistoryState, NotificationState, resolve_parent_directory_pa
 
 ReducerFn = Callable[[object, Action], ReduceResult]
 FileMutationRequest = (
-    RenameRequest | CreatePathRequest | CreateSymlinkRequest | DeleteRequest | ChmodRequest
+    RenameRequest
+    | CreatePathRequest
+    | CreateSymlinkRequest
+    | DeleteRequest
+    | ChmodRequest
+    | RecursiveChmodRequest
+    | ChownRequest
+    | RecursiveChownRequest
 )
 
 
@@ -100,6 +111,22 @@ def run_file_mutation_request(
     return ReduceResult(
         state=next_state,
         effects=(RunFileMutationEffect(request_id=request_id, request=request),),
+    )
+
+
+def run_delete_prepare_request(state, request: DeleteRequest) -> ReduceResult:
+    request_id = state.next_request_id
+    next_state = replace(
+        state,
+        notification=NotificationState(level="info", message="Inspecting delete targets"),
+        delete_confirmation=None,
+        pending_delete_prepare_request_id=request_id,
+        next_request_id=request_id + 1,
+        ui_mode="BUSY",
+    )
+    return ReduceResult(
+        state=next_state,
+        effects=(RunDeletePreparationEffect(request_id=request_id, request=request),),
     )
 
 

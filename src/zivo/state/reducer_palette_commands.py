@@ -19,20 +19,13 @@ from .actions import (
     BeginCreateInput,
     BeginCustomActionConfirmation,
     BeginDeleteTargets,
-    BeginEmptyTrash,
     BeginExitCurrentPath,
     BeginExtractArchiveInput,
     BeginFileSearch,
-    BeginFindAndReplace,
     BeginGoToPath,
-    BeginGrepReplace,
-    BeginGrepReplaceSelected,
     BeginGrepSearch,
     BeginHistorySearch,
-    BeginRecursiveChmodInput,
-    BeginRecursiveChownInput,
     BeginRenameInput,
-    BeginSelectedFilesGrep,
     BeginShellCommandInput,
     BeginSymlinkInput,
     BeginTextReplace,
@@ -208,25 +201,8 @@ def _run_replace_text_command(
     next_state: AppState,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
-    target_paths = selected_current_file_paths(state)
-    if not target_paths:
-        return notify(
-            next_state,
-            level="warning",
-            message=(
-                "Replace text requires a selected file or file selection "
-                "in the current directory"
-            ),
-        )
-    return reduce_state(next_state, BeginTextReplace(target_paths=target_paths))
-
-
-def _run_find_and_replace_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
-    return reduce_state(state, BeginFindAndReplace())
-
-
-def _run_grep_replace_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
-    return reduce_state(state, BeginGrepReplace())
+    del state
+    return reduce_state(next_state, BeginTextReplace())
 
 
 def handle_show_attributes_command(state: AppState) -> ReduceResult:
@@ -299,25 +275,6 @@ def _run_change_permissions_command(
     return reduce_state(next_state, BeginChmodInput(paths=target_paths))
 
 
-def _run_change_permissions_recursively_command(
-    state: AppState,
-    next_state: AppState,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    target_paths = (
-        _transfer_target_paths(state)
-        if state.layout_mode == "transfer"
-        else select_target_paths(state)
-    )
-    if not target_paths:
-        return notify(
-            next_state,
-            level="warning",
-            message="Change permissions recursively requires at least one target",
-        )
-    return reduce_state(next_state, BeginRecursiveChmodInput(paths=target_paths))
-
-
 def _run_change_owner_command(
     state: AppState,
     next_state: AppState,
@@ -337,26 +294,20 @@ def _run_change_owner_command(
     return reduce_state(next_state, BeginChownInput(paths=target_paths))
 
 
-def _run_change_owner_recursively_command(
+def _run_open_command(
     state: AppState,
     next_state: AppState,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
-    target_paths = (
-        _transfer_target_paths(state)
-        if state.layout_mode == "transfer"
-        else select_target_paths(state)
-    )
-    if not target_paths:
-        return notify(
-            next_state,
-            level="warning",
-            message="Change owner recursively requires at least one target",
-        )
-    return reduce_state(next_state, BeginRecursiveChownInput(paths=target_paths))
+    entry = single_target_entry(state)
+    if entry is None:
+        return notify(next_state, level="warning", message="Open requires a single target")
+    if entry.kind != "file":
+        return notify(next_state, level="warning", message="Can only open files")
+    return reduce_state(next_state, OpenPathWithDefaultApp(path=entry.path))
 
 
-def _run_open_in_editor_command(
+def _run_edit_with_terminal_editor_command(
     state: AppState,
     next_state: AppState,
     reduce_state: ReducerFn,
@@ -366,14 +317,14 @@ def _run_open_in_editor_command(
         return notify(
             next_state,
             level="warning",
-            message="Open in editor requires a single target",
+            message="Edit with terminal editor requires a single target",
         )
     if entry.kind != "file":
-        return notify(next_state, level="warning", message="Can only open files in editor")
+        return notify(next_state, level="warning", message="Can only edit files")
     return reduce_state(next_state, OpenPathInEditor(path=entry.path))
 
 
-def _run_open_in_gui_editor_command(
+def _run_edit_with_gui_editor_command(
     state: AppState,
     next_state: AppState,
     reduce_state: ReducerFn,
@@ -383,18 +334,11 @@ def _run_open_in_gui_editor_command(
         return notify(
             next_state,
             level="warning",
-            message="Open in GUI editor requires a single target",
+            message="Edit with GUI editor requires a single target",
         )
     if entry.kind != "file":
-        return notify(next_state, level="warning", message="Can only open files in GUI editor")
+        return notify(next_state, level="warning", message="Can only edit files")
     return reduce_state(next_state, OpenPathInGuiEditor(path=entry.path))
-
-
-def _run_open_current_directory_in_gui_editor_command(
-    state: AppState,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    return reduce_state(state, OpenPathInGuiEditor(path=state.current_path))
 
 
 def _run_extract_archive_command(
@@ -487,15 +431,15 @@ def _run_paste_clipboard_command(
     return reduce_state(state, PasteClipboard())
 
 
-def _run_empty_trash_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
-    return reduce_state(state, BeginEmptyTrash())
-
-
-def _run_open_file_manager_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
+def _run_open_current_directory_with_file_manager_command(
+    state: AppState, reduce_state: ReducerFn
+) -> ReduceResult:
     return reduce_state(state, OpenPathWithDefaultApp(state.current_path))
 
 
-def _run_open_terminal_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
+def _run_open_current_directory_with_terminal_command(
+    state: AppState, reduce_state: ReducerFn
+) -> ReduceResult:
     return reduce_state(state, OpenTerminalAtPath(state.current_path))
 
 
@@ -551,42 +495,6 @@ def _run_create_symlink_command(
     if target_path is None:
         return notify(next_state, level="warning", message="Select one item to create a symlink")
     return reduce_state(next_state, BeginSymlinkInput(source_path=target_path))
-
-
-def _run_grep_replace_selected_command(
-    state: AppState,
-    next_state: AppState,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    target_paths = selected_current_file_paths(state)
-    if not target_paths:
-        return notify(
-            next_state,
-            level="warning",
-            message=(
-                "Grep replace requires a selected file or file selection "
-                "in the current directory"
-            ),
-        )
-    return reduce_state(next_state, BeginGrepReplaceSelected(target_paths=target_paths))
-
-
-def _run_selected_files_grep_command(
-    state: AppState,
-    next_state: AppState,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    target_paths = selected_current_file_paths(state)
-    if not target_paths:
-        return notify(
-            next_state,
-            level="warning",
-            message=(
-                "Grep in selected files requires a selected file or file selection "
-                "in the current directory"
-            ),
-        )
-    return reduce_state(next_state, BeginSelectedFilesGrep(target_paths=target_paths))
 
 
 def _run_custom_action_command(
@@ -669,14 +577,6 @@ def _run_palette_command_item(
         return _run_select_all_command(next_state, reduce_state)
     if item_id == "replace_text":
         return _run_replace_text_command(state, next_state, reduce_state)
-    if item_id == "replace_in_found_files":
-        return _run_find_and_replace_command(next_state, reduce_state)
-    if item_id == "replace_in_grep_files":
-        return _run_grep_replace_command(next_state, reduce_state)
-    if item_id == "grep_replace_selected":
-        return _run_grep_replace_selected_command(state, next_state, reduce_state)
-    if item_id == "selected_files_grep":
-        return _run_selected_files_grep_command(state, next_state, reduce_state)
     if item_id == "show_about":
         return reduce_state(next_state, ShowAbout())
     if item_id == "show_attributes":
@@ -687,32 +587,26 @@ def _run_palette_command_item(
         return _run_rename_command(state, next_state, reduce_state)
     if item_id == "change_permissions":
         return _run_change_permissions_command(state, next_state, reduce_state)
-    if item_id == "change_permissions_recursively":
-        return _run_change_permissions_recursively_command(state, next_state, reduce_state)
     if item_id == "change_owner":
         return _run_change_owner_command(state, next_state, reduce_state)
-    if item_id == "change_owner_recursively":
-        return _run_change_owner_recursively_command(state, next_state, reduce_state)
     if item_id == "create_symlink":
         return _run_create_symlink_command(state, next_state, reduce_state)
     if item_id == "compress_as_zip":
         return _run_compress_as_zip_command(state, next_state, reduce_state)
     if item_id == "extract_archive":
         return _run_extract_archive_command(state, next_state, reduce_state)
-    if item_id == "open_in_editor":
-        return _run_open_in_editor_command(state, next_state, reduce_state)
-    if item_id == "open_in_gui_editor":
-        return _run_open_in_gui_editor_command(state, next_state, reduce_state)
+    if item_id == "open":
+        return _run_open_command(state, next_state, reduce_state)
+    if item_id == "edit_with_terminal_editor":
+        return _run_edit_with_terminal_editor_command(state, next_state, reduce_state)
+    if item_id == "edit_with_gui_editor":
+        return _run_edit_with_gui_editor_command(state, next_state, reduce_state)
     if item_id == "delete_targets":
         return _run_delete_targets_command(state, next_state, reduce_state)
-    if item_id == "empty_trash":
-        return _run_empty_trash_command(next_state, reduce_state)
-    if item_id == "open_file_manager":
-        return _run_open_file_manager_command(next_state, reduce_state)
-    if item_id == "open_current_directory_in_gui_editor":
-        return _run_open_current_directory_in_gui_editor_command(next_state, reduce_state)
-    if item_id == "open_terminal":
-        return _run_open_terminal_command(next_state, reduce_state)
+    if item_id == "open_current_directory_with_file_manager":
+        return _run_open_current_directory_with_file_manager_command(next_state, reduce_state)
+    if item_id == "open_current_directory_with_terminal":
+        return _run_open_current_directory_with_terminal_command(next_state, reduce_state)
     if item_id == "run_shell_command":
         return _run_shell_command_command(next_state, reduce_state)
     if item_id == "add_bookmark":

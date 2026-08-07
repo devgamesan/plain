@@ -19,9 +19,6 @@ class TrashService:
     def get_trash_path(self) -> str | None:
         """Return the trash directory path or None if not found."""
 
-    def empty_trash(self) -> tuple[int, str]:
-        """Empty trash and return (removed_count, error_message)."""
-
     def capture_restorable_trash(
         self,
         path: str,
@@ -40,40 +37,6 @@ class LinuxTrashService:
     def get_trash_path(self) -> str | None:
         trash_path = self._trash_root()
         return str(trash_path) if trash_path.exists() else None
-
-    def empty_trash(self) -> tuple[int, str]:
-        trash_path = self.get_trash_path()
-        if not trash_path:
-            return 0, "Trash directory not found"
-
-        files_path = Path(trash_path) / "files"
-        if not files_path.exists():
-            return 0, "No items in trash"
-
-        removed_count = 0
-        failures = []
-
-        try:
-            for item in files_path.iterdir():
-                try:
-                    _remove_path(item)
-                    removed_count += 1
-                except OSError as error:
-                    failures.append(f"{item.name}: {error}")
-
-            info_path = Path(trash_path) / "info"
-            if info_path.exists():
-                for metadata_file in info_path.iterdir():
-                    try:
-                        metadata_file.unlink()
-                    except OSError:
-                        pass
-
-            if failures:
-                return removed_count, f"Removed {removed_count} items with {len(failures)} failures"
-            return removed_count, ""
-        except Exception as error:  # pragma: no cover - defensive fallback
-            return 0, f"Failed to empty trash: {error}"
 
     def capture_restorable_trash(
         self,
@@ -148,29 +111,6 @@ class MacOsTrashService:
         trash_path = Path.home() / ".Trash"
         return str(trash_path) if trash_path.exists() else None
 
-    def empty_trash(self) -> tuple[int, str]:
-        trash_dir = Path.home() / ".Trash"
-        if not trash_dir.exists():
-            return 0, ""
-
-        _excluded = {".DS_Store", ".zivo-restore"}
-        items = [item for item in trash_dir.iterdir() if item.name not in _excluded]
-        if not items:
-            return 0, ""
-
-        result = subprocess.run(
-            ["osascript", "-e", 'tell application "Finder" to empty trash'],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            return 0, (
-                "Failed to empty trash. Grant Full Disk Access to your"
-                " terminal in System Settings > Privacy & Security"
-            )
-        return len(items), ""
-
     def capture_restorable_trash(
         self,
         path: str,
@@ -237,17 +177,6 @@ class WindowsTrashService:
 
     def get_trash_path(self) -> str | None:
         return None
-
-    def empty_trash(self) -> tuple[int, str]:
-        result = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-Command", "Clear-RecycleBin -Force"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            return 0, "Failed to empty Recycle Bin"
-        return 1, ""
 
     def capture_restorable_trash(
         self,
@@ -389,9 +318,6 @@ class UnsupportedPlatformTrashService:
     def get_trash_path(self) -> str | None:
         return None
 
-    def empty_trash(self) -> tuple[int, str]:
-        return 0, "Empty trash is not supported on this platform"
-
     def capture_restorable_trash(
         self,
         path: str,
@@ -402,13 +328,6 @@ class UnsupportedPlatformTrashService:
 
     def restore(self, record: TrashRestoreRecord) -> str:
         raise OSError("Trash restore is not supported on this platform")
-
-
-def _remove_path(path: Path) -> None:
-    if path.is_dir() and not path.is_symlink():
-        shutil.rmtree(path)
-        return
-    path.unlink()
 
 
 def _parse_trashinfo_original_path(info_path: Path) -> str | None:

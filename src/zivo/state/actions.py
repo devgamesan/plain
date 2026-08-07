@@ -6,8 +6,6 @@ from .actions_input import (
     BeginCreateInput,
     BeginExtractArchiveInput,
     BeginFilterInput,
-    BeginRecursiveChmodInput,
-    BeginRecursiveChownInput,
     BeginRenameInput,
     BeginShellCommandInput,
     BeginSymlinkInput,
@@ -27,7 +25,6 @@ from .actions_input import (
     MoveShellCommandCursor,
     PasteIntoPendingInput,
     PasteIntoShellCommand,
-    ResetHelpBarConfig,
     SaveConfigEditor,
     SetFilterQuery,
     SetPendingInputCursor,
@@ -36,16 +33,16 @@ from .actions_input import (
     SetShellCommandValue,
     SubmitPendingInput,
     SubmitShellCommand,
+    TogglePendingInputRecursive,
 )
 from .actions_mutations import (
+    AdvancePermanentDeleteConfirmation,
     BeginCustomActionConfirmation,
     BeginDeleteTargets,
-    BeginEmptyTrash,
     BeginExitCurrentPath,
     CancelArchiveExtractConfirmation,
     CancelCustomActionConfirmation,
     CancelDeleteConfirmation,
-    CancelEmptyTrashConfirmation,
     CancelExitConfirmation,
     CancelPasteConflict,
     CancelReplaceConfirmation,
@@ -55,7 +52,6 @@ from .actions_mutations import (
     ConfirmArchiveExtract,
     ConfirmCustomAction,
     ConfirmDeleteTargets,
-    ConfirmEmptyTrash,
     ConfirmExitCurrentPath,
     ConfirmReplaceTargets,
     ConfirmSymlinkOverwrite,
@@ -77,8 +73,6 @@ __all__ = [
     "BeginCreateInput",
     "BeginExtractArchiveInput",
     "BeginFilterInput",
-    "BeginRecursiveChmodInput",
-    "BeginRecursiveChownInput",
     "BeginRenameInput",
     "BeginShellCommandInput",
     "BeginSymlinkInput",
@@ -98,24 +92,23 @@ __all__ = [
     "MoveShellCommandCursor",
     "PasteIntoPendingInput",
     "PasteIntoShellCommand",
-    "ResetHelpBarConfig",
     "SaveConfigEditor",
     "SetFilterQuery",
     "SetPendingInputCursor",
     "SetPendingInputValue",
+    "TogglePendingInputRecursive",
     "SetShellCommandCursor",
     "SetShellCommandValue",
     "SubmitPendingInput",
     "SubmitShellCommand",
     # Mutation actions
+    "AdvancePermanentDeleteConfirmation",
     "BeginDeleteTargets",
-    "BeginEmptyTrash",
     "BeginExitCurrentPath",
     "BeginCustomActionConfirmation",
     "CancelArchiveExtractConfirmation",
     "CancelCustomActionConfirmation",
     "CancelDeleteConfirmation",
-    "CancelEmptyTrashConfirmation",
     "CancelExitConfirmation",
     "CancelPasteConflict",
     "CancelReplaceConfirmation",
@@ -125,7 +118,6 @@ __all__ = [
     "ConfirmArchiveExtract",
     "ConfirmCustomAction",
     "ConfirmDeleteTargets",
-    "ConfirmEmptyTrash",
     "ConfirmExitCurrentPath",
     "ConfirmReplaceTargets",
     "ConfirmSymlinkOverwrite",
@@ -193,22 +185,18 @@ from .actions_palette import (
     BeginFileSearch,
     BeginFindAndReplace,
     BeginGoToPath,
-    BeginGrepExport,
     BeginGrepReplace,
     BeginGrepReplaceSelected,
     BeginGrepSearch,
     BeginHistorySearch,
-    BeginSelectedFilesGrep,
     BeginTextReplace,
     CancelCommandPalette,
-    CancelGrepExport,
     CycleFileSearchField,
     CycleFindReplaceField,
     CycleGrepReplaceField,
     CycleGrepReplaceSelectedField,
     CycleGrepSearchField,
     CycleReplaceField,
-    CycleSelectedFilesGrepField,
     FileSearchCompleted,
     FileSearchFailed,
     GrepExportCompleted,
@@ -221,18 +209,17 @@ from .actions_palette import (
     OpenGrepResultInEditor,
     OpenGrepResultInGuiEditor,
     OpenSearchWorkspace,
-    SelectedFilesGrepKeywordChanged,
+    SaveGrepResults,
     SetCommandPaletteQuery,
     SetFileSearchTarget,
     SetFindReplaceField,
-    SetGrepExportFilename,
-    SetGrepExportFormat,
     SetGrepReplaceField,
     SetGrepReplaceSelectedField,
     SetGrepSearchField,
+    SetGrepSearchScope,
     SetReplaceField,
+    SetReplaceScope,
     SubmitCommandPalette,
-    SubmitGrepExport,
     TextReplaceApplied,
     TextReplaceApplyFailed,
     TextReplacePreviewCompleted,
@@ -258,6 +245,8 @@ from .actions_runtime import (
     CurrentPaneSnapshotLoaded,
     CustomActionCompleted,
     CustomActionFailed,
+    DeletePreparationCompleted,
+    DeletePreparationFailed,
     DirectorySizesFailed,
     DirectorySizesLoaded,
     ExternalLaunchCompleted,
@@ -298,11 +287,7 @@ Action = (
     | SetTerminalHeight
     | BeginFileSearch
     | BeginGrepSearch
-    | BeginGrepExport
-    | CancelGrepExport
-    | SetGrepExportFormat
-    | SetGrepExportFilename
-    | SubmitGrepExport
+    | SaveGrepResults
     | GrepExportCompleted
     | GrepExportFailed
     | BeginHistorySearch
@@ -312,18 +297,17 @@ Action = (
     | BeginFindAndReplace
     | BeginGrepReplace
     | BeginGrepReplaceSelected
-    | BeginSelectedFilesGrep
-    | SelectedFilesGrepKeywordChanged
     | CycleFileSearchField
     | SetFileSearchTarget
-    | CycleSelectedFilesGrepField
     | BeginCommandPalette
     | CancelCommandPalette
     | MoveCommandPaletteCursor
     | SetCommandPaletteQuery
     | SetGrepSearchField
+    | SetGrepSearchScope
     | CycleGrepSearchField
     | SetReplaceField
+    | SetReplaceScope
     | CycleReplaceField
     | SetFindReplaceField
     | CycleFindReplaceField
@@ -349,9 +333,7 @@ Action = (
     | ConfirmFilterInput
     | CancelFilterInput
     | BeginChmodInput
-    | BeginRecursiveChmodInput
     | BeginChownInput
-    | BeginRecursiveChownInput
     | BeginRenameInput
     | BeginCreateInput
     | BeginSymlinkInput
@@ -362,8 +344,8 @@ Action = (
     | MoveConfigEditorCursor
     | CycleConfigEditorValue
     | SaveConfigEditor
-    | ResetHelpBarConfig
     | SetPendingInputValue
+    | TogglePendingInputRecursive
     | MovePendingInputCursor
     | SetPendingInputCursor
     | DeletePendingInputForward
@@ -426,6 +408,7 @@ Action = (
     | TransferMoveToOppositePane
     | PasteClipboardToTransferPane
     | BeginDeleteTargets
+    | AdvancePermanentDeleteConfirmation
     | BeginCustomActionConfirmation
     | ToggleSelection
     | ToggleSelectionAndAdvance
@@ -439,9 +422,6 @@ Action = (
     | CancelPasteConflict
     | ConfirmDeleteTargets
     | CancelDeleteConfirmation
-    | BeginEmptyTrash
-    | ConfirmEmptyTrash
-    | CancelEmptyTrashConfirmation
     | BeginExitCurrentPath
     | ConfirmExitCurrentPath
     | CancelExitConfirmation
@@ -468,6 +448,8 @@ Action = (
     | TransferPaneSnapshotFailed
     | DirectorySizesLoaded
     | DirectorySizesFailed
+    | DeletePreparationCompleted
+    | DeletePreparationFailed
     | ClipboardPasteNeedsResolution
     | ClipboardPasteCompleted
     | ClipboardPasteFailed

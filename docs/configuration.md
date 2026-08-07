@@ -9,6 +9,21 @@ If the file does not exist yet, zivo creates it automatically with default value
 - macOS: `~/Library/Application Support/zivo/config.toml`
 - Windows: `%APPDATA%\\zivo\\config.toml`
 
+## Config Editor scope
+
+The in-app Config Editor is intentionally limited to frequently changed basic settings:
+
+- terminal and GUI editor presets
+- theme and hidden-file visibility
+- text, image, PDF, and Office preview enablement
+- default sort field, direction, and directories-first behavior
+- delete confirmation
+
+Press `e` in Config Editor to open `config.toml` for advanced settings such as
+preview details, terminal templates, paste behavior, logging, file-search limits,
+custom actions, or future settings. Saving basic settings from the UI updates only
+those settings and preserves advanced, unknown, and custom TOML values.
+
 ## Settings Reference
 
 | Section | Key | Values | Description |
@@ -16,9 +31,9 @@ If the file does not exist yet, zivo creates it automatically with default value
 | `terminal` | `linux` | Array of shell-style command templates | Optional terminal launch commands for Linux. Use `{path}` as the working-directory placeholder. Invalid or empty entries are ignored. |
 | `terminal` | `macos` | Array of shell-style command templates | Optional terminal launch commands for macOS, validated the same way as Linux entries. |
 | `terminal` | `windows` | Array of shell-style command templates | Optional terminal launch commands for Windows and WSL bridge workflows. |
-| `editor` | `command` | Shell-style string, for example `nvim -u NONE` | Optional terminal editor command used by `e`. Do not include the file path; zivo appends it automatically. Unsupported GUI editors or invalid commands are ignored. |
-| `gui_editor` | `command` | Shell-style command template | GUI editor command used when line/column information is available. Use `{path}`, `{line}`, and `{column}`. Defaults to `code --goto {path}:{line}:{column}`. The config editor can switch between presets for VS Code, VSCodium, Cursor, Sublime Text, Zed, JetBrains IDEA, PyCharm, WebStorm, and Kate. |
-| `gui_editor` | `fallback_command` | Shell-style command template | GUI editor command used when opening a path without a match location, or when `command` fails. Use `{path}`. Defaults to `code {path}`. Custom raw templates are preserved and shown as custom in the config editor. |
+| `editor` | `command` | Shell-style string, for example `nvim -u NONE` | Optional terminal editor command used by `Edit with terminal editor` (`e`). Do not include the file path; zivo appends it automatically. Unsupported GUI editors or invalid commands are ignored. |
+| `gui_editor` | `command` | Shell-style command template | GUI editor command used by `Edit with GUI editor` when line/column information is available. Use `{path}`, `{line}`, and `{column}`. Defaults to `code --goto {path}:{line}:{column}`. The config editor can switch between presets for VS Code, VSCodium, Cursor, Sublime Text, Zed, JetBrains IDEA, PyCharm, WebStorm, and Kate. |
+| `gui_editor` | `fallback_command` | Shell-style command template | GUI editor command used by `Edit with GUI editor` when opening a path without a match location, or when `command` fails. Use `{path}`. Defaults to `code {path}`. Custom raw templates are preserved and shown as custom in the config editor. Use a custom action for opening the current directory in a GUI editor. |
 | `display` | `show_hidden_files` | `true` / `false` | Default hidden-file visibility when the app starts. |
 | `display` | `show_directory_sizes` | `true` / `false` | Shows recursive directory sizes in the current pane. Defaults to `true`. Large directories can be expensive to scan. zivo also calculates sizes automatically while the main pane is sorted by `size`. |
 | `display` | `enable_text_preview` | `true` / `false` | Shows text-file previews in the right pane. Defaults to `true`. grep result context preview follows the same setting. |
@@ -93,3 +108,4 @@ paths = ["/home/user/src", "/home/user/docs"]
 - When logging is enabled, startup failures and unhandled exceptions are appended to the configured log file for later investigation.
 - The accepted `display.theme` values come from the built-in themes shipped with the installed Textual version.
 - The accepted `display.preview_syntax_theme` values are `auto` plus the Pygments styles available in the installed environment.
+- Help-bar text follows the current UI state and zivo's standard keybindings. The former `[help_bar]` section is ignored for compatibility and is removed when the config is next saved.

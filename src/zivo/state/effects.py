@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from zivo.models import (
     AppConfig,
     ChmodRequest,
+    ChownRequest,
     CreatePathRequest,
     CreateSymlinkRequest,
     CreateZipArchiveRequest,
@@ -14,13 +15,14 @@ from zivo.models import (
     ExtractArchiveRequest,
     PasteRequest,
     RecursiveChmodRequest,
+    RecursiveChownRequest,
     RenameRequest,
     TextReplaceRequest,
     UndoEntry,
 )
 from zivo.models.config import ImagePreviewMode
 
-from .models import AppState, GrepExportFormat, GrepSearchResultState, PaneState, TransferPaneId
+from .models import AppState, GrepSearchResultState, PaneState, TransferPaneId
 
 
 @dataclass(frozen=True)
@@ -127,7 +129,17 @@ class RunFileMutationEffect:
         | DeleteRequest
         | ChmodRequest
         | RecursiveChmodRequest
+        | ChownRequest
+        | RecursiveChownRequest
     )
+
+
+@dataclass(frozen=True)
+class RunDeletePreparationEffect:
+    """Inspect permanent-delete targets before showing confirmation."""
+
+    request_id: int
+    request: DeleteRequest
 
 
 @dataclass(frozen=True)
@@ -219,11 +231,12 @@ class RunTextReplaceApplyEffect:
 
 @dataclass(frozen=True)
 class RunConfigSaveEffect:
-    """Persist the current config editor draft to disk."""
+    """Persist application config to disk."""
 
     request_id: int
     path: str
     config: AppConfig
+    preserve_unmanaged: bool = False
 
 
 @dataclass(frozen=True)
@@ -249,10 +262,8 @@ class RunGrepExportEffect:
 
     request_id: int
     output_path: str
-    format: GrepExportFormat
     context_lines: int
     results: tuple[GrepSearchResultState, ...]
-    search_query: str = ""
 
 
 @dataclass(frozen=True)
@@ -272,6 +283,7 @@ Effect = (
     | RunAttributeInspectionEffect
     | RunClipboardPasteEffect
     | RunFileMutationEffect
+    | RunDeletePreparationEffect
     | RunUndoEffect
     | RunArchivePreparationEffect
     | RunArchiveExtractEffect

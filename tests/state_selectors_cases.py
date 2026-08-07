@@ -1,3 +1,5 @@
+# ruff: noqa: F821
+
 import os
 from dataclasses import replace
 from stat import S_IFREG
@@ -46,7 +48,6 @@ from zivo.state import (
     ReplacePreviewPaletteState,
     ReplacePreviewResultState,
     RffPaletteState,
-    SfgPaletteState,
     ZipCompressConfirmationState,
     build_initial_app_state,
     build_placeholder_app_state,
@@ -71,7 +72,6 @@ from zivo.state.actions import (
     BeginCommandPalette,
     BeginCreateInput,
     BeginFilterInput,
-    BeginSelectedFilesGrep,
     ConfirmFilterInput,
     CutTargets,
     OpenNewTab,
@@ -1300,14 +1300,12 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     split_terminal_hint = " | t term" if os.name == "posix" else ""
 
     assert help_state.lines == (
-        "enter open | e edit | O gui editor | i info | "
-        "/ filter | s sort | . hidden | [ ] bk/fwd | q quit",
+        "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit",
         "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv",
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette",
     )
     assert help_state.text == (
-        "enter open | e edit | O gui editor | i info | "
-        "/ filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
+        "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
         "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv\n"
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
@@ -1336,12 +1334,14 @@ def test_select_help_bar_for_transfer_mode_prioritizes_transfer_actions() -> Non
 
     assert help_state.lines == (
         "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit",
-        "Space select | c copy | x cut | v paste | d delete | r rename | z undo",
+        "Space select | c copy | x cut | v paste | d trash | D permanent | "
+        "r rename | z undo",
         ". hidden | N new-dir | : palette",
     )
     assert help_state.text == (
         "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit\n"
-        "Space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
+        "Space select | c copy | x cut | v paste | d trash | D permanent | "
+        "r rename | z undo\n"
         ". hidden | N new-dir | : palette"
     )
 
@@ -1379,12 +1379,35 @@ def test_select_command_palette_state_marks_selected_and_enabled_items() -> None
     assert palette_state.title.startswith("Command Palette")
     assert [item.label for item in palette_state.items[:2]] == [
         "Find files",
-        "Grep search",
+        "Search contents",
     ]
     assert palette_state.items[0].selected is True
     assert palette_state.items[0].enabled is True
     assert any(item.label == "Go back" and not item.enabled for item in palette_state.items)
     assert any(item.label == "Go forward" and not item.enabled for item in palette_state.items)
+
+
+def test_removed_direct_shortcuts_remain_available_without_palette_shortcuts() -> None:
+    state = replace(build_initial_app_state(), command_palette=CommandPaletteState())
+    items = {
+        item.label: item
+        for item in command_palette_module.get_command_palette_items(state)
+    }
+
+    labels = {
+        "Show attributes",
+        "Copy path",
+        "Bookmark this directory",
+        "Go to path",
+        "Open current directory with file manager",
+        "Edit with GUI editor",
+        "Open current directory with terminal",
+        "History search",
+        "Reload directory",
+    }
+
+    assert labels <= items.keys()
+    assert all(items[label].shortcut is None for label in labels)
 
 
 def test_command_palette_items_for_search_workspace_are_limited_to_safe_actions() -> None:
@@ -1418,8 +1441,8 @@ def test_command_palette_items_for_search_workspace_are_limited_to_safe_actions(
     assert "Exit" in labels
     assert "Select all" in labels
     assert "Show attributes" in labels
-    assert "Open in editor" in labels
-    assert "Open in GUI editor" in labels
+    assert "Edit with terminal editor" in labels
+    assert "Edit with GUI editor" in labels
     assert "Copy path" in labels
     assert "Show hidden files" in labels
     assert "About zivo" in labels
@@ -1442,15 +1465,27 @@ def test_command_palette_items_for_search_workspace_are_limited_to_safe_actions(
     assert "Compress as zip" not in labels
     assert "Extract archive" not in labels
     assert "Move to trash" not in labels
-    assert "Empty trash" not in labels
-    assert "Open in file manager" not in labels
-    assert "Open current directory in GUI editor" not in labels
-    assert "Open terminal here" not in labels
+    assert "Open current directory with file manager" not in labels
+    assert "Open current directory with terminal" not in labels
     assert "Run shell command" not in labels
     assert "Remove bookmark" not in labels
     assert "Bookmark this directory" not in labels
     assert "Create file" not in labels
     assert "Create directory" not in labels
+
+
+def test_command_palette_distinguishes_file_and_current_directory_launchers() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+
+    items = {item.id: item for item in command_palette_module.get_command_palette_items(state)}
+
+    assert items["open"].label == "Open"
+    assert items["open"].enabled is False
+    assert items["edit_with_terminal_editor"].enabled is False
+    assert items["edit_with_gui_editor"].enabled is False
+    assert items["open_current_directory_with_file_manager"].enabled is True
+    assert items["open_current_directory_with_terminal"].enabled is True
+    assert "open_current_directory_in_gui_editor" not in items
 
 
 def test_select_command_palette_state_shows_single_target_commands_when_filtered() -> None:
@@ -1766,7 +1801,7 @@ def test_select_help_bar_state_for_config_editor() -> None:
     help_bar = select_help_bar_state(state)
 
     assert help_bar.lines == (
-        "↑↓ or Ctrl+j/k choose | ←→ or Enter change | s save | e edit file | r reset help",
+        "↑↓ or Ctrl+j/k choose | ←→ or Enter change | s save | e advanced config",
         "esc close",
     )
 
@@ -1793,12 +1828,21 @@ def test_select_command_palette_state_for_grep_search_includes_input_fields() ->
     assert palette_state is not None
     assert [field.label for field in palette_state.input_fields] == [
         "Keyword",
+        "Scope",
         "Filter: Filename",
         "Include extensions",
         "Exclude extensions",
     ]
-    assert [field.value for field in palette_state.input_fields] == ["todo", "main", "py,ts", "log"]
-    assert [field.active for field in palette_state.input_fields] == [False, False, False, True]
+    assert [field.value for field in palette_state.input_fields] == [
+        "todo", "current directory", "main", "py,ts", "log"
+    ]
+    assert [field.active for field in palette_state.input_fields] == [
+        False,
+        False,
+        False,
+        False,
+        True,
+    ]
 
 
 def test_select_command_palette_state_for_text_replace_includes_input_fields() -> None:
@@ -1832,9 +1876,30 @@ def test_select_command_palette_state_for_text_replace_includes_input_fields() -
 
     assert palette_state is not None
     assert palette_state.title == "Replace Text (1 file(s), 2 match(es)) (1-1 / 1)"
-    assert [field.label for field in palette_state.input_fields] == ["Find", "Replace"]
-    assert [field.value for field in palette_state.input_fields] == ["todo", "done"]
-    assert [field.active for field in palette_state.input_fields] == [False, True]
+    assert [field.label for field in palette_state.input_fields] == [
+        "Scope",
+        "Find",
+        "Replace",
+        "Filter: Filename",
+        "Include extensions",
+        "Exclude extensions",
+    ]
+    assert [field.value for field in palette_state.input_fields] == [
+        "Current directory",
+        "todo",
+        "done",
+        "",
+        "",
+        "",
+    ]
+    assert [field.active for field in palette_state.input_fields] == [
+        False,
+        False,
+        True,
+        False,
+        False,
+        False,
+    ]
     assert [item.label for item in palette_state.items] == [
         "README.md (2): 8: todo item"
     ]
@@ -1909,7 +1974,7 @@ def test_select_command_palette_state_switches_bookmark_command_label() -> None:
     assert palette_state is not None
     assert any(item.label == "Bookmark this directory" for item in palette_state.items)
     assert any(
-        item.label == "Bookmark this directory" and item.shortcut == "B"
+        item.label == "Bookmark this directory" and item.shortcut is None
         for item in palette_state.items
     )
 
@@ -1930,7 +1995,7 @@ def test_select_command_palette_state_switches_bookmark_command_label() -> None:
     assert bookmarked_palette_state is not None
     assert any(item.label == "Remove bookmark" for item in bookmarked_palette_state.items)
     assert any(
-        item.label == "Remove bookmark" and item.shortcut == "B"
+        item.label == "Remove bookmark" and item.shortcut is None
         for item in bookmarked_palette_state.items
     )
 
@@ -2010,7 +2075,7 @@ def test_select_command_palette_state_shows_single_target_shortcuts() -> None:
 
     assert state is not None
     assert [item.label for item in state.items] == ["Show attributes"]
-    assert [item.shortcut for item in state.items] == ["i"]
+    assert [item.shortcut for item in state.items] == [None]
 
 
 def test_select_command_palette_state_shows_copy_path_shortcut() -> None:
@@ -2023,7 +2088,7 @@ def test_select_command_palette_state_shows_copy_path_shortcut() -> None:
 
     assert state is not None
     assert [item.label for item in state.items] == ["Copy path"]
-    assert state.items[0].shortcut == "C"
+    assert state.items[0].shortcut is None
 
 
 def test_select_command_palette_state_shows_compress_as_zip_for_multiple_targets() -> None:
@@ -2071,11 +2136,7 @@ def test_select_command_palette_state_shows_replace_text_for_selected_files() ->
     )
 
     assert palette_state is not None
-    assert [item.label for item in palette_state.items] == [
-        "Replace text in selected files",
-        "Replace text in found files",
-        "Replace text in grep results",
-    ]
+    assert [item.label for item in palette_state.items] == ["Replace text"]
     assert palette_state.items[0].enabled is True
 
 
@@ -2095,11 +2156,7 @@ def test_select_command_palette_state_shows_replace_text_for_cursor_file() -> No
     )
 
     assert palette_state is not None
-    assert [item.label for item in palette_state.items] == [
-        "Replace text in selected files",
-        "Replace text in found files",
-        "Replace text in grep results",
-    ]
+    assert [item.label for item in palette_state.items] == ["Replace text"]
     assert palette_state.items[0].enabled is True
 
 
@@ -2184,15 +2241,13 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
     dialog = select_config_dialog_state(state)
 
     assert dialog is not None
-    assert dialog.title == "Config Editor*"
+    assert dialog.title == "Config Editor (Basic Settings)*"
     assert "Path: /tmp/zivo/config.toml" in dialog.lines
-    assert "  ── External ──" in dialog.lines
+    assert "  ── Editors ──" in dialog.lines
     assert "  Editor command: system default" in dialog.lines
     assert "  GUI editor: VS Code" in dialog.lines
-    assert "  ── Display ──" in dialog.lines
+    assert "  ── Appearance ──" in dialog.lines
     assert "> Theme: textual-dark" in dialog.lines
-    assert "  Preview syntax theme: auto" in dialog.lines
-    assert "  Preview max KiB: 64 KiB" in dialog.lines
     assert "  Text preview: true" in dialog.lines
     assert "  Image preview: true" in dialog.lines
     assert "  ── Sorting ──" in dialog.lines
@@ -2208,13 +2263,14 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
         "GUI editor presets: VS Code, VSCodium, Cursor, Sublime Text, Zed, "
         "JetBrains IDEA, PyCharm, WebStorm, Kate"
     ) in dialog.lines
-    assert "Terminal launch templates: edit config.toml with e" in dialog.lines
+    assert "  ── Advanced Settings ──" in dialog.lines
+    assert "  Edit config.toml with e for advanced, custom, and future settings." in dialog.lines
+    assert "  Saving here preserves settings that are not shown above." in dialog.lines
     assert dialog.options == (
         "↑↓/Ctrl+j/k choose",
         "←→/enter change",
         "s save",
-        "e edit file",
-        "r reset help",
+        "e advanced config",
         "esc close",
     )
 
@@ -2462,9 +2518,9 @@ def test_select_command_palette_state_windows_large_grep_search_results() -> Non
     palette_state = select_command_palette_state(state)
 
     assert palette_state is not None
-    assert palette_state.title == "Grep (5-16 / 20)"
-    assert len(palette_state.items) == 12
-    assert palette_state.items[6].selected is True
+    assert palette_state.title == "Grep (6-16 / 20)"
+    assert len(palette_state.items) == 11
+    assert palette_state.items[5].selected is True
     assert palette_state.has_more_items is True
 
 
@@ -2501,6 +2557,31 @@ def test_select_input_bar_state_for_create_mode() -> None:
     assert input_dialog.prompt == "New file: "
     assert input_dialog.value == "notes.txt"
     assert input_dialog.hint == "enter apply | esc cancel"
+
+
+def test_select_input_dialog_state_shows_recursive_safety_details() -> None:
+    state = build_initial_app_state()
+    target = state.current_pane.entries[0]
+    state = replace(
+        state,
+        ui_mode="CHMOD",
+        pending_input=PendingInputState(
+            prompt="Permissions: ",
+            value="755",
+            chmod_target_paths=(target.path,),
+        ),
+    )
+
+    input_dialog = select_input_dialog_state(state)
+
+    assert input_dialog is not None
+    assert input_dialog.title == "Change Permissions"
+    assert input_dialog.hint == "tab toggle recursive | enter apply | esc cancel"
+    assert input_dialog.details == (
+        "Targets: 1 (1 directory)",
+        "Recursive: No",
+        "Symlinks are skipped and never followed.",
+    )
 
 
 def test_select_input_bar_state_for_symlink_mode() -> None:
@@ -2626,6 +2707,7 @@ def test_select_conflict_dialog_state_formats_permanent_delete_confirmation() ->
         delete_confirmation=DeleteConfirmationState(
             paths=("/home/tadashi/develop/zivo/docs",),
             mode="permanent",
+            total_size_bytes=2048,
         ),
     )
 
@@ -2634,7 +2716,32 @@ def test_select_conflict_dialog_state_formats_permanent_delete_confirmation() ->
     assert dialog is not None
     assert dialog.title == "Permanent Delete Confirmation"
     assert "This cannot be undone" in dialog.message
+    assert "2.0KiB" in dialog.message
+    assert "docs" in dialog.message
     assert dialog.options == ("enter confirm", "esc cancel")
+
+
+def test_select_conflict_dialog_state_formats_additional_permanent_delete_confirmation(
+) -> None:
+    state = replace(
+        build_initial_app_state(),
+        delete_confirmation=DeleteConfirmationState(
+            paths=("/tmp/docs", "/tmp/src", "/tmp/tests", "/tmp/README.md"),
+            mode="permanent",
+            total_size_bytes=4096,
+            contains_directory=True,
+            additional_confirmation_armed=True,
+        ),
+    )
+
+    dialog = select_conflict_dialog_state(state)
+
+    assert dialog is not None
+    assert dialog.title == "Final Permanent Delete Confirmation"
+    assert "4 items" in dialog.message
+    assert "4.0KiB" in dialog.message
+    assert "docs, src, tests, and 1 more" in dialog.message
+    assert dialog.options == ("D permanently delete", "esc cancel")
 
 
 def test_select_conflict_dialog_state_formats_extract_confirmation() -> None:
@@ -2769,6 +2876,23 @@ def test_select_help_bar_for_permanent_delete_confirmation() -> None:
     help_state = select_help_bar_state(state)
 
     assert help_state.text == "enter confirm permanent delete | esc cancel"
+
+
+def test_select_help_bar_for_armed_permanent_delete_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        delete_confirmation=DeleteConfirmationState(
+            paths=("/tmp/docs",),
+            mode="permanent",
+            contains_directory=True,
+            additional_confirmation_armed=True,
+        ),
+    )
+
+    help_state = select_help_bar_state(state)
+
+    assert help_state.text == "D permanently delete | esc cancel"
 
 
 def test_select_help_bar_for_attribute_dialog() -> None:

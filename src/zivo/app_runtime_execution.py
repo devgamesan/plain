@@ -21,6 +21,7 @@ from zivo.state import (
     RunClipboardPasteEffect,
     RunConfigSaveEffect,
     RunCustomActionEffect,
+    RunDeletePreparationEffect,
     RunExternalLaunchEffect,
     RunFileMutationEffect,
     RunGrepExportEffect,
@@ -61,6 +62,7 @@ def schedule_config_save(app: Any, effect: RunConfigSaveEffect) -> None:
             app._config_save_service.save,
             path=effect.path,
             config=effect.config,
+            preserve_unmanaged=effect.preserve_unmanaged,
         ),
         WorkerSpec(
             name=f"config-save:{effect.request_id}",
@@ -215,6 +217,20 @@ def schedule_file_mutation(app: Any, effect: RunFileMutationEffect) -> None:
         WorkerSpec(
             name=f"file-mutation:{effect.request_id}",
             group="file-mutation",
+            description=str(effect.request),
+            exclusive=True,
+        ),
+    )
+
+
+def schedule_delete_preparation(app: Any, effect: RunDeletePreparationEffect) -> None:
+    run_worker(
+        app,
+        effect,
+        partial(app._file_mutation_service.prepare_delete, effect.request),
+        WorkerSpec(
+            name=f"delete-preparation:{effect.request_id}",
+            group="delete-preparation",
             description=str(effect.request),
             exclusive=True,
         ),
@@ -496,10 +512,8 @@ def schedule_grep_export(app: Any, effect: RunGrepExportEffect) -> None:
         partial(
             app._grep_export_service.export,
             output_path=effect.output_path,
-            format=effect.format,
             context_lines=effect.context_lines,
             results=effect.results,
-            search_query=effect.search_query,
         ),
         WorkerSpec(
             name=f"grep-export:{effect.request_id}",

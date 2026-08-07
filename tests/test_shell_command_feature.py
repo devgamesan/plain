@@ -16,6 +16,7 @@ from zivo.state.actions import (
     BeginCommandPalette,
     BeginShellCommandInput,
     CancelShellCommandInput,
+    OpenTerminalAtPath,
     SetCommandPaletteQuery,
     SetNotification,
     SetShellCommandValue,
@@ -163,6 +164,7 @@ def test_select_shell_command_dialog_state_and_help() -> None:
     assert dialog.cwd == "/tmp/project"
     assert dialog.command == "pwd"
     assert dialog.result is None
+    assert dialog.guidance == "Runs in the background; use t for interactive commands."
     assert help_bar.lines == ("type command | enter run | esc cancel",)
 
 
@@ -187,7 +189,29 @@ def test_select_shell_command_dialog_state_with_result() -> None:
     assert dialog.result is not None
     assert dialog.result.exit_code == 0
     assert dialog.result.stdout == "/tmp/project\n"
-    assert help_bar.lines == ("press esc to close",)
+    assert dialog.options == ("r rerun", "t terminal", "esc close")
+    assert help_bar.lines == ("r rerun | t terminal | esc close",)
+
+
+def test_shell_command_result_shortcuts_rerun_or_open_terminal() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="SHELL",
+        shell_command=ShellCommandState(
+            cwd="/tmp/project",
+            command="pwd",
+            result=ShellCommandResult(exit_code=1, stderr="failed"),
+        ),
+    )
+
+    assert dispatch_key_input(state, key="r", character="r") == (
+        SetNotification(None),
+        SubmitShellCommand(),
+    )
+    assert dispatch_key_input(state, key="t", character="t") == (
+        SetNotification(None),
+        OpenTerminalAtPath("/tmp/project"),
+    )
 
 
 def test_runtime_maps_shell_command_actions() -> None:

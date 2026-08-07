@@ -17,6 +17,8 @@ zivo includes several safety mechanisms to prevent accidents during file operati
 
 - Press `D` or `Shift+Delete` to permanently delete selected items.
 - Permanent delete always asks for confirmation regardless of the `behavior.confirm_delete` setting.
+- The confirmation shows the target count, total size, up to three representative names, and whether any sizes could not be read.
+- Multiple targets or any directory require two explicit steps: press `Enter` to review, then uppercase `D` to delete.
 - Unlike trash, these operations cannot be undone.
 
 ---
@@ -63,8 +65,8 @@ zivo includes several safety mechanisms to prevent accidents during file operati
 ## Shell Command Execution
 
 - Press `!` to execute a one-line shell command.
-- Commands run in the background as a separate process, preventing unintended termination of zivo.
-- The first output line or a failure summary is shown in the status bar.
+- Commands run in the background as a separate process, preventing unintended termination of zivo. They are not suitable for prompts, TUI apps, or other interactive input; use `t` for a foreground shell instead.
+- The dialog identifies the working directory and keeps the exit code, stdout, and stderr available after completion. Press `r` to rerun the command or `t` to open its directory in an external terminal.
 
 ---
 

@@ -72,7 +72,6 @@ BROWSING_KEYMAP = {
     "shift+up": "cursor_up_selecting",
     "down": "cursor_down",
     "shift+down": "cursor_down_selecting",
-    "i": "show_attributes",
     "k": "cursor_up",
     "j": "cursor_down",
     ".": "toggle_hidden",
@@ -81,7 +80,6 @@ BROWSING_KEYMAP = {
     "/": "begin_filter",
     "left": "go_to_parent",
     "h": "go_to_parent",
-    "R": "reload_directory",
     "q": "begin_exit_current_path",
     "p": "toggle_transfer_mode",
     "r": "begin_rename",
@@ -93,7 +91,6 @@ BROWSING_KEYMAP = {
     "delete": "delete_targets",
     "shift+delete": "permanent_delete_targets",
     "e": "open_in_editor",
-    "O": "open_in_gui_editor",
     "right": "enter_directory",
     "l": "enter_directory",
     "enter": "enter_or_open",
@@ -106,17 +103,11 @@ BROWSING_KEYMAP = {
     "v": "paste_clipboard",
     "z": "undo_last_operation",
     "~": "go_to_home_directory",
-    "H": "begin_history_search",
     "b": "begin_bookmark_search",
-    "B": "toggle_bookmark",
-    "C": "copy_paths_to_clipboard",
-    "G": "begin_go_to_path",
     "n": "create_file",
     "N": "create_dir",
     "[": "go_back",
     "]": "go_forward",
-    "M": "open_file_manager",
-    "T": "open_terminal_window",
     "home": "jump_cursor_start",
     "end": "jump_cursor_end",
     "pageup": "cursor_pageup",
@@ -126,6 +117,36 @@ BROWSING_KEYMAP = {
     "tab": "activate_next_tab",
     "shift+tab": "activate_previous_tab",
 }
+
+# Help content is intentionally defined next to the authoritative key map so
+# shortcut changes have a single source of truth to validate against.
+BROWSING_HELP_LINES = (
+    (
+        ("enter", "open"),
+        ("e", "edit"),
+        ("/", "filter"),
+        ("s", "sort"),
+        (".", "hidden"),
+        ("[ ]", "bk/fwd"),
+        ("q", "quit"),
+    ),
+    (
+        ("space", "select"),
+        ("c", "copy"),
+        ("x", "cut"),
+        ("v", "paste"),
+        ("d", "delete"),
+        ("r", "rename"),
+        ("z", "undo"),
+    ),
+    (
+        ("f", "find"),
+        ("g", "grep"),
+        ("n", "new-file"),
+        ("N", "new-dir"),
+        (":", "palette"),
+    ),
+)
 
 SEARCH_WORKSPACE_BLOCKED_COMMANDS = frozenset(
     {

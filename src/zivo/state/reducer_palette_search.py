@@ -1,20 +1,24 @@
 """Search-related command palette reducers."""
 
 from dataclasses import replace
+from pathlib import Path
 
 from zivo.models.external_launch import ExternalLaunchRequest
-from zivo.windows_paths import resolve_parent_directory_path
+from zivo.windows_paths import (
+    is_search_workspace_path,
+    parse_search_workspace_path,
+    resolve_parent_directory_path,
+)
 
 from .actions import (
     CycleFileSearchField,
-    CycleSelectedFilesGrepField,
     FileSearchCompleted,
     FileSearchFailed,
     GrepSearchCompleted,
     GrepSearchFailed,
     RequestBrowserSnapshot,
-    SelectedFilesGrepKeywordChanged,
     SetFileSearchTarget,
+    SetGrepSearchScope,
 )
 from .actions_palette import OpenSearchWorkspace
 from .command_palette import normalize_command_palette_cursor
@@ -65,6 +69,59 @@ def validate_grep_search_filters(
             f"Extensions cannot be included and excluded at the same time: {formatted}"
         )
     return include_globs, exclude_globs
+
+
+def grep_scope_target_paths(state: AppState, scope: str) -> tuple[str, ...]:
+    """Resolve explicitly selected file and directory targets for a content-search scope."""
+    if scope == "selected_entries":
+        return tuple(
+            entry.path
+            for entry in state.current_pane.entries
+            if entry.path in state.current_pane.selected_paths
+        )
+    return ()
+
+
+def is_grep_search_scope_available(state: AppState, scope: str) -> bool:
+    """Return whether a scope can be chosen in the current browser context."""
+    if scope == "current_directory":
+        return not is_search_workspace_path(state.current_path)
+    if scope == "selected_entries":
+        return bool(grep_scope_target_paths(state, scope))
+    return is_search_workspace_path(state.current_path)
+
+
+def grep_scope_unavailable_message(state: AppState, scope: str) -> str | None:
+    if scope == "selected_entries" and not grep_scope_target_paths(state, scope):
+        return "Select one or more files or directories to search selected entries"
+    if scope == "search_workspace" and not is_search_workspace_path(state.current_path):
+        return "Search Workspace is only available while browsing a Search Workspace"
+    return None
+
+
+def default_grep_search_scope(state: AppState) -> str:
+    if is_search_workspace_path(state.current_path):
+        return "search_workspace"
+    if grep_scope_target_paths(state, "selected_entries"):
+        return "selected_entries"
+    return "current_directory"
+
+
+def grep_scope_root_path(state: AppState) -> str:
+    if is_search_workspace_path(state.current_path):
+        return parse_search_workspace_path(state.current_path)["root"] or state.current_path
+    return state.current_path
+
+
+def _matches_grep_scope_target(result_path: str, target_paths: tuple[str, ...]) -> bool:
+    """Include a result when it belongs to an explicitly selected entry."""
+    if not target_paths:
+        return True
+    result = Path(result_path)
+    return any(
+        result == Path(target) or result.is_relative_to(Path(target))
+        for target in target_paths
+    )
 
 
 def handle_set_file_search_query(
@@ -239,12 +296,45 @@ def handle_set_grep_search_field(
         next_state,
         RunGrepSearchEffect(
             request_id=request_id,
-            root_path=state.current_path,
+            root_path=grep_scope_root_path(state),
             query=stripped_query,
             show_hidden=state.show_hidden,
             include_globs=include_globs,
             exclude_globs=exclude_globs,
         ),
+    )
+
+
+def handle_set_grep_search_scope(
+    state: AppState,
+    action: SetGrepSearchScope,
+) -> ReduceResult:
+    if state.command_palette is None or state.command_palette.source != "grep_search":
+        return finalize(state)
+    if not is_grep_search_scope_available(state, action.scope):
+        return notify(
+            state,
+            level="warning",
+            message=grep_scope_unavailable_message(state, action.scope) or "Scope is unavailable",
+        )
+    target_paths = grep_scope_target_paths(state, action.scope)
+    scope_message = grep_scope_unavailable_message(state, action.scope)
+    next_palette = replace(
+        state.command_palette,
+        grep_search=replace(
+            state.command_palette.grep_search,
+            scope=action.scope,
+            target_paths=target_paths,
+            scope_message=scope_message,
+            results=(),
+            error_message=None,
+        ),
+        cursor_index=0,
+    )
+    return handle_set_grep_search_field(
+        replace(state, command_palette=next_palette), "keyword", next_palette.grep_search.keyword
+    ) if target_paths or action.scope == "current_directory" else finalize(
+        replace(state, command_palette=next_palette, pending_grep_search_request_id=None)
     )
 
 
@@ -272,12 +362,8 @@ def handle_submit_grep_search_palette(
     state: AppState,
     reduce_state,
 ) -> ReduceResult:
-    if state.command_palette.source == "selected_files_grep":
-        results = state.command_palette.sfg.results
-        message = state.command_palette.sfg.error_message or "No matching lines"
-    else:
-        results = state.command_palette.grep_search.results
-        message = state.command_palette.grep_search.error_message or "No matching lines"
+    results = state.command_palette.grep_search.results
+    message = state.command_palette.grep_search.error_message or "No matching lines"
 
     if not results:
         return notify(state, level="warning", message=message)
@@ -298,12 +384,8 @@ def handle_open_grep_result_in_editor(
     reduce_state,
 ) -> ReduceResult:
     del reduce_state
-    if state.command_palette.source == "selected_files_grep":
-        results = state.command_palette.sfg.results
-        message = state.command_palette.sfg.error_message or "No matching lines"
-    else:
-        results = state.command_palette.grep_search.results
-        message = state.command_palette.grep_search.error_message or "No matching lines"
+    results = state.command_palette.grep_search.results
+    message = state.command_palette.grep_search.error_message or "No matching lines"
 
     if not results:
         return notify(state, level="warning", message=message)
@@ -326,12 +408,8 @@ def handle_open_grep_result_in_gui_editor(
     reduce_state,
 ) -> ReduceResult:
     del reduce_state
-    if state.command_palette.source == "selected_files_grep":
-        results = state.command_palette.sfg.results
-        message = state.command_palette.sfg.error_message or "No matching lines"
-    else:
-        results = state.command_palette.grep_search.results
-        message = state.command_palette.grep_search.error_message or "No matching lines"
+    results = state.command_palette.grep_search.results
+    message = state.command_palette.grep_search.error_message or "No matching lines"
 
     if not results:
         return notify(state, level="warning", message=message)
@@ -392,6 +470,13 @@ def handle_file_search_completed(
     state: AppState,
     action: FileSearchCompleted,
 ) -> ReduceResult:
+    from .reducer_palette_replace_scope import (
+        handle_file_search_completed as handle_replace_file_search_completed,
+    )
+
+    replace_result = handle_replace_file_search_completed(state, action)
+    if replace_result is not None:
+        return replace_result
     if (
         state.command_palette is not None
         and state.command_palette.source == "replace_in_found_files"
@@ -503,6 +588,14 @@ def handle_grep_search_completed(
     if action.request_id != state.pending_grep_search_request_id:
         return finalize(state)
 
+    from .reducer_palette_replace_scope import (
+        handle_grep_search_completed as handle_replace_grep_search_completed,
+    )
+
+    replace_result = handle_replace_grep_search_completed(state, action)
+    if replace_result is not None:
+        return replace_result
+
     if (
         state.command_palette is not None
         and state.command_palette.source == "replace_in_grep_files"
@@ -515,11 +608,6 @@ def handle_grep_search_completed(
     ):
         return handle_grs_grep_search_completed(state, action)
 
-    if (
-        state.command_palette is not None
-        and state.command_palette.source == "selected_files_grep"
-    ):
-        return handle_sfg_grep_search_completed(state, action)
 
     if state.command_palette is None or state.command_palette.source != "grep_search":
         return finalize(state)
@@ -532,7 +620,13 @@ def handle_grep_search_completed(
                 grep_search=replace(
                     state.command_palette.grep_search,
                     results=filter_grep_results_by_filename(
-                        action.results,
+                        tuple(
+                            result for result in action.results
+                            if _matches_grep_scope_target(
+                                result.path,
+                                state.command_palette.grep_search.target_paths,
+                            )
+                        ),
                         state.command_palette.grep_search.filename_filter,
                     ),
                     error_message=None,
@@ -604,11 +698,6 @@ def handle_grep_search_failed(
             message=action.message,
         )
 
-    if (
-        state.command_palette is not None
-        and state.command_palette.source == "selected_files_grep"
-    ):
-        return handle_sfg_grep_search_failed(state, action)
 
     if state.command_palette is not None and action.invalid_query:
         return sync_grep_preview(
@@ -813,7 +902,7 @@ def sync_grep_preview(state: AppState) -> ReduceResult:
 
 def handle_sfg_keyword_changed(
     state: AppState,
-    action: SelectedFilesGrepKeywordChanged,
+    action: object,
 ) -> ReduceResult:
     """Handle keyword changes for selected-files-grep."""
     if state.command_palette is None or state.command_palette.source != "selected_files_grep":
@@ -939,7 +1028,7 @@ def handle_sfg_grep_search_failed(
 
 def handle_cycle_sfg_field(
     state: AppState,
-    action: CycleSelectedFilesGrepField,
+    action: object,
 ) -> ReduceResult:
     """Handle field cycling for selected-files-grep (no-op since only keyword field exists)."""
     if state.command_palette is None or state.command_palette.source != "selected_files_grep":

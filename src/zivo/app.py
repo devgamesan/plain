@@ -102,7 +102,6 @@ from zivo.ui import (
     ConfigDialog,
     ConflictDialog,
     CurrentPathBar,
-    GrepExportDialog,
     HelpBar,
     InputDialog,
     MainPane,
@@ -293,11 +292,6 @@ class zivoApp(App[None]):
             id="input-dialog-layer",
             classes="overlay-layer dialog-layer",
         )
-        yield Container(
-            GrepExportDialog(shell.grep_export_dialog, id="grep-export-dialog"),
-            id="grep-export-dialog-layer",
-            classes="overlay-layer dialog-layer",
-        )
         yield HelpBar(shell.help, id="help-bar")
         yield StatusBar(shell.status, id="status-bar")
 
@@ -316,7 +310,7 @@ class zivoApp(App[None]):
         if (
             event.key == "ctrl+v"
             and self._app_state.ui_mode
-            in {"CHMOD", "RENAME", "CREATE", "EXTRACT", "ZIP", "SYMLINK"}
+            in {"CHMOD", "CHOWN", "RENAME", "CREATE", "EXTRACT", "ZIP", "SYMLINK"}
             and self._app_state.pending_input is not None
         ):
             text = self._external_launch_service.get_from_clipboard()
@@ -363,6 +357,7 @@ class zivoApp(App[None]):
 
         if self._app_state.ui_mode in {
             "CHMOD",
+            "CHOWN",
             "RENAME",
             "CREATE",
             "EXTRACT",
@@ -803,4 +798,3 @@ def _initial_sort_state(config: AppConfig) -> SortState:
         descending=config.display.default_sort_descending,
         directories_first=config.display.directories_first,
     )
-

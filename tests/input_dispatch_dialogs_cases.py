@@ -15,6 +15,21 @@ def test_filter_q_updates_query_instead_of_exiting() -> None:
     assert actions == (SetNotification(None), SetFilterQuery("q", active=True))
 
 
+def test_chmod_tab_toggles_recursive_execution() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CHMOD",
+        pending_input=PendingInputState(
+            prompt="Permissions: ",
+            chmod_target_paths=("/home/tadashi/develop/zivo/docs",),
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="tab")
+
+    assert actions == (SetNotification(None), TogglePendingInputRecursive())
+
+
 def test_filter_bound_space_without_character_is_rejected() -> None:
     state = replace(build_initial_app_state(), ui_mode="FILTER")
 
@@ -259,7 +274,7 @@ def test_config_unbound_key_shows_guidance() -> None:
                 level="warning",
                 message=(
                         "Use ↑↓ or Ctrl+j/k to choose, ←→ or Enter to change, "
-                    "s to save, e to edit the file, r to reset help, or Esc to close"
+                    "s to save, e to edit the file, or Esc to close"
                 ),
             )
         ),
@@ -303,6 +318,44 @@ def test_delete_confirm_escape_cancels_confirmation() -> None:
     actions = dispatch_key_input(state, key="escape")
 
     assert actions == (SetNotification(None), CancelDeleteConfirmation())
+
+
+def test_risky_permanent_delete_enter_arms_additional_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        delete_confirmation=DeleteConfirmationState(
+            paths=("/home/tadashi/develop/zivo/docs",),
+            mode="permanent",
+            contains_directory=True,
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="enter")
+
+    assert actions == (SetNotification(None), AdvancePermanentDeleteConfirmation())
+
+
+def test_armed_permanent_delete_requires_uppercase_d() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        delete_confirmation=DeleteConfirmationState(
+            paths=("/home/tadashi/develop/zivo/docs",),
+            mode="permanent",
+            contains_directory=True,
+            additional_confirmation_armed=True,
+        ),
+    )
+
+    assert dispatch_key_input(state, key="enter") != (
+        SetNotification(None),
+        ConfirmDeleteTargets(),
+    )
+    assert dispatch_key_input(state, key="D") == (
+        SetNotification(None),
+        ConfirmDeleteTargets(),
+    )
 
 
 def test_zip_compress_confirm_enter_dispatches_confirmation() -> None:
@@ -480,51 +533,3 @@ def test_busy_key_shows_warning_message() -> None:
             NotificationState(level="warning", message="Input ignored while processing")
         ),
     )
-
-
-def test_grep_export_escape_cancels() -> None:
-    state = replace(
-        build_initial_app_state(),
-        ui_mode="GREP_EXPORT",
-        grep_export_dialog=GrepExportDialogState(),
-    )
-
-    actions = dispatch_key_input(state, key="escape")
-
-    assert actions == (SetNotification(None), CancelGrepExport())
-
-
-def test_grep_export_enter_submits() -> None:
-    state = replace(
-        build_initial_app_state(),
-        ui_mode="GREP_EXPORT",
-        grep_export_dialog=GrepExportDialogState(filename="out.txt"),
-    )
-
-    actions = dispatch_key_input(state, key="enter")
-
-    assert actions == (SetNotification(None), SubmitGrepExport())
-
-
-def test_grep_export_f_cycles_format() -> None:
-    state = replace(
-        build_initial_app_state(),
-        ui_mode="GREP_EXPORT",
-        grep_export_dialog=GrepExportDialogState(),
-    )
-
-    actions = dispatch_key_input(state, key="f", character="f")
-
-    assert actions == (SetNotification(None), SetGrepExportFormat("context"))
-
-
-def test_grep_export_printable_character_appends_to_filename() -> None:
-    state = replace(
-        build_initial_app_state(),
-        ui_mode="GREP_EXPORT",
-        grep_export_dialog=GrepExportDialogState(filename="out", cursor_pos=3),
-    )
-
-    actions = dispatch_key_input(state, key=".", character=".")
-
-    assert actions == (SetNotification(None), SetGrepExportFilename("out.", cursor_pos=4))

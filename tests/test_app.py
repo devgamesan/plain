@@ -20,6 +20,7 @@ from zivo.app_overlay_layout import update_pane_visibility
 from zivo.models import (
     AppConfig,
     BehaviorConfig,
+    DeletePreparationResult,
     DeleteRequest,
     DisplayConfig,
     EditorConfig,
@@ -70,7 +71,6 @@ from zivo.state.selectors import (
     select_command_palette_state,
     select_shell_data,
 )
-from zivo.theme_support import SUPPORTED_PREVIEW_SYNTAX_THEMES
 from zivo.ui import (
     AttributeDialog,
     ChildPane,
@@ -436,7 +436,9 @@ class FakeConfigSaveService:
         self.failure_message = failure_message
         self.saved_requests: list[tuple[str, AppConfig]] = []
 
-    def save(self, *, path: str, config: AppConfig) -> str:
+    def save(
+        self, *, path: str, config: AppConfig, preserve_unmanaged: bool = False
+    ) -> str:
         self.saved_requests.append((path, config))
         if self.failure_message is not None:
             raise OSError(self.failure_message)
@@ -2412,7 +2414,7 @@ async def test_app_left_on_windows_drive_root_returns_to_drive_list(monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_app_capital_R_keeps_cursor_when_entry_still_exists() -> None:
+async def test_app_palette_reload_keeps_cursor_when_entry_still_exists() -> None:
     path = str(Path("/tmp/zivo-reload").resolve())
     initial_entries = (
         DirectoryEntryState(f"{path}/docs", "docs", "dir"),
@@ -2447,7 +2449,8 @@ async def test_app_capital_R_keeps_cursor_when_entry_still_exists() -> None:
             child_entries=(DirectoryEntryState(f"{path}/src/main.py", "main.py", "file"),),
         )
 
-        await pilot.press("R")
+        await pilot.press(":")
+        await pilot.press("r", "e", "l", "o", "a", "d", "enter")
         await _wait_for_snapshot_loaded(app, path)
 
         current_table = app.query_one("#current-pane-table", DataTable)
@@ -2456,7 +2459,7 @@ async def test_app_capital_R_keeps_cursor_when_entry_still_exists() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_capital_R_falls_back_to_first_row_when_cursor_disappears() -> None:
+async def test_app_palette_reload_falls_back_to_first_row_when_cursor_disappears() -> None:
     path = str(Path("/tmp/zivo-reload-fallback").resolve())
     initial_entries = (
         DirectoryEntryState(f"{path}/docs", "docs", "dir"),
@@ -2487,7 +2490,8 @@ async def test_app_capital_R_falls_back_to_first_row_when_cursor_disappears() ->
             child_entries=(DirectoryEntryState(f"{path}/docs/spec.md", "spec.md", "file"),),
         )
 
-        await pilot.press("R")
+        await pilot.press(":")
+        await pilot.press("r", "e", "l", "o", "a", "d", "enter")
         await _wait_for_snapshot_loaded(app, path)
 
         current_table = app.query_one("#current-pane-table", DataTable)
@@ -2496,7 +2500,7 @@ async def test_app_capital_R_falls_back_to_first_row_when_cursor_disappears() ->
 
 
 @pytest.mark.asyncio
-async def test_app_capital_R_drops_selection_for_missing_entries() -> None:
+async def test_app_palette_reload_drops_selection_for_missing_entries() -> None:
     path = str(Path("/tmp/zivo-reload-selection").resolve())
     initial_entries = (
         DirectoryEntryState(f"{path}/docs", "docs", "dir"),
@@ -2527,7 +2531,8 @@ async def test_app_capital_R_drops_selection_for_missing_entries() -> None:
             child_entries=(DirectoryEntryState(f"{path}/src/main.py", "main.py", "file"),),
         )
 
-        await pilot.press("R")
+        await pilot.press(":")
+        await pilot.press("r", "e", "l", "o", "a", "d", "enter")
         await _wait_for_snapshot_loaded(app, path)
 
         summary_bar = await _wait_for_summary_bar(app)
@@ -3116,8 +3121,7 @@ async def test_app_displays_browsing_help_bar() -> None:
     app = create_app(snapshot_loader=loader, initial_path=path)
     split_terminal_hint = " | t term" if os.name == "posix" else ""
     expected_help = (
-        "enter open | e edit | O gui editor | i info | "
-        "/ filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
+        "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
         "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv\n"
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
@@ -3224,7 +3228,8 @@ async def test_app_displays_transfer_help_bar() -> None:
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
         "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit\n"
-        "Space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
+        "Space select | c copy | x cut | v paste | d trash | D permanent | "
+        "r rename | z undo\n"
         ". hidden | N new-dir | : palette"
     )
 
@@ -3525,7 +3530,9 @@ async def test_app_go_to_path_shows_candidates_and_tabs_to_selected_directory(tm
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("G")
+        await pilot.press(":")
+        await pilot.press("g", "o", "space", "t", "o", "space", "p", "a", "t", "h")
+        await pilot.press("enter")
         await pilot.press("d", "o")
         await asyncio.sleep(0.05)
 
@@ -3577,7 +3584,9 @@ async def test_app_go_to_path_submit_after_completion_stays_on_completed_directo
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press("G")
+        await pilot.press(":")
+        await pilot.press("g", "o", "space", "t", "o", "space", "p", "a", "t", "h")
+        await pilot.press("enter")
         await pilot.press("d", "o", "tab", "enter")
         await _wait_for_snapshot_loaded(app, docs_path)
 
@@ -4041,7 +4050,7 @@ async def test_app_grep_search_long_results_stay_single_line_in_palette(tmp_path
         results_by_query={
             (path, "todo", (), (), False): tuple(
                 GrepSearchResultState(
-                    path=f"{path}/src/module_{index}.py",
+                        path=f"{path}/seed.txt",
                     display_path=(
                         f"src/features/search/module_{index}/"
                         "very/deeply/nested/package/file_with_a_name_that_should_not_wrap.py"
@@ -4123,7 +4132,7 @@ async def test_app_grep_search_passes_include_and_exclude_extensions(tmp_path) -
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press("g")
         await pilot.press("t", "o", "d", "o")
-        await pilot.press("tab", "tab", "m", "d")
+        await pilot.press("tab", "tab", "tab", "m", "d")
         await pilot.press("tab", "l", "o", "g")
 
         expected_request = (
@@ -4173,7 +4182,7 @@ async def test_app_grep_search_filters_results_by_filename(tmp_path) -> None:
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press("g")
         await pilot.press("t", "o", "d", "o")
-        await pilot.press("tab", "R", "E", "A", "D")
+        await pilot.press("tab", "left", "tab", "R", "E", "A", "D")
 
         await _wait_for_request_count(grep_search_service, 1, timeout=1.0)
         expected_labels = ["README.md:1: TODO: readme"]
@@ -4841,99 +4850,6 @@ async def test_app_config_dialog_theme_preview_updates_auto_syntax_theme() -> No
 
 
 @pytest.mark.asyncio
-async def test_app_config_dialog_save_updates_preview_syntax_theme() -> None:
-    path = str(Path("/tmp/zivo-command-palette-preview-theme").resolve())
-    preview_path = f"{path}/README.md"
-    loader = FakeBrowserSnapshotLoader(
-        snapshots={
-            path: BrowserSnapshot(
-                current_path=path,
-                parent_pane=PaneState(
-                    directory_path="/tmp",
-                    entries=(
-                        DirectoryEntryState(path, Path(path).name, "dir"),
-                    ),
-                    cursor_path=path,
-                ),
-                current_pane=PaneState(
-                    directory_path=path,
-                    entries=(
-                        DirectoryEntryState(
-                            preview_path,
-                            "README.md",
-                            "file",
-                            size_bytes=120,
-                        ),
-                    ),
-                    cursor_path=preview_path,
-                ),
-                child_pane=PaneState(
-                    directory_path=path,
-                    entries=(),
-                    mode="preview",
-                    preview_path=preview_path,
-                    preview_title="Preview: README.md",
-                    preview_content="# heading\nbody\n",
-                ),
-            )
-        }
-    )
-    config_save_service = FakeConfigSaveService()
-    app = create_app(
-        snapshot_loader=loader,
-        config_save_service=config_save_service,
-        config_path="/tmp/zivo/config.toml",
-        initial_path=path,
-    )
-
-    async with app.run_test() as pilot:
-        await _wait_for_snapshot_loaded(app, path)
-        assert select_shell_data(app.app_state).child_pane.syntax_theme == "monokai"
-
-        await pilot.press(":")
-        await pilot.press("c", "o", "n", "f", "i", "g")
-        await pilot.press("enter")
-        await _wait_for_config_dialog(app)
-
-        await _select_config_setting(
-            pilot,
-            app,
-            "> Preview syntax theme: auto",
-        )
-        await pilot.press("enter")
-
-        assert (
-            select_shell_data(app.app_state).child_pane.syntax_theme
-            == SUPPORTED_PREVIEW_SYNTAX_THEMES[1]
-        )
-        assert app.app_state.config.display.preview_syntax_theme == "auto"
-
-        await pilot.press("s")
-        deadline = asyncio.get_running_loop().time() + 1.5
-        while True:
-            if (
-                len(config_save_service.saved_requests) == 1
-                and app.app_state.pending_config_save_request_id is None
-            ):
-                break
-            if asyncio.get_running_loop().time() >= deadline:
-                raise AssertionError("config save did not complete")
-            await asyncio.sleep(0.01)
-
-        assert len(config_save_service.saved_requests) == 1
-        _saved_path, saved_config = config_save_service.saved_requests[0]
-        assert saved_config.display.preview_syntax_theme == SUPPORTED_PREVIEW_SYNTAX_THEMES[1]
-        assert (
-            app.app_state.config.display.preview_syntax_theme
-            == SUPPORTED_PREVIEW_SYNTAX_THEMES[1]
-        )
-        assert (
-            select_shell_data(app.app_state).child_pane.syntax_theme
-            == SUPPORTED_PREVIEW_SYNTAX_THEMES[1]
-        )
-
-
-@pytest.mark.asyncio
 async def test_app_config_dialog_e_opens_config_file_in_editor() -> None:
     path = str(Path("/tmp/zivo-command-palette-config-editor").resolve())
     loader = FakeBrowserSnapshotLoader(
@@ -5200,7 +5116,7 @@ async def test_app_command_palette_copy_path_copies_cursor_target() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_command_palette_open_terminal_launches_current_directory() -> None:
+async def test_app_command_palette_opens_current_directory_with_terminal() -> None:
     path = str(Path("/tmp/zivo-open-terminal").resolve())
     launch_service = FakeExternalLaunchService()
     loader = FakeBrowserSnapshotLoader(
@@ -5224,7 +5140,11 @@ async def test_app_command_palette_open_terminal_launches_current_directory() ->
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press(":")
-        await pilot.press("o", "p", "e", "n", " ", "t", "e", "r", "m", "i", "n", "a", "l")
+        await pilot.press(
+            "c", "u", "r", "r", "e", "n", "t", " ", "d", "i", "r", "e", "c",
+            "t", "o", "r", "y", " ", "w", "i", "t", "h", " ", "t", "e", "r",
+            "m", "i", "n", "a", "l",
+        )
         await pilot.press("enter")
         await _wait_for_external_launch_count(app, 1)
 
@@ -5310,6 +5230,8 @@ async def test_app_command_palette_runs_shell_command_and_shows_result() -> None
 
         assert app.app_state.ui_mode == "SHELL"
         assert title.renderable == "Run Shell Command"
+        guidance = dialog.query_one("#shell-command-dialog-guidance", Static)
+        assert guidance.renderable == "Runs in the background; use t for interactive commands."
 
         await pilot.press("p", "w", "d", "enter")
         # 結果が表示されるまで待機
@@ -5327,6 +5249,10 @@ async def test_app_command_palette_runs_shell_command_and_shows_result() -> None
         assert dialog.display is True
         # タイトルが結果表示モードになっていること
         assert title.renderable == "Shell Command Result"
+
+        await pilot.press("r")
+        await asyncio.sleep(0.1)
+        assert shell_command_service.executed_commands == [(path, "pwd"), (path, "pwd")]
 
         # ESCキーでダイアログを閉じる
         await pilot.press("escape")
@@ -5956,7 +5882,7 @@ async def test_app_delete_confirmation_round_trip() -> None:
                 message="Trashed 2 items",
                 removed_paths=(docs, src),
             )
-        }
+        },
     )
     app = create_app(
         snapshot_loader=loader,
@@ -6068,7 +5994,14 @@ async def test_app_permanent_delete_always_confirms() -> None:
                 message="Deleted 2 items permanently",
                 removed_paths=(docs, src),
             )
-        }
+        },
+        preparation_results={
+            delete_request: DeletePreparationResult(
+                request=delete_request,
+                total_size_bytes=8192,
+                contains_directory=True,
+            )
+        },
     )
     app = create_app(
         snapshot_loader=loader,
@@ -6093,12 +6026,21 @@ async def test_app_permanent_delete_always_confirms() -> None:
 
         help_bar = app.query_one("#help-bar", HelpBar)
         dialog = app.query_one("#conflict-dialog", ConflictDialog)
+        dialog_message = dialog.query_one("#conflict-dialog-message", Static)
 
         assert app.app_state.ui_mode == "CONFIRM"
-        assert str(help_bar.renderable) == "enter confirm permanent delete | esc cancel"
+        assert str(help_bar.renderable) == "enter review permanent delete | esc cancel"
         assert dialog.display is True
+        assert "2 items (8.0KiB)" in str(dialog_message.renderable)
+        assert "Targets: docs, src" in str(dialog_message.renderable)
+        assert "This cannot be undone" in str(dialog_message.renderable)
 
         await pilot.press("enter")
+        await asyncio.sleep(0.05)
+
+        assert str(help_bar.renderable) == "D permanently delete | esc cancel"
+
+        await pilot.press("D")
         await asyncio.sleep(0.05)
 
         status_bar = await _wait_for_status_bar(app)

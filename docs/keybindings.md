@@ -6,7 +6,7 @@ Complete list of keybindings for all zivo modes.
 
 ## Normal Mode
 
-You can open an external terminal directly from zivo. Press `t` to suspend zivo and open an interactive shell in the current terminal at zivo's current directory. When you exit the shell, zivo resumes automatically. Alternatively, press `T` to launch a separate terminal window.
+Press `!` for a short non-interactive command or `t` to suspend zivo and work interactively in a foreground shell. Use the `:` command palette for external application launches and other lower-frequency actions. The foreground shell starts in zivo's current directory and zivo resumes when you exit it.
 
 | Key | Action |
 | --- | ------ |
@@ -25,7 +25,6 @@ You can open an external terminal directly from zivo. Press `t` to suspend zivo 
 | `x` | Cut selected items |
 | `v` | Paste from clipboard |
 | `z` | Undo the last reversible file operation |
-| `C` | Copy paths to clipboard |
 | `r` | Rename selected item |
 | `n` | Create new file |
 | `N` | Create new directory |
@@ -33,29 +32,21 @@ You can open an external terminal directly from zivo. Press `t` to suspend zivo 
 | `D` | Permanently delete selected items |
 | `Delete` | Move selected items to trash (fn + Delete on macOS) |
 | `Shift+Delete` | Permanently delete selected items (fn + Shift + Delete on macOS) |
-| `i` | Show file attributes |
-| `e` | Open file in terminal editor |
-| `O` | Open file in GUI editor |
-| `!` | Execute shell command |
+| `e` | Edit selected file with terminal editor |
+| `!` | Run a short non-interactive shell command in the current directory; the dialog shows cwd and retains output/error details |
 | `f` | Find files (recursive search) |
-| `g` | Grep search |
+| `g` | Search contents |
 | `/` | Filter files |
-| `H` | Show history |
 | `b` | Show bookmarks |
-| `B` | Toggle current directory bookmark |
-| `G` | Go to path |
 | `~` | Go to home directory |
 | `.` | Toggle hidden files |
 | `s` | Cycle sort |
-| `R` | Reload directory |
-| `t` | Open terminal in foreground (suspend zivo, open shell in current terminal, resume on exit) |
-| `T` | Open terminal at current directory (separate window) |
+| `t` | Open foreground shell (suspend zivo, open interactive shell in current terminal, resume on exit) |
 | `o` | Open new tab |
 | `w` | Close current tab |
 | `1`-`9`, `0` | Switch to tab 1-9, or tab 10 with `0` |
 | `tab` | Switch to next tab |
 | `shift+tab` | Switch to previous tab |
-| `M` | Open current directory in file manager |
 | `:` | Open command palette |
 | `q` | Quit |
 | `[` | Go back in history |
@@ -88,12 +79,13 @@ You can open an external terminal directly from zivo. Press `t` to suspend zivo 
 | `y` | Copy focused-pane targets to opposite pane (copy-to-pane) |
 | `m` | Move focused-pane targets to opposite pane (move-to-pane) |
 | `d` | Delete focused-pane targets to trash |
+| `D` | Permanently delete focused-pane targets |
+| `Delete` / `Shift+Delete` | Move to trash / permanently delete |
 | `r` | Rename focused or single selected entry |
 | `z` | Undo the last file operation |
 | `.` | Toggle hidden files |
 | `N` | Create new directory in the focused pane |
 | `b` | Show bookmarks |
-| `H` | Show history |
 | `:` | Open a transfer-mode command palette with transfer-available commands only |
 | `o` | Open new tab |
 | `w` | Close current tab |
@@ -113,6 +105,7 @@ You can open an external terminal directly from zivo. Press `t` to suspend zivo 
 | `Esc` | Cancel |
 | `Tab` | Complete (where supported) |
 | `Ctrl+v` | Paste from clipboard |
+| `Tab` | Toggle `Recursive: No/Yes` in Change permissions / Change owner dialogs |
 
 ---
 
@@ -125,9 +118,9 @@ You can open an external terminal directly from zivo. Press `t` to suspend zivo 
 | `PageUp` / `PageDown` | Move cursor by page |
 | `Home` / `End` | Jump to first/last result |
 | `Enter` | Open selected result |
-| `Ctrl+e` | Open selected result in editor |
-| `Ctrl+o` | Open selected result in GUI editor |
-| `Ctrl+x` | Export grep results to file (Single Line / Context / JSON) |
+| `Ctrl+e` | Edit selected result with terminal editor |
+| `Ctrl+o` | Edit selected result with GUI editor |
+| `Ctrl+x` | Save grep results to `grep_results.txt` in the current directory, including the configured context lines. |
 | `Esc` | Close search |
 
 **Note**: In search results mode, use arrow keys or `Ctrl+j`/`Ctrl+k` to navigate. `j`/`k` keys are used for typing the search query.
@@ -162,8 +155,7 @@ When the `Replace text` preview is open in the right pane, `Shift+↑` / `Shift+
 | `↑` / `↓` / `Ctrl+j` / `Ctrl+k` | Move between settings |
 | `←` / `→` / `Enter` | Change the selected value |
 | `s` | Save `config.toml` |
-| `e` | Open the raw config file in a terminal editor |
-| `r` | Reset help bar text to the built-in defaults |
+| `e` | Open `config.toml` to edit advanced settings in a terminal editor |
 | `Esc` | Close the config editor |
 
 ---
@@ -180,5 +172,8 @@ When the `Replace text` preview is open in the right pane, `Shift+↑` / `Shift+
 
 | Key | Action |
 | --- | ------ |
-| `Enter` / `Esc` | Confirm or cancel trash / permanent delete |
+| `Enter` / `Esc` | Confirm or cancel trash and single-file permanent delete |
+| `Enter` then `D` | Two-step confirmation for multiple targets or directories |
 | `o` / `s` / `r` / `Esc` | Resolve a paste conflict with overwrite / skip / rename / cancel |
+
+The direct keys `i`, `C`, `B`, `G`, `M`, `O`, `T`, `H`, and `R` are intentionally unbound. Their attribute, path-copy, bookmark, navigation, external-launch, history, and reload commands remain available from the command palette.

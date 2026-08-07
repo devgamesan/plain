@@ -39,9 +39,7 @@ UiMode = Literal[
     "CONFIG",
     "SHELL",
     "BUSY",
-    "GREP_EXPORT",
 ]
-GrepExportFormat = Literal["single_line", "context", "json"]
 SortField = Literal["name", "modified", "size"]
 ClipboardMode = Literal["copy", "cut", "none"]
 NameConflictKind = Literal["rename", "create_file", "create_dir"]
@@ -56,14 +54,20 @@ CommandPaletteSource = Literal[
     "replace_in_found_files",
     "replace_in_grep_files",
     "grep_replace_selected",
-    "selected_files_grep",
 ]
-GrepSearchFieldId = Literal["keyword", "include", "exclude"]
-ReplaceFieldId = Literal["find", "replace"]
+GrepSearchScope = Literal["current_directory", "selected_entries", "search_workspace"]
+GrepSearchFieldId = Literal["keyword", "scope", "filename", "include", "exclude"]
+ReplaceScope = Literal[
+    "current_file",
+    "selected_files",
+    "current_directory",
+    "found_files",
+    "grep_result_files",
+]
+ReplaceFieldId = Literal["scope", "find", "replace", "filename", "include", "exclude"]
 FindReplaceFieldId = Literal["filename", "find", "replace"]
 GrepReplaceFieldId = Literal["keyword", "replace", "filename", "include", "exclude"]
 GrepReplaceSelectedFieldId = Literal["keyword", "replace"]
-SelectedFilesGrepFieldId = Literal["keyword"]
 FileSearchTarget = Literal["files", "directories", "all"]
 FileSearchFieldId = Literal["keyword", "target"]
 DirectorySizeStatus = Literal["pending", "ready", "failed"]
@@ -171,13 +175,18 @@ class DeleteConfirmationState:
 
     paths: tuple[str, ...]
     mode: DeleteMode = "trash"
+    total_size_bytes: int | None = None
+    contains_directory: bool = False
+    failed_paths: tuple[str, ...] = ()
+    additional_confirmation_armed: bool = False
 
+    @property
+    def requires_additional_confirmation(self) -> bool:
+        """Return whether permanent deletion needs a second explicit action."""
 
-@dataclass(frozen=True)
-class EmptyTrashConfirmationState:
-    """Pending confirmation dialog state for empty trash operation."""
-
-    platform: Literal["linux", "darwin"]
+        return self.mode == "permanent" and (
+            len(self.paths) > 1 or self.contains_directory
+        )
 
 
 @dataclass(frozen=True)
@@ -256,12 +265,7 @@ class AttributeInspectionState:
 class ReplaceConfirmationState:
     """Pending confirmation dialog state for text replacement operations."""
 
-    mode: Literal[
-        "replace_text",
-        "replace_in_found_files",
-        "replace_in_grep_files",
-        "grep_replace_selected",
-    ]
+    mode: Literal["replace_text"]
     find_text: str
     replacement_text: str
     target_paths: tuple[str, ...]
@@ -376,16 +380,6 @@ class FileSearchResultState:
 
 
 @dataclass(frozen=True)
-class GrepExportDialogState:
-    """Transient grep export dialog state."""
-
-    filename: str = "grep_results.txt"
-    format: GrepExportFormat = "single_line"
-    context_lines: int = 3
-    cursor_pos: int = 0
-
-
-@dataclass(frozen=True)
 class GrepSearchResultState:
     """A single grep result shown in the command palette."""
 
@@ -433,15 +427,6 @@ class HistoryAndNavigationPaletteState:
 
 
 @dataclass(frozen=True)
-class SfgPaletteState:
-    target_paths: tuple[str, ...] = ()
-    keyword: str = ""
-    active_field: SelectedFilesGrepFieldId = "keyword"
-    results: tuple[GrepSearchResultState, ...] = ()
-    error_message: str | None = None
-
-
-@dataclass(frozen=True)
 class FileSearchPaletteState:
     results: tuple[FileSearchResultState, ...] = ()
     error_message: str | None = None
@@ -461,6 +446,9 @@ class GrepSearchPaletteState:
     include_extensions: str = ""
     exclude_extensions: str = ""
     active_field: GrepSearchFieldId = "keyword"
+    scope: GrepSearchScope = "current_directory"
+    target_paths: tuple[str, ...] = ()
+    scope_message: str | None = None
     results: tuple[GrepSearchResultState, ...] = ()
     error_message: str | None = None
 
@@ -470,6 +458,13 @@ class ReplacePreviewPaletteState:
     find_text: str = ""
     replacement_text: str = ""
     active_field: ReplaceFieldId = "find"
+    scope: ReplaceScope = "current_directory"
+    filename_filter: str = ""
+    include_extensions: str = ""
+    exclude_extensions: str = ""
+    file_results: tuple[FileSearchResultState, ...] = ()
+    grep_results: tuple[GrepSearchResultState, ...] = ()
+    scope_message: str | None = None
     preview_results: tuple[ReplacePreviewResultState, ...] = ()
     error_message: str | None = None
     status_message: str | None = None
@@ -533,13 +528,12 @@ class CommandPaletteState:
     replace_preview: ReplacePreviewPaletteState = field(
         default_factory=ReplacePreviewPaletteState,
     )
-    history_and_navigation: HistoryAndNavigationPaletteState = field(
-        default_factory=HistoryAndNavigationPaletteState
-    )
     rff: RffPaletteState = field(default_factory=RffPaletteState)
     grs: GrsPaletteState = field(default_factory=GrsPaletteState)
     grf: GrfPaletteState = field(default_factory=GrfPaletteState)
-    sfg: SfgPaletteState = field(default_factory=SfgPaletteState)
+    history_and_navigation: HistoryAndNavigationPaletteState = field(
+        default_factory=HistoryAndNavigationPaletteState
+    )
 
 
 @dataclass(frozen=True)
@@ -618,7 +612,6 @@ class AppState:
     command_palette: CommandPaletteState | None = None
     paste_conflict: PasteConflictState | None = None
     delete_confirmation: DeleteConfirmationState | None = None
-    empty_trash_confirmation: EmptyTrashConfirmationState | None = None
     exit_confirmation: ExitConfirmationState | None = None
     name_conflict: NameConflictState | None = None
     archive_extract_confirmation: ArchiveExtractConfirmationState | None = None
@@ -630,7 +623,6 @@ class AppState:
     custom_action_confirmation: CustomActionConfirmationState | None = None
     attribute_inspection: AttributeInspectionState | None = None
     config_editor: ConfigEditorState | None = None
-    grep_export_dialog: GrepExportDialogState | None = None
     shell_command: ShellCommandState | None = None
     post_reload_notification: NotificationState | None = None
     directory_size_cache: tuple[DirectorySizeCacheEntry, ...] = ()
@@ -640,6 +632,7 @@ class AppState:
     pending_child_pane_request_id: int | None = None
     pending_paste_request_id: int | None = None
     pending_file_mutation_request_id: int | None = None
+    pending_delete_prepare_request_id: int | None = None
     pending_archive_prepare_request_id: int | None = None
     pending_archive_extract_request_id: int | None = None
     pending_zip_compress_prepare_request_id: int | None = None

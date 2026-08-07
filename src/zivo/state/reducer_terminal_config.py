@@ -4,7 +4,7 @@ from dataclasses import replace
 from textwrap import shorten
 from typing import Callable
 
-from zivo.models import BookmarkConfig, ExternalLaunchRequest, HelpBarConfig
+from zivo.models import BookmarkConfig, ExternalLaunchRequest
 
 from .actions import (
     Action,
@@ -26,7 +26,6 @@ from .actions import (
     OpenTerminalAtPath,
     PasteIntoShellCommand,
     RemoveBookmark,
-    ResetHelpBarConfig,
     SaveConfigEditor,
     SetShellCommandCursor,
     SetShellCommandValue,
@@ -290,6 +289,7 @@ def _handle_save_config_editor(
             request_id=request_id,
             path=state.config_editor.path,
             config=state.config_editor.draft,
+            preserve_unmanaged=True,
         ),
     )
 
@@ -388,31 +388,6 @@ def _handle_remove_bookmark(
         bookmarks=BookmarkConfig(
             paths=tuple(path for path in state.config.bookmarks.paths if path != action.path),
         ),
-    )
-    request_id = state.next_request_id
-    return finalize(
-        replace(
-            state,
-            notification=None,
-            pending_config_save_request_id=request_id,
-            next_request_id=request_id + 1,
-        ),
-        RunConfigSaveEffect(
-            request_id=request_id,
-            path=state.config_path,
-            config=next_config,
-        ),
-    )
-
-
-def _handle_reset_help_bar_config(
-    state: AppState,
-    action: ResetHelpBarConfig,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    next_config = replace(
-        state.config,
-        help_bar=HelpBarConfig(),
     )
     request_id = state.next_request_id
     return finalize(
@@ -663,7 +638,6 @@ _TERMINAL_CONFIG_HANDLERS: dict[type[Action], _TerminalConfigHandler] = {
     SubmitShellCommand: _handle_submit_shell_command,
     AddBookmark: _handle_add_bookmark,
     RemoveBookmark: _handle_remove_bookmark,
-    ResetHelpBarConfig: _handle_reset_help_bar_config,
     OpenPathWithDefaultApp: _handle_open_path_with_default_app,
     OpenPathInEditor: _handle_open_path_in_editor,
     OpenPathInGuiEditor: _handle_open_path_in_gui_editor,

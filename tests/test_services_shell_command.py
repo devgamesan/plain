@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import pytest
@@ -58,7 +57,6 @@ def test_live_shell_command_service_rejects_missing_directory(tmp_path: Path) ->
         service.execute(cwd=str(tmp_path / "missing"), command="pwd")
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Windows-only shell selection test")
 def test_live_shell_command_service_uses_powershell_on_windows(monkeypatch, tmp_path: Path) -> None:
     captured: dict[str, object] = {}
 
@@ -83,7 +81,6 @@ def test_live_shell_command_service_uses_powershell_on_windows(monkeypatch, tmp_
     assert captured["args"] == (["powershell.exe", "-NoProfile", "-Command", "Get-Location"],)
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Windows-only shell selection test")
 def test_live_shell_command_service_falls_back_to_pwsh_on_windows(
     monkeypatch,
     tmp_path: Path,
@@ -109,7 +106,6 @@ def test_live_shell_command_service_falls_back_to_pwsh_on_windows(
     assert captured["args"] == (["pwsh", "-NoProfile", "-Command", "Get-ChildItem"],)
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Windows-only shell selection test")
 def test_live_shell_command_service_falls_back_to_cmd_on_windows(
     monkeypatch,
     tmp_path: Path,
@@ -135,7 +131,6 @@ def test_live_shell_command_service_falls_back_to_cmd_on_windows(
     assert captured["args"] == (["cmd.exe", "/c", "dir"],)
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Windows-only shell selection test")
 def test_live_shell_command_service_uses_windows_shell_override(
     monkeypatch,
     tmp_path: Path,
@@ -162,7 +157,6 @@ def test_live_shell_command_service_uses_windows_shell_override(
     assert captured["args"] == (["pwsh", "-NoLogo", "-NoProfile", "-Command", "Get-Date"],)
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Windows-only shell selection test")
 def test_live_shell_command_service_rejects_unknown_windows_shell_override(
     tmp_path: Path,
 ) -> None:

@@ -9,7 +9,6 @@ from zivo.models import (
     CommandPaletteViewState,
     ConfigDialogState,
     ConflictDialogState,
-    GrepExportDialogViewState,
     HelpBarState,
     InputBarState,
     InputDialogState,
@@ -35,7 +34,6 @@ from .selectors_shared import (
     _build_grep_replace_selected_input_fields,
     _build_grep_search_input_fields,
     _build_replace_input_fields,
-    _build_selected_files_grep_input_fields,
     _format_config_line,
     _format_custom_editor_hint,
     _format_modified_label_from_timestamp,
@@ -75,22 +73,24 @@ def select_status_bar_state(state: AppState) -> StatusBarState:
     )
 
 
+def _format_help_line(shortcuts: tuple[tuple[str, str], ...]) -> str:
+    return " | ".join(f"{key} {label}" for key, label in shortcuts)
+
+
 def select_help_bar_state(state: AppState) -> HelpBarState:
     """Return the help content for the active mode."""
 
     if state.ui_mode == "CONFIRM":
         if state.delete_confirmation is not None:
-            if (
-                state.delete_confirmation.mode == "trash"
-                and state.config.help_bar.confirm_delete
-            ):
-                return HelpBarState(state.config.help_bar.confirm_delete)
-            if state.delete_confirmation.mode == "permanent":
+            confirmation = state.delete_confirmation
+            if confirmation.additional_confirmation_armed:
+                return HelpBarState(("D permanently delete | esc cancel",))
+            if confirmation.requires_additional_confirmation:
+                return HelpBarState(("enter review permanent delete | esc cancel",))
+            if confirmation.mode == "permanent":
                 return HelpBarState(("enter confirm permanent delete | esc cancel",))
             return HelpBarState(("enter confirm delete | esc cancel",))
         if state.exit_confirmation is not None:
-            if state.config.help_bar.confirm_exit:
-                return HelpBarState(state.config.help_bar.confirm_exit)
             return HelpBarState(("enter confirm exit | esc cancel",))
         if state.archive_extract_confirmation is not None:
             return HelpBarState(("enter continue extraction | esc return to input",))
@@ -104,56 +104,38 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             return HelpBarState(("enter return to input | esc return to input",))
         return HelpBarState(("resolve conflict in dialog",))
     if state.ui_mode == "DETAIL":
-        if state.config.help_bar.detail:
-            return HelpBarState(state.config.help_bar.detail)
         return HelpBarState(("enter close | esc close",))
     if state.ui_mode == "CONFIG":
-        if state.config.help_bar.config:
-            return HelpBarState(state.config.help_bar.config)
         return HelpBarState(
             (
-                "↑↓ or Ctrl+j/k choose | ←→ or Enter change | s save | e edit file | r reset help",
+                "↑↓ or Ctrl+j/k choose | ←→ or Enter change | s save | e advanced config",
                 "esc close",
             )
         )
     if state.ui_mode == "SHELL":
         # 結果表示状態の場合
         if state.shell_command is not None and state.shell_command.result is not None:
-            return HelpBarState(("press esc to close",))
+            return HelpBarState(("r rerun | t terminal | esc close",))
         # コマンド入力状態の場合
-        if state.config.help_bar.shell:
-            return HelpBarState(state.config.help_bar.shell)
         return HelpBarState(("type command | enter run | esc cancel",))
     if state.ui_mode == "FILTER":
-        if state.config.help_bar.filter:
-            return HelpBarState(state.config.help_bar.filter)
         return HelpBarState(("type filter | enter/down apply | esc clear",))
     if state.ui_mode == "CHMOD":
         return HelpBarState(("type octal mode | enter apply | esc cancel",))
     if state.ui_mode == "CHOWN":
         return HelpBarState(("type owner[:group] | enter apply | esc cancel",))
     if state.ui_mode == "RENAME":
-        if state.config.help_bar.rename:
-            return HelpBarState(state.config.help_bar.rename)
         return HelpBarState(("type name | enter apply | esc cancel",))
     if state.ui_mode == "CREATE":
-        if state.config.help_bar.create:
-            return HelpBarState(state.config.help_bar.create)
         return HelpBarState(("type name | enter apply | esc cancel",))
     if state.ui_mode == "EXTRACT":
-        if state.config.help_bar.extract:
-            return HelpBarState(state.config.help_bar.extract)
         return HelpBarState(("type destination path | enter extract | esc cancel",))
     if state.ui_mode == "ZIP":
-        if state.config.help_bar.zip:
-            return HelpBarState(state.config.help_bar.zip)
         return HelpBarState(("type zip path | enter compress | esc cancel",))
     if state.ui_mode == "SYMLINK":
         return HelpBarState(("type destination path | tab complete | enter create | esc cancel",))
     if state.ui_mode == "PALETTE":
         if state.command_palette is not None and state.command_palette.source == "file_search":
-            if state.config.help_bar.palette_file_search:
-                return HelpBarState(state.config.help_bar.palette_file_search)
             return HelpBarState(
                 (
                     "type filename | ↑↓ or Ctrl+j/k select | enter jump | "
@@ -161,8 +143,6 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
                 )
             )
         if state.command_palette is not None and state.command_palette.source == "grep_search":
-            if state.config.help_bar.palette_grep_search:
-                return HelpBarState(state.config.help_bar.palette_grep_search)
             return HelpBarState(
                 (
                     "type text / tab fields / ↑↓ or Ctrl+j/k select | "
@@ -170,65 +150,39 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
                     "Ctrl+x export | esc cancel",
                 )
             )
-        if (
-            state.command_palette is not None
-            and state.command_palette.source == "selected_files_grep"
-        ):
-            return HelpBarState(
-                (
-                    "type keyword / ↑↓ or Ctrl+j/k select | enter jump | "
-                    "Ctrl+e edit | Ctrl+o GUI | Ctrl+x export | esc cancel",
-                )
-            )
         if state.command_palette is not None and state.command_palette.source == "history":
-            if state.config.help_bar.palette_history:
-                return HelpBarState(state.config.help_bar.palette_history)
             return HelpBarState(("type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",))
         if state.command_palette is not None and state.command_palette.source == "bookmarks":
-            if state.config.help_bar.palette_bookmarks:
-                return HelpBarState(state.config.help_bar.palette_bookmarks)
             return HelpBarState(("type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",))
         if state.command_palette is not None and state.command_palette.source == "go_to_path":
-            if state.config.help_bar.palette_go_to_path:
-                return HelpBarState(state.config.help_bar.palette_go_to_path)
             return HelpBarState(
                 ("type path | ↑↓ or Ctrl+j/k select | tab complete | enter jump | esc cancel",)
             )
-        if state.config.help_bar.palette:
-            return HelpBarState(state.config.help_bar.palette)
         return HelpBarState(("type command | ↑↓ or Ctrl+j/k select | enter run | esc cancel",))
     if state.ui_mode == "BUSY":
-        if state.config.help_bar.busy:
-            return HelpBarState(state.config.help_bar.busy)
         return HelpBarState(("processing...",))
     if state.layout_mode == "transfer":
-        if state.config.help_bar.transfer:
-            return HelpBarState(state.config.help_bar.transfer)
-        return HelpBarState(
-            (
-                "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit",
-                "Space select | c copy | x cut | v paste | d delete | r rename | z undo",
-                ". hidden | N new-dir | : palette",
-            )
-        )
+        from .input_transfer import TRANSFER_HELP_LINES
+
+        return HelpBarState(tuple(_format_help_line(line) for line in TRANSFER_HELP_LINES))
     if is_search_workspace_path(state.current_path):
         return HelpBarState(
             (
-                "enter open | e edit | O gui editor | i info | "
-                "/ filter | s sort | . hidden | [ ] bk/fwd | q quit",
+                "enter open | e edit | / filter | s sort | . hidden | "
+                "[ ] bk/fwd | q quit",
                 "space select | c copy | z undo | ctrl+j/k prv",
                 ": palette",
             )
         )
-    if state.config.help_bar.browsing:
-        return HelpBarState(state.config.help_bar.browsing)
     split_terminal_hint = " | t term" if is_split_terminal_supported() else ""
+    from .input_browsing import BROWSING_HELP_LINES
+
     return HelpBarState(
         (
-            "enter open | e edit | O gui editor | i info | "
-            "/ filter | s sort | . hidden | [ ] bk/fwd | q quit",
-            "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv",
-            f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette",
+            _format_help_line(BROWSING_HELP_LINES[0]),
+            f"{_format_help_line(BROWSING_HELP_LINES[1])} | ctrl+j/k prv",
+            f"{_format_help_line(BROWSING_HELP_LINES[2][:-1])}{split_terminal_hint} | "
+            f"{_format_help_line(BROWSING_HELP_LINES[2][-1:])}",
         )
     )
 
@@ -265,21 +219,6 @@ def select_input_bar_state(state: AppState) -> InputBarState | None:
     return None
 
 
-def select_grep_export_dialog_state(state: AppState) -> GrepExportDialogViewState | None:
-    """Return dialog content when the app is in grep export mode."""
-
-    if state.ui_mode != "GREP_EXPORT" or state.grep_export_dialog is None:
-        return None
-    dialog = state.grep_export_dialog
-    return GrepExportDialogViewState(
-        filename=dialog.filename,
-        format=dialog.format,
-        context_lines=dialog.context_lines,
-        cursor_pos=dialog.cursor_pos,
-        options=("[f] Format", "[Enter] Export", "[Esc] Cancel"),
-    )
-
-
 def select_input_dialog_state(state: AppState) -> InputDialogState | None:
     """Return dialog content when the app is in an input mode."""
 
@@ -288,17 +227,9 @@ def select_input_dialog_state(state: AppState) -> InputDialogState | None:
     if state.pending_input is None:
         return None
     if state.ui_mode == "CHMOD":
-        title = (
-            "Change Permissions Recursively"
-            if state.pending_input.chmod_recursive
-            else "Change Permissions"
-        )
+        title = "Change Permissions"
     elif state.ui_mode == "CHOWN":
-        title = (
-            "Change Owner Recursively"
-            if state.pending_input.chown_recursive
-            else "Change Owner"
-        )
+        title = "Change Owner"
     elif state.ui_mode == "RENAME":
         title = "Rename"
     elif state.ui_mode == "EXTRACT":
@@ -311,16 +242,64 @@ def select_input_dialog_state(state: AppState) -> InputDialogState | None:
         title = "New File"
     else:
         title = "New Directory"
+    details: tuple[str, ...] = ()
+    if state.ui_mode in {"CHMOD", "CHOWN"}:
+        target_paths = (
+            state.pending_input.chmod_target_paths
+            if state.ui_mode == "CHMOD"
+            else state.pending_input.chown_target_paths
+        ) or ()
+        recursive = (
+            state.pending_input.chmod_recursive
+            if state.ui_mode == "CHMOD"
+            else state.pending_input.chown_recursive
+        )
+        entries = (
+            state.transfer_left.pane.entries
+            if state.layout_mode == "transfer"
+            and state.active_transfer_pane == "left"
+            and state.transfer_left is not None
+            else state.transfer_right.pane.entries
+            if state.layout_mode == "transfer" and state.transfer_right is not None
+            else state.current_pane.entries
+        )
+        entry_by_path = {entry.path: entry for entry in entries}
+        selected_entries = tuple(
+            entry_by_path[path] for path in target_paths if path in entry_by_path
+        )
+        directories = sum(entry.kind == "dir" for entry in selected_entries)
+        files = sum(entry.kind == "file" for entry in selected_entries)
+        symlinks = sum(entry.symlink for entry in selected_entries)
+        kinds = ", ".join(
+            part
+            for part in (
+                f"{files} file{'s' if files != 1 else ''}" if files else "",
+                f"{directories} director{'ies' if directories != 1 else 'y'}"
+                if directories
+                else "",
+                f"{symlinks} symlink{'s' if symlinks != 1 else ''}" if symlinks else "",
+            )
+            if part
+        ) or "unknown types"
+        details = (
+            f"Targets: {len(target_paths)} ({kinds})",
+            f"Recursive: {'Yes' if recursive else 'No'}",
+            "Symlinks are skipped and never followed.",
+        )
     return InputDialogState(
         title=title,
         prompt=state.pending_input.prompt,
         value=state.pending_input.value,
         cursor_pos=state.pending_input.cursor_pos,
         hint=(
+            "tab toggle recursive | enter apply | esc cancel"
+            if state.ui_mode in {"CHMOD", "CHOWN"}
+            else
             "tab complete | enter apply | esc cancel"
             if state.ui_mode == "SYMLINK"
             else "enter apply | esc cancel"
         ),
+        details=details,
     )
 
 
@@ -475,28 +454,6 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
                 len(state.command_palette.grs.preview_results) > len(visible_results)
             ),
         )
-    if state.command_palette.source == "selected_files_grep":
-        visible_results, title = _select_grep_search_window(
-            state,
-            state.command_palette.sfg.results,
-            cursor_index,
-        )
-        return CommandPaletteViewState(
-            title=title,
-            query=state.command_palette.sfg.keyword,
-            items=tuple(
-                CommandPaletteItemViewState(
-                    label=result.display_label,
-                    shortcut=None,
-                    enabled=True,
-                    selected=index == cursor_index,
-                )
-                for index, result in visible_results
-            ),
-            empty_message=_selected_files_grep_empty_message(state),
-            input_fields=_build_selected_files_grep_input_fields(state.command_palette),
-            has_more_items=(len(state.command_palette.sfg.results) > len(visible_results)),
-        )
     if state.command_palette.source == "history":
         return _build_command_palette_items_view(
             state,
@@ -558,38 +515,46 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
     if state.delete_confirmation is not None:
         confirmation = state.delete_confirmation
         target_count = len(confirmation.paths)
-        first_name = Path(confirmation.paths[0]).name
         noun = "item" if target_count == 1 else "items"
         if confirmation.mode == "permanent":
-            message = f"Permanently delete {target_count} {noun}? This cannot be undone."
-            if target_count > 1:
-                message = (
-                    f"Permanently delete {target_count} items? "
-                    f"The first target is {first_name}. This cannot be undone."
-                )
-            title = "Permanent Delete Confirmation"
+            names = tuple(Path(path).name or path for path in confirmation.paths[:3])
+            names_label = ", ".join(names)
+            remaining_count = max(0, target_count - len(names))
+            if remaining_count:
+                names_label = f"{names_label}, and {remaining_count} more"
+            size_label = _format_size_label(confirmation.total_size_bytes)
+            size_note = (
+                f"at least {size_label}; size unavailable for "
+                f"{len(confirmation.failed_paths)} path(s)"
+                if confirmation.failed_paths
+                else size_label
+            )
+            message = (
+                f"Permanently delete {target_count} {noun} ({size_note})? "
+                f"Targets: {names_label}. This cannot be undone."
+            )
+            if confirmation.additional_confirmation_armed:
+                title = "Final Permanent Delete Confirmation"
+                message = f"{message} Press D to permanently delete now."
+                options = ("D permanently delete", "esc cancel")
+            elif confirmation.requires_additional_confirmation:
+                title = "Permanent Delete Confirmation"
+                message = f"{message} Press Enter to continue to the final confirmation."
+                options = ("enter review", "esc cancel")
+            else:
+                title = "Permanent Delete Confirmation"
+                options = ("enter confirm", "esc cancel")
         else:
+            first_name = Path(confirmation.paths[0]).name
             message = f"Move {target_count} {noun} to trash?"
             if target_count > 1:
                 message = f"Move {target_count} items to trash? The first target is {first_name}."
             title = "Delete Confirmation"
+            options = ("enter confirm", "esc cancel")
         return ConflictDialogState(
             title=title,
             message=message,
-            options=("enter confirm", "esc cancel"),
-        )
-
-    if state.empty_trash_confirmation is not None:
-        confirmation = state.empty_trash_confirmation
-        platform_name = "Linux" if confirmation.platform == "linux" else "macOS"
-        message = (
-            f"Permanently delete all items from the {platform_name} trash? "
-            "This cannot be undone."
-        )
-        return ConflictDialogState(
-            title="Empty Trash Confirmation",
-            message=message,
-            options=("enter confirm", "esc cancel"),
+            options=options,
         )
 
     if state.archive_extract_confirmation is not None:
@@ -783,18 +748,16 @@ def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
     )
     lines_list.extend([
         "",
+        "  ── Advanced Settings ──",
+        "  Edit config.toml with e for advanced, custom, and future settings.",
+        "  Saving here preserves settings that are not shown above.",
         _format_custom_editor_hint(config.editor.command),
-        "GUI editor presets: "
-        + ", ".join(name for name, _config in CONFIG_GUI_EDITOR_PRESETS),
-        "Terminal launch templates: edit config.toml with e",
-        f"  Linux templates: {len(config.terminal.linux)}",
-        f"  macOS templates: {len(config.terminal.macos)}",
-        f"  Windows templates: {len(config.terminal.windows)}",
+        "GUI editor presets: " + ", ".join(name for name, _config in CONFIG_GUI_EDITOR_PRESETS),
     ])
 
-    title = "Config Editor"
+    title = "Config Editor (Basic Settings)"
     if state.config_editor.dirty:
-        title = "Config Editor*"
+        title = f"{title}*"
     return ConfigDialogState(
         title=title,
         lines=tuple(lines_list),
@@ -802,8 +765,7 @@ def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
             "↑↓/Ctrl+j/k choose",
             "←→/enter change",
             "s save",
-            "e edit file",
-            "r reset help",
+            "e advanced config",
             "esc close",
         ),
     )
@@ -823,7 +785,7 @@ def select_shell_command_dialog_state(state: AppState) -> ShellCommandDialogStat
             prompt="Command: ",
             command=state.shell_command.command,
             cursor_pos=state.shell_command.cursor_pos,
-            options=("esc close",),
+            options=("r rerun", "t terminal", "esc close"),
             result=state.shell_command.result,
         )
 
@@ -835,6 +797,7 @@ def select_shell_command_dialog_state(state: AppState) -> ShellCommandDialogStat
         command=state.shell_command.command,
         cursor_pos=state.shell_command.cursor_pos,
         options=("enter run", "esc cancel"),
+        guidance="Runs in the background; use t for interactive commands.",
         result=None,
     )
 
@@ -849,11 +812,15 @@ def _file_search_empty_message(state: AppState) -> str:
     ):
         return state.command_palette.file_search.error_message
     return "No matching files"
-
-
 def _grep_search_empty_message(state: AppState) -> str:
     if state.pending_grep_search_request_id is not None:
         return "Searching matches..."
+    if (
+        state.command_palette is not None
+        and state.command_palette.source == "grep_search"
+        and state.command_palette.grep_search.scope_message is not None
+    ):
+        return state.command_palette.grep_search.scope_message
     if (
         state.command_palette is not None
         and state.command_palette.source == "grep_search"
@@ -952,17 +919,3 @@ def _grep_replace_selected_empty_message(state: AppState) -> str:
     if state.command_palette.grs.total_match_count > 0:
         return "Preview shown in right pane. Press Enter to apply."
     return "No matching files"
-
-
-def _selected_files_grep_empty_message(state: AppState) -> str:
-    if state.pending_grep_search_request_id is not None:
-        return "Searching..."
-    if state.command_palette is None or state.command_palette.source != "selected_files_grep":
-        return ""
-    if state.command_palette.sfg.error_message is not None:
-        return state.command_palette.sfg.error_message
-    if not state.command_palette.sfg.keyword.strip():
-        return "Type a search keyword"
-    if not state.command_palette.sfg.results:
-        return "No matches found in selected files"
-    return ""

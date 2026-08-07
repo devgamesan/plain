@@ -524,6 +524,33 @@ def test_file_mutation_service_permanently_deletes_single_path() -> None:
     assert result.removed_paths == ("/tmp/zivo/docs",)
 
 
+def test_file_mutation_service_prepares_permanent_delete_metadata(tmp_path) -> None:
+    directory = tmp_path / "docs"
+    directory.mkdir()
+    (directory / "guide.md").write_bytes(b"guide")
+    notes = tmp_path / "notes.txt"
+    notes.write_bytes(b"notes-data")
+    request = DeleteRequest(paths=(str(directory), str(notes)), mode="permanent")
+
+    result = LiveFileMutationService().prepare_delete(request)
+
+    assert result.request == request
+    assert result.total_size_bytes == 15
+    assert result.contains_directory is True
+    assert result.failed_paths == ()
+
+
+def test_file_mutation_service_reports_unreadable_delete_metadata(tmp_path) -> None:
+    missing = tmp_path / "missing.txt"
+    request = DeleteRequest(paths=(str(missing),), mode="permanent")
+
+    result = LiveFileMutationService().prepare_delete(request)
+
+    assert result.total_size_bytes == 0
+    assert result.contains_directory is False
+    assert result.failed_paths == (str(missing),)
+
+
 def test_file_mutation_service_reports_partial_permanent_delete_failures() -> None:
     adapter = StubFileOperationAdapter(failing_paths={"/tmp/zivo/src"})
     service = LiveFileMutationService(adapter=adapter)

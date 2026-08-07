@@ -4,19 +4,18 @@ from tests.test_state_reducer import _reduce_state
 from zivo.models import DeleteRequest
 from zivo.state import (
     DeleteConfirmationState,
-    EmptyTrashConfirmationState,
     NotificationState,
+    RunDeletePreparationEffect,
     RunFileMutationEffect,
     build_initial_app_state,
     reduce_app_state,
 )
 from zivo.state.actions import (
+    AdvancePermanentDeleteConfirmation,
     BeginDeleteTargets,
-    BeginEmptyTrash,
     CancelDeleteConfirmation,
-    CancelEmptyTrashConfirmation,
     ConfirmDeleteTargets,
-    ConfirmEmptyTrash,
+    DeletePreparationCompleted,
 )
 
 
@@ -126,19 +125,82 @@ def test_cancel_delete_confirmation_returns_to_browsing_with_warning() -> None:
     assert next_state.notification == NotificationState(level="warning", message="Delete cancelled")
 
 
-def test_begin_permanent_delete_targets_enters_confirm_mode_when_delete_confirmation_disabled(
+def test_begin_permanent_delete_targets_prepares_confirmation_when_delete_confirmation_disabled(
 ) -> None:
     state = build_initial_app_state(confirm_delete=False)
 
-    next_state = _reduce_state(
+    result = reduce_app_state(
         state,
         BeginDeleteTargets(("/home/tadashi/develop/zivo/docs",), mode="permanent"),
     )
 
-    assert next_state.ui_mode == "CONFIRM"
-    assert next_state.delete_confirmation == DeleteConfirmationState(
+    assert result.state.ui_mode == "BUSY"
+    assert result.state.pending_delete_prepare_request_id == 1
+    assert result.effects == (
+        RunDeletePreparationEffect(
+            request_id=1,
+            request=DeleteRequest(
+                paths=("/home/tadashi/develop/zivo/docs",),
+                mode="permanent",
+            ),
+        ),
+    )
+
+
+def test_delete_preparation_completion_shows_size_and_requires_additional_confirmation(
+) -> None:
+    request = DeleteRequest(
         paths=("/home/tadashi/develop/zivo/docs",),
         mode="permanent",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_delete_prepare_request_id=4,
+    )
+
+    next_state = _reduce_state(
+        state,
+        DeletePreparationCompleted(
+            request_id=4,
+            request=request,
+            total_size_bytes=4096,
+            contains_directory=True,
+        ),
+    )
+
+    assert next_state.ui_mode == "CONFIRM"
+    assert next_state.delete_confirmation == DeleteConfirmationState(
+        paths=request.paths,
+        mode="permanent",
+        total_size_bytes=4096,
+        contains_directory=True,
+    )
+
+
+def test_risky_permanent_delete_requires_explicit_second_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        delete_confirmation=DeleteConfirmationState(
+            paths=("/tmp/docs",),
+            mode="permanent",
+            contains_directory=True,
+        ),
+    )
+
+    unconfirmed = reduce_app_state(state, ConfirmDeleteTargets())
+    armed = _reduce_state(state, AdvancePermanentDeleteConfirmation())
+    confirmed = reduce_app_state(armed, ConfirmDeleteTargets())
+
+    assert unconfirmed.state == state
+    assert armed.delete_confirmation is not None
+    assert armed.delete_confirmation.additional_confirmation_armed is True
+    assert confirmed.effects == (
+        RunFileMutationEffect(
+            request_id=1,
+            request=DeleteRequest(paths=("/tmp/docs",), mode="permanent"),
+        ),
     )
 
 
@@ -184,81 +246,3 @@ def test_cancel_permanent_delete_confirmation_returns_to_browsing_with_warning()
         level="warning",
         message="Permanent delete cancelled",
     )
-
-
-def test_begin_empty_trash_enters_confirm_mode(monkeypatch) -> None:
-    monkeypatch.setattr("platform.system", lambda: "Darwin")
-
-    state = build_initial_app_state()
-
-    next_state = _reduce_state(state, BeginEmptyTrash())
-
-    assert next_state.ui_mode == "CONFIRM"
-    assert next_state.empty_trash_confirmation is not None
-    assert next_state.empty_trash_confirmation.platform == "darwin"
-    assert next_state.command_palette is None
-    assert next_state.pending_input is None
-
-
-def test_begin_empty_trash_on_windows_enters_confirm_mode(monkeypatch) -> None:
-    monkeypatch.setattr("platform.system", lambda: "Windows")
-
-    state = build_initial_app_state()
-
-    next_state = _reduce_state(state, BeginEmptyTrash())
-
-    assert next_state.ui_mode == "CONFIRM"
-    assert next_state.empty_trash_confirmation is not None
-    assert next_state.empty_trash_confirmation.platform == "windows"
-    assert next_state.command_palette is None
-    assert next_state.pending_input is None
-
-
-def test_cancel_empty_trash_confirmation_returns_to_browsing() -> None:
-    state = replace(
-        build_initial_app_state(),
-        ui_mode="CONFIRM",
-        empty_trash_confirmation=EmptyTrashConfirmationState(platform="darwin"),
-    )
-
-    next_state = _reduce_state(state, CancelEmptyTrashConfirmation())
-
-    assert next_state.ui_mode == "BROWSING"
-    assert next_state.empty_trash_confirmation is None
-    assert next_state.notification is None
-
-
-def test_confirm_empty_trash_shows_notification_on_success(monkeypatch) -> None:
-    from unittest.mock import MagicMock
-
-    from zivo.services.trash_operations import MacOsTrashService
-
-    state = replace(
-        build_initial_app_state(),
-        ui_mode="CONFIRM",
-        empty_trash_confirmation=EmptyTrashConfirmationState(platform="darwin"),
-    )
-
-    fake_service = MacOsTrashService()
-    monkeypatch.setattr("zivo.services.resolve_trash_service", lambda: fake_service)
-    monkeypatch.setattr(
-        "zivo.services.trash_operations.subprocess.run",
-        lambda *a, **kw: MagicMock(returncode=0, stderr=""),
-    )
-
-    class FakeHome:
-        def __truediv__(self, other):
-            return FakePath()
-
-    class FakePath:
-        def exists(self):
-            return False
-
-    monkeypatch.setattr("pathlib.Path.home", lambda: FakeHome())
-
-    next_state = _reduce_state(state, ConfirmEmptyTrash())
-
-    assert next_state.ui_mode == "BROWSING"
-    assert next_state.empty_trash_confirmation is None
-    assert next_state.notification is not None
-    assert next_state.notification.level == "info"

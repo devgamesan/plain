@@ -12,7 +12,7 @@
 
 zivo is a TUI file manager designed to be usable without memorizing dozens of shortcuts.
 
-It keeps common actions visible in the help bar, and lets you run everything else from the command palette. You can browse, preview, search, grep, replace, and transfer files without leaving the terminal.
+By default, it keeps actions relevant to the current state visible in the help bar, and lets you run everything else from the command palette. You can browse, preview, search, grep, replace, and transfer files without leaving the terminal.
 
 ---
 
@@ -27,16 +27,16 @@ It keeps common actions visible in the help bar, and lets you run everything els
 
 ## Highlights
 
-- **No memorization required**: common actions are always visible in the help bar
+- **No memorization required**: relevant standard shortcuts are shown in the help bar
 - **Command palette**: press `:` to search and run available actions
 - **Three-pane preview**: preview directories, text, images, PDF, and Office files
 - **Transfer mode**: copy and move files between two directories side by side
 - **Search and grep**: find files, grep recursively, and open files from results
-- **Replace with preview**: replace in grep results or files, review diffs before applying
+- **Replace with preview**: choose a scope, review diffs, then apply a batch replacement
 
 ---
 
-Browse directories across three panes while previewing files on the right. Use file search and grep to quickly jump to any file. Common actions are always visible in the help bar, so you never feel lost.
+Browse directories across three panes while previewing files on the right. Use file search and grep to quickly jump to any file. The help bar follows the current state and standard keybindings, so you never feel lost.
 
 ![](docs/resources/basic_operation.gif)
 
@@ -98,19 +98,19 @@ zivo-cd
 
 ## Basic controls
 
-Common actions are always shown in the help bar.
+By default, actions relevant to the current state are shown in the help bar.
 You can also press `:` to open the command palette and search for available actions.
 
 | Key | Action |
 |---|---|
 | `↑` / `↓` or `j` / `k` | Move cursor |
 | `Enter` | Open file / enter directory |
-| `Backspace` / `←` | Go to parent directory |
+| `←` / `h` | Go to parent directory |
 | `Space` | Toggle selection |
 | `:` | Open command palette |
 | `/` | Filter entries |
 | `f` | Find files |
-| `g` | Grep search |
+| `g` | Search contents |
 | `p` | Toggle Transfer mode |
 | `q` | Quit |
 
@@ -140,7 +140,7 @@ See [Commands](docs/commands.md) for the full command list.
 - **Copy / Cut / Paste**: within a pane or across panes in Transfer mode
 - **Rename**: inline rename
 - **Permissions and ownership**: change selected targets' octal mode or owner/group from the command palette on POSIX-style filesystems
-- **Delete**: move to trash (`d`) or permanent delete (`D`), with configurable confirmation
+- **Delete**: move to trash (`d`) or permanently delete (`D`); permanent delete shows target count, total size, representative names, and an irreversible-operation warning
 - **Undo**: revert rename, paste, or trash operations
 - **Multi-selection**: select files with Space, or Select all
 
@@ -150,8 +150,8 @@ See [Commands](docs/commands.md) for the full command list.
 
 ### Search and replace
 - **Find files**: recursive filename search
-- **Grep search**: recursive grep via ripgrep (filename / extension filters)
-- **Replace**: batch replace in selected files, found files, or grep results with diff preview
+- **Search contents**: recursive grep via ripgrep with directory, current-file, selected-files, or Search Workspace scopes and common filename / extension filters
+- **Replace**: one scope-aware flow for current file, selected files, directories, found files, and grep result files
 
 ### Preview
 - Text, images (chafa; optional Kitty graphics protocol on compatible terminals), PDF (pdftotext), Office (pandoc)
@@ -161,17 +161,19 @@ See [Commands](docs/commands.md) for the full command list.
 
 ### Command palette
 - Press `:` to search and execute any action via incremental search. No need to memorize keybindings
+- Lower-frequency attribute, path-copy, bookmark-edit, go-to-path, external-launch, history, and reload actions live in the palette instead of single-key bindings
 
 ### Customization
 - **Settings overlay**: interactively edit and save startup configuration
 - **Custom actions**: add external tools to the command palette
-- **config.toml**: configure themes, sorting, preview visibility, delete confirmation, and more
+- **config.toml**: use the Config Editor for common themes, sorting, previews, editors, and delete confirmation; edit advanced settings in the raw file
 
 ### External integration
-- **Editor**: open files in terminal or GUI editor
-- **Terminal**: launch an external terminal in the current directory
-- **Shell command**: run a command in the current directory
-- **File manager**: open the current directory in the OS file manager
+- **Open and edit**: open a selected file with its OS default app, or edit it with a terminal or GUI editor
+- **Foreground shell**: suspend zivo for interactive work in the current terminal
+- **Terminal**: open the current directory with an external terminal window for independent work
+- **Run command**: run a short non-interactive command in the current directory, with retained exit/output/error details
+- **File manager**: open the current directory with the OS file manager
 - **Clipboard**: copy paths to the system clipboard
 
 ---
@@ -179,8 +181,9 @@ See [Commands](docs/commands.md) for the full command list.
 ## Configuration
 
 zivo automatically creates `config.toml` on first launch.
-You can configure themes, previews, sorting, editor integration, delete confirmation, and more.
+The Config Editor covers commonly changed themes, previews, sorting, editor integration, and delete confirmation. Press `e` there to edit advanced settings in `config.toml`; saving from the UI preserves advanced and unknown settings.
 You can also add custom command palette actions for external tools.
+Help text itself is generated from the current state and standard keybindings.
 
 See [Configuration](docs/configuration.md) for details.
 See [Custom Actions](docs/custom-actions.md) for custom action examples and safety notes.
@@ -192,7 +195,7 @@ See [Custom Actions](docs/custom-actions.md) for custom action examples and safe
 zivo includes safety mechanisms to prevent data loss during file operations.
 
 - **Move to trash**: `d` / `Delete` moves items to the OS trash (confirmation dialog configurable)
-- **Permanent delete**: `D` / `Shift+Delete` always asks for confirmation
+- **Permanent delete**: `D` / `Shift+Delete` always asks for confirmation; multiple targets or directories require `Enter` followed by an explicit uppercase `D`
 - **Undo**: `z` reverses the last rename, paste, or trash operation
 - **Paste conflict resolution**: choose overwrite, skip, or rename on name collision
 - **Replace preview**: review diffs before applying batch replacements

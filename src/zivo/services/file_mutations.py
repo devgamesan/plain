@@ -1,6 +1,7 @@
 """Rename and create filesystem mutation service."""
 
 import os
+import stat
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import sleep
@@ -12,6 +13,7 @@ from zivo.models import (
     ChownRequest,
     CreatePathRequest,
     CreateSymlinkRequest,
+    DeletePreparationResult,
     DeleteRequest,
     FileMutationResult,
     RecursiveChmodRequest,
@@ -40,6 +42,8 @@ class FileMutationService(Protocol):
         request: FileMutationRequest,
     ) -> FileMutationResult: ...
 
+    def prepare_delete(self, request: DeleteRequest) -> DeletePreparationResult: ...
+
 
 @dataclass(frozen=True)
 class LiveFileMutationService:
@@ -67,6 +71,24 @@ class LiveFileMutationService:
         if isinstance(request, RecursiveChownRequest):
             return self._execute_recursive_chown(request)
         return self._execute_create(request)
+
+    def prepare_delete(self, request: DeleteRequest) -> DeletePreparationResult:
+        """Collect size and target-kind metadata without following symlinks."""
+
+        total_size_bytes = 0
+        contains_directory = False
+        failed_paths: list[str] = []
+        for path in request.paths:
+            size_bytes, is_directory, failures = _measure_delete_path(Path(path))
+            total_size_bytes += size_bytes
+            contains_directory = contains_directory or is_directory
+            failed_paths.extend(failures)
+        return DeletePreparationResult(
+            request=request,
+            total_size_bytes=total_size_bytes,
+            contains_directory=contains_directory,
+            failed_paths=tuple(dict.fromkeys(failed_paths)),
+        )
 
     def _execute_rename(self, request: RenameRequest) -> FileMutationResult:
         source_path = _absolute_entry_path(request.source_path)
@@ -313,7 +335,25 @@ class FakeFileMutationService:
         FileMutationRequest,
         str,
     ] = field(default_factory=dict)
+    preparation_results: Mapping[DeleteRequest, DeletePreparationResult] = field(
+        default_factory=dict
+    )
+    preparation_failure_messages: Mapping[DeleteRequest, str] = field(default_factory=dict)
     default_delay_seconds: float = 0.0
+
+    def prepare_delete(self, request: DeleteRequest) -> DeletePreparationResult:
+        if self.default_delay_seconds > 0:
+            sleep(self.default_delay_seconds)
+        if request in self.preparation_failure_messages:
+            raise OSError(self.preparation_failure_messages[request])
+        return self.preparation_results.get(
+            request,
+            DeletePreparationResult(
+                request=request,
+                total_size_bytes=0,
+                contains_directory=False,
+            ),
+        )
 
     def execute(
         self,
@@ -410,6 +450,32 @@ class FakeFileMutationService:
 
 def _absolute_entry_path(path: str) -> Path:
     return Path(os.path.abspath(os.path.expanduser(path)))
+
+
+def _measure_delete_path(path: Path) -> tuple[int, bool, tuple[str, ...]]:
+    """Return content size, directory presence, and unreadable paths."""
+
+    try:
+        path_stat = path.lstat()
+    except OSError:
+        return 0, False, (str(path),)
+
+    if stat.S_ISLNK(path_stat.st_mode) or not stat.S_ISDIR(path_stat.st_mode):
+        return path_stat.st_size, False, ()
+
+    total_size = 0
+    failures: list[str] = []
+    try:
+        with os.scandir(path) as iterator:
+            for entry in iterator:
+                child_size, _contains_directory, child_failures = _measure_delete_path(
+                    Path(entry.path)
+                )
+                total_size += child_size
+                failures.extend(child_failures)
+    except OSError:
+        failures.append(str(path))
+    return total_size, True, tuple(failures)
 
 
 def _iter_recursive_chmod_targets(paths: tuple[str, ...]) -> tuple[Path, ...]:

@@ -189,6 +189,7 @@ sequenceDiagram
 
 - `handle_mutation_action()` を公開入口として維持し、mutation 系 action を責務別ハンドラへ振り分ける
 - `reducer_mutations_input.py`、`reducer_mutations_selection.py`、`reducer_mutations_delete.py`、`reducer_mutations_archive.py`、`reducer_mutations_undo.py` が pending input、clipboard、delete/trash、archive/zip、undo/完了処理を分担する
+- `reducer_mutations_delete.py` は完全削除前の非同期メタデータ取得と、複数対象・ディレクトリ向け二段階確認も管理する
 - `reducer_mutations_common.py` が platform 判定と undo entry 構築などの共有 helper を持つ
 
 ### `src/zivo/state/reducer_palette.py`
@@ -227,11 +228,13 @@ sequenceDiagram
   - `Show attributes`
   - `Rename`
   - `Extract archive`
-  - `Open in editor`
+  - `Open`
+  - `Edit with terminal editor`
+  - `Edit with GUI editor`
   - `Copy path`
   - `Move to trash`
-  - `Open in file manager`
-  - `Open terminal here`
+  - `Open current directory with file manager`
+  - `Open current directory with terminal`
   - `Bookmark this directory` / `Remove bookmark`
   - `Show hidden files` / `Hide hidden files`
   - `Edit config`
@@ -248,7 +251,7 @@ sequenceDiagram
 - `grep_search.py`: `rg` を使った再帰内容検索を担当する
 - `directory_size.py`: 可視ディレクトリの再帰サイズ計算を担当する
 - `clipboard_operations.py`: copy / cut / paste 実処理、競合検出、undo 用結果記録を担当する
-- `file_mutations.py`: rename / create / trash delete と trash undo 用 metadata 採取を担当する
+- `file_mutations.py`: rename / create / delete、trash undo 用 metadata 採取、完全削除確認用の再帰サイズ調査を担当する
 - `undo_operations.py`: reversible file operations の undo 実行を担当する
 - `archive_extract.py`: archive 事前走査、競合検出、安全な展開、進捗通知を担当する
 - `config.py`: `config.toml` の読み込み、検証、保存、既定値レンダリングを担当する

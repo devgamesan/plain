@@ -12,7 +12,6 @@ from zivo.windows_paths import display_path, is_search_workspace_path
 from .entry_state_helpers import select_visible_entry_states
 from .models import AppState
 from .selectors import (
-    select_current_entry_for_path,
     select_has_visible_current_entries,
     select_single_target_entry,
     select_target_file_paths,
@@ -47,8 +46,8 @@ SEARCH_WORKSPACE_COMMAND_IDS = frozenset(
         "exit",
         "select_all",
         "show_attributes",
-        "open_in_editor",
-        "open_in_gui_editor",
+        "edit_with_terminal_editor",
+        "edit_with_gui_editor",
         "copy_path",
         "toggle_hidden",
         "show_about",
@@ -201,8 +200,6 @@ def normalize_command_palette_cursor(state: AppState, cursor_index: int) -> int:
 
 def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]:
     target_paths = select_target_paths(state)
-    replace_target_paths = select_target_file_paths(state)
-    selected_files_grep_target_paths = _selected_files_grep_target_paths(state)
     single_target_entry = select_single_target_entry(state)
     has_target = bool(target_paths)
     has_single_target = single_target_entry is not None
@@ -220,14 +217,14 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         ),
         CommandPaletteItem(
             id="grep_search",
-            label="Grep search",
+            label="Search contents",
             shortcut="g",
             enabled=True,
         ),
         CommandPaletteItem(
             id="history_search",
             label="History search",
-            shortcut="H",
+            shortcut=None,
             enabled=True,
         ),
         CommandPaletteItem(
@@ -251,7 +248,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         CommandPaletteItem(
             id="go_to_path",
             label="Go to path",
-            shortcut="G",
+            shortcut=None,
             enabled=True,
         ),
         CommandPaletteItem(
@@ -263,7 +260,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         CommandPaletteItem(
             id="reload_directory",
             label="Reload directory",
-            shortcut="R",
+            shortcut=None,
             enabled=True,
         ),
         CommandPaletteItem(
@@ -320,33 +317,9 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         ),
         CommandPaletteItem(
             id="replace_text",
-            label="Replace text in selected files",
-            shortcut=None,
-            enabled=bool(replace_target_paths),
-        ),
-        CommandPaletteItem(
-            id="replace_in_found_files",
-            label="Replace text in found files",
+            label="Replace text",
             shortcut=None,
             enabled=True,
-        ),
-        CommandPaletteItem(
-            id="replace_in_grep_files",
-            label="Replace text in grep results",
-            shortcut=None,
-            enabled=True,
-        ),
-        CommandPaletteItem(
-            id="selected_files_grep",
-            label="Grep in selected files",
-            shortcut=None,
-            enabled=bool(selected_files_grep_target_paths),
-        ),
-        CommandPaletteItem(
-            id="grep_replace_selected",
-            label="Grep and replace in selected files",
-            shortcut=None,
-            enabled=bool(replace_target_paths),
         ),
     ]
 
@@ -360,7 +333,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="show_attributes",
                 label="Show attributes",
-                shortcut="i",
+                shortcut=None,
                 enabled=True,
             )
         )
@@ -384,24 +357,8 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 )
                 items.append(
                     CommandPaletteItem(
-                        id="change_permissions_recursively",
-                        label="Change permissions recursively",
-                        shortcut=None,
-                        enabled=True,
-                    )
-                )
-                items.append(
-                    CommandPaletteItem(
                         id="change_owner",
                         label="Change owner",
-                        shortcut=None,
-                        enabled=True,
-                    )
-                )
-                items.append(
-                    CommandPaletteItem(
-                        id="change_owner_recursively",
-                        label="Change owner recursively",
                         shortcut=None,
                         enabled=True,
                     )
@@ -433,17 +390,25 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             )
         items.append(
             CommandPaletteItem(
-                id="open_in_editor",
-                label="Open in editor",
+                id="open",
+                label="Open",
+                shortcut="enter",
+                enabled=single_target_entry.kind == "file",
+            )
+        )
+        items.append(
+            CommandPaletteItem(
+                id="edit_with_terminal_editor",
+                label="Edit with terminal editor",
                 shortcut="e",
                 enabled=single_target_entry.kind == "file",
             )
         )
         items.append(
             CommandPaletteItem(
-                id="open_in_gui_editor",
-                label="Open in GUI editor",
-                shortcut="O",
+                id="edit_with_gui_editor",
+                label="Edit with GUI editor",
+                shortcut=None,
                 enabled=single_target_entry.kind == "file",
             )
         )
@@ -459,24 +424,8 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             )
             items.append(
                 CommandPaletteItem(
-                    id="change_permissions_recursively",
-                    label="Change permissions recursively",
-                    shortcut=None,
-                    enabled=True,
-                )
-            )
-            items.append(
-                CommandPaletteItem(
                     id="change_owner",
                     label="Change owner",
-                    shortcut=None,
-                    enabled=True,
-                )
-            )
-            items.append(
-                CommandPaletteItem(
-                    id="change_owner_recursively",
-                    label="Change owner recursively",
                     shortcut=None,
                     enabled=True,
                 )
@@ -495,7 +444,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="copy_path",
                 label="Copy path",
-                shortcut="C",
+                shortcut=None,
                 enabled=True,
             )
         )
@@ -509,34 +458,18 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 )
             )
 
-    if not is_search_workspace:
-        items.append(
-            CommandPaletteItem(
-                id="empty_trash",
-                label="Empty trash",
-                shortcut=None,
-                enabled=_is_empty_trash_supported(),
-            )
-        )
-
     items.extend(
         [
             CommandPaletteItem(
-                id="open_file_manager",
-                label="Open in file manager",
-                shortcut="M",
-                enabled=not is_search_workspace,
-            ),
-            CommandPaletteItem(
-                id="open_current_directory_in_gui_editor",
-                label="Open current directory in GUI editor",
+                id="open_current_directory_with_file_manager",
+                label="Open current directory with file manager",
                 shortcut=None,
                 enabled=not is_search_workspace,
             ),
             CommandPaletteItem(
-                id="open_terminal",
-                label="Open terminal here",
-                shortcut="T",
+                id="open_current_directory_with_terminal",
+                label="Open current directory with terminal",
+                shortcut=None,
                 enabled=not is_search_workspace,
             ),
             CommandPaletteItem(
@@ -552,7 +485,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                     if current_path_is_bookmarked
                     else "Bookmark this directory"
                 ),
-                shortcut="B",
+                shortcut=None,
                 enabled=not is_search_workspace,
             ),
             CommandPaletteItem(
@@ -635,20 +568,8 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
                 enabled=has_single_target,
             ),
             CommandPaletteItem(
-                id="change_permissions_recursively",
-                label="Change permissions recursively",
-                shortcut=None,
-                enabled=has_target,
-            ),
-            CommandPaletteItem(
                 id="change_owner",
                 label="Change owner",
-                shortcut=None,
-                enabled=has_target,
-            ),
-            CommandPaletteItem(
-                id="change_owner_recursively",
-                label="Change owner recursively",
                 shortcut=None,
                 enabled=has_target,
             ),
@@ -661,7 +582,7 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
         CommandPaletteItem(
             id="history_search",
             label="History search",
-            shortcut="H",
+            shortcut=None,
             enabled=True,
         ),
         CommandPaletteItem(
@@ -673,7 +594,7 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
         CommandPaletteItem(
             id="go_to_path",
             label="Go to path",
-            shortcut="G",
+            shortcut=None,
             enabled=True,
         ),
         CommandPaletteItem(
@@ -685,7 +606,7 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
         CommandPaletteItem(
             id="reload_directory",
             label="Reload directory",
-            shortcut="R",
+            shortcut=None,
             enabled=_active_transfer_pane_state(state) is not None,
         ),
         CommandPaletteItem(
@@ -817,23 +738,6 @@ def _replace_target_file_paths(state: AppState) -> tuple[str, ...]:
     return select_target_file_paths(state)
 
 
-def _selected_files_grep_target_paths(state: AppState) -> tuple[str, ...]:
-    """Return target file paths for selected-files-grep."""
-    target_paths = select_target_paths(state)
-    if state.current_pane.selected_paths:
-        return tuple(
-            path
-            for path in target_paths
-            if (entry := select_current_entry_for_path(state, path)) is not None
-            and entry.kind == "file"
-        )
-
-    cursor_entry = select_current_entry_for_path(state, state.current_pane.cursor_path)
-    if cursor_entry is None or cursor_entry.kind != "file":
-        return ()
-    return (cursor_entry.path,)
-
-
 def _active_transfer_pane_state(state: AppState):
     if state.layout_mode != "transfer":
         return None
@@ -882,11 +786,6 @@ def _transfer_single_target_entry(state: AppState):
         if entry.path == target_path:
             return entry
     return None
-
-
-def _is_empty_trash_supported() -> bool:
-    """Check if empty trash is supported on current platform."""
-    return platform.system() in ("Linux", "Darwin", "Windows")
 
 
 def _is_split_terminal_supported() -> bool:

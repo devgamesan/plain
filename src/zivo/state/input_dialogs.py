@@ -1,13 +1,12 @@
 """Dialog and non-browsing mode input dispatchers."""
 
 from .actions import (
+    AdvancePermanentDeleteConfirmation,
     CancelArchiveExtractConfirmation,
     CancelCustomActionConfirmation,
     CancelDeleteConfirmation,
-    CancelEmptyTrashConfirmation,
     CancelExitConfirmation,
     CancelFilterInput,
-    CancelGrepExport,
     CancelPasteConflict,
     CancelPendingInput,
     CancelReplaceConfirmation,
@@ -17,7 +16,6 @@ from .actions import (
     ConfirmArchiveExtract,
     ConfirmCustomAction,
     ConfirmDeleteTargets,
-    ConfirmEmptyTrash,
     ConfirmExitCurrentPath,
     ConfirmFilterInput,
     ConfirmReplaceTargets,
@@ -33,19 +31,17 @@ from .actions import (
     MovePendingInputCursor,
     MoveShellCommandCursor,
     OpenPathInEditor,
-    ResetHelpBarConfig,
+    OpenTerminalAtPath,
     ResolvePasteConflict,
     SaveConfigEditor,
     SetFilterQuery,
-    SetGrepExportFilename,
-    SetGrepExportFormat,
     SetPendingInputCursor,
     SetPendingInputValue,
     SetShellCommandCursor,
     SetShellCommandValue,
-    SubmitGrepExport,
     SubmitPendingInput,
     SubmitShellCommand,
+    TogglePendingInputRecursive,
 )
 from .input_common import DispatchedActions, supported, warn
 from .models import AppState
@@ -78,18 +74,24 @@ def dispatch_confirm_input(
     state: AppState, *, key: str, character: str | None
 ) -> DispatchedActions:
     if state.delete_confirmation is not None:
+        confirmation = state.delete_confirmation
         if key == "escape":
             return supported(CancelDeleteConfirmation())
-        if key == "enter":
+        if (
+            confirmation.requires_additional_confirmation
+            and not confirmation.additional_confirmation_armed
+            and key == "enter"
+        ):
+            return supported(AdvancePermanentDeleteConfirmation())
+        if confirmation.additional_confirmation_armed and key == "D":
             return supported(ConfirmDeleteTargets())
+        if not confirmation.requires_additional_confirmation and key == "enter":
+            return supported(ConfirmDeleteTargets())
+        if confirmation.additional_confirmation_armed:
+            return warn("Use D to permanently delete or Esc to cancel")
+        if confirmation.requires_additional_confirmation:
+            return warn("Use Enter to review permanent delete or Esc to cancel")
         return warn("Use Enter to confirm delete or Esc to cancel")
-
-    if state.empty_trash_confirmation is not None:
-        if key == "escape":
-            return supported(CancelEmptyTrashConfirmation())
-        if key == "enter":
-            return supported(ConfirmEmptyTrash())
-        return warn("Use Enter to confirm empty trash or Esc to cancel")
 
     if state.exit_confirmation is not None:
         if key == "escape":
@@ -162,6 +164,9 @@ def dispatch_input_dialog_input(
     if key == "escape":
         return supported(CancelPendingInput())
 
+    if key == "tab" and state.ui_mode in {"CHMOD", "CHOWN"}:
+        return supported(TogglePendingInputRecursive())
+
     if key == "enter":
         return supported(SubmitPendingInput())
 
@@ -220,7 +225,11 @@ def dispatch_shell_command_input(
     if state.shell_command is not None and state.shell_command.result is not None:
         if key == "escape":
             return supported(CancelShellCommandInput())
-        return warn("Press Esc to close")
+        if key == "r":
+            return supported(SubmitShellCommand())
+        if key == "t":
+            return supported(OpenTerminalAtPath(state.shell_command.cwd))
+        return warn("Use r to rerun, t to open a terminal, or Esc to close")
 
     if key == "escape":
         return supported(CancelShellCommandInput())
@@ -318,76 +327,7 @@ def dispatch_config_input(
     if key == "e":
         return supported(OpenPathInEditor(state.config_path))
 
-    if key == "r":
-        return supported(ResetHelpBarConfig())
-
     return warn(
         "Use ↑↓ or Ctrl+j/k to choose, ←→ or Enter to change, "
-        "s to save, e to edit the file, r to reset help, or Esc to close"
-    )
-
-
-def dispatch_grep_export_input(
-    state: AppState,
-    *,
-    key: str,
-    character: str | None,
-) -> DispatchedActions:
-    if state.grep_export_dialog is None:
-        return supported(CancelGrepExport())
-
-    if key == "escape":
-        return supported(CancelGrepExport())
-
-    if key == "enter":
-        return supported(SubmitGrepExport())
-
-    if key == "f":
-        current = state.grep_export_dialog.format
-        next_format = {"single_line": "context", "context": "json", "json": "single_line"}[current]
-        return supported(SetGrepExportFormat(next_format))  # type: ignore[arg-type]
-
-    if key == "backspace":
-        dialog = state.grep_export_dialog
-        if dialog.cursor_pos == 0:
-            return supported()
-        pos = dialog.cursor_pos
-        new_value = dialog.filename[: pos - 1] + dialog.filename[pos:]
-        return supported(SetGrepExportFilename(new_value, pos - 1))
-
-    if key == "delete":
-        dialog = state.grep_export_dialog
-        pos = dialog.cursor_pos
-        if pos >= len(dialog.filename):
-            return supported()
-        new_value = dialog.filename[:pos] + dialog.filename[pos + 1 :]
-        return supported(SetGrepExportFilename(new_value, pos))
-
-    if key == "left":
-        dialog = state.grep_export_dialog
-        if dialog.cursor_pos > 0:
-            return supported(SetGrepExportFilename(dialog.filename, dialog.cursor_pos - 1))
-        return supported()
-
-    if key == "right":
-        dialog = state.grep_export_dialog
-        if dialog.cursor_pos < len(dialog.filename):
-            return supported(SetGrepExportFilename(dialog.filename, dialog.cursor_pos + 1))
-        return supported()
-
-    if key == "home":
-        return supported(SetGrepExportFilename(state.grep_export_dialog.filename, 0))
-
-    if key == "end":
-        end_pos = len(state.grep_export_dialog.filename)
-        return supported(SetGrepExportFilename(state.grep_export_dialog.filename, end_pos))
-
-    if character and character.isprintable():
-        dialog = state.grep_export_dialog
-        pos = dialog.cursor_pos
-        new_value = dialog.filename[:pos] + character + dialog.filename[pos:]
-        return supported(SetGrepExportFilename(new_value, pos + 1))
-
-    return warn(
-        "Type filename, [f] Format, [Enter] Export, [Esc] Cancel"
+        "s to save, e to edit the file, or Esc to close"
     )

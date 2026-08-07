@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from zivo.models import AppConfig
 
-from .shared import HELP_BAR_FIELDS
-
 
 def render_default_config() -> str:
     """Render the default config file contents."""
@@ -24,7 +22,6 @@ def render_app_config(config: AppConfig) -> str:
         render_behavior_section(config),
         render_logging_section(config),
         render_bookmarks_section(config),
-        render_help_bar_section(config),
         render_file_search_section(config),
         render_actions_section(config),
     ]
@@ -40,10 +37,10 @@ def render_terminal_section(config: AppConfig) -> str:
         "# Optional OS-specific terminal launch templates.\n"
         "# Use {path} for the working directory.\n"
         "# Examples:\n"
-        '# linux = [\n'
+        "# linux = [\n"
         '#   "konsole --working-directory {path}",\n'
         '#   "gnome-terminal --working-directory={path}",\n'
-        '# ]\n'
+        "# ]\n"
         '# macos = ["open -a Terminal {path}"]\n'
         '# windows = ["wt -d {path}"]\n'
         f"linux = [{linux}]\n"
@@ -134,19 +131,6 @@ def render_bookmarks_section(config: AppConfig) -> str:
     )
 
 
-def render_help_bar_section(config: AppConfig) -> str:
-    lines = [
-        "[help_bar]",
-        "# Optional custom help bar text for each UI mode.",
-        "# Leave empty to use built-in defaults.",
-        "# Example:",
-        '# browsing = ["Custom help line 1", "Custom help line 2"]',
-    ]
-    for field in HELP_BAR_FIELDS:
-        lines.append(f"{field} = {render_help_lines(getattr(config.help_bar, field))}")
-    return "\n".join(lines)
-
-
 def render_file_search_section(config: AppConfig) -> str:
     max_results = config.file_search.max_results
     if max_results is None:
@@ -233,10 +217,3 @@ def render_optional_toml_string(value: str | None) -> str:
     if value is None:
         return '""'
     return render_toml_string(value)
-
-
-def render_help_lines(lines: tuple[str, ...]) -> str:
-    if not lines:
-        return "[]"
-    rendered = ", ".join(render_toml_string(line) for line in lines)
-    return f"[{rendered}]"

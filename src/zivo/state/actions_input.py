@@ -35,22 +35,8 @@ class BeginChmodInput:
 
 
 @dataclass(frozen=True)
-class BeginRecursiveChmodInput:
-    """Enter recursive chmod input mode for one or more paths."""
-
-    paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
 class BeginChownInput:
     """Enter chown input mode for one or more paths."""
-
-    paths: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class BeginRecursiveChownInput:
-    """Enter recursive chown input mode for one or more paths."""
 
     paths: tuple[str, ...]
 
@@ -113,16 +99,16 @@ class SaveConfigEditor:
 
 
 @dataclass(frozen=True)
-class ResetHelpBarConfig:
-    """Reset help bar configuration to defaults."""
-
-
-@dataclass(frozen=True)
 class SetPendingInputValue:
     """Update the rename/create text input value and cursor position."""
 
     value: str
     cursor_pos: int
+
+
+@dataclass(frozen=True)
+class TogglePendingInputRecursive:
+    """Toggle recursive execution for a chmod or chown input dialog."""
 
 
 @dataclass(frozen=True)

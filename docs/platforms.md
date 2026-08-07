@@ -70,6 +70,10 @@ Open **System Settings > Privacy & Security > Full Disk Access** and enable the 
 - `wslu` is recommended on WSL so `wslview` is available for the preferred bridge behavior.
 - On WSL, zivo prefers Windows-side bridges such as `wslview`, `explorer.exe`, and `clip.exe` when available, while keeping Linux-side fallbacks for WSLg and desktop Linux environments.
 
+## Shell command syntax
+
+Run command (`!`) uses the current shell environment on macOS, Linux, and WSL (falling back to `/bin/bash`). On Windows it prefers `powershell.exe`, then `pwsh`, then `cmd.exe`; write syntax for the selected shell rather than POSIX `sh`. Run command is for short non-interactive work. Use foreground shell (`t`) for prompts or TUI applications, and an external terminal (`T`) for independent or longer-running work.
+
 ---
 
 ## GUI Integration Notes

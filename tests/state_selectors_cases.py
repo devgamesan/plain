@@ -1297,17 +1297,102 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     state = build_initial_app_state()
 
     help_state = select_help_bar_state(state)
-    split_terminal_hint = " | t term" if os.name == "posix" else ""
 
-    assert help_state.lines == (
-        "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit",
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv",
-        f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette",
+    action_ids = tuple(action.action_id for action in help_state.actions)
+    assert action_ids == (
+        "enter_directory",
+        "toggle_selection",
+        "copy_targets",
+        "cut_targets",
     )
-    assert help_state.text == (
-        "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv\n"
-        f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
+    assert tuple(action.action_id for action in help_state.discovery_actions) == (
+        "begin_filter",
+        "file_search",
+        "grep_search",
+        "begin_exit_current_path",
+        "command_palette",
+    )
+    assert "c Copy" in help_state.text
+    assert "x Cut" in help_state.text
+    assert "g Grep" in help_state.text
+
+
+def test_select_help_bar_changes_for_file_cursor() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=replace(
+            build_initial_app_state().current_pane,
+            cursor_path="/home/tadashi/develop/zivo/README.md",
+        ),
+    )
+
+    help_state = select_help_bar_state(state)
+
+    action_ids = tuple(action.action_id for action in help_state.actions)
+    assert action_ids == (
+        "open",
+        "edit_with_terminal_editor",
+        "toggle_selection",
+        "copy_targets",
+        "cut_targets",
+    )
+    assert tuple(action.action_id for action in help_state.discovery_actions) == (
+        "begin_filter",
+        "file_search",
+        "grep_search",
+        "begin_exit_current_path",
+        "command_palette",
+    )
+
+
+def test_select_help_bar_prioritizes_paste_with_selection() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=replace(
+            build_initial_app_state().current_pane,
+            selected_paths=frozenset({"/home/tadashi/develop/zivo/README.md"}),
+        ),
+        clipboard=replace(
+            build_initial_app_state().clipboard,
+            mode="copy",
+            paths=("/tmp/source.txt",),
+        ),
+    )
+
+    help_state = select_help_bar_state(state)
+
+    assert tuple(action.action_id for action in help_state.actions) == (
+        "copy_targets",
+        "cut_targets",
+        "delete_targets",
+        "paste_clipboard",
+        "clear_selection",
+        "command_palette",
+    )
+
+
+def test_select_help_bar_for_empty_directory_shows_create_actions() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/tmp/empty",
+            entries=(),
+            cursor_path=None,
+        ),
+    )
+
+    help_state = select_help_bar_state(state)
+
+    assert tuple(action.action_id for action in help_state.actions) == (
+        "create_file",
+        "create_dir",
+    )
+    assert tuple(action.action_id for action in help_state.discovery_actions) == (
+        "begin_filter",
+        "file_search",
+        "grep_search",
+        "begin_exit_current_path",
+        "command_palette",
     )
 
 
@@ -1316,15 +1401,21 @@ def test_select_help_bar_for_search_workspace_shows_available_actions_only() -> 
 
     help_state = select_help_bar_state(state)
 
-    assert help_state.lines == (
-        "enter open | e edit | O gui editor | i info | "
-        "/ filter | s sort | . hidden | [ ] bk/fwd | q quit",
-        "space select | c copy | z undo | ctrl+j/k prv",
-        ": palette",
+    assert tuple(action.action_id for action in help_state.actions) == (
+        "open",
+        "edit_with_terminal_editor",
+        "toggle_selection",
+        "copy_targets",
     )
-    assert "x cut" not in help_state.text
-    assert "d delete" not in help_state.text
-    assert "f find" not in help_state.text
+    assert tuple(action.action_id for action in help_state.discovery_actions) == (
+        "begin_filter",
+        "cycle_sort",
+        "toggle_hidden",
+        "begin_exit_current_path",
+        "command_palette",
+    )
+    assert "Cut" not in help_state.text
+    assert "Move to trash" not in help_state.text
 
 
 def test_select_help_bar_for_transfer_mode_prioritizes_transfer_actions() -> None:
@@ -1332,17 +1423,21 @@ def test_select_help_bar_for_transfer_mode_prioritizes_transfer_actions() -> Non
 
     help_state = select_help_bar_state(state)
 
-    assert help_state.lines == (
-        "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit",
-        "Space select | c copy | x cut | v paste | d trash | D permanent | "
-        "r rename | z undo",
-        ". hidden | N new-dir | : palette",
+    assert tuple(action.action_id for action in help_state.actions) == (
+        "copy_targets",
+        "cut_targets",
+        "toggle_selection",
+    )
+    assert tuple(action.action_id for action in help_state.discovery_actions) == (
+        "focus_transfer_pane",
+        "transfer_copy",
+        "transfer_move",
+        "begin_exit_current_path",
+        "command_palette",
     )
     assert help_state.text == (
-        "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit\n"
-        "Space select | c copy | x cut | v paste | d trash | D permanent | "
-        "r rename | z undo\n"
-        ". hidden | N new-dir | : palette"
+        "c Copy | x Cut | space Select\n"
+        "[ ] Focus | y Copy pane | m Move pane | q Quit | : More"
     )
 
 

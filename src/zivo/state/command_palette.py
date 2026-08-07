@@ -49,6 +49,9 @@ SEARCH_WORKSPACE_COMMAND_IDS = frozenset(
         "edit_with_terminal_editor",
         "edit_with_gui_editor",
         "copy_path",
+        "copy_targets",
+        "enter_directory",
+        "toggle_selection",
         "toggle_hidden",
         "show_about",
         "edit_config",
@@ -457,6 +460,69 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                     enabled=True,
                 )
             )
+        items.extend(
+            (
+                CommandPaletteItem(
+                    id="copy_targets",
+                    label="Copy selection or cursor target",
+                    shortcut="c",
+                    enabled=True,
+                ),
+                CommandPaletteItem(
+                    id="cut_targets",
+                    label="Cut selection or cursor target",
+                    shortcut="x",
+                    enabled=not is_search_workspace,
+                ),
+            )
+        )
+        if not is_search_workspace:
+            items.append(
+                CommandPaletteItem(
+                    id="paste_clipboard",
+                    label="Paste clipboard",
+                    shortcut="v",
+                    enabled=bool(state.clipboard.paths),
+                )
+            )
+
+    if not has_target and not is_search_workspace and state.clipboard.paths:
+        items.append(
+            CommandPaletteItem(
+                id="paste_clipboard",
+                label="Paste clipboard",
+                shortcut="v",
+                enabled=True,
+            )
+        )
+
+    if has_visible_entries:
+        items.append(
+            CommandPaletteItem(
+                id="toggle_selection",
+                label="Select current target",
+                shortcut="space",
+                enabled=state.current_pane.cursor_path is not None,
+            )
+        )
+    if has_single_target and single_target_entry.kind == "dir":
+        items.append(
+            CommandPaletteItem(
+                id="enter_directory",
+                label="Enter directory",
+                shortcut="enter",
+                enabled=True,
+            )
+        )
+    if state.current_pane.selected_paths:
+        items.append(
+            CommandPaletteItem(
+                id="clear_selection",
+                label="Clear selection",
+                shortcut="esc",
+                enabled=True,
+            )
+        )
 
     items.extend(
         [
@@ -522,8 +588,31 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
     )
 
     if is_search_workspace:
-        return tuple(item for item in items if item.id in SEARCH_WORKSPACE_COMMAND_IDS)
-    return tuple(items)
+        items = [item for item in items if item.id in SEARCH_WORKSPACE_COMMAND_IDS]
+
+    if state.command_palette is not None and state.command_palette.query:
+        return tuple(items)
+
+    contextual_ids = _contextual_palette_ids(state)
+    contextual = [item for item in items if item.id in contextual_ids]
+    contextual.sort(key=lambda item: contextual_ids.index(item.id))
+    contextual_id_set = {item.id for item in contextual}
+    return tuple(contextual + [item for item in items if item.id not in contextual_id_set])
+
+
+def _contextual_palette_ids(state: AppState) -> tuple[str, ...]:
+    """Return context actions that should lead the command palette."""
+
+    if state.current_pane.selected_paths:
+        return (
+            "copy_targets",
+            "cut_targets",
+            "delete_targets",
+            "rename",
+            "paste_clipboard",
+            "clear_selection",
+        )
+    return ()
 
 
 def _build_custom_action_items(state: AppState) -> list[CommandPaletteItem]:

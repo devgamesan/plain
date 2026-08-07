@@ -101,6 +101,13 @@ zivo-cd
 By default, actions relevant to the current state are shown in the help bar.
 You can also press `:` to open the command palette and search for available actions.
 
+The help bar has a contextual row and a discovery row. The contextual row follows
+the current cursor, selection, and clipboard; the discovery row keeps `Filter`,
+`Find`, `Grep`, `Quit`, and `: More` visible during normal browsing. On narrow
+terminals, lower-priority items are omitted by whole item, while `: More` remains
+available. Clicking an action runs the same dispatcher as its keyboard shortcut;
+clicking `: More` opens the command palette.
+
 | Key | Action |
 |---|---|
 | `↑` / `↓` or `j` / `k` | Move cursor |

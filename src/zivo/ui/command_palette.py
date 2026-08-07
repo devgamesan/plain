@@ -161,6 +161,7 @@ class CommandPalette(Container):
         is_path_source = (
             state.title.startswith("Directory History")
             or state.title.startswith("Go to path")
+            or state.title.startswith("Go")
             or state.title.startswith("Bookmarks")
         )
         placeholder = (
@@ -174,6 +175,8 @@ class CommandPalette(Container):
             if is_path_source
             else "type a command"
         )
+        if state.title.startswith("Go") and not state.query:
+            placeholder = "path or @bookmark @history @tab @home"
         available_width = max(1, render_width - cell_len("> "))
         value = truncate_middle(state.query or placeholder, available_width)
         query_text.no_wrap = True

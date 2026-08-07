@@ -18,6 +18,7 @@ from zivo.models import (
 from zivo.platform_support import is_split_terminal_supported
 from zivo.windows_paths import is_search_workspace_path
 
+from .command_palette import parse_go_query
 from .models import AppState
 from .reducer_config import (
     CONFIG_EDITOR_CATEGORIES,
@@ -459,6 +460,35 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             cursor_index,
             title="Directory History",
             empty_message="No directory history",
+        )
+
+    if state.command_palette.source == "go":
+        source_filter = state.command_palette.history_and_navigation.go_source_filter
+        source_filter, _ = parse_go_query(state.command_palette.query, source_filter)
+        filter_title = {
+            "bookmarks": "Bookmarks",
+            "recent": "Recent",
+            "open_tabs": "Open tabs",
+            "home": "Home",
+        }.get(source_filter)
+        title = f"Go — {filter_title}" if filter_title else "Go"
+        footer_message = {
+            "all": "Filters: @bookmark @history @tab @home | arrows select, Enter go",
+            "bookmarks": "Bookmarks filter active | type to search, Enter go",
+            "recent": "Recent filter active | type to search, Enter go",
+            "open_tabs": "Open tabs filter active | type to search, Enter go",
+            "home": "Home filter active | type to search, Enter go",
+        }[source_filter]
+        return _build_command_palette_items_view(
+            state,
+            cursor_index,
+            title=title,
+            empty_message=(
+                "No bookmarks"
+                if source_filter == "bookmarks"
+                else "Type a path or destination"
+            ),
+            footer_message=footer_message,
         )
 
     if state.command_palette.source == "bookmarks":

@@ -184,6 +184,7 @@ from .actions_palette import (
     BeginCommandPalette,
     BeginFileSearch,
     BeginFindAndReplace,
+    BeginGo,
     BeginGoToPath,
     BeginGrepReplace,
     BeginGrepReplaceSelected,
@@ -293,6 +294,7 @@ Action = (
     | BeginHistorySearch
     | BeginBookmarkSearch
     | BeginGoToPath
+    | BeginGo
     | BeginTextReplace
     | BeginFindAndReplace
     | BeginGrepReplace

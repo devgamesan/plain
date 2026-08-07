@@ -66,6 +66,7 @@ from zivo.state import (
     build_initial_app_state,
 )
 from zivo.state.actions import ConfigSaveCompleted, JumpCursor, MoveCursor, SetTerminalHeight
+from zivo.state.command_palette import get_command_palette_items
 from zivo.state.selectors import (
     compute_current_pane_visible_window,
     select_command_palette_state,
@@ -3531,16 +3532,15 @@ async def test_app_go_to_path_shows_candidates_and_tabs_to_selected_directory(tm
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press(":")
-        await pilot.press("g", "o", "space", "t", "o", "space", "p", "a", "t", "h")
+        await pilot.press("g", "o")
         await pilot.press("enter")
         await pilot.press("d", "o")
         await asyncio.sleep(0.05)
 
         assert app.app_state.command_palette is not None
-        assert app.app_state.command_palette.history_and_navigation.go_to_path_candidates == (
-            docs_path,
-            downloads_path,
-        )
+        assert tuple(
+            item.path for item in get_command_palette_items(app.app_state) if item.path
+        ) == (docs_path, downloads_path)
 
         await pilot.press("down", "tab")
         await asyncio.sleep(0.05)
@@ -3585,7 +3585,7 @@ async def test_app_go_to_path_submit_after_completion_stays_on_completed_directo
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press(":")
-        await pilot.press("g", "o", "space", "t", "o", "space", "p", "a", "t", "h")
+        await pilot.press("g", "o")
         await pilot.press("enter")
         await pilot.press("d", "o", "tab", "enter")
         await _wait_for_snapshot_loaded(app, docs_path)

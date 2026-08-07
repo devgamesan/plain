@@ -22,6 +22,7 @@ class InputDialog(Container):
 
     def compose(self):
         yield Static("", id="input-dialog-title")
+        yield Static("", id="input-dialog-details")
         yield Static("", id="input-dialog-value")
         yield Static("", id="input-dialog-hint")
 
@@ -35,11 +36,13 @@ class InputDialog(Container):
         self.display = state is not None
         if state is None:
             self.query_one("#input-dialog-title", Static).update("")
+            self.query_one("#input-dialog-details", Static).update("")
             self.query_one("#input-dialog-value", Static).update("")
             self.query_one("#input-dialog-hint", Static).update("")
             return
 
         self.query_one("#input-dialog-title", Static).update(state.title)
+        self.query_one("#input-dialog-details", Static).update("\n".join(state.details))
         self.query_one("#input-dialog-value", Static).update(
             self._render_input(state.prompt, state.value, state.cursor_pos)
         )

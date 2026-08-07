@@ -6,8 +6,6 @@ from .actions_input import (
     BeginCreateInput,
     BeginExtractArchiveInput,
     BeginFilterInput,
-    BeginRecursiveChmodInput,
-    BeginRecursiveChownInput,
     BeginRenameInput,
     BeginShellCommandInput,
     BeginSymlinkInput,
@@ -36,6 +34,7 @@ from .actions_input import (
     SetShellCommandValue,
     SubmitPendingInput,
     SubmitShellCommand,
+    TogglePendingInputRecursive,
 )
 from .actions_mutations import (
     BeginCustomActionConfirmation,
@@ -74,8 +73,6 @@ __all__ = [
     "BeginCreateInput",
     "BeginExtractArchiveInput",
     "BeginFilterInput",
-    "BeginRecursiveChmodInput",
-    "BeginRecursiveChownInput",
     "BeginRenameInput",
     "BeginShellCommandInput",
     "BeginSymlinkInput",
@@ -100,6 +97,7 @@ __all__ = [
     "SetFilterQuery",
     "SetPendingInputCursor",
     "SetPendingInputValue",
+    "TogglePendingInputRecursive",
     "SetShellCommandCursor",
     "SetShellCommandValue",
     "SubmitPendingInput",
@@ -343,9 +341,7 @@ Action = (
     | ConfirmFilterInput
     | CancelFilterInput
     | BeginChmodInput
-    | BeginRecursiveChmodInput
     | BeginChownInput
-    | BeginRecursiveChownInput
     | BeginRenameInput
     | BeginCreateInput
     | BeginSymlinkInput
@@ -358,6 +354,7 @@ Action = (
     | SaveConfigEditor
     | ResetHelpBarConfig
     | SetPendingInputValue
+    | TogglePendingInputRecursive
     | MovePendingInputCursor
     | SetPendingInputCursor
     | DeletePendingInputForward

@@ -345,6 +345,11 @@ Screen {
     color: $accent;
 }
 
+#input-dialog-details {
+    color: $text-muted;
+    margin: 0 1;
+}
+
 #input-dialog-value {
     margin: 1 0;
 }

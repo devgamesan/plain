@@ -256,6 +256,7 @@ class InputDialogState:
     value: str
     cursor_pos: int
     hint: str
+    details: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

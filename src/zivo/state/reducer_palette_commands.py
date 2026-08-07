@@ -28,8 +28,6 @@ from .actions import (
     BeginGrepReplaceSelected,
     BeginGrepSearch,
     BeginHistorySearch,
-    BeginRecursiveChmodInput,
-    BeginRecursiveChownInput,
     BeginRenameInput,
     BeginSelectedFilesGrep,
     BeginShellCommandInput,
@@ -298,25 +296,6 @@ def _run_change_permissions_command(
     return reduce_state(next_state, BeginChmodInput(paths=target_paths))
 
 
-def _run_change_permissions_recursively_command(
-    state: AppState,
-    next_state: AppState,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    target_paths = (
-        _transfer_target_paths(state)
-        if state.layout_mode == "transfer"
-        else select_target_paths(state)
-    )
-    if not target_paths:
-        return notify(
-            next_state,
-            level="warning",
-            message="Change permissions recursively requires at least one target",
-        )
-    return reduce_state(next_state, BeginRecursiveChmodInput(paths=target_paths))
-
-
 def _run_change_owner_command(
     state: AppState,
     next_state: AppState,
@@ -334,25 +313,6 @@ def _run_change_owner_command(
             message="Change owner requires at least one target",
         )
     return reduce_state(next_state, BeginChownInput(paths=target_paths))
-
-
-def _run_change_owner_recursively_command(
-    state: AppState,
-    next_state: AppState,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    target_paths = (
-        _transfer_target_paths(state)
-        if state.layout_mode == "transfer"
-        else select_target_paths(state)
-    )
-    if not target_paths:
-        return notify(
-            next_state,
-            level="warning",
-            message="Change owner recursively requires at least one target",
-        )
-    return reduce_state(next_state, BeginRecursiveChownInput(paths=target_paths))
 
 
 def _run_open_in_editor_command(
@@ -682,12 +642,8 @@ def _run_palette_command_item(
         return _run_rename_command(state, next_state, reduce_state)
     if item_id == "change_permissions":
         return _run_change_permissions_command(state, next_state, reduce_state)
-    if item_id == "change_permissions_recursively":
-        return _run_change_permissions_recursively_command(state, next_state, reduce_state)
     if item_id == "change_owner":
         return _run_change_owner_command(state, next_state, reduce_state)
-    if item_id == "change_owner_recursively":
-        return _run_change_owner_recursively_command(state, next_state, reduce_state)
     if item_id == "create_symlink":
         return _run_create_symlink_command(state, next_state, reduce_state)
     if item_id == "compress_as_zip":

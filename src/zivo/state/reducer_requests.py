@@ -6,6 +6,7 @@ from pathlib import Path
 
 from zivo.models import (
     ChmodRequest,
+    ChownRequest,
     CreatePathRequest,
     CreateSymlinkRequest,
     CreateZipArchiveRequest,
@@ -15,6 +16,8 @@ from zivo.models import (
     FileMutationResult,
     PasteRequest,
     PasteSummary,
+    RecursiveChmodRequest,
+    RecursiveChownRequest,
     RenameRequest,
     UndoEntry,
 )
@@ -42,7 +45,14 @@ from .models import HistoryState, NotificationState, resolve_parent_directory_pa
 
 ReducerFn = Callable[[object, Action], ReduceResult]
 FileMutationRequest = (
-    RenameRequest | CreatePathRequest | CreateSymlinkRequest | DeleteRequest | ChmodRequest
+    RenameRequest
+    | CreatePathRequest
+    | CreateSymlinkRequest
+    | DeleteRequest
+    | ChmodRequest
+    | RecursiveChmodRequest
+    | ChownRequest
+    | RecursiveChownRequest
 )
 
 

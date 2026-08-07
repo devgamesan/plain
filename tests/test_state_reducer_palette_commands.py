@@ -574,33 +574,6 @@ def test_submit_command_palette_begins_chmod_in_transfer_mode() -> None:
     assert next_state.pending_input.chmod_recursive is False
 
 
-def test_submit_command_palette_begins_recursive_chmod_in_transfer_mode() -> None:
-    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
-    assert state.transfer_left is not None
-    docs_entry = replace(state.transfer_left.pane.entries[0], permissions_mode=0o40755)
-    state = replace(
-        state,
-        transfer_left=replace(
-            state.transfer_left,
-            pane=replace(
-                state.transfer_left.pane,
-                entries=(docs_entry, *state.transfer_left.pane.entries[1:]),
-            ),
-        ),
-    )
-    state = _reduce_state(state, BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("recursively"))
-
-    next_state = _reduce_state(state, SubmitCommandPalette())
-
-    assert next_state.ui_mode == "CHMOD"
-    assert next_state.pending_input is not None
-    assert next_state.pending_input.prompt == "Permissions recursively: "
-    assert next_state.pending_input.value == "755"
-    assert next_state.pending_input.chmod_target_paths == ("/home/tadashi/develop/zivo/docs",)
-    assert next_state.pending_input.chmod_recursive is True
-
-
 def test_submit_bookmarks_palette_navigates_to_selected_directory(tmp_path) -> None:
     bookmarked_path = tmp_path / "project"
     bookmarked_path.mkdir()
@@ -1203,35 +1176,6 @@ def test_submit_command_palette_begins_chmod_with_single_target() -> None:
     assert result.state.pending_input.value == "755"
 
 
-def test_submit_command_palette_begins_recursive_chmod_with_selection() -> None:
-    state = build_initial_app_state()
-    docs_entry = replace(state.current_pane.entries[0], permissions_mode=0o40755)
-    src_entry = state.current_pane.entries[1]
-    state = replace(
-        state,
-        current_pane=replace(
-            state.current_pane,
-            entries=(docs_entry, *state.current_pane.entries[1:]),
-            selected_paths=frozenset({docs_entry.path, src_entry.path}),
-        ),
-    )
-    state = _reduce_state(state, BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("recursively"))
-
-    result = reduce_app_state(state, SubmitCommandPalette())
-
-    assert result.state.ui_mode == "CHMOD"
-    assert result.state.command_palette is None
-    assert result.state.pending_input is not None
-    assert result.state.pending_input.prompt == "Permissions recursively: "
-    assert result.state.pending_input.value == "755"
-    assert result.state.pending_input.chmod_target_paths == (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
-    )
-    assert result.state.pending_input.chmod_recursive is True
-
-
 def test_submit_command_palette_begins_chmod_with_selection() -> None:
     state = build_initial_app_state()
     docs_entry = replace(state.current_pane.entries[0], permissions_mode=0o40755)
@@ -1288,35 +1232,6 @@ def test_submit_command_palette_begins_chown_with_selection() -> None:
         "/home/tadashi/develop/zivo/src",
     )
     assert result.state.pending_input.chown_recursive is False
-
-
-def test_submit_command_palette_begins_recursive_chown_with_selection() -> None:
-    state = build_initial_app_state()
-    docs_entry = replace(state.current_pane.entries[0], owner="alice", group="staff")
-    src_entry = state.current_pane.entries[1]
-    state = replace(
-        state,
-        current_pane=replace(
-            state.current_pane,
-            entries=(docs_entry, *state.current_pane.entries[1:]),
-            selected_paths=frozenset({docs_entry.path, src_entry.path}),
-        ),
-    )
-    state = _reduce_state(state, BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("owner recursively"))
-
-    result = reduce_app_state(state, SubmitCommandPalette())
-
-    assert result.state.ui_mode == "CHOWN"
-    assert result.state.command_palette is None
-    assert result.state.pending_input is not None
-    assert result.state.pending_input.prompt == "Owner recursively: "
-    assert result.state.pending_input.value == "alice:staff"
-    assert result.state.pending_input.chown_target_paths == (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
-    )
-    assert result.state.pending_input.chown_recursive is True
 
 
 def test_submit_command_palette_deletes_targets() -> None:

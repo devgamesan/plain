@@ -46,8 +46,8 @@ SEARCH_WORKSPACE_COMMAND_IDS = frozenset(
         "exit",
         "select_all",
         "show_attributes",
-        "open_in_editor",
-        "open_in_gui_editor",
+        "edit_with_terminal_editor",
+        "edit_with_gui_editor",
         "copy_path",
         "toggle_hidden",
         "show_about",
@@ -390,16 +390,24 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             )
         items.append(
             CommandPaletteItem(
-                id="open_in_editor",
-                label="Open in editor",
+                id="open",
+                label="Open",
+                shortcut="enter",
+                enabled=single_target_entry.kind == "file",
+            )
+        )
+        items.append(
+            CommandPaletteItem(
+                id="edit_with_terminal_editor",
+                label="Edit with terminal editor",
                 shortcut="e",
                 enabled=single_target_entry.kind == "file",
             )
         )
         items.append(
             CommandPaletteItem(
-                id="open_in_gui_editor",
-                label="Open in GUI editor",
+                id="edit_with_gui_editor",
+                label="Edit with GUI editor",
                 shortcut="O",
                 enabled=single_target_entry.kind == "file",
             )
@@ -453,20 +461,14 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
     items.extend(
         [
             CommandPaletteItem(
-                id="open_file_manager",
-                label="Open in file manager",
+                id="open_current_directory_with_file_manager",
+                label="Open current directory with file manager",
                 shortcut="M",
                 enabled=not is_search_workspace,
             ),
             CommandPaletteItem(
-                id="open_current_directory_in_gui_editor",
-                label="Open current directory in GUI editor",
-                shortcut=None,
-                enabled=not is_search_workspace,
-            ),
-            CommandPaletteItem(
-                id="open_terminal",
-                label="Open terminal here",
+                id="open_current_directory_with_terminal",
+                label="Open current directory with terminal",
                 shortcut="T",
                 enabled=not is_search_workspace,
             ),

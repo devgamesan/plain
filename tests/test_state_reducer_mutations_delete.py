@@ -5,14 +5,17 @@ from zivo.models import DeleteRequest
 from zivo.state import (
     DeleteConfirmationState,
     NotificationState,
+    RunDeletePreparationEffect,
     RunFileMutationEffect,
     build_initial_app_state,
     reduce_app_state,
 )
 from zivo.state.actions import (
+    AdvancePermanentDeleteConfirmation,
     BeginDeleteTargets,
     CancelDeleteConfirmation,
     ConfirmDeleteTargets,
+    DeletePreparationCompleted,
 )
 
 
@@ -122,19 +125,82 @@ def test_cancel_delete_confirmation_returns_to_browsing_with_warning() -> None:
     assert next_state.notification == NotificationState(level="warning", message="Delete cancelled")
 
 
-def test_begin_permanent_delete_targets_enters_confirm_mode_when_delete_confirmation_disabled(
+def test_begin_permanent_delete_targets_prepares_confirmation_when_delete_confirmation_disabled(
 ) -> None:
     state = build_initial_app_state(confirm_delete=False)
 
-    next_state = _reduce_state(
+    result = reduce_app_state(
         state,
         BeginDeleteTargets(("/home/tadashi/develop/zivo/docs",), mode="permanent"),
     )
 
-    assert next_state.ui_mode == "CONFIRM"
-    assert next_state.delete_confirmation == DeleteConfirmationState(
+    assert result.state.ui_mode == "BUSY"
+    assert result.state.pending_delete_prepare_request_id == 1
+    assert result.effects == (
+        RunDeletePreparationEffect(
+            request_id=1,
+            request=DeleteRequest(
+                paths=("/home/tadashi/develop/zivo/docs",),
+                mode="permanent",
+            ),
+        ),
+    )
+
+
+def test_delete_preparation_completion_shows_size_and_requires_additional_confirmation(
+) -> None:
+    request = DeleteRequest(
         paths=("/home/tadashi/develop/zivo/docs",),
         mode="permanent",
+    )
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        pending_delete_prepare_request_id=4,
+    )
+
+    next_state = _reduce_state(
+        state,
+        DeletePreparationCompleted(
+            request_id=4,
+            request=request,
+            total_size_bytes=4096,
+            contains_directory=True,
+        ),
+    )
+
+    assert next_state.ui_mode == "CONFIRM"
+    assert next_state.delete_confirmation == DeleteConfirmationState(
+        paths=request.paths,
+        mode="permanent",
+        total_size_bytes=4096,
+        contains_directory=True,
+    )
+
+
+def test_risky_permanent_delete_requires_explicit_second_confirmation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        delete_confirmation=DeleteConfirmationState(
+            paths=("/tmp/docs",),
+            mode="permanent",
+            contains_directory=True,
+        ),
+    )
+
+    unconfirmed = reduce_app_state(state, ConfirmDeleteTargets())
+    armed = _reduce_state(state, AdvancePermanentDeleteConfirmation())
+    confirmed = reduce_app_state(armed, ConfirmDeleteTargets())
+
+    assert unconfirmed.state == state
+    assert armed.delete_confirmation is not None
+    assert armed.delete_confirmation.additional_confirmation_armed is True
+    assert confirmed.effects == (
+        RunFileMutationEffect(
+            request_id=1,
+            request=DeleteRequest(paths=("/tmp/docs",), mode="permanent"),
+        ),
     )
 
 

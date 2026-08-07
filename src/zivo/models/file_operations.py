@@ -128,6 +128,16 @@ class DeleteRequest:
 
 
 @dataclass(frozen=True)
+class DeletePreparationResult:
+    """Filesystem metadata collected before permanent-delete confirmation."""
+
+    request: DeleteRequest
+    total_size_bytes: int
+    contains_directory: bool
+    failed_paths: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class ChmodRequest:
     """A request to change the permission bits for one or more paths."""
 

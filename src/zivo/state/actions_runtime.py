@@ -8,6 +8,7 @@ from zivo.models import (
     CreateZipArchiveResult,
     CustomActionExecutionRequest,
     CustomActionResult,
+    DeleteRequest,
     ExternalLaunchRequest,
     ExtractArchiveRequest,
     ExtractArchiveResult,
@@ -137,6 +138,25 @@ class DirectorySizesFailed:
 
     request_id: int
     paths: tuple[str, ...]
+    message: str
+
+
+@dataclass(frozen=True)
+class DeletePreparationCompleted:
+    """Show permanent-delete confirmation after filesystem inspection."""
+
+    request_id: int
+    request: DeleteRequest
+    total_size_bytes: int
+    contains_directory: bool
+    failed_paths: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class DeletePreparationFailed:
+    """Apply a terminal permanent-delete preparation failure."""
+
+    request_id: int
     message: str
 
 

@@ -7,8 +7,6 @@ from zivo.state.actions import (
     BeginCommandPalette,
     BeginDeleteTargets,
     BeginExitCurrentPath,
-    BeginGoToPath,
-    BeginHistorySearch,
     BeginRenameInput,
     ClearTransferSelection,
     CloseCurrentTab,
@@ -265,15 +263,6 @@ def test_transfer_mode_v_pastes_from_clipboard_to_focused_pane() -> None:
     assert isinstance(result[1], PasteClipboardToTransferPane)
 
 
-def test_transfer_mode_H_begins_history_search() -> None:
-    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
-
-    assert dispatch_key_input(state, key="H") == (
-        SetNotification(None),
-        BeginHistorySearch(),
-    )
-
-
 def test_transfer_mode_colon_begins_command_palette() -> None:
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
 
@@ -282,13 +271,11 @@ def test_transfer_mode_colon_begins_command_palette() -> None:
         BeginCommandPalette(),
     )
 
-def test_transfer_mode_G_begins_go_to_path() -> None:
+def test_removed_direct_shortcuts_are_unbound_in_transfer_mode() -> None:
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
 
-    assert dispatch_key_input(state, key="G") == (
-        SetNotification(None),
-        BeginGoToPath(),
-    )
+    for key in ("i", "C", "B", "G", "M", "O", "T", "H", "R"):
+        assert dispatch_key_input(state, key=key) == ()
 
 
 def test_transfer_mode_d_deletes_targets() -> None:
@@ -301,6 +288,17 @@ def test_transfer_mode_d_deletes_targets() -> None:
     # カーソル位置のファイルがターゲットになる
     assert len(result[1].paths) == 1
     assert result[1].paths[0].endswith("/docs")
+
+
+def test_transfer_mode_uppercase_d_permanently_deletes_targets() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+
+    result = dispatch_key_input(state, key="D")
+
+    assert result[1] == BeginDeleteTargets(
+        ("/home/tadashi/develop/zivo/docs",),
+        mode="permanent",
+    )
 
 
 def test_transfer_mode_d_warns_when_no_targets() -> None:

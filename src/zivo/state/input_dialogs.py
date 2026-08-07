@@ -1,6 +1,7 @@
 """Dialog and non-browsing mode input dispatchers."""
 
 from .actions import (
+    AdvancePermanentDeleteConfirmation,
     CancelArchiveExtractConfirmation,
     CancelCustomActionConfirmation,
     CancelDeleteConfirmation,
@@ -73,10 +74,23 @@ def dispatch_confirm_input(
     state: AppState, *, key: str, character: str | None
 ) -> DispatchedActions:
     if state.delete_confirmation is not None:
+        confirmation = state.delete_confirmation
         if key == "escape":
             return supported(CancelDeleteConfirmation())
-        if key == "enter":
+        if (
+            confirmation.requires_additional_confirmation
+            and not confirmation.additional_confirmation_armed
+            and key == "enter"
+        ):
+            return supported(AdvancePermanentDeleteConfirmation())
+        if confirmation.additional_confirmation_armed and key == "D":
             return supported(ConfirmDeleteTargets())
+        if not confirmation.requires_additional_confirmation and key == "enter":
+            return supported(ConfirmDeleteTargets())
+        if confirmation.additional_confirmation_armed:
+            return warn("Use D to permanently delete or Esc to cancel")
+        if confirmation.requires_additional_confirmation:
+            return warn("Use Enter to review permanent delete or Esc to cancel")
         return warn("Use Enter to confirm delete or Esc to cancel")
 
     if state.exit_confirmation is not None:

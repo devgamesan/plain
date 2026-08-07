@@ -140,7 +140,7 @@ See [Commands](docs/commands.md) for the full command list.
 - **Copy / Cut / Paste**: within a pane or across panes in Transfer mode
 - **Rename**: inline rename
 - **Permissions and ownership**: change selected targets' octal mode or owner/group from the command palette on POSIX-style filesystems
-- **Delete**: move to trash (`d`) or permanent delete (`D`), with configurable confirmation
+- **Delete**: move to trash (`d`) or permanently delete (`D`); permanent delete shows target count, total size, representative names, and an irreversible-operation warning
 - **Undo**: revert rename, paste, or trash operations
 - **Multi-selection**: select files with Space, or Select all
 
@@ -161,6 +161,7 @@ See [Commands](docs/commands.md) for the full command list.
 
 ### Command palette
 - Press `:` to search and execute any action via incremental search. No need to memorize keybindings
+- Lower-frequency attribute, path-copy, bookmark-edit, go-to-path, external-launch, history, and reload actions live in the palette instead of single-key bindings
 
 ### Customization
 - **Settings overlay**: interactively edit and save startup configuration
@@ -194,7 +195,7 @@ See [Custom Actions](docs/custom-actions.md) for custom action examples and safe
 zivo includes safety mechanisms to prevent data loss during file operations.
 
 - **Move to trash**: `d` / `Delete` moves items to the OS trash (confirmation dialog configurable)
-- **Permanent delete**: `D` / `Shift+Delete` always asks for confirmation
+- **Permanent delete**: `D` / `Shift+Delete` always asks for confirmation; multiple targets or directories require `Enter` followed by an explicit uppercase `D`
 - **Undo**: `z` reverses the last rename, paste, or trash operation
 - **Paste conflict resolution**: choose overwrite, skip, or rename on name collision
 - **Replace preview**: review diffs before applying batch replacements

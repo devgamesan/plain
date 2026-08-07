@@ -1,6 +1,7 @@
 # Command Palette
 
 Complete list of commands available in the command palette, opened with `:`.
+Lower-frequency attribute, path-copy, bookmark-edit, go-to-path, external-launch, history, and reload actions are intentionally available here instead of as single-key bindings.
 In transfer mode, the command palette only shows commands that are available for the active transfer pane.
 The tab strip is only shown when two or more browser tabs are open.
 

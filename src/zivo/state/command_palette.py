@@ -224,7 +224,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         CommandPaletteItem(
             id="history_search",
             label="History search",
-            shortcut="H",
+            shortcut=None,
             enabled=True,
         ),
         CommandPaletteItem(
@@ -248,7 +248,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         CommandPaletteItem(
             id="go_to_path",
             label="Go to path",
-            shortcut="G",
+            shortcut=None,
             enabled=True,
         ),
         CommandPaletteItem(
@@ -260,7 +260,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         CommandPaletteItem(
             id="reload_directory",
             label="Reload directory",
-            shortcut="R",
+            shortcut=None,
             enabled=True,
         ),
         CommandPaletteItem(
@@ -333,7 +333,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="show_attributes",
                 label="Show attributes",
-                shortcut="i",
+                shortcut=None,
                 enabled=True,
             )
         )
@@ -408,7 +408,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="edit_with_gui_editor",
                 label="Edit with GUI editor",
-                shortcut="O",
+                shortcut=None,
                 enabled=single_target_entry.kind == "file",
             )
         )
@@ -444,7 +444,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="copy_path",
                 label="Copy path",
-                shortcut="C",
+                shortcut=None,
                 enabled=True,
             )
         )
@@ -463,13 +463,13 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             CommandPaletteItem(
                 id="open_current_directory_with_file_manager",
                 label="Open current directory with file manager",
-                shortcut="M",
+                shortcut=None,
                 enabled=not is_search_workspace,
             ),
             CommandPaletteItem(
                 id="open_current_directory_with_terminal",
                 label="Open current directory with terminal",
-                shortcut="T",
+                shortcut=None,
                 enabled=not is_search_workspace,
             ),
             CommandPaletteItem(
@@ -485,7 +485,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                     if current_path_is_bookmarked
                     else "Bookmark this directory"
                 ),
-                shortcut="B",
+                shortcut=None,
                 enabled=not is_search_workspace,
             ),
             CommandPaletteItem(
@@ -582,7 +582,7 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
         CommandPaletteItem(
             id="history_search",
             label="History search",
-            shortcut="H",
+            shortcut=None,
             enabled=True,
         ),
         CommandPaletteItem(
@@ -594,7 +594,7 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
         CommandPaletteItem(
             id="go_to_path",
             label="Go to path",
-            shortcut="G",
+            shortcut=None,
             enabled=True,
         ),
         CommandPaletteItem(
@@ -606,7 +606,7 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
         CommandPaletteItem(
             id="reload_directory",
             label="Reload directory",
-            shortcut="R",
+            shortcut=None,
             enabled=_active_transfer_pane_state(state) is not None,
         ),
         CommandPaletteItem(

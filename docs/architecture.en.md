@@ -189,6 +189,7 @@ sequenceDiagram
 
 - Keeps `handle_mutation_action()` as the public entrypoint and dispatches mutation actions to responsibility-specific handlers
 - `reducer_mutations_input.py`, `reducer_mutations_selection.py`, `reducer_mutations_delete.py`, `reducer_mutations_archive.py`, and `reducer_mutations_undo.py` split pending input, clipboard, delete/trash, archive/zip, and undo/completion flows
+- `reducer_mutations_delete.py` also owns asynchronous permanent-delete metadata preparation and the two-step confirmation for multiple targets or directories
 - `reducer_mutations_common.py` contains shared helpers such as platform detection and undo-entry construction
 
 ### `src/zivo/state/reducer_palette.py`
@@ -250,7 +251,7 @@ sequenceDiagram
 - `grep_search.py`: handles recursive content search through `rg`
 - `directory_size.py`: calculates recursive sizes for visible directories
 - `clipboard_operations.py`: executes copy / cut / paste, detects conflicts, and records undo metadata
-- `file_mutations.py`: handles rename / create / trash delete and captures trash-restore metadata
+- `file_mutations.py`: handles rename / create / delete, captures trash-restore metadata, and recursively measures targets for permanent-delete confirmation
 - `undo_operations.py`: executes undo for reversible file operations
 - `archive_extract.py`: handles archive preflight scanning, conflict detection, safe extraction, and progress reporting
 - `config.py`: loads, validates, saves, and renders `config.toml`

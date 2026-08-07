@@ -1765,7 +1765,7 @@ def test_select_help_bar_state_for_config_editor() -> None:
     help_bar = select_help_bar_state(state)
 
     assert help_bar.lines == (
-        "↑↓ or Ctrl+j/k choose | ←→ or Enter change | s save | e edit file | r reset help",
+        "↑↓ or Ctrl+j/k choose | ←→ or Enter change | s save | e edit file",
         "esc close",
     )
 
@@ -2235,7 +2235,6 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
         "←→/enter change",
         "s save",
         "e edit file",
-        "r reset help",
         "esc close",
     )
 

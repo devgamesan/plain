@@ -17,24 +17,3 @@ VALID_TERMINAL_EDITOR_NAMES = frozenset(
     {"edit", "emacs", "helix", "hx", "kak", "micro", "msedit", "nano", "nvim", "vi", "vim"}
 )
 VALIDATION_PATH = "/tmp/zivo"
-
-HELP_BAR_FIELDS = (
-    "browsing",
-    "transfer",
-    "filter",
-    "rename",
-    "create",
-    "extract",
-    "zip",
-    "palette",
-    "palette_file_search",
-    "palette_grep_search",
-    "palette_history",
-    "palette_bookmarks",
-    "palette_go_to_path",
-    "shell",
-    "config",
-    "confirm_delete",
-    "detail",
-    "busy",
-)

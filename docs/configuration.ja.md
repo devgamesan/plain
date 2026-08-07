@@ -92,3 +92,4 @@ paths = ["/home/user/src", "/home/user/docs"]
 - `logging.enabled = true` の場合、起動失敗や未処理例外は後から調査できるように指定ログファイルへ追記されます。
 - 受け入れ可能な `display.theme` の値は、インストールされている Textual のバージョンに同梱される組み込みテーマに依存します。
 - 受け入れ可能な `display.preview_syntax_theme` の値は、インストール環境で利用可能な Pygments スタイルに依存します。
+- ヘルプバーの文言は現在の UI 状態と zivo 標準キーマップに追随します。以前の `[help_bar]` セクションは互換性のため無視され、次回設定を保存したときに削除されます。

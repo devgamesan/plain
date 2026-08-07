@@ -127,6 +127,38 @@ BROWSING_KEYMAP = {
     "shift+tab": "activate_previous_tab",
 }
 
+# Help content is intentionally defined next to the authoritative key map so
+# shortcut changes have a single source of truth to validate against.
+BROWSING_HELP_LINES = (
+    (
+        ("enter", "open"),
+        ("e", "edit"),
+        ("O", "gui editor"),
+        ("i", "info"),
+        ("/", "filter"),
+        ("s", "sort"),
+        (".", "hidden"),
+        ("[ ]", "bk/fwd"),
+        ("q", "quit"),
+    ),
+    (
+        ("space", "select"),
+        ("c", "copy"),
+        ("x", "cut"),
+        ("v", "paste"),
+        ("d", "delete"),
+        ("r", "rename"),
+        ("z", "undo"),
+    ),
+    (
+        ("f", "find"),
+        ("g", "grep"),
+        ("n", "new-file"),
+        ("N", "new-dir"),
+        (":", "palette"),
+    ),
+)
+
 SEARCH_WORKSPACE_BLOCKED_COMMANDS = frozenset(
     {
         "begin_file_search",

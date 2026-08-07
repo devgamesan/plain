@@ -93,3 +93,4 @@ paths = ["/home/user/src", "/home/user/docs"]
 - When logging is enabled, startup failures and unhandled exceptions are appended to the configured log file for later investigation.
 - The accepted `display.theme` values come from the built-in themes shipped with the installed Textual version.
 - The accepted `display.preview_syntax_theme` values are `auto` plus the Pygments styles available in the installed environment.
+- Help-bar text follows the current UI state and zivo's standard keybindings. The former `[help_bar]` section is ignored for compatibility and is removed when the config is next saved.

@@ -31,7 +31,6 @@ from .actions import (
     MovePendingInputCursor,
     MoveShellCommandCursor,
     OpenPathInEditor,
-    ResetHelpBarConfig,
     ResolvePasteConflict,
     SaveConfigEditor,
     SetFilterQuery,
@@ -313,12 +312,9 @@ def dispatch_config_input(
     if key == "e":
         return supported(OpenPathInEditor(state.config_path))
 
-    if key == "r":
-        return supported(ResetHelpBarConfig())
-
     return warn(
         "Use ↑↓ or Ctrl+j/k to choose, ←→ or Enter to change, "
-        "s to save, e to edit the file, r to reset help, or Esc to close"
+        "s to save, e to edit the file, or Esc to close"
     )
 
 

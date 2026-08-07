@@ -165,7 +165,7 @@ See [Commands](docs/commands.md) for the full command list.
 ### Customization
 - **Settings overlay**: interactively edit and save startup configuration
 - **Custom actions**: add external tools to the command palette
-- **config.toml**: configure themes, sorting, preview visibility, help-bar visibility, delete confirmation, and more
+- **config.toml**: use the Config Editor for common themes, sorting, previews, editors, and delete confirmation; edit advanced settings in the raw file
 
 ### External integration
 - **Open and edit**: open a selected file with its OS default app, or edit it with a terminal or GUI editor
@@ -180,7 +180,7 @@ See [Commands](docs/commands.md) for the full command list.
 ## Configuration
 
 zivo automatically creates `config.toml` on first launch.
-You can configure themes, previews, sorting, editor integration, delete confirmation, and more.
+The Config Editor covers commonly changed themes, previews, sorting, editor integration, and delete confirmation. Press `e` there to edit advanced settings in `config.toml`; saving from the UI preserves advanced and unknown settings.
 You can also add custom command palette actions for external tools.
 Help text itself is generated from the current state and standard keybindings.
 

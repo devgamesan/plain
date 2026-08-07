@@ -104,7 +104,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     if state.ui_mode == "CONFIG":
         return HelpBarState(
             (
-                "↑↓ or Ctrl+j/k choose | ←→ or Enter change | s save | e edit file",
+                "↑↓ or Ctrl+j/k choose | ←→ or Enter change | s save | e advanced config",
                 "esc close",
             )
         )
@@ -738,18 +738,16 @@ def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
     )
     lines_list.extend([
         "",
+        "  ── Advanced Settings ──",
+        "  Edit config.toml with e for advanced, custom, and future settings.",
+        "  Saving here preserves settings that are not shown above.",
         _format_custom_editor_hint(config.editor.command),
-        "GUI editor presets: "
-        + ", ".join(name for name, _config in CONFIG_GUI_EDITOR_PRESETS),
-        "Terminal launch templates: edit config.toml with e",
-        f"  Linux templates: {len(config.terminal.linux)}",
-        f"  macOS templates: {len(config.terminal.macos)}",
-        f"  Windows templates: {len(config.terminal.windows)}",
+        "GUI editor presets: " + ", ".join(name for name, _config in CONFIG_GUI_EDITOR_PRESETS),
     ])
 
-    title = "Config Editor"
+    title = "Config Editor (Basic Settings)"
     if state.config_editor.dirty:
-        title = "Config Editor*"
+        title = f"{title}*"
     return ConfigDialogState(
         title=title,
         lines=tuple(lines_list),
@@ -757,7 +755,7 @@ def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
             "↑↓/Ctrl+j/k choose",
             "←→/enter change",
             "s save",
-            "e edit file",
+            "e advanced config",
             "esc close",
         ),
     )

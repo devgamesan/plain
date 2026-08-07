@@ -289,6 +289,7 @@ def _handle_save_config_editor(
             request_id=request_id,
             path=state.config_editor.path,
             config=state.config_editor.draft,
+            preserve_unmanaged=True,
         ),
     )
 

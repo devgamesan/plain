@@ -1778,7 +1778,7 @@ def test_select_help_bar_state_for_config_editor() -> None:
     help_bar = select_help_bar_state(state)
 
     assert help_bar.lines == (
-        "↑↓ or Ctrl+j/k choose | ←→ or Enter change | s save | e edit file",
+        "↑↓ or Ctrl+j/k choose | ←→ or Enter change | s save | e advanced config",
         "esc close",
     )
 
@@ -2218,15 +2218,13 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
     dialog = select_config_dialog_state(state)
 
     assert dialog is not None
-    assert dialog.title == "Config Editor*"
+    assert dialog.title == "Config Editor (Basic Settings)*"
     assert "Path: /tmp/zivo/config.toml" in dialog.lines
-    assert "  ── External ──" in dialog.lines
+    assert "  ── Editors ──" in dialog.lines
     assert "  Editor command: system default" in dialog.lines
     assert "  GUI editor: VS Code" in dialog.lines
-    assert "  ── Display ──" in dialog.lines
+    assert "  ── Appearance ──" in dialog.lines
     assert "> Theme: textual-dark" in dialog.lines
-    assert "  Preview syntax theme: auto" in dialog.lines
-    assert "  Preview max KiB: 64 KiB" in dialog.lines
     assert "  Text preview: true" in dialog.lines
     assert "  Image preview: true" in dialog.lines
     assert "  ── Sorting ──" in dialog.lines
@@ -2242,12 +2240,14 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
         "GUI editor presets: VS Code, VSCodium, Cursor, Sublime Text, Zed, "
         "JetBrains IDEA, PyCharm, WebStorm, Kate"
     ) in dialog.lines
-    assert "Terminal launch templates: edit config.toml with e" in dialog.lines
+    assert "  ── Advanced Settings ──" in dialog.lines
+    assert "  Edit config.toml with e for advanced, custom, and future settings." in dialog.lines
+    assert "  Saving here preserves settings that are not shown above." in dialog.lines
     assert dialog.options == (
         "↑↓/Ctrl+j/k choose",
         "←→/enter change",
         "s save",
-        "e edit file",
+        "e advanced config",
         "esc close",
     )
 

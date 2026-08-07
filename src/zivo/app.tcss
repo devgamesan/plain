@@ -138,6 +138,7 @@ Screen {
 #command-palette-items-scroll {
     height: auto;
     max-height: 1fr;
+    scrollbar-size-vertical: 1;
 }
 
 #command-palette.-expanded #command-palette-items-scroll {

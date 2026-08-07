@@ -122,7 +122,7 @@ See [Keybindings](docs/keybindings.md) for the full list.
 
 Press `:` to search and run available actions. With an empty query, the palette shows fixed Navigate, File, Search, View, System, and Custom actions sections. The full list is scrollable with the mouse wheel; `↑` / `↓` and `Ctrl+j` / `Ctrl+k` keep the selected row visible.
 
-Search accepts common aliases and keywords such as `duplicate` for Copy, `trash` for Move to trash, `grep` or `search contents` for Grep search, and `shell` for opening a terminal. Results are ranked deterministically. Commands that do not apply remain searchable but are dimmed with a concrete reason; pressing Enter on one shows the same reason as a warning. Custom actions continue to use their configured context conditions and are searchable by name.
+Search accepts common aliases and keywords such as `duplicate` for Copy, `trash` for Move to trash, `grep` or `search contents` for Grep search, and `shell` for opening a terminal. Results are ranked deterministically. Commands that do not apply remain searchable but are dimmed with a concrete reason; pressing Enter on one shows the same reason as a warning. Registered custom actions are always listed, while actions that do not satisfy their configured context conditions are disabled with a reason; they are also searchable by name.
 
 See [Commands](docs/commands.md) for the full command list.
 

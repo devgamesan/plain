@@ -1453,7 +1453,9 @@ def test_command_palette_items_for_search_workspace_explain_unavailable_actions(
     assert "Grep search" in labels
     assert "Reload directory" in labels
     assert "Toggle transfer mode" in labels
-    assert "Format project" not in labels
+    assert "Format project" in labels
+    assert items["Format project"].enabled is False
+    assert items["Format project"].disabled_reason == "Unavailable in Search Workspace"
     for label in (
         "Rename",
         "Change permissions",

@@ -428,8 +428,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
 
     is_search_workspace = is_search_workspace_path(state.current_path)
 
-    if not is_search_workspace:
-        items.extend(_build_custom_action_items(state))
+    items.extend(_build_custom_action_items(state))
 
     if has_single_target:
         items.append(
@@ -842,15 +841,24 @@ def _build_custom_action_items(state: AppState) -> list[CommandPaletteItem]:
     context = _custom_action_context(state)
     items: list[CommandPaletteItem] = []
     for index, action in enumerate(state.config.actions.custom):
-        if custom_action_matches(action, context):
-            items.append(
-                CommandPaletteItem(
-                    id=f"custom_action:{index}",
-                    label=action.name,
-                    shortcut=None,
-                    enabled=True,
-                )
+        enabled = custom_action_matches(action, context)
+        disabled_reason = None
+        if not enabled:
+            if action.when == "single_file":
+                disabled_reason = "Select one matching file for this custom action"
+            elif action.when == "selection":
+                disabled_reason = "Select at least one entry for this custom action"
+            else:
+                disabled_reason = "Custom action is unavailable in the current context"
+        items.append(
+            CommandPaletteItem(
+                id=f"custom_action:{index}",
+                label=action.name,
+                shortcut=None,
+                enabled=enabled,
+                disabled_reason=disabled_reason,
             )
+        )
     return items
 
 

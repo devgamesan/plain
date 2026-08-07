@@ -134,8 +134,8 @@ See [Commands](docs/commands.md) for the full command list.
 - **Three-pane layout**: directory tree on the left, file list in the center, preview on the right
 - **Tabs**: open multiple directories and switch between them
 - **Directory history**: go back / forward through visited directories
-- **Bookmarks**: save directories and jump to them instantly
-- **Go to path**: navigate to any path with Tab completion
+- **Bookmarks**: save directories and open them from the bookmark-filtered Go view with `b`
+- **Go**: search bookmarks, recent history, open tabs, Home, or a direct path in one view; use `@bookmark`, `@history`, `@tab`, or `@home` prefixes to filter the source
 
 ### File operations
 - **Copy / Cut / Paste**: within a pane or across panes in Transfer mode
@@ -162,7 +162,7 @@ See [Commands](docs/commands.md) for the full command list.
 
 ### Command palette
 - Press `:` to search and execute any action via incremental search. No need to memorize keybindings
-- Lower-frequency attribute, path-copy, bookmark-edit, go-to-path, external-launch, history, and reload actions live in the palette instead of single-key bindings
+- Lower-frequency attribute, path-copy, bookmark-edit, external-launch, and reload actions live in the palette; Go combines destination search while `~`, `[`, `]`, and `b` remain quick paths
 
 ### Customization
 - **Settings overlay**: interactively edit and save startup configuration

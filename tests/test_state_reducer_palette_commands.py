@@ -37,8 +37,10 @@ from zivo.state.actions import (
     AttributeInspectionLoaded,
     BeginBookmarkSearch,
     BeginCommandPalette,
+    BeginGo,
     BeginGoToPath,
     BeginHistorySearch,
+    BrowserSnapshotFailed,
     CancelCommandPalette,
     ConfirmCustomAction,
     DismissAttributeDialog,
@@ -50,6 +52,7 @@ from zivo.state.actions import (
     SubmitCommandPalette,
     ToggleTransferMode,
 )
+from zivo.state.command_palette import parse_go_query, select_go_candidates
 from zivo.windows_paths import WINDOWS_DRIVES_ROOT
 
 
@@ -328,11 +331,13 @@ def test_begin_history_search_with_empty_history() -> None:
     assert next_state.command_palette.source == "history"
     assert next_state.command_palette.history_and_navigation.history_results == ()
 
-def test_begin_bookmark_search_enters_bookmarks_mode() -> None:
+def test_begin_bookmark_search_enters_bookmarks_filtered_go_mode() -> None:
     next_state = _reduce_state(build_initial_app_state(), BeginBookmarkSearch())
 
     assert next_state.ui_mode == "PALETTE"
-    assert next_state.command_palette == CommandPaletteState(source="bookmarks")
+    assert next_state.command_palette is not None
+    assert next_state.command_palette.source == "go"
+    assert next_state.command_palette.history_and_navigation.go_source_filter == "bookmarks"
 
 def test_begin_go_to_path_enters_palette_mode() -> None:
     next_state = _reduce_state(build_initial_app_state(), BeginGoToPath())
@@ -936,17 +941,17 @@ def test_submit_command_palette_opens_current_directory_with_terminal() -> None:
         ),
     )
 
-def test_submit_command_palette_begins_history_search() -> None:
+def test_submit_command_palette_begins_go_search() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("history search"))
+    state = _reduce_state(state, SetCommandPaletteQuery("go"))
 
     result = reduce_app_state(state, SubmitCommandPalette())
 
     assert result.state.ui_mode == "PALETTE"
     assert result.state.command_palette is not None
-    assert result.state.command_palette.source == "history"
+    assert result.state.command_palette.source == "go"
 
-def test_submit_command_palette_begins_bookmark_search() -> None:
+def test_submit_command_palette_does_not_expose_legacy_bookmark_search() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
     state = _reduce_state(state, SetCommandPaletteQuery("show bookmarks"))
 
@@ -954,7 +959,94 @@ def test_submit_command_palette_begins_bookmark_search() -> None:
 
     assert result.state.ui_mode == "PALETTE"
     assert result.state.command_palette is not None
-    assert result.state.command_palette.source == "bookmarks"
+    assert result.state.notification is not None
+    assert result.state.notification.level == "warning"
+
+
+def test_command_palette_exposes_one_unified_go_command() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+
+    item_ids = {item.id for item in command_palette_module.get_command_palette_items(state)}
+
+    assert "go" in item_ids
+    assert not item_ids.intersection({"history_search", "bookmark_search", "go_to_path"})
+
+
+def test_go_candidates_merge_bookmark_and_recent_sources(tmp_path) -> None:
+    bookmarked = tmp_path / "bookmarked"
+    recent = tmp_path / "recent"
+    bookmarked.mkdir()
+    recent.mkdir()
+    state = replace(
+        build_initial_app_state(
+            config=AppConfig(bookmarks=BookmarkConfig(paths=(str(bookmarked),)))
+        ),
+        history=HistoryState(visited_all=(str(recent), str(bookmarked))),
+    )
+
+    candidates = select_go_candidates(state)
+
+    merged = next(candidate for candidate in candidates if candidate.path == str(bookmarked))
+    assert merged.sources == ("bookmark", "recent")
+    assert next(candidate.path for candidate in candidates if candidate.path == str(recent)) == str(
+        recent
+    )
+
+
+def test_go_query_promotes_existing_direct_path(tmp_path) -> None:
+    destination = tmp_path / "destination"
+    destination.mkdir()
+    state = _reduce_state(build_initial_app_state(), BeginGo())
+    state = _reduce_state(state, SetCommandPaletteQuery(str(destination)))
+
+    items = command_palette_module.get_command_palette_items(state)
+
+    assert items
+    assert items[0].id == "go_direct"
+    assert items[0].path == str(destination.resolve())
+
+
+def test_go_query_supports_source_filters(tmp_path) -> None:
+    bookmarked = tmp_path / "bookmarked"
+    recent = tmp_path / "recent"
+    bookmarked.mkdir()
+    recent.mkdir()
+    state = replace(
+        build_initial_app_state(
+            config=AppConfig(bookmarks=BookmarkConfig(paths=(str(bookmarked),)))
+        ),
+        history=HistoryState(visited_all=(str(recent),)),
+    )
+
+    assert parse_go_query("@history") == ("recent", "")
+    assert parse_go_query("@bookmark book") == ("bookmarks", "book")
+    recent_candidates = select_go_candidates(state, query="@history")
+    bookmark_candidates = select_go_candidates(state, query="@bookmark")
+    assert tuple(candidate.path for candidate in recent_candidates) == (str(recent),)
+    assert tuple(candidate.path for candidate in bookmark_candidates) == (str(bookmarked),)
+
+
+def test_go_navigation_error_keeps_the_go_palette_open(tmp_path) -> None:
+    destination = tmp_path / "destination"
+    destination.mkdir()
+    state = _reduce_state(build_initial_app_state(), BeginGo())
+    state = _reduce_state(state, SetCommandPaletteQuery(str(destination)))
+    submitted = _reduce_state(state, SubmitCommandPalette())
+
+    assert submitted.ui_mode == "BUSY"
+    assert submitted.command_palette is None
+    assert submitted.pending_go_palette is not None
+
+    failed = _reduce_state(
+        submitted,
+        BrowserSnapshotFailed(request_id=1, message="Permission denied", blocking=True),
+    )
+
+    assert failed.ui_mode == "PALETTE"
+    assert failed.command_palette is not None
+    assert failed.command_palette.source == "go"
+    assert failed.notification is not None
+    assert failed.notification.message == "Permission denied"
 
 def test_submit_command_palette_adds_current_directory_bookmark() -> None:
     state = _reduce_state(

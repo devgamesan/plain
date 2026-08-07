@@ -50,11 +50,14 @@ CommandPaletteSource = Literal[
     "history",
     "bookmarks",
     "go_to_path",
+    "go",
     "replace_text",
     "replace_in_found_files",
     "replace_in_grep_files",
     "grep_replace_selected",
 ]
+GoSourceFilter = Literal["all", "bookmarks", "recent", "open_tabs", "home"]
+GoCandidateSource = Literal["home", "bookmark", "recent", "open_tab", "direct"]
 GrepSearchScope = Literal["current_directory", "selected_entries", "search_workspace"]
 GrepSearchFieldId = Literal["keyword", "scope", "filename", "include", "exclude"]
 ReplaceScope = Literal[
@@ -424,6 +427,17 @@ class HistoryAndNavigationPaletteState:
     history_results: tuple[str, ...] = ()
     go_to_path_candidates: tuple[str, ...] = ()
     go_to_path_selection_active: bool = True
+    go_candidates: tuple["GoCandidateState", ...] = ()
+    go_source_filter: GoSourceFilter = "all"
+
+
+@dataclass(frozen=True)
+class GoCandidateState:
+    """A destination candidate shown by the unified Go palette."""
+
+    path: str
+    sources: tuple[GoCandidateSource, ...] = ()
+    tab_index: int | None = None
 
 
 @dataclass(frozen=True)
@@ -610,6 +624,7 @@ class AppState:
     pending_input: PendingInputState | None = None
     pending_key_sequence: PendingKeySequenceState | None = None
     command_palette: CommandPaletteState | None = None
+    pending_go_palette: CommandPaletteState | None = None
     paste_conflict: PasteConflictState | None = None
     delete_confirmation: DeleteConfirmationState | None = None
     exit_confirmation: ExitConfirmationState | None = None

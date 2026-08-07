@@ -135,6 +135,7 @@ def _handle_browser_snapshot_loaded(
         return finalize(replace(next_state, post_reload_notification=None))
     next_state = replace(
         next_state,
+        pending_go_palette=None,
         notification=state.post_reload_notification,
         post_reload_notification=None,
         ui_mode="BROWSING" if action.blocking else state.ui_mode,
@@ -261,6 +262,17 @@ def _handle_browser_snapshot_failed(
     next_state = replace_browser_tab(state, tab_index, tab)
     if tab_index != state.active_tab_index:
         return finalize(replace(next_state, post_reload_notification=None))
+    if state.pending_go_palette is not None:
+        return finalize(
+            replace(
+                next_state,
+                command_palette=state.pending_go_palette,
+                pending_go_palette=None,
+                notification=NotificationState(level="error", message=action.message),
+                post_reload_notification=None,
+                ui_mode="PALETTE",
+            )
+        )
     return finalize(
         replace(
             next_state,

@@ -1,7 +1,7 @@
 # Command Palette
 
 Complete list of commands available in the command palette, opened with `:`.
-Lower-frequency attribute, path-copy, bookmark-edit, go-to-path, external-launch, history, and reload actions are intentionally available here instead of as single-key bindings.
+Lower-frequency attribute, path-copy, bookmark-edit, external-launch, and reload actions are intentionally available here. Destination navigation is handled by the unified `Go` command, while `~`, `[`, `]`, and `b` remain quick paths.
 In transfer mode, the command palette only shows commands that are available for the active transfer pane.
 The tab strip is only shown when two or more browser tabs are open.
 
@@ -19,11 +19,9 @@ Search also matches command keywords and common aliases. Exact label matches ran
 | `Close current tab` | Two or more tabs are open | Closes the active browser tab. The last remaining tab cannot be closed. |
 | `Find files` | Always | Opens recursive file search. |
 | `Grep search` | Always | Opens the shared recursive content search (`ripgrep` / `rg` required on `PATH`). The legacy phrase `search contents` is also a search alias. Choose current directory, selected files/directories, or Search Workspace (available only while browsing one); keyword, filename, include-extension, and exclude-extension filters are available in every scope. Selected directories are searched recursively. |
-| `History search` | Always | Opens directory history list and jump to a selected directory. |
-| `Show bookmarks` | Always | Opens the saved bookmark list and jumps to the selected directory. |
+| `Go` | Always | Searches Home, bookmarks, recent history, open tabs, and direct paths in one view. Use `@bookmark`, `@history` / `@recent`, `@tab`, or `@home` at the start of the query to limit the source. `b` opens the same view limited to bookmarks. `j` and `k` are ordinary query characters; use arrow keys or `Ctrl+j` / `Ctrl+k` to move the selection. |
 | `Go back` | Directory history has a previous entry | Moves to the previous directory in history. |
 | `Go forward` | Directory history has a forward entry | Moves to the next directory in history. |
-| `Go to path` | Always | Opens go-to-path input to navigate to a specific path, shows matching directories, and supports `Tab` completion for the selected candidate. On native Windows, drive roots are also offered so you can switch between drives quickly. |
 | `Go to home directory` | Always | Navigates to the home directory. |
 | `Reload directory` | Always | Reloads the current directory. |
 | `Toggle transfer mode` / `Close transfer mode` | Always | Switches between the normal three-pane browser and the two-pane transfer layout. |

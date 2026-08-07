@@ -161,6 +161,7 @@ class CommandPalette(Container):
         is_path_source = (
             state.title.startswith("Directory History")
             or state.title.startswith("Go to path")
+            or state.title.startswith("Go")
             or state.title.startswith("Bookmarks")
         )
         placeholder = (

@@ -3,14 +3,29 @@
 import os
 import platform
 from dataclasses import dataclass, replace
+from pathlib import Path
 
 from zivo.archive_utils import is_supported_archive_path
 from zivo.models import CustomActionContext, custom_action_matches
 from zivo.platform_support import is_split_terminal_supported
-from zivo.windows_paths import display_path, is_search_workspace_path
+from zivo.windows_paths import (
+    display_path,
+    is_search_workspace_path,
+    is_windows_drives_root,
+    is_windows_path,
+    list_windows_drive_paths,
+    normalize_windows_path,
+)
 
 from .entry_state_helpers import select_visible_entry_states
-from .models import AppState
+from .models import (
+    AppState,
+    GoCandidateSource,
+    GoCandidateState,
+    GoSourceFilter,
+    select_browser_tabs,
+)
+from .reducer_path_helpers import list_matching_directory_paths
 from .selectors import (
     select_has_visible_current_entries,
     select_single_target_entry,
@@ -44,6 +59,9 @@ class CommandPaletteMetadata:
 
 
 _COMMAND_METADATA: dict[str, CommandPaletteMetadata] = {
+    "go": CommandPaletteMetadata(
+        "Navigate", ("go", "path", "directory", "history", "recent", "bookmark"), 5
+    ),
     "file_search": CommandPaletteMetadata("Search", ("find", "files", "filename"), 20),
     "grep_search": CommandPaletteMetadata(
         "Search", ("grep", "search", "search contents", "text", "content", "contents"), 21
@@ -138,11 +156,9 @@ _CATEGORY_ORDER = ("Navigate", "File", "Search", "View", "System", "Custom actio
 
 SEARCH_WORKSPACE_COMMAND_IDS = frozenset(
     {
-        "history_search",
-        "bookmark_search",
         "go_back",
         "go_forward",
-        "go_to_path",
+        "go",
         "go_to_home_directory",
         "undo_last_operation",
         "new_tab",
@@ -240,6 +256,23 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
             for index, path in enumerate(go_to_path_candidates)
         )
 
+    if state.command_palette.source == "go":
+        candidates = select_go_candidates(
+            state,
+            source_filter=state.command_palette.history_and_navigation.go_source_filter,
+            query=state.command_palette.query,
+        )
+        return tuple(
+            CommandPaletteItem(
+                id="go_direct" if candidate.sources == ("direct",) else f"go_candidate:{index}",
+                label=_go_candidate_label(candidate),
+                shortcut=None,
+                enabled=True,
+                path=candidate.path,
+            )
+            for index, candidate in enumerate(candidates)
+        )
+
     if state.command_palette.source == "replace_in_grep_files":
         return tuple(
             CommandPaletteItem(
@@ -291,7 +324,7 @@ def normalize_command_palette_cursor(state: AppState, cursor_index: int) -> int:
         item_count = len(state.command_palette.grf.preview_results)
     elif state.command_palette.source == "grep_replace_selected":
         item_count = len(state.command_palette.grs.preview_results)
-    elif state.command_palette.source == "history":
+    elif state.command_palette.source in {"history", "go"}:
         item_count = len(get_command_palette_items(state))
     else:
         item_count = len(get_command_palette_items(state))
@@ -324,15 +357,9 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             enabled=True,
         ),
         CommandPaletteItem(
-            id="history_search",
-            label="History search",
+            id="go",
+            label="Go",
             shortcut=None,
-            enabled=True,
-        ),
-        CommandPaletteItem(
-            id="bookmark_search",
-            label="Show bookmarks",
-            shortcut="b",
             enabled=True,
         ),
         CommandPaletteItem(
@@ -346,12 +373,6 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             label="Go forward",
             shortcut="]",
             enabled=bool(state.history.forward),
-        ),
-        CommandPaletteItem(
-            id="go_to_path",
-            label="Go to path",
-            shortcut=None,
-            enabled=True,
         ),
         CommandPaletteItem(
             id="go_to_home_directory",
@@ -898,20 +919,8 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
 
     return (
         CommandPaletteItem(
-            id="history_search",
-            label="History search",
-            shortcut=None,
-            enabled=True,
-        ),
-        CommandPaletteItem(
-            id="bookmark_search",
-            label="Show bookmarks",
-            shortcut="b",
-            enabled=True,
-        ),
-        CommandPaletteItem(
-            id="go_to_path",
-            label="Go to path",
+            id="go",
+            label="Go",
             shortcut=None,
             enabled=True,
         ),
@@ -1031,6 +1040,218 @@ def _matches_query(item: CommandPaletteItem, query: str) -> bool:
     if not query:
         return True
     return query.casefold() in item.label.casefold()
+
+
+_GO_EMPTY_QUERY_LIMIT = 12
+_GO_SOURCE_LABELS: dict[GoCandidateSource, str] = {
+    "home": "Home",
+    "bookmark": "Bookmark",
+    "recent": "Recent",
+    "open_tab": "Open tab",
+    "direct": "Path",
+}
+_GO_FILTER_PREFIXES: tuple[tuple[str, GoSourceFilter], ...] = (
+    ("@bookmarks", "bookmarks"),
+    ("@bookmark", "bookmarks"),
+    ("@history", "recent"),
+    ("@recent", "recent"),
+    ("@tabs", "open_tabs"),
+    ("@tab", "open_tabs"),
+    ("@home", "home"),
+    ("@all", "all"),
+)
+
+
+def parse_go_query(
+    query: str,
+    default_filter: GoSourceFilter = "all",
+) -> tuple[GoSourceFilter, str]:
+    """Parse an optional ``@source`` prefix from a Go query."""
+
+    stripped = query.strip()
+    lowered = stripped.casefold()
+    for prefix, source_filter in _GO_FILTER_PREFIXES:
+        if lowered == prefix:
+            return source_filter, ""
+        if lowered.startswith(prefix + " "):
+            return source_filter, stripped[len(prefix) :].strip()
+    return default_filter, query
+
+
+def _go_path_key(path: str) -> str:
+    """Return the platform-aware key used to merge Go candidates."""
+
+    if is_windows_path(path):
+        return normalize_windows_path(path).casefold()
+    if path.startswith(("search://", "::zivo::")):
+        return os.path.normpath(path)
+    return os.path.realpath(os.path.normpath(path))
+
+
+def _go_base_path(state: AppState) -> str:
+    if state.layout_mode == "transfer":
+        transfer = _active_transfer_pane_state(state)
+        if transfer is not None:
+            return transfer.current_path
+    return state.current_path
+
+
+def _go_history_paths(state: AppState) -> tuple[str, ...]:
+    if state.layout_mode == "transfer":
+        transfer = _active_transfer_pane_state(state)
+        if transfer is not None:
+            return tuple(reversed(transfer.history.visited_all))
+    return tuple(reversed(state.history.visited_all))
+
+
+def _go_direct_path(query: str, base_path: str) -> str | None:
+    """Resolve an existing directory query for the direct Go candidate."""
+
+    raw_query = query.strip()
+    if not raw_query:
+        return None
+    if is_windows_path(raw_query) or is_windows_path(base_path):
+        expanded = os.path.expanduser(raw_query).replace("/", "\\")
+        if not is_windows_path(expanded):
+            expanded = os.path.join(normalize_windows_path(base_path), expanded)
+        try:
+            return normalize_windows_path(expanded) if os.path.isdir(expanded) else None
+        except (OSError, ValueError, RuntimeError):
+            return None
+    try:
+        candidate = Path(os.path.expanduser(raw_query))
+        if not candidate.is_absolute():
+            candidate = Path(base_path) / candidate
+        candidate = candidate.resolve()
+        return str(candidate) if candidate.is_dir() else None
+    except (OSError, RuntimeError, ValueError):
+        return None
+
+
+def _go_candidate_label(candidate: GoCandidateState) -> str:
+    label = _display_path(candidate.path)
+    if not candidate.sources:
+        return label
+    badges = " ".join(f"[{_GO_SOURCE_LABELS[source]}]" for source in candidate.sources)
+    return f"{label} {badges}"
+
+
+def _go_match_score(path: str, query: str) -> int | None:
+    normalized_query = " ".join(query.casefold().split())
+    if not normalized_query:
+        return 0
+    display = _display_path(path).casefold()
+    normalized_path = path.casefold()
+    basename = path.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1].casefold()
+    if normalized_query in {display, normalized_path}:
+        return 0
+    if basename.startswith(normalized_query):
+        return 1
+    words = tuple(part for part in normalized_path.replace("\\", "/").split("/") if part)
+    if any(word.startswith(normalized_query) for word in words):
+        return 2
+    if normalized_query in display or normalized_query in normalized_path:
+        return 3
+    return None
+
+
+def select_go_candidates(
+    state: AppState,
+    *,
+    source_filter: GoSourceFilter = "all",
+    query: str = "",
+) -> tuple[GoCandidateState, ...]:
+    """Collect, merge, and rank destinations for the unified Go palette."""
+
+    effective_filter, search_query = parse_go_query(query, source_filter)
+    merged: dict[str, GoCandidateState] = {}
+
+    def add(path: str, source: GoCandidateSource, tab_index: int | None = None) -> None:
+        if not path:
+            return
+        key = _go_path_key(path)
+        existing = merged.get(key)
+        if existing is None:
+            merged[key] = GoCandidateState(path=path, sources=(source,), tab_index=tab_index)
+            return
+        sources = existing.sources if source in existing.sources else (*existing.sources, source)
+        merged[key] = replace(
+            existing,
+            sources=sources,
+            tab_index=existing.tab_index if existing.tab_index is not None else tab_index,
+        )
+
+    add(os.path.expanduser("~"), "home")
+    for path in state.config.bookmarks.paths:
+        add(path, "bookmark")
+    for path in _go_history_paths(state):
+        add(path, "recent")
+    for index, tab in enumerate(select_browser_tabs(state)):
+        add(tab.current_path, "open_tab", index)
+
+    base_path = _go_base_path(state)
+    if is_windows_drives_root(base_path) or is_windows_path(base_path):
+        for path in list_windows_drive_paths():
+            add(path, "direct")
+
+    if effective_filter == "all" and search_query.strip():
+        for path in list_matching_directory_paths(search_query, base_path):
+            add(path, "direct")
+
+    candidates = tuple(
+        candidate
+        for candidate in merged.values()
+        if effective_filter == "all"
+        or (effective_filter == "bookmarks" and "bookmark" in candidate.sources)
+        or (effective_filter == "recent" and "recent" in candidate.sources)
+        or (effective_filter == "open_tabs" and "open_tab" in candidate.sources)
+        or (effective_filter == "home" and "home" in candidate.sources)
+    )
+    direct_path = (
+        _go_direct_path(search_query, _go_base_path(state))
+        if effective_filter == "all"
+        else None
+    )
+    if direct_path is not None:
+        direct_key = _go_path_key(direct_path)
+        existing_direct = merged.get(direct_key)
+        direct_candidate = GoCandidateState(path=direct_path, sources=("direct",))
+        if existing_direct is not None:
+            direct_candidate = replace(
+                existing_direct,
+                path=direct_path,
+                sources=(
+                    "direct",
+                    *(source for source in existing_direct.sources if source != "direct"),
+                ),
+            )
+            candidates = tuple(
+                candidate
+                for candidate in candidates
+                if _go_path_key(candidate.path) != direct_key
+            )
+        candidates = (
+            direct_candidate,
+            *candidates,
+        )
+
+    if search_query.strip():
+        ranked: list[tuple[int, int, GoCandidateState]] = []
+        for index, candidate in enumerate(candidates):
+            score = (
+                0
+                if "direct" in candidate.sources
+                else _go_match_score(candidate.path, search_query)
+            )
+            if score is not None:
+                ranked.append((score, index, candidate))
+        candidates = tuple(
+            candidate
+            for _, _, candidate in sorted(ranked, key=lambda item: (item[0], item[1]))
+        )
+    elif effective_filter == "all":
+        candidates = candidates[:_GO_EMPTY_QUERY_LIMIT]
+    return candidates
 
 
 def _command_match_score(item: CommandPaletteItem, query: str) -> int | None:

@@ -266,6 +266,7 @@ def restore_browsing_from_palette(
         ui_mode="BROWSING",
         notification=None,
         command_palette=None,
+        pending_go_palette=None,
         pending_file_search_request_id=None,
         pending_grep_search_request_id=None,
         pending_replace_preview_request_id=None,

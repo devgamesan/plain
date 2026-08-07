@@ -29,7 +29,7 @@ from .actions import (
     SetReplaceScope,
     SubmitCommandPalette,
 )
-from .command_palette import normalize_command_palette_cursor
+from .command_palette import get_command_palette_items, normalize_command_palette_cursor
 from .input_common import DispatchedActions, supported, warn
 from .models import (
     AppState,
@@ -126,14 +126,21 @@ def dispatch_command_palette_input(
     character: str | None,
 ) -> DispatchedActions:
     palette_source = state.command_palette.source if state.command_palette is not None else None
-    search_palette = palette_source in {"file_search", "grep_search"}
+    search_palette = palette_source in {"file_search", "grep_search", "go"}
 
     if (
         key == "tab"
         and state.command_palette is not None
-        and state.command_palette.source == "go_to_path"
+        and state.command_palette.source in {"go_to_path", "go"}
     ):
-        candidates = state.command_palette.history_and_navigation.go_to_path_candidates
+        if state.command_palette.source == "go":
+            candidates = tuple(
+                item.path
+                for item in get_command_palette_items(state)
+                if item.path is not None
+            )
+        else:
+            candidates = state.command_palette.history_and_navigation.go_to_path_candidates
         if not candidates:
             return warn("No matching directory to complete")
 

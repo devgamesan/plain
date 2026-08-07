@@ -37,7 +37,7 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 | `f` | Find files (recursive search) |
 | `g` | Grep search |
 | `/` | Filter files |
-| `b` | Show bookmarks |
+| `b` | Open the Go view filtered to bookmarks |
 | `~` | Go to home directory |
 | `.` | Toggle hidden files |
 | `s` | Cycle sort |
@@ -85,7 +85,7 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 | `z` | Undo the last file operation |
 | `.` | Toggle hidden files |
 | `N` | Create new directory in the focused pane |
-| `b` | Show bookmarks |
+| `b` | Open the Go view filtered to bookmarks |
 | `:` | Open a transfer-mode command palette with transfer-available commands only |
 | `o` | Open new tab |
 | `w` | Close current tab |

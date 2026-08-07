@@ -22,6 +22,7 @@ from .actions import (
     BeginExitCurrentPath,
     BeginExtractArchiveInput,
     BeginFileSearch,
+    BeginGo,
     BeginGoToPath,
     BeginGrepSearch,
     BeginHistorySearch,
@@ -160,6 +161,10 @@ def _run_go_forward_command(state: AppState, reduce_state: ReducerFn) -> ReduceR
 
 def _run_go_to_path_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
     return reduce_state(state, BeginGoToPath())
+
+
+def _run_go_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
+    return reduce_state(state, BeginGo())
 
 
 def _run_go_to_home_directory_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
@@ -553,6 +558,8 @@ def _run_palette_command_item(
         return _run_go_forward_command(next_state, reduce_state)
     if item_id == "go_to_path":
         return _run_go_to_path_command(next_state, reduce_state)
+    if item_id == "go":
+        return _run_go_command(next_state, reduce_state)
     if item_id == "go_to_home_directory":
         return _run_go_to_home_directory_command(next_state, reduce_state)
     if item_id == "reload_directory":

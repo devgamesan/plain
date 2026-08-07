@@ -13,6 +13,7 @@ from .actions import (
     BeginCommandPalette,
     BeginFileSearch,
     BeginFindAndReplace,
+    BeginGo,
     BeginGoToPath,
     BeginGrepReplace,
     BeginGrepReplaceSelected,
@@ -77,10 +78,12 @@ from .reducer_palette_export import (
 )
 from .reducer_palette_navigation import (
     handle_begin_bookmark_search,
+    handle_begin_go,
     handle_begin_go_to_path,
     handle_begin_history_search,
     handle_set_go_to_path_query,
     handle_submit_bookmarks_palette,
+    handle_submit_go_palette,
     handle_submit_go_to_path_palette,
     handle_submit_history_palette,
 )
@@ -243,6 +246,8 @@ def _handle_submit_palette(state: AppState, reduce_state: ReducerFn) -> ReduceRe
         return handle_submit_bookmarks_palette(state, reduce_state)
     if state.command_palette.source == "go_to_path":
         return handle_submit_go_to_path_palette(state, reduce_state)
+    if state.command_palette.source == "go":
+        return handle_submit_go_palette(state, reduce_state)
     return handle_submit_commands_palette(state, reduce_state)
 
 
@@ -262,6 +267,15 @@ def _handle_begin_file_search(
 ) -> ReduceResult:
     del action, reduce_state
     return finalize(enter_palette(state, source="file_search"))
+
+
+def _handle_begin_go(
+    state: AppState,
+    action: BeginGo,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del reduce_state
+    return handle_begin_go(state, action.source_filter)
 
 
 def _handle_begin_grep_search(
@@ -486,6 +500,7 @@ _PALETTE_HANDLERS: dict[type[Action], _PaletteHandler] = {
     BeginHistorySearch: _dispatch_begin_history_search,
     BeginBookmarkSearch: _dispatch_begin_bookmark_search,
     BeginGoToPath: _handle_begin_go_to_path,
+    BeginGo: _handle_begin_go,
     CancelCommandPalette: _handle_cancel_command_palette,
     DismissAboutDialog: _handle_dismiss_about_dialog,
     DismissAttributeDialog: _handle_dismiss_attribute_dialog,

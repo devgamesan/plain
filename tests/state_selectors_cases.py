@@ -633,9 +633,7 @@ def test_select_shell_data_emits_size_delta_updates_for_directory_size_changes()
     assert [
         (update.path, update.size_label, update.row_index)
         for update in shell.current_pane_update.size_updates
-    ] == [
-        ("/home/tadashi/develop/zivo/docs", "4.1KiB", row_index)
-    ]
+    ] == [("/home/tadashi/develop/zivo/docs", "4.1KiB", row_index)]
 
 
 def test_select_shell_data_emits_row_delta_updates_for_selection_changes() -> None:
@@ -663,9 +661,7 @@ def test_select_shell_data_emits_row_delta_updates_for_selection_changes() -> No
     assert [
         (update.path, update.entry.selected, update.row_index)
         for update in shell.current_pane_update.row_updates
-    ] == [
-        (path, True, row_index)
-    ]
+    ] == [(path, True, row_index)]
 
 
 def test_select_shell_data_emits_row_delta_updates_for_cut_changes() -> None:
@@ -690,9 +686,7 @@ def test_select_shell_data_emits_row_delta_updates_for_cut_changes() -> None:
     assert [
         (update.path, update.entry.cut, update.row_index)
         for update in shell.current_pane_update.row_updates
-    ] == [
-        (path, True, row_index)
-    ]
+    ] == [(path, True, row_index)]
 
 
 def test_select_shell_data_keeps_full_refresh_when_sorting_by_size() -> None:
@@ -800,8 +794,9 @@ def test_select_current_entry_for_path_returns_none_for_filtered_entry() -> None
     assert selectors_module.select_current_entry_for_path(state, visible_path) is not None
 
 
-def test_select_target_file_paths_ignores_hidden_selected_entries_when_hidden_files_are_off(
-) -> None:
+def test_select_target_file_paths_ignores_hidden_selected_entries_when_hidden_files_are_off() -> (
+    None
+):
     hidden_path = "/home/tadashi/develop/zivo/.env"
     visible_path = "/home/tadashi/develop/zivo/README.md"
     state = replace(
@@ -1103,8 +1098,7 @@ def test_select_shell_data_reuses_current_entries_when_only_cursor_changes() -> 
 def test_select_shell_data_viewport_projection_limits_rendered_entries() -> None:
     path = "/tmp/zivo-viewport-selector"
     current_entries = tuple(
-        entry(f"{path}/item_{index:02d}", name=f"item_{index:02d}")
-        for index in range(12)
+        entry(f"{path}/item_{index:02d}", name=f"item_{index:02d}") for index in range(12)
     )
     state = replace(
         build_initial_app_state(current_pane_projection_mode="viewport"),
@@ -1123,12 +1117,12 @@ def test_select_shell_data_viewport_projection_limits_rendered_entries() -> None
     assert shell.current_summary.item_count == len(current_entries)
 
 
-def test_select_shell_data_viewport_projection_reuses_window_for_cursor_move_inside_window(
-) -> None:
+def test_select_shell_data_viewport_projection_reuses_window_for_cursor_move_inside_window() -> (
+    None
+):
     path = "/tmp/zivo-viewport-selector"
     current_entries = tuple(
-        entry(f"{path}/item_{index:02d}", name=f"item_{index:02d}")
-        for index in range(12)
+        entry(f"{path}/item_{index:02d}", name=f"item_{index:02d}") for index in range(12)
     )
     state = replace(
         build_initial_app_state(current_pane_projection_mode="viewport"),
@@ -1146,8 +1140,7 @@ def test_select_shell_data_viewport_projection_reuses_window_for_cursor_move_ins
 def test_select_shell_data_viewport_projection_shifts_window_after_cursor_crosses_edge() -> None:
     path = "/tmp/zivo-viewport-selector"
     current_entries = tuple(
-        entry(f"{path}/item_{index:02d}", name=f"item_{index:02d}")
-        for index in range(12)
+        entry(f"{path}/item_{index:02d}", name=f"item_{index:02d}") for index in range(12)
     )
     state = replace(
         build_initial_app_state(current_pane_projection_mode="viewport"),
@@ -1172,8 +1165,7 @@ def test_select_shell_data_viewport_projection_shifts_window_after_cursor_crosse
 def test_select_shell_data_viewport_projection_skips_offscreen_row_delta_updates() -> None:
     path = "/tmp/zivo-viewport-selector"
     current_entries = tuple(
-        entry(f"{path}/item_{index:02d}", name=f"item_{index:02d}")
-        for index in range(12)
+        entry(f"{path}/item_{index:02d}", name=f"item_{index:02d}") for index in range(12)
     )
     offscreen_path = current_entries[-1].path
     state = replace(
@@ -1368,10 +1360,28 @@ def test_select_help_bar_prioritizes_paste_with_selection() -> None:
         "copy_targets",
         "cut_targets",
         "delete_targets",
-        "paste_clipboard",
         "clear_selection",
+        "paste_clipboard",
         "command_palette",
     )
+
+
+def test_select_help_bar_clear_selection_click_uses_escape_dispatch_key() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=replace(
+            build_initial_app_state().current_pane,
+            selected_paths=frozenset({"/home/tadashi/develop/zivo/README.md"}),
+        ),
+    )
+
+    help_state = select_help_bar_state(state)
+    clear_action = next(
+        action for action in help_state.actions if action.action_id == "clear_selection"
+    )
+
+    assert clear_action.key == "esc"
+    assert clear_action.dispatch_key == "escape"
 
 
 def test_select_help_bar_for_empty_directory_shows_create_actions() -> None:
@@ -1440,7 +1450,7 @@ def test_select_help_bar_for_transfer_mode_prioritizes_transfer_actions() -> Non
     )
     assert help_state.text == (
         "c Copy | x Cut | space Select\n"
-        "[ ] Focus | y Copy pane | m Move pane | q Quit | : More"
+        "[ ] Focus pane | y Copy to pane | m Move to pane | q Quit | : Commands"
     )
 
 
@@ -1488,10 +1498,7 @@ def test_select_command_palette_state_marks_selected_and_enabled_items() -> None
 
 def test_removed_direct_shortcuts_remain_available_without_palette_shortcuts() -> None:
     state = replace(build_initial_app_state(), command_palette=CommandPaletteState())
-    items = {
-        item.label: item
-        for item in command_palette_module.get_command_palette_items(state)
-    }
+    items = {item.label: item for item in command_palette_module.get_command_palette_items(state)}
 
     labels = {
         "Show attributes",
@@ -1521,10 +1528,7 @@ def test_command_palette_items_for_search_workspace_explain_unavailable_actions(
         command_palette=CommandPaletteState(),
     )
 
-    items = {
-        item.label: item for item in command_palette_module.get_command_palette_items(state)
-    }
-    labels = list(items)
+    labels = [item.label for item in command_palette_module.get_command_palette_items(state)]
 
     assert "History search" in labels
     assert "Show bookmarks" in labels
@@ -1702,10 +1706,7 @@ def test_command_palette_hides_chmod_on_windows(monkeypatch) -> None:
     monkeypatch.setattr(command_palette_module.platform, "system", lambda: "Windows")
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
 
-    labels = [
-        item.label
-        for item in command_palette_module.get_command_palette_items(state)
-    ]
+    labels = [item.label for item in command_palette_module.get_command_palette_items(state)]
 
     assert "Change permissions" not in labels
     assert "Change permissions recursively" not in labels
@@ -1822,9 +1823,7 @@ def test_select_help_bar_state_for_history_palette() -> None:
 
     help_bar = select_help_bar_state(state)
 
-    assert help_bar.lines == (
-        "type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",
-    )
+    assert help_bar.lines == ("type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",)
 
 
 def test_select_help_bar_state_for_bookmarks_palette() -> None:
@@ -1836,9 +1835,7 @@ def test_select_help_bar_state_for_bookmarks_palette() -> None:
 
     help_bar = select_help_bar_state(state)
 
-    assert help_bar.lines == (
-        "type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",
-    )
+    assert help_bar.lines == ("type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",)
 
 
 def test_select_help_bar_state_for_file_search_palette() -> None:
@@ -1881,9 +1878,7 @@ def test_select_help_bar_state_for_command_palette() -> None:
 
     help_bar = select_help_bar_state(state)
 
-    assert help_bar.lines == (
-        "type command | ↑↓ or Ctrl+j/k select | enter run | esc cancel",
-    )
+    assert help_bar.lines == ("type command | ↑↓ or Ctrl+j/k select | enter run | esc cancel",)
 
 
 def test_select_help_bar_state_for_config_editor() -> None:
@@ -1932,7 +1927,11 @@ def test_select_command_palette_state_for_grep_search_includes_input_fields() ->
         "Exclude extensions",
     ]
     assert [field.value for field in palette_state.input_fields] == [
-        "todo", "current directory", "main", "py,ts", "log"
+        "todo",
+        "current directory",
+        "main",
+        "py,ts",
+        "log",
     ]
     assert [field.active for field in palette_state.input_fields] == [
         False,
@@ -1998,9 +1997,7 @@ def test_select_command_palette_state_for_text_replace_includes_input_fields() -
         False,
         False,
     ]
-    assert [item.label for item in palette_state.items] == [
-        "README.md (2): 8: todo item"
-    ]
+    assert [item.label for item in palette_state.items] == ["README.md (2): 8: todo item"]
     assert palette_state.empty_message == "Preview shown in right pane. Press Enter to apply."
 
 
@@ -2077,11 +2074,7 @@ def test_select_command_palette_state_switches_bookmark_command_label() -> None:
     )
 
     bookmarked_state = build_initial_app_state(
-        config=AppConfig(
-            bookmarks=BookmarkConfig(
-                paths=("/home/tadashi/develop/zivo",)
-            )
-        )
+        config=AppConfig(bookmarks=BookmarkConfig(paths=("/home/tadashi/develop/zivo",)))
     )
     bookmarked_palette_state = select_command_palette_state(
         replace(
@@ -2146,9 +2139,7 @@ def test_select_command_palette_state_shows_extract_archive_for_supported_file()
         build_initial_app_state(),
         current_pane=PaneState(
             directory_path="/home/tadashi/develop/zivo",
-            entries=(
-                DirectoryEntryState(archive_path, "archive.tar.gz", "file"),
-            ),
+            entries=(DirectoryEntryState(archive_path, "archive.tar.gz", "file"),),
             cursor_path=archive_path,
         ),
     )
@@ -2398,11 +2389,9 @@ def test_select_config_dialog_state_shows_custom_editor_command_hint() -> None:
     assert dialog is not None
     assert "> Editor command: custom (raw config only)" in dialog.lines
     assert "Custom editor command: nvim -u NONE" in dialog.lines
-    assert (
-        "  Current behavior: custom raw command `nvim -u NONE` is preserved."
-        in dialog.lines
-    )
+    assert "  Current behavior: custom raw command `nvim -u NONE` is preserved." in dialog.lines
     assert "  Custom commands can only be edited in the raw config file with `e`." in dialog.lines
+
 
 def test_select_config_dialog_state_shows_custom_gui_editor_hint() -> None:
     state = replace(
@@ -2447,8 +2436,7 @@ def test_select_config_dialog_state_formats_directories_first_detail() -> None:
     assert dialog is not None
     assert "> Directories first: false" in dialog.lines
     assert (
-        "  Controls whether directories stay grouped before files in sorted lists."
-        in dialog.lines
+        "  Controls whether directories stay grouped before files in sorted lists." in dialog.lines
     )
     assert "  Current behavior: directories are mixed into the main sort order." in dialog.lines
 
@@ -2479,8 +2467,9 @@ def test_select_command_palette_state_for_file_search_results() -> None:
     assert [item.label for item in palette_state.items] == ["README.md"]
 
 
-def test_select_command_palette_state_shows_searching_message_while_file_search_is_pending(
-) -> None:
+def test_select_command_palette_state_shows_searching_message_while_file_search_is_pending() -> (
+    None
+):
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
     state = replace(
         state,
@@ -2821,8 +2810,7 @@ def test_select_conflict_dialog_state_formats_permanent_delete_confirmation() ->
     assert dialog.options == ("enter confirm", "esc cancel")
 
 
-def test_select_conflict_dialog_state_formats_additional_permanent_delete_confirmation(
-) -> None:
+def test_select_conflict_dialog_state_formats_additional_permanent_delete_confirmation() -> None:
     state = replace(
         build_initial_app_state(),
         delete_confirmation=DeleteConfirmationState(
@@ -3165,7 +3153,6 @@ class TestSelectCommandPaletteWindow:
         assert result[-1][0] == 13  # 最後のアイテムが表示されている
 
 
-
 class TestCommandPaletteDynamicWindow:
     """コマンドパレットの動的表示ウィンドウ計算のテスト."""
 
@@ -3333,10 +3320,12 @@ def test_selected_files_grep_item_enabled_with_selection() -> None:
                     "file",
                 ),
             ),
-            selected_paths=frozenset({
-                "/home/tadashi/develop/zivo/src/main.py",
-                "/home/tadashi/develop/zivo/src/utils.py",
-            }),
+            selected_paths=frozenset(
+                {
+                    "/home/tadashi/develop/zivo/src/main.py",
+                    "/home/tadashi/develop/zivo/src/utils.py",
+                }
+            ),
         ),
     )
 
@@ -3376,9 +3365,7 @@ def test_selected_files_grep_command_opens_palette() -> None:
     """Test that selected-files-grep command opens the command palette."""
     state = reduce_state(
         build_initial_app_state(),
-        BeginSelectedFilesGrep(
-            target_paths=("/home/tadashi/develop/zivo/src/main.py",)
-        ),
+        BeginSelectedFilesGrep(target_paths=("/home/tadashi/develop/zivo/src/main.py",)),
     )
 
     assert state.ui_mode == "PALETTE"
@@ -3524,9 +3511,7 @@ def test_detect_preview_disabled_message_for_office_file() -> None:
     from zivo.state.selectors_panes import _detect_preview_disabled_message
 
     # Test .docx
-    entry = DirectoryEntryState(
-        "/home/tadashi/docs/test.docx", "test.docx", "file"
-    )
+    entry = DirectoryEntryState("/home/tadashi/docs/test.docx", "test.docx", "file")
     message = _detect_preview_disabled_message(
         entry,
         enable_text_preview=True,
@@ -3537,9 +3522,7 @@ def test_detect_preview_disabled_message_for_office_file() -> None:
     assert message == "Office file preview is disabled"
 
     # Test .xlsx
-    entry = DirectoryEntryState(
-        "/home/tadashi/docs/test.xlsx", "test.xlsx", "file"
-    )
+    entry = DirectoryEntryState("/home/tadashi/docs/test.xlsx", "test.xlsx", "file")
     message = _detect_preview_disabled_message(
         entry,
         enable_text_preview=True,
@@ -3550,9 +3533,7 @@ def test_detect_preview_disabled_message_for_office_file() -> None:
     assert message == "Office file preview is disabled"
 
     # Test .pptx
-    entry = DirectoryEntryState(
-        "/home/tadashi/docs/test.pptx", "test.pptx", "file"
-    )
+    entry = DirectoryEntryState("/home/tadashi/docs/test.pptx", "test.pptx", "file")
     message = _detect_preview_disabled_message(
         entry,
         enable_text_preview=True,

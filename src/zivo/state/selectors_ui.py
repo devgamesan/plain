@@ -94,6 +94,48 @@ def _help_action(
     )
 
 
+def _clear_selection_action(label: str = "Clear selection") -> HelpBarAction:
+    return _help_action(
+        "clear_selection",
+        label,
+        "esc",
+        20,
+        dispatch_key="escape",
+    )
+
+
+def _dialog_action(
+    action_id: str,
+    label: str,
+    key: str,
+    priority: int,
+    *,
+    dispatch_key: str | None = None,
+) -> HelpBarAction:
+    return _help_action(
+        action_id,
+        label,
+        key,
+        priority,
+        dispatch_key=dispatch_key,
+    )
+
+
+def _confirm_help_state(
+    confirm_label: str,
+    *,
+    confirm_key: str = "enter",
+    confirm_action_id: str = "confirm",
+    cancel_label: str = "cancel",
+) -> HelpBarState:
+    return HelpBarState(
+        actions=(
+            _dialog_action(confirm_action_id, confirm_label, confirm_key, 10),
+            _dialog_action("cancel", cancel_label, "esc", 20, dispatch_key="escape"),
+        )
+    )
+
+
 def _contextual_browsing_actions(state: AppState) -> tuple[HelpBarAction, ...]:
     """Return target-focused actions; discovery actions are a separate row."""
 
@@ -109,9 +151,9 @@ def _contextual_browsing_actions(state: AppState) -> tuple[HelpBarAction, ...]:
             )
         if not search_workspace and select_single_target_entry(state) is not None:
             actions.append(_help_action("rename", "Rename", "r", 13))
+        actions.append(_clear_selection_action())
         if state.clipboard.paths and not search_workspace:
             actions.append(_help_action("paste_clipboard", "Paste", "v", 30))
-        actions.append(_help_action("clear_selection", "Clear selection", "esc", 20))
         return tuple(actions)
 
     cursor_entry = select_current_entry_for_path(state, state.current_pane.cursor_path)
@@ -123,30 +165,25 @@ def _contextual_browsing_actions(state: AppState) -> tuple[HelpBarAction, ...]:
                 _help_action("toggle_selection", "Select", "space", 42),
                 _help_action("copy_targets", "Copy", "c", 43),
             )
-        if state.clipboard.paths:
-            return (
-                _help_action("paste_clipboard", "Paste", "v", 30),
-                _help_action("open", "Open", "enter", 40),
-                _help_action("edit_with_terminal_editor", "Edit", "e", 41),
-                _help_action("copy_targets", "Copy", "c", 42),
-                _help_action("cut_targets", "Cut", "x", 43),
-            )
-        return (
+        actions = [
             _help_action("open", "Open", "enter", 40),
             _help_action("edit_with_terminal_editor", "Edit", "e", 41),
             _help_action("toggle_selection", "Select", "space", 42),
             _help_action("copy_targets", "Copy", "c", 43),
             _help_action("cut_targets", "Cut", "x", 44),
-        )
+        ]
+        if state.clipboard.paths:
+            actions.append(_help_action("paste_clipboard", "Paste", "v", 50))
+        return tuple(actions)
     if cursor_entry is not None and cursor_entry.kind == "dir":
         actions = [
-            _help_action("enter_directory", "Enter dir", "enter", 40),
+            _help_action("enter_directory", "Open dir", "enter", 40),
             _help_action("toggle_selection", "Select", "space", 41),
             _help_action("copy_targets", "Copy", "c", 42),
             _help_action("cut_targets", "Cut", "x", 43),
         ]
         if state.clipboard.paths and not search_workspace:
-            actions.insert(0, _help_action("paste_clipboard", "Paste", "v", 30))
+            actions.append(_help_action("paste_clipboard", "Paste", "v", 50))
         return tuple(actions)
     if not select_has_visible_current_entries(state):
         actions = [
@@ -166,16 +203,21 @@ def _discovery_actions(state: AppState) -> tuple[HelpBarAction, ...]:
         return (
             _help_action("begin_filter", "Filter", "/", 10),
             _help_action("cycle_sort", "Sort", "s", 11),
-            _help_action("toggle_hidden", "Hidden", ".", 12),
+            _help_action(
+                "toggle_hidden",
+                "Hide hidden" if state.show_hidden else "Show hidden",
+                ".",
+                12,
+            ),
             _help_action("begin_exit_current_path", "Quit", "q", 13),
-            _help_action("command_palette", "More", ":", 90),
+            _help_action("command_palette", "Commands", ":", 90),
         )
     return (
         _help_action("begin_filter", "Filter", "/", 10),
         _help_action("file_search", "Find", "f", 11),
         _help_action("grep_search", "Grep", "g", 12),
         _help_action("begin_exit_current_path", "Quit", "q", 13),
-        _help_action("command_palette", "More", ":", 90),
+        _help_action("command_palette", "Commands", ":", 90),
     )
 
 
@@ -190,7 +232,7 @@ def _contextual_transfer_actions(state: AppState) -> tuple[HelpBarAction, ...]:
             _help_action("copy_targets", "Copy", "c", 10),
             _help_action("cut_targets", "Cut", "x", 11),
             _help_action("delete_targets", "Trash", "d", 12),
-            _help_action("clear_selection", "Clear", "esc", 20),
+            _clear_selection_action("Clear"),
         ]
     else:
         actions = [
@@ -199,17 +241,17 @@ def _contextual_transfer_actions(state: AppState) -> tuple[HelpBarAction, ...]:
             _help_action("toggle_selection", "Select", "space", 12),
         ]
     if state.clipboard.paths:
-        actions.insert(0, _help_action("paste_clipboard", "Paste", "v", 5))
+        actions.append(_help_action("paste_clipboard", "Paste", "v", 50))
     return tuple(actions)
 
 
 def _transfer_discovery_actions() -> tuple[HelpBarAction, ...]:
     return (
-        _help_action("focus_transfer_pane", "Focus", "[ ]", 10, dispatch_key="["),
-        _help_action("transfer_copy", "Copy pane", "y", 11),
-        _help_action("transfer_move", "Move pane", "m", 12),
+        _help_action("focus_transfer_pane", "Focus pane", "[ ]", 10, dispatch_key="["),
+        _help_action("transfer_copy", "Copy to pane", "y", 11),
+        _help_action("transfer_move", "Move to pane", "m", 12),
         _help_action("begin_exit_current_path", "Quit", "q", 13),
-        _help_action("command_palette", "More", ":", 90),
+        _help_action("command_palette", "Commands", ":", 90),
     )
 
 
@@ -220,27 +262,51 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         if state.delete_confirmation is not None:
             confirmation = state.delete_confirmation
             if confirmation.additional_confirmation_armed:
-                return HelpBarState(("D permanently delete | esc cancel",))
+                return _confirm_help_state(
+                    "permanently delete",
+                    confirm_key="D",
+                    confirm_action_id="permanent_delete",
+                )
             if confirmation.requires_additional_confirmation:
-                return HelpBarState(("enter review permanent delete | esc cancel",))
+                return _confirm_help_state(
+                    "review permanent delete",
+                    confirm_action_id="review_delete",
+                )
             if confirmation.mode == "permanent":
-                return HelpBarState(("enter confirm permanent delete | esc cancel",))
-            return HelpBarState(("enter confirm delete | esc cancel",))
+                return _confirm_help_state("confirm permanent delete")
+            return _confirm_help_state("confirm delete")
         if state.exit_confirmation is not None:
-            return HelpBarState(("enter confirm exit | esc cancel",))
+            return _confirm_help_state("confirm exit")
         if state.archive_extract_confirmation is not None:
-            return HelpBarState(("enter continue extraction | esc return to input",))
+            return _confirm_help_state(
+                "continue extraction",
+                confirm_action_id="continue_extraction",
+                cancel_label="return to input",
+            )
         if state.zip_compress_confirmation is not None:
-            return HelpBarState(("enter overwrite zip | esc return to input",))
+            return _confirm_help_state(
+                "overwrite zip",
+                confirm_action_id="overwrite_zip",
+                cancel_label="return to input",
+            )
         if state.replace_confirmation is not None:
-            return HelpBarState(("enter confirm replace | esc cancel",))
+            return _confirm_help_state("confirm replace")
         if state.custom_action_confirmation is not None:
-            return HelpBarState(("enter run custom action | esc cancel",))
+            return _confirm_help_state("run custom action", confirm_action_id="run_custom_action")
         if state.name_conflict is not None:
-            return HelpBarState(("enter return to input | esc return to input",))
+            return _confirm_help_state(
+                "return to input",
+                confirm_action_id="return_to_input",
+                cancel_label="return to input",
+            )
         return HelpBarState(("resolve conflict in dialog",))
     if state.ui_mode == "DETAIL":
-        return HelpBarState(("enter close | esc close",))
+        return HelpBarState(
+            actions=(
+                _dialog_action("close_detail", "close", "enter", 10),
+                _dialog_action("cancel_detail", "close", "esc", 20, dispatch_key="escape"),
+            )
+        )
     if state.ui_mode == "CONFIG":
         return HelpBarState(
             (
@@ -389,17 +455,20 @@ def select_input_dialog_state(state: AppState) -> InputDialogState | None:
         directories = sum(entry.kind == "dir" for entry in selected_entries)
         files = sum(entry.kind == "file" for entry in selected_entries)
         symlinks = sum(entry.symlink for entry in selected_entries)
-        kinds = ", ".join(
-            part
-            for part in (
-                f"{files} file{'s' if files != 1 else ''}" if files else "",
-                f"{directories} director{'ies' if directories != 1 else 'y'}"
-                if directories
-                else "",
-                f"{symlinks} symlink{'s' if symlinks != 1 else ''}" if symlinks else "",
+        kinds = (
+            ", ".join(
+                part
+                for part in (
+                    f"{files} file{'s' if files != 1 else ''}" if files else "",
+                    f"{directories} director{'ies' if directories != 1 else 'y'}"
+                    if directories
+                    else "",
+                    f"{symlinks} symlink{'s' if symlinks != 1 else ''}" if symlinks else "",
+                )
+                if part
             )
-            if part
-        ) or "unknown types"
+            or "unknown types"
+        )
         details = (
             f"Targets: {len(target_paths)} ({kinds})",
             f"Recursive: {'Yes' if recursive else 'No'}",
@@ -421,8 +490,7 @@ def select_input_dialog_state(state: AppState) -> InputDialogState | None:
         hint=(
             "tab toggle recursive | enter apply | esc cancel"
             if state.ui_mode in {"CHMOD", "CHOWN"}
-            else
-            "tab complete | enter apply | esc cancel"
+            else "tab complete | enter apply | esc cancel"
             if state.ui_mode == "SYMLINK"
             else "tab switch type | enter apply | esc cancel"
             if state.ui_mode == "CREATE"
@@ -531,9 +599,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             ),
             empty_message=_find_replace_empty_message(state),
             input_fields=_build_find_replace_input_fields(state.command_palette),
-            has_more_items=(
-                len(state.command_palette.rff.preview_results) > len(visible_results)
-            ),
+            has_more_items=(len(state.command_palette.rff.preview_results) > len(visible_results)),
         )
     if state.command_palette.source == "replace_in_grep_files":
         visible_results, title = _select_find_replace_preview_window(
@@ -555,9 +621,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             ),
             empty_message=_grep_replace_empty_message(state),
             input_fields=_build_grep_replace_input_fields(state.command_palette),
-            has_more_items=(
-                len(state.command_palette.grf.preview_results) > len(visible_results)
-            ),
+            has_more_items=(len(state.command_palette.grf.preview_results) > len(visible_results)),
         )
     if state.command_palette.source == "grep_replace_selected":
         visible_results, title = _select_find_replace_preview_window(
@@ -579,9 +643,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             ),
             empty_message=_grep_replace_selected_empty_message(state),
             input_fields=_build_grep_replace_selected_input_fields(state.command_palette),
-            has_more_items=(
-                len(state.command_palette.grs.preview_results) > len(visible_results)
-            ),
+            has_more_items=(len(state.command_palette.grs.preview_results) > len(visible_results)),
         )
     if state.command_palette.source == "history":
         return _build_command_palette_items_view(
@@ -792,10 +854,7 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
             "terminal": "the current terminal",
             "terminal_window": "a new terminal window",
         }.get(request.mode, f"{request.mode} mode")
-        message = (
-            f"Run {request.name} in {mode_display} from {request.cwd}? "
-            f"Command: {command}"
-        )
+        message = f"Run {request.name} in {mode_display} from {request.cwd}? Command: {command}"
         return ConflictDialogState(
             title="Custom Action Confirmation",
             message=message,
@@ -909,22 +968,26 @@ def select_config_dialog_state(state: AppState) -> ConfigDialogState | None:
                 )
             )
 
-    lines_list.extend([
-        "",
-        "  ── Selected Setting ──",
-        f"  {labels[selected_index]}",
-    ])
+    lines_list.extend(
+        [
+            "",
+            "  ── Selected Setting ──",
+            f"  {labels[selected_index]}",
+        ]
+    )
     lines_list.extend(
         f"  {line}" for line in config_editor_field_description(selected_index, config)
     )
-    lines_list.extend([
-        "",
-        "  ── Advanced Settings ──",
-        "  Edit config.toml with e for advanced, custom, and future settings.",
-        "  Saving here preserves settings that are not shown above.",
-        _format_custom_editor_hint(config.editor.command),
-        "GUI editor presets: " + ", ".join(name for name, _config in CONFIG_GUI_EDITOR_PRESETS),
-    ])
+    lines_list.extend(
+        [
+            "",
+            "  ── Advanced Settings ──",
+            "  Edit config.toml with e for advanced, custom, and future settings.",
+            "  Saving here preserves settings that are not shown above.",
+            _format_custom_editor_hint(config.editor.command),
+            "GUI editor presets: " + ", ".join(name for name, _config in CONFIG_GUI_EDITOR_PRESETS),
+        ]
+    )
 
     title = "Config Editor (Basic Settings)"
     if state.config_editor.dirty:
@@ -983,6 +1046,8 @@ def _file_search_empty_message(state: AppState) -> str:
     ):
         return state.command_palette.file_search.error_message
     return "No matching files"
+
+
 def _grep_search_empty_message(state: AppState) -> str:
     if state.pending_grep_search_request_id is not None:
         return "Searching matches..."

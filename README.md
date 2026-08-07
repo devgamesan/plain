@@ -104,10 +104,10 @@ You can also press `:` to open the command palette and search for available acti
 
 The help bar has a contextual row and a discovery row. The contextual row follows
 the current cursor, selection, and clipboard; the discovery row keeps `Filter`,
-`Find`, `Grep`, `Quit`, and `: More` visible during normal browsing. On narrow
-terminals, lower-priority items are omitted by whole item, while `: More` remains
+`Find`, `Grep`, `Quit`, and `: Commands` visible during normal browsing. On narrow
+terminals, lower-priority items are omitted by whole item, while `: Commands` remains
 available. Clicking an action runs the same dispatcher as its keyboard shortcut;
-clicking `: More` opens the command palette.
+clicking `: Commands` opens the command palette.
 
 | Key | Action |
 |---|---|

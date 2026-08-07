@@ -123,6 +123,7 @@ def test_replace_scope_can_change_with_left_or_right_navigation() -> None:
 
     assert result.state.command_palette is not None
     assert result.state.command_palette.replace_preview.scope == "found_files"
+    assert result.state.command_palette.replace_preview.active_field == "scope"
     assert result.state.command_palette.cursor_index == 0
 
 def test_set_replace_field_starts_preview_effect() -> None:

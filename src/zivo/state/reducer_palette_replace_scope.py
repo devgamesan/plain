@@ -101,7 +101,7 @@ def handle_set_replace_scope(state: AppState, action: SetReplaceScope) -> Reduce
     next_palette = replace(
         palette,
         scope=scope,
-        active_field="find" if scope != "found_files" else "filename",
+        active_field="scope",
         target_paths=replace_scope_target_paths(state, scope),
         file_results=(),
         grep_results=(),

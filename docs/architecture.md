@@ -333,7 +333,7 @@ stateDiagram-v2
 - bookmark 一覧からのジャンプと、現在ディレクトリの bookmark 追加 / 削除
 - go-to-path 入力による任意パスへの移動
 - filter 入力と filter 適用後の一覧継続操作
-- 名前 / 更新日時 / サイズソートと directory-first 切り替え
+- 名前（自然順） / 更新日時 / サイズソートと directory-first 切り替え
 - 必要に応じた可視ディレクトリの再帰サイズ表示
 - 選択トグル、選択解除、copy / cut / paste
 - 2ペイン転送モードでの左右フォーカス、左右間 copy / move、既存 clipboard paste

@@ -490,6 +490,7 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
     if field_id == "display.default_sort_field":
         return (
             "Sets the default sort field used when a directory is first loaded.",
+            "The 'name' field sorts entries in natural order (e.g. file2 before file10).",
             "You can still change sorting later from the running UI.",
             f"Current behavior: sort by `{config.display.default_sort_field}`.",
         )

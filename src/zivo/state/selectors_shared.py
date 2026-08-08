@@ -15,6 +15,7 @@ from zivo.models import (
 )
 from zivo.theme_support import preview_syntax_theme_for_app_theme
 
+from .entry_state_helpers import _sort_key, _sort_size_key
 from .entry_state_helpers import (
     current_entry_for_path as shared_current_entry_for_path,
 )
@@ -217,32 +218,6 @@ def _sort_entries_by_size(
     else:
         combined = sorted(entries, key=key)
     return tuple(combined)
-
-
-def _sort_key(field: str):
-    if field == "modified":
-        return lambda entry: (
-            entry.modified_at is None,
-            entry.modified_at or 0,
-            entry.name.casefold(),
-        )
-    if field == "size":
-        return lambda entry: (
-            entry.size_bytes is None,
-            entry.size_bytes or -1,
-            entry.name.casefold(),
-        )
-    return lambda entry: entry.name.casefold()
-
-
-def _sort_size_key(descending: bool):
-    def key(entry: DirectoryEntryState) -> tuple[int, int, str]:
-        if entry.size_bytes is None:
-            return (1, 0, entry.name.casefold())
-        value = -entry.size_bytes if descending else entry.size_bytes
-        return (0, value, entry.name.casefold())
-
-    return key
 
 
 def _format_sort_label(sort: SortState) -> str:

@@ -45,7 +45,7 @@ those settings and preserves advanced, unknown, and custom TOML values.
 | `display` | `theme` | Any built-in Textual theme, for example `textual-dark`, `textual-light`, `dracula`, or `tokyo-night` | Default UI theme applied on startup. In the settings editor, theme changes are previewed immediately and are persisted when you save. |
 | `display` | `preview_syntax_theme` | `auto` or a supported Pygments style, for example `one-dark`, `xcode`, `nord`, or `gruvbox-dark` | Syntax-highlighting colors used by the right-pane text preview. `auto` keeps the current light/dark-based default selection. In the settings editor, changes are previewed immediately when a text preview is visible. |
 | `display` | `preview_max_kib` | `64` / `128` / `256` / `512` / `1024` | Maximum amount of text read for right-pane file previews and preview sampling. Defaults to `64`. Larger values allow deeper previews at the cost of more I/O. |
-| `display` | `default_sort_field` | `name` / `modified` / `size` | Default sort field for the main pane. |
+| `display` | `default_sort_field` | `name` / `modified` / `size` | Default sort field for the main pane. The `name` field uses natural sort (numeric runs ordered by value, e.g. `file2` before `file10`). |
 | `display` | `default_sort_descending` | `true` / `false` | Starts the main-pane sort in descending order when enabled. |
 | `display` | `directories_first` | `true` / `false` | Keeps directories grouped before files in the main pane. |
 | `behavior` | `confirm_delete` | `true` / `false` | Shows a confirmation dialog before moving items to trash. Permanent delete via `D` / `Shift+Delete` always asks for confirmation. |

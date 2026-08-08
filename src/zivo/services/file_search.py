@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Literal, Protocol
 
 from zivo.state.models import FileSearchResultState, FileSearchTarget
+from zivo.state.natural_sort import natural_sort_key
 
 
 class FileSearchService(Protocol):
@@ -142,12 +143,12 @@ class LiveFileSearchService:
                     )
 
                     if max_results is not None and len(results) >= max_results:
-                        results.sort(key=lambda result: result.display_path.casefold())
+                        results.sort(key=lambda result: natural_sort_key(result.display_path))
                         return tuple(results)
             except (FileNotFoundError, PermissionError):
                 continue
 
-        results.sort(key=lambda result: result.display_path.casefold())
+        results.sort(key=lambda result: natural_sort_key(result.display_path))
         return tuple(results)
 
 
@@ -193,7 +194,7 @@ class FakeFileSearchService:
                 return ()
             if len(results) > max_results:
                 limited_results = tuple(
-                    sorted(results, key=lambda r: r.display_path.casefold())[:max_results]
+                    sorted(results, key=lambda r: natural_sort_key(r.display_path))[:max_results]
                 )
                 return limited_results
 

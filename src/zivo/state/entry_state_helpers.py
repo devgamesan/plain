@@ -4,6 +4,7 @@ from dataclasses import replace
 from functools import lru_cache
 
 from .models import AppState, DirectoryEntryState, DirectorySizeCacheEntry, SortState
+from .natural_sort import natural_sort_key
 
 
 @lru_cache(maxsize=256)
@@ -147,23 +148,23 @@ def _sort_key(field: str):
         return lambda entry: (
             entry.modified_at is None,
             entry.modified_at or 0,
-            entry.name.casefold(),
+            natural_sort_key(entry.name),
         )
     if field == "size":
         return lambda entry: (
             entry.size_bytes is None,
             entry.size_bytes or -1,
-            entry.name.casefold(),
+            natural_sort_key(entry.name),
         )
-    return lambda entry: entry.name.casefold()
+    return lambda entry: natural_sort_key(entry.name)
 
 
 def _sort_size_key(descending: bool):
-    def key(entry: DirectoryEntryState) -> tuple[int, int, str]:
+    def key(entry: DirectoryEntryState) -> tuple[int, int, tuple]:
         if entry.size_bytes is None:
-            return (1, 0, entry.name.casefold())
+            return (1, 0, natural_sort_key(entry.name))
         value = -entry.size_bytes if descending else entry.size_bytes
-        return (0, value, entry.name.casefold())
+        return (0, value, natural_sort_key(entry.name))
 
     return key
 

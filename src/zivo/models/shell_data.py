@@ -91,6 +91,32 @@ class TransferPaneViewState:
 
 
 @dataclass(frozen=True)
+class PaneActionViewState:
+    """One executable action shown inside an empty or fallback pane."""
+
+    action_id: str
+    label: str
+
+
+@dataclass(frozen=True)
+class PaneStatusViewState:
+    """Explicit non-content state rendered inside a pane."""
+
+    kind: str
+    title: str
+    detail: str | None = None
+    actions: tuple[PaneActionViewState, ...] = ()
+
+
+@dataclass(frozen=True)
+class MetadataItemViewState:
+    """Compact metadata row used as a preview fallback."""
+
+    label: str
+    value: str
+
+
+@dataclass(frozen=True)
 class ChildPaneViewState:
     """Display data rendered in the right-side child pane."""
 
@@ -107,12 +133,19 @@ class ChildPaneViewState:
     syntax_theme: str = "monokai"
     permissions_label: str = ""
     preview_word_wrap: bool = False
+    view_kind: str = "entries"
+    status: PaneStatusViewState | None = None
+    metadata: tuple[MetadataItemViewState, ...] = ()
 
     @property
     def is_preview(self) -> bool:
         """Return whether the pane should render a text preview."""
 
-        return self.preview_content is not None or self.preview_message is not None
+        return (
+            self.view_kind != "entries"
+            or self.preview_content is not None
+            or self.preview_message is not None
+        )
 
 
 @dataclass(frozen=True)
@@ -265,6 +298,7 @@ class ThreePaneShellData:
     current_pane_update: CurrentPaneUpdateHint
     current_summary: CurrentSummaryState
     current_context_input: InputBarState | None
+    current_pane_status: PaneStatusViewState | None
     help: HelpBarState
     command_palette: CommandPaletteViewState | None
     status: StatusBarState
@@ -344,6 +378,7 @@ def build_dummy_shell_data() -> ThreePaneShellData:
             sort_label="name asc",
         ),
         current_context_input=None,
+        current_pane_status=None,
         help=HelpBarState(
             (
                 "Enter open | e edit | / filter | : palette | ctrl+f find | ctrl+g grep | q quit",

@@ -10,7 +10,7 @@ from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.css.query import NoMatches
 from textual.message import Message
-from textual.widgets import DataTable, Label
+from textual.widgets import DataTable, Label, Static
 
 from zivo.models.shell_data import (
     CurrentPaneRowUpdate,
@@ -18,6 +18,7 @@ from zivo.models.shell_data import (
     CurrentSummaryState,
     InputBarState,
     PaneEntry,
+    PaneStatusViewState,
 )
 
 from .input_bar import InputBar
@@ -29,6 +30,7 @@ from .pane_rendering import (
     build_entry_label,
     truncate_middle,
 )
+from .pane_status import render_pane_status
 from .summary_bar import SummaryBar
 
 
@@ -90,6 +92,13 @@ class MainPane(Vertical):
             super().__init__()
             self.pane_id = pane_id
 
+    class ActionClicked(Message):
+        """Notify the app that an inline empty-state action was clicked."""
+
+        def __init__(self, action_id: str) -> None:
+            super().__init__()
+            self.action_id = action_id
+
     def __init__(
         self,
         title: str,
@@ -98,6 +107,7 @@ class MainPane(Vertical):
         cursor_index: int | None = None,
         cursor_visible: bool = True,
         context_input: InputBarState | None = None,
+        status: PaneStatusViewState | None = None,
         *,
         id: str | None = None,
         classes: str | None = None,
@@ -110,6 +120,7 @@ class MainPane(Vertical):
         self._cursor_index = cursor_index
         self._cursor_visible = cursor_visible
         self._context_input = context_input
+        self._status = status
         self._ft_styles: dict[str, Style] = {}
         self._last_table_width = 0
         self._last_clicked_path: str | None = None
@@ -135,7 +146,15 @@ class MainPane(Vertical):
         yield Label(self._title, classes="pane-title")
         yield SummaryBar(self._summary, id=self.summary_id, classes="pane-summary")
         yield InputBar(self._context_input, id=self.context_input_id, classes="pane-context-input")
-        yield _MainPaneDataTable(id=self.table_id, classes="pane-table")
+        table = _MainPaneDataTable(id=self.table_id, classes="pane-table")
+        yield table
+        status = Static(
+            render_pane_status(self._status),
+            id=f"{self.id}-status" if self.id else None,
+            classes="pane-status",
+        )
+        status.display = self._status is not None
+        yield status
 
     def on_mount(self) -> None:
         """Populate the table after the widget is attached to an app."""
@@ -167,12 +186,29 @@ class MainPane(Vertical):
     async def on_click(self, event: events.Click) -> None:
         """In transfer mode, clicking on the pane switches focus to it."""
 
+        action_id = event.style.meta.get("pane_action_id")
+        if action_id is not None:
+            event.stop()
+            self.post_message(self.ActionClicked(str(action_id)))
+            return
         if "transfer-pane" not in self.classes:
             return
         handler = getattr(self.app, "on_main_pane_pane_clicked", None)
         if handler is None:
             return
         await handler(self.PaneClicked(self.id))
+
+    def set_status(self, status: PaneStatusViewState | None) -> None:
+        if status == self._status:
+            return
+        self._status = status
+        table = self.query_one(DataTable)
+        status_widget = self.query_one(".pane-status", Static)
+        status_widget.display = status is not None
+        status_widget.update(render_pane_status(status))
+        if status is None:
+            self._apply_cursor_state(table)
+            self.call_after_refresh(lambda: self._apply_cursor_state(table))
 
     def set_entries(
         self,

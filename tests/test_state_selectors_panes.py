@@ -191,3 +191,9 @@ test_detect_preview_disabled_message_for_all_previews_disabled = (
 test_detect_preview_disabled_message_returns_none_when_enabled = (
     cases.test_detect_preview_disabled_message_returns_none_when_enabled
 )
+test_select_shell_data_distinguishes_empty_and_filtered_empty_directory = (
+    cases.test_select_shell_data_distinguishes_empty_and_filtered_empty_directory
+)
+test_select_shell_data_builds_typed_metadata_fallback = (
+    cases.test_select_shell_data_builds_typed_metadata_fallback
+)

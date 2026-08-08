@@ -24,6 +24,8 @@ zivo 本体の起動は `uv` だけで行えますが、一部の機能は `PATH
 | 画像プレビュー | `chafa`（`image_preview_mode = "kitty"` または `"auto"` 時、対応端末では Kitty graphics protocol を使用） |
 | PDF プレビュー | `pdftotext` / `poppler` |
 | Office プレビュー | `pandoc` |
+
+これらのプレビュー用コマンドは任意依存です。不足時はコマンド名を表示し、tracebackで終了せず、概要メタデータと利用可能な代替Actionを表示します。
 | grep 検索 | `ripgrep` |
 
 ### OS 別のインストール例

@@ -186,6 +186,8 @@ def normalize_child_pane_for_display(
 ) -> PaneState:
     if child_pane.mode != "preview":
         return child_pane
+    if child_pane.preview_reason is not None:
+        return child_pane
     if child_pane.preview_path is not None and _is_preview_enabled_for_path(
         child_pane.preview_path,
         enable_text_preview=enable_text_preview,

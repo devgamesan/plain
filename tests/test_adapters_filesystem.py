@@ -217,6 +217,7 @@ def test_local_filesystem_adapter_inspect_entry_marks_symlink(tmp_path) -> None:
 
     assert entry is not None
     assert entry.symlink is True
+    assert entry.symlink_target == str(target)
     assert entry.kind == "file"
 
 

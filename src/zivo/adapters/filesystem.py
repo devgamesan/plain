@@ -129,6 +129,12 @@ def _build_directory_entry_summary(entry: os.DirEntry[str]) -> DirectoryEntrySta
 
 def _build_directory_entry_details(path: Path) -> DirectoryEntryState | None:
     is_symlink = path.is_symlink()
+    symlink_target = None
+    if is_symlink:
+        try:
+            symlink_target = os.readlink(path)
+        except OSError:
+            pass
     try:
         stat_result = path.stat()
     except FileNotFoundError:
@@ -154,6 +160,7 @@ def _build_directory_entry_details(path: Path) -> DirectoryEntryState | None:
         owner=owner,
         group=group,
         symlink=is_symlink,
+        symlink_target=symlink_target,
     )
 
 

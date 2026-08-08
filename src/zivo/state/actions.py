@@ -3,6 +3,7 @@
 from .actions_input import (
     BeginChmodInput,
     BeginChownInput,
+    BeginConfigEditor,
     BeginCreateInput,
     BeginExtractArchiveInput,
     BeginFilterInput,
@@ -71,6 +72,7 @@ __all__ = [
     "BeginChmodInput",
     "BeginChownInput",
     "BeginCreateInput",
+    "BeginConfigEditor",
     "BeginExtractArchiveInput",
     "BeginFilterInput",
     "BeginRenameInput",
@@ -338,6 +340,7 @@ Action = (
     | BeginChownInput
     | BeginRenameInput
     | BeginCreateInput
+    | BeginConfigEditor
     | BeginSymlinkInput
     | BeginExtractArchiveInput
     | BeginZipCompressInput

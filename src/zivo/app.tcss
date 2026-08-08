@@ -26,6 +26,7 @@ Screen {
 .main-pane {
     width: 2.2fr;
     min-width: 44;
+    layers: content status;
 }
 
 .transfer-pane {
@@ -56,6 +57,7 @@ Screen {
 
 .pane-table {
     scrollbar-size: 0 0;
+    layer: content;
 }
 
 .pane-preview {
@@ -65,6 +67,15 @@ Screen {
 .pane-preview-scroll {
     height: 1fr;
     scrollbar-size: 1 1;
+}
+
+.pane-status {
+    layer: status;
+    height: 1fr;
+    width: 1fr;
+    padding: 1 2;
+    background: $boost;
+    color: $text;
 }
 
 .pane-entry {

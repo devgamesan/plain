@@ -24,8 +24,9 @@ def render_pane_status(
         for index, action in enumerate(state.actions):
             if index:
                 text.append("  ")
+            shortcut = action.shortcut or "click"
             text.append(
-                f"[{action.label}]",
+                f"[{shortcut}] {action.label}",
                 style=Style(bold=True, underline=True, meta={"pane_action_id": action.action_id}),
             )
     return text

@@ -3630,6 +3630,7 @@ def test_select_shell_data_distinguishes_empty_and_filtered_empty_directory() ->
         "create_file",
         "create_directory",
     ]
+    assert [action.shortcut for action in shell.current_pane_status.actions] == ["n", "N"]
 
     filtered = replace(
         state,
@@ -3644,6 +3645,7 @@ def test_select_shell_data_distinguishes_empty_and_filtered_empty_directory() ->
     assert filtered_shell.current_pane_status.kind == "filtered_empty"
     assert filtered_shell.current_pane_status.title == 'No matches for "[report]"'
     assert filtered_shell.current_pane_status.actions[0].action_id == "clear_filter"
+    assert filtered_shell.current_pane_status.actions[0].shortcut == "Esc"
 
 
 def test_select_shell_data_builds_typed_metadata_fallback() -> None:

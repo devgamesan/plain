@@ -1611,7 +1611,7 @@ async def test_app_hides_text_preview_in_child_pane_when_preview_disabled() -> N
         assert child_list.display is False
         assert child_preview_scroll.display is True
         preview = app.query_one("#child-pane-preview", Static)
-        assert "[Edit config]" in str(preview.renderable)
+        assert "[click] Edit config" in str(preview.renderable)
 
 
 @pytest.mark.asyncio
@@ -6427,7 +6427,7 @@ async def test_app_renders_empty_directory_action_and_routes_it_to_create_flow()
         status = app.query_one("#current-pane-status", Static)
         assert status.display is True
         assert "Empty directory" in str(status.renderable)
-        assert "[Create file]" in str(status.renderable)
+        assert "[n] Create file" in str(status.renderable)
 
         await app.on_main_pane_action_clicked(MainPane.ActionClicked("create_file"))
 

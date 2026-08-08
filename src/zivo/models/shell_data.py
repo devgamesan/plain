@@ -96,6 +96,7 @@ class PaneActionViewState:
 
     action_id: str
     label: str
+    shortcut: str | None = None
 
 
 @dataclass(frozen=True)

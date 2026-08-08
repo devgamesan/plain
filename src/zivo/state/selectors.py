@@ -179,7 +179,7 @@ def _select_current_pane_status(
         return PaneStatusViewState(
             kind="filtered_empty",
             title=f'No matches for "{state.filter.query}"',
-            actions=(PaneActionViewState("clear_filter", "Clear filter"),),
+            actions=(PaneActionViewState("clear_filter", "Clear filter", "Esc"),),
         )
     if not state.current_pane.entries:
         return PaneStatusViewState(
@@ -187,8 +187,8 @@ def _select_current_pane_status(
             title="Empty directory",
             detail="Create a file or directory to get started",
             actions=(
-                PaneActionViewState("create_file", "Create file"),
-                PaneActionViewState("create_directory", "Create directory"),
+                PaneActionViewState("create_file", "Create file", "n"),
+                PaneActionViewState("create_directory", "Create directory", "N"),
             ),
         )
     return PaneStatusViewState(kind="empty", title="No visible items")

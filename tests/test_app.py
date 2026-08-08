@@ -1611,7 +1611,7 @@ async def test_app_hides_text_preview_in_child_pane_when_preview_disabled() -> N
         assert child_list.display is False
         assert child_preview_scroll.display is True
         preview = app.query_one("#child-pane-preview", Static)
-        assert "[click] Edit config" in str(preview.renderable)
+        assert "[:] Edit config" in str(preview.renderable)
 
 
 @pytest.mark.asyncio

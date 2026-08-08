@@ -205,7 +205,7 @@ def select_child_pane_for_cursor(
                 "disabled",
                 "Preview disabled in settings",
                 syntax_theme,
-                actions=(PaneActionViewState("edit_config", "Edit config"),),
+                actions=(PaneActionViewState("edit_config", "Edit config", ":"),),
                 metadata=tuple(metadata),
                 permissions_label=permissions_label,
             )
@@ -779,7 +779,10 @@ def _build_preview_fallback_view(
             kind=reason,
             title=titles.get(reason, message or "Preview unavailable"),
             detail=details.get(reason),
-            actions=(PaneActionViewState(action_id, action_label),),
+            # ``:`` is the canonical keyboard route to this command.  The
+            # inline action remains clickable as a convenience, but should
+            # not imply that a mouse is required for the fallback state.
+            actions=(PaneActionViewState(action_id, action_label, ":"),),
         ),
         metadata=tuple(metadata),
     )

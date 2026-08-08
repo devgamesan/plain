@@ -75,7 +75,7 @@ def test_help_bar_keeps_more_as_the_last_action_when_width_is_limited() -> None:
         HelpBarAction("select", "Select", "space"),
         HelpBarAction("filter", "Filter", "/"),
         HelpBarAction("sort", "Sort", "s"),
-        HelpBarAction("command_palette", "Commands", ":"),
+        HelpBarAction("command_palette", "More", ":"),
     )
 
     fitted = HelpBar._fit_actions(actions, 35)
@@ -89,33 +89,11 @@ def test_help_bar_state_text_uses_action_labels() -> None:
     state = HelpBarState(
         actions=(
             HelpBarAction("open", "Open", "enter"),
-            HelpBarAction("command_palette", "Commands", ":"),
+            HelpBarAction("command_palette", "More", ":"),
         )
     )
 
-    assert state.text == "enter Open | : Commands"
-
-
-def test_help_bar_keeps_paste_at_the_end_when_clipboard_is_available() -> None:
-    actions = (
-        HelpBarAction("open", "Open", "enter", priority=40),
-        HelpBarAction("edit", "Edit", "e", priority=41),
-        HelpBarAction("select", "Select", "space", priority=42),
-        HelpBarAction("copy", "Copy", "c", priority=43),
-        HelpBarAction("cut", "Cut", "x", priority=44),
-        HelpBarAction("paste_clipboard", "Paste", "v", priority=50),
-    )
-
-    fitted = HelpBar._fit_actions(actions, 80)
-
-    assert [action.action_id for action in fitted] == [
-        "open",
-        "edit",
-        "select",
-        "copy",
-        "cut",
-        "paste_clipboard",
-    ]
+    assert state.text == "enter Open | : More"
 
 
 def test_build_entry_label_truncates_full_name_detail_string() -> None:
@@ -281,7 +259,9 @@ def test_child_pane_reuses_image_preview_loader_for_resize_workers() -> None:
             preview_columns: int,
             image_preview_format: str = "symbols",
         ):
-            self.calls.append((str(path), preview_columns, image_preview_format, id(self)))
+            self.calls.append(
+                (str(path), preview_columns, image_preview_format, id(self))
+            )
             return SimpleNamespace(content=f"{preview_columns}:{image_preview_format}\n")
 
     loader = StubImagePreviewLoader()

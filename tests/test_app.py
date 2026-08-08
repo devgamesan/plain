@@ -438,7 +438,9 @@ class FakeConfigSaveService:
         self.failure_message = failure_message
         self.saved_requests: list[tuple[str, AppConfig]] = []
 
-    def save(self, *, path: str, config: AppConfig, preserve_unmanaged: bool = False) -> str:
+    def save(
+        self, *, path: str, config: AppConfig, preserve_unmanaged: bool = False
+    ) -> str:
         self.saved_requests.append((path, config))
         if self.failure_message is not None:
             raise OSError(self.failure_message)
@@ -501,7 +503,9 @@ class BlockingGrepSearchService:
     ) -> None:
         self.results_by_query = results_by_query or {}
         self.blocked_queries = set(blocked_queries)
-        self.executed_requests: list[tuple[str, str, tuple[str, ...], tuple[str, ...], bool]] = []
+        self.executed_requests: list[
+            tuple[str, str, tuple[str, ...], tuple[str, ...], bool]
+        ] = []
         self.cancelled_queries: list[str] = []
         self.release_event = threading.Event()
 
@@ -650,7 +654,10 @@ async def _wait_for_child_preview(
         if child_title is not None and preview is not None and preview.display:
             code = getattr(preview.renderable, "code", None)
             rendered_text = code if code is not None else str(preview.renderable)
-            if str(child_title.renderable) == expected_title and expected_snippet in rendered_text:
+            if (
+                str(child_title.renderable) == expected_title
+                and expected_snippet in rendered_text
+            ):
                 return
         if asyncio.get_running_loop().time() >= deadline:
             raise AssertionError(
@@ -795,7 +802,11 @@ async def test_app_loads_directory_sizes_when_enabled() -> None:
         }
     )
     directory_size_service = FakeDirectorySizeService(
-        results_by_paths={(f"{path}/docs",): ((f"{path}/docs", 4_200),)}
+        results_by_paths={
+            (f"{path}/docs",): (
+                (f"{path}/docs", 4_200),
+            )
+        }
     )
     app = create_app(
         snapshot_loader=loader,
@@ -833,14 +844,17 @@ async def test_app_applies_directory_size_updates_without_full_current_pane_refr
             )
         }
     )
-
     class SlowDirectorySizeService(FakeDirectorySizeService):
         def calculate_sizes(self, paths, *, is_cancelled=None):
             time.sleep(0.05)
             return super().calculate_sizes(paths, is_cancelled=is_cancelled)
 
     directory_size_service = SlowDirectorySizeService(
-        results_by_paths={(f"{path}/docs",): ((f"{path}/docs", 4_200),)}
+        results_by_paths={
+            (f"{path}/docs",): (
+                (f"{path}/docs", 4_200),
+            )
+        }
     )
     set_entries_calls = 0
     apply_size_updates_calls = 0
@@ -898,9 +912,15 @@ async def test_app_keeps_successful_directory_sizes_when_some_paths_fail() -> No
         }
     )
     directory_size_service = FakeDirectorySizeService(
-        results_by_paths={(f"{path}/docs", f"{path}/private"): ((f"{path}/docs", 4_200),)},
+        results_by_paths={
+            (f"{path}/docs", f"{path}/private"): (
+                (f"{path}/docs", 4_200),
+            )
+        },
         failures_by_paths={
-            (f"{path}/docs", f"{path}/private"): ((f"{path}/private", "permission denied"),)
+            (f"{path}/docs", f"{path}/private"): (
+                (f"{path}/private", "permission denied"),
+            )
         },
     )
     app = create_app(
@@ -1046,7 +1066,11 @@ async def test_app_renders_text_preview_in_child_pane_for_file_cursor() -> None:
 async def test_app_renders_image_preview_in_child_pane_for_file_cursor() -> None:
     path = str(Path("/tmp/zivo-image-preview").resolve())
     image = f"{path}/preview.png"
-    preview_content = ("\x1b[31m@@\x1b[0m\n\x1b[32m##\x1b[0m\n\x1b[34m..\x1b[0m\n") * 40
+    preview_content = (
+        "\x1b[31m@@\x1b[0m\n"
+        "\x1b[32m##\x1b[0m\n"
+        "\x1b[34m..\x1b[0m\n"
+    ) * 40
     loader = FakeBrowserSnapshotLoader(
         snapshots={
             path: BrowserSnapshot(
@@ -1367,7 +1391,9 @@ async def test_app_parent_pane_dir_single_click_enters_directory() -> None:
                 ),
                 current_pane=PaneState(
                     directory_path=sibling_path,
-                    entries=(DirectoryEntryState(sibling_file, "notes.txt", "file"),),
+                    entries=(
+                        DirectoryEntryState(sibling_file, "notes.txt", "file"),
+                    ),
                     cursor_path=sibling_file,
                 ),
                 child_pane=PaneState(
@@ -2952,7 +2978,9 @@ async def test_app_default_viewport_projection_pages_and_jumps_without_losing_cu
         visible_paths = tuple(entry.path for entry in current_entries)
         await _wait_for_row_count(app, visible_window, timeout=2.0)
 
-        await app.dispatch_actions((MoveCursor(delta=visible_window, visible_paths=visible_paths),))
+        await app.dispatch_actions(
+            (MoveCursor(delta=visible_window, visible_paths=visible_paths),)
+        )
         await _wait_for_cursor_path(app, current_entries[visible_window].path, timeout=2.0)
         await _wait_for_table_cell(app, "file_0002.txt", 0, 1, timeout=2.0)
         assert app.app_state.current_pane_window_start == 2
@@ -3005,7 +3033,9 @@ async def test_app_default_viewport_projection_recalculates_window_after_resize(
         visible_paths = tuple(entry.path for entry in current_entries)
         await _wait_for_row_count(app, visible_window, timeout=2.0)
 
-        await app.dispatch_actions((MoveCursor(delta=visible_window, visible_paths=visible_paths),))
+        await app.dispatch_actions(
+            (MoveCursor(delta=visible_window, visible_paths=visible_paths),)
+        )
         await _wait_for_cursor_path(app, current_entries[visible_window].path, timeout=2.0)
 
         await app.dispatch_actions((SetTerminalHeight(height=12),))
@@ -3109,8 +3139,8 @@ async def test_app_displays_browsing_help_bar() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
-        "enter Open dir | space Select | c Copy | x Cut\n"
-        "/ Filter | f Find | g Grep | q Quit | : Commands"
+        "enter Enter dir | space Select | c Copy | x Cut\n"
+        "/ Filter | f Find | g Grep | q Quit | : More"
     )
 
     async with app.run_test():
@@ -3137,7 +3167,7 @@ async def test_app_help_bar_more_click_uses_command_palette_dispatch() -> None:
     async with app.run_test():
         await _wait_for_snapshot_loaded(app, path)
         await app.on_help_bar_action_clicked(
-            HelpBar.ActionClicked(HelpBarAction("command_palette", "Commands", ":"))
+            HelpBar.ActionClicked(HelpBarAction("command_palette", "More", ":"))
         )
 
         assert app._app_state.ui_mode == "PALETTE"
@@ -3238,7 +3268,7 @@ async def test_app_displays_transfer_help_bar() -> None:
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
         "c Copy | x Cut | space Select\n"
-        "[ ] Focus pane | y Copy to pane | m Move to pane | q Quit | : Commands"
+        "[ ] Focus | y Copy pane | m Move pane | q Quit | : More"
     )
 
     async with app.run_test() as pilot:
@@ -4057,7 +4087,7 @@ async def test_app_grep_search_long_results_stay_single_line_in_palette(tmp_path
         results_by_query={
             (path, "todo", (), (), False): tuple(
                 GrepSearchResultState(
-                    path=f"{path}/seed.txt",
+                        path=f"{path}/seed.txt",
                     display_path=(
                         f"src/features/search/module_{index}/"
                         "very/deeply/nested/package/file_with_a_name_that_should_not_wrap.py"
@@ -4154,7 +4184,9 @@ async def test_app_grep_search_passes_include_and_exclude_extensions(tmp_path) -
             if expected_request in grep_search_service.executed_requests:
                 break
             if asyncio.get_running_loop().time() >= deadline:
-                raise AssertionError("grep request with include/exclude filters was not executed")
+                raise AssertionError(
+                    "grep request with include/exclude filters was not executed"
+                )
             await asyncio.sleep(0.01)
 
 
@@ -4194,11 +4226,9 @@ async def test_app_grep_search_filters_results_by_filename(tmp_path) -> None:
 
         def _filtered_results_ready() -> bool:
             palette = app.app_state.command_palette
-            return (
-                palette is not None
-                and [result.display_label for result in palette.grep_search.results]
-                == expected_labels
-            )
+            return palette is not None and [
+                result.display_label for result in palette.grep_search.results
+            ] == expected_labels
 
         await _wait_for_predicate(
             _filtered_results_ready,
@@ -5148,37 +5178,9 @@ async def test_app_command_palette_opens_current_directory_with_terminal() -> No
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press(":")
         await pilot.press(
-            "c",
-            "u",
-            "r",
-            "r",
-            "e",
-            "n",
-            "t",
-            " ",
-            "d",
-            "i",
-            "r",
-            "e",
-            "c",
-            "t",
-            "o",
-            "r",
-            "y",
-            " ",
-            "w",
-            "i",
-            "t",
-            "h",
-            " ",
-            "t",
-            "e",
-            "r",
-            "m",
-            "i",
-            "n",
-            "a",
-            "l",
+            "c", "u", "r", "r", "e", "n", "t", " ", "d", "i", "r", "e", "c",
+            "t", "o", "r", "y", " ", "w", "i", "t", "h", " ", "t", "e", "r",
+            "m", "i", "n", "a", "l",
         )
         await pilot.press("enter")
         await _wait_for_external_launch_count(app, 1)
@@ -5191,6 +5193,9 @@ async def test_app_command_palette_opens_current_directory_with_terminal() -> No
             )
         ]
         assert app.app_state.ui_mode == "BROWSING"
+
+
+
 
     path = str(Path("/tmp/zivo-open-file-manager").resolve())
     launch_service = FakeExternalLaunchService()

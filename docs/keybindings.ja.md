@@ -10,22 +10,22 @@ zivo の全モードにおけるキーバインディング一覧です。
 
 ### 状況適応型ヘルプバー
 
-ヘルプバーは2段構成です。1段目は対象に応じた最大5件の操作を表示し、クリップボード保持時は末尾のPasteを含めて最大6件、2段目は主要機能の入口を表示します。
+ヘルプバーは2段構成です。1段目は対象に応じた最大5件の操作、2段目は主要機能の入口を表示します。
 
 ```text
 enter Open | e Edit | space Select | c Copy | x Cut
-/ Filter | f Find | g Grep | q Quit | : Commands
+/ Filter | f Find | g Grep | q Quit | : More
 ```
 
 | 状態 | 主な表示操作 |
 | --- | --- |
 | ファイルにカーソル | `Enter Open`、`e Edit`、`Space Select`、`c Copy`、`x Cut` |
-| ディレクトリにカーソル | `Enter Open dir`、`Space Select`、`c Copy`、`x Cut` |
+| ディレクトリにカーソル | `Enter Enter directory`、`Space Select`、`c Copy`、`x Cut` |
 | 1件以上を選択中 | `c Copy`、`x Cut`、`d Move to trash`、`r Rename`、`Esc Clear selection` |
-| クリップボード保持中 | `v Paste` を末尾に表示し、収まらなければ `: Commands` から実行 |
+| クリップボード保持中 | `v Paste` を優先表示 |
 | 空ディレクトリ | `n New file`、`N New directory`、可能なら `v Paste` |
 
-Search Workspaceでは `Filter`、`Sort`、`Show hidden`/`Hide hidden`、`Quit`、`: Commands` を表示します。Find/Grepや利用不能な削除・転送操作は表示しません。Transferモードではペインフォーカス、ペイン間Copy/Move、Quit、`: Commands`を表示します。`:` キーまたは `: Commands` のクリックで既存のコマンドパレットを開けます。その他の項目をクリックした場合も、対応するキー入力と同じ中央dispatcher経路でActionを実行します。ダイアログ表示中は、そのダイアログ固有の確定・適用とキャンセルだけを表示します。
+Search Workspaceでは `Filter`、`Sort`、`Hidden`、`Quit`、`: More` を表示します。Find/Grepや利用不能な削除・転送操作は表示しません。Transferモードではペインフォーカス、ペイン間Copy/Move、Quit、`: More`を表示します。`:` キーまたは `: More` のクリックで既存のコマンドパレットを開けます。その他の項目をクリックした場合も、対応するキー入力と同じ中央dispatcher経路でActionを実行します。ダイアログ表示中は、そのダイアログ固有の確定・適用とキャンセルだけを表示します。
 
 | キー | 動作 |
 | --- | ------ |

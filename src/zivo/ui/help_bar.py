@@ -108,12 +108,7 @@ class HelpBar(Static):
             (action for action in ordered_actions if action.action_id == "command_palette"),
             None,
         )
-        paste = next(
-            (action for action in ordered_actions if action.action_id == "paste_clipboard"),
-            None,
-        )
-        tail = more or paste
-        candidates = tuple(action for action in ordered_actions if action is not tail)
+        candidates = tuple(action for action in ordered_actions if action is not more)
         selected: list[HelpBarAction] = []
 
         def fits(items: list[HelpBarAction]) -> bool:
@@ -122,18 +117,17 @@ class HelpBar(Static):
         for action in candidates:
             trial = [*selected, action]
             max_candidates = 4 if more is not None else 5
-            tail_items = [*trial, tail] if tail is not None else trial
-            if len(trial) <= max_candidates and fits(tail_items):
+            if len(trial) <= max_candidates and fits(
+                [*trial, more] if more is not None else trial
+            ):
                 selected.append(action)
 
-        if more is None and paste is None:
+        if more is None:
             return tuple(selected)
 
-        if tail is None:
-            return tuple(selected)
-        while selected and not fits([*selected, tail]):
+        while selected and not fits([*selected, more]):
             selected.pop()
-        if not fits([tail]):
-            return (tail,)
-        selected.append(tail)
+        if not fits([more]):
+            return (more,)
+        selected.append(more)
         return tuple(selected)

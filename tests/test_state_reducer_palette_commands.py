@@ -53,6 +53,7 @@ from zivo.state.actions import (
     ToggleTransferMode,
 )
 from zivo.state.command_palette import parse_go_query, select_go_candidates
+from zivo.state.natural_sort import natural_sort_key
 from zivo.windows_paths import WINDOWS_DRIVES_ROOT
 
 
@@ -668,7 +669,7 @@ def test_set_command_palette_query_shows_root_directory_candidates_for_slash() -
                 for child in Path("/").iterdir()
                 if child.is_dir()
             ),
-            key=lambda path: (Path(path).name.casefold(), path),
+            key=lambda path: (natural_sort_key(Path(path).name), path),
         )
     )
 

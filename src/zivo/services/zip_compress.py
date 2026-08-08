@@ -11,6 +11,7 @@ from zivo.models import (
     CreateZipArchiveRequest,
     CreateZipArchiveResult,
 )
+from zivo.state.natural_sort import natural_sort_key
 
 ProgressCallback = Callable[[int, int, str | None], None]
 
@@ -180,7 +181,7 @@ def _append_entries(entries: list[_ZipEntry], source_path: Path, root_dir: Path)
         entries.append(_ZipEntry(source_path=source_path, arcname=arcname, is_dir=True))
         for child in sorted(
             source_path.iterdir(),
-            key=lambda path: (not path.is_dir(), path.name.casefold(), path.name),
+            key=lambda path: (not path.is_dir(), natural_sort_key(path.name)),
         ):
             _append_entries(entries, child, root_dir)
         return

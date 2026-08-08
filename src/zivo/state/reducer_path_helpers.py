@@ -17,6 +17,7 @@ from zivo.windows_paths import (
 )
 
 from .models import DirectoryEntryState, FileSearchResultState
+from .natural_sort import natural_sort_key
 
 REGEX_FILE_SEARCH_PREFIX = "re:"
 REGEX_GREP_SEARCH_PREFIX = "re:"
@@ -103,7 +104,7 @@ def _list_matching_entry_paths(
                 matches.append(normalize_windows_path(child.path))
         except (OSError, PermissionError):
             return ()
-        matches.sort(key=lambda path: (ntpath.basename(path).casefold(), path.casefold()))
+        matches.sort(key=lambda path: (natural_sort_key(ntpath.basename(path)), path.casefold()))
         return tuple(matches)
 
     resolved = _resolve_input_path(raw_query, base_path)
@@ -134,7 +135,7 @@ def _list_matching_entry_paths(
     except (OSError, PermissionError):
         return ()
 
-    matches.sort(key=lambda path: (Path(path).name.casefold(), path))
+    matches.sort(key=lambda path: (natural_sort_key(Path(path).name), path))
     return tuple(matches)
 
 
@@ -306,7 +307,7 @@ def _list_windows_drive_candidates(prefix: str) -> tuple[str, ...]:
         for drive in list_windows_drive_paths()
         if not prefix or drive[0].casefold().startswith(prefix)
     )
-    return tuple(sorted(matches, key=lambda drive: drive.casefold()))
+    return tuple(sorted(matches, key=natural_sort_key))
 
 
 def _uses_windows_path_rules(base_path: str, query: str) -> bool:

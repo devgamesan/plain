@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from zivo.services import InvalidFileSearchQueryError, LiveFileSearchService
+from zivo.state.natural_sort import natural_sort_key
 
 
 def test_live_file_search_service_matches_files_recursively(tmp_path) -> None:
@@ -197,7 +198,7 @@ def test_live_file_search_service_respects_max_results(tmp_path) -> None:
     assert len(results) == 10
     # 結果がソートされていることを確認
     display_paths = [result.display_path for result in results]
-    assert display_paths == sorted(display_paths, key=str.casefold)
+    assert display_paths == sorted(display_paths, key=natural_sort_key)
 
 
 def test_live_file_search_service_no_limit_when_max_results_is_none(tmp_path) -> None:
@@ -234,4 +235,4 @@ def test_live_file_search_service_returns_sorted_results_with_limit(tmp_path) ->
     assert len(results) == 3
     # 結果がソートされていることを確認（ただし、辞書順の最初の3件とは限らない）
     display_paths = [result.display_path for result in results]
-    assert display_paths == sorted(display_paths, key=str.casefold)
+    assert display_paths == sorted(display_paths, key=natural_sort_key)

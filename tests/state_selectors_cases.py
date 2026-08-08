@@ -132,6 +132,59 @@ def test_select_current_entries_applies_filter_and_sort() -> None:
     assert [entry.name for entry in entries] == ["tests", "pyproject.toml"]
 
 
+def test_select_current_entries_sorts_names_naturally() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(
+                entry("/home/tadashi/develop/zivo/file1", "file"),
+                entry("/home/tadashi/develop/zivo/file10", "file"),
+                entry("/home/tadashi/develop/zivo/file2", "file"),
+                entry("/home/tadashi/develop/zivo/file20", "file"),
+                entry("/home/tadashi/develop/zivo/dir1", "dir"),
+            ),
+        ),
+    )
+
+    entries = select_current_entries(state)
+
+    assert [item.name for item in entries] == [
+        "dir1",
+        "file1",
+        "file2",
+        "file10",
+        "file20",
+    ]
+
+
+def test_select_current_entries_sorts_names_naturally_descending() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(
+                entry("/home/tadashi/develop/zivo/file1", "file"),
+                entry("/home/tadashi/develop/zivo/file10", "file"),
+                entry("/home/tadashi/develop/zivo/file2", "file"),
+                entry("/home/tadashi/develop/zivo/dir1", "dir"),
+            ),
+        ),
+    )
+    state = _reduce_state(
+        state, SetSort(field="name", descending=True, directories_first=True)
+    )
+
+    entries = select_current_entries(state)
+
+    assert [item.name for item in entries] == [
+        "dir1",
+        "file10",
+        "file2",
+        "file1",
+    ]
+
+
 def test_select_current_entries_hides_hidden_by_default() -> None:
     state = replace(
         build_initial_app_state(),

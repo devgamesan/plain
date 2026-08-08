@@ -41,7 +41,7 @@ Config Editor で `e` を押すと `config.toml` を開き、高度設定を編�
 | `display` | `theme` | 任意の組み込み Textual テーマ（例: `textual-dark`、`textual-light`、`dracula`、`tokyo-night`） | 起動時の UI テーマです。設定エディタでは変更内容が即座にプレビューされ、`s` で保存するとこの値が永続化されます。 |
 | `display` | `preview_syntax_theme` | `auto` またはサポートされている Pygments style（例: `one-dark`、`xcode`、`nord`、`gruvbox-dark`） | 右ペインのテキストプレビューに使うシンタックスハイライト配色です。`auto` を選ぶと、現在の light/dark に応じた既定配色を使います。設定エディタで右ペインにテキストプレビューが出ている場合は、その場で即時プレビューされます。 |
 | `display` | `preview_max_kib` | `64` / `128` / `256` / `512` / `1024` | 右ペインのファイルプレビューとプレビューサンプリングで読み込む最大量です。既定値は `64` です。大きな値にするとより深くプレビューできますが、I/O コストが増加します。 |
-| `display` | `default_sort_field` | `name` / `modified` / `size` | 中央ペインの初期ソート項目です。 |
+| `display` | `default_sort_field` | `name` / `modified` / `size` | 中央ペインの初期ソート項目です。`name` は自然順（数値部分を値で比較、例: `file2` が `file10` より先）で並び替えます。 |
 | `display` | `default_sort_descending` | `true` / `false` | `true` のとき、起動時のソートを降順にします。 |
 | `display` | `directories_first` | `true` / `false` | 中央ペインでディレクトリをファイルより先にまとめて表示します。 |
 | `behavior` | `confirm_delete` | `true` / `false` | ゴミ箱削除の前に確認ダイアログを表示します。`D` / `Shift+Delete` による完全削除は常に確認します。 |

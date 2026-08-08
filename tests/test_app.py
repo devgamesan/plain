@@ -3139,9 +3139,9 @@ async def test_app_displays_browsing_help_bar() -> None:
     app = create_app(snapshot_loader=loader, initial_path=path)
     split_terminal_hint = " | t term" if os.name == "posix" else ""
     expected_help = (
-        "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
+        "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd\n"
         "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv\n"
-        f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
+        f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | q quit | : palette"
     )
 
     async with app.run_test():
@@ -3269,10 +3269,10 @@ async def test_app_displays_transfer_help_bar() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
-        "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit\n"
-        "Space select | c copy | x cut | v paste | d trash | D permanent | "
-        "r rename | z undo\n"
-        ". hidden | N new-dir | : palette"
+        "enter open | . hidden | [ ] focus\n"
+        "space select | c copy | x cut | v paste | y copy-to-pane | m move-to-pane | "
+        "d delete | r rename | z undo\n"
+        "N new-dir | p/Esc close | q quit | : palette"
     )
 
     async with app.run_test() as pilot:

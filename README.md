@@ -99,7 +99,7 @@ zivo-cd
 
 ## Basic controls
 
-The help bar keeps the standard three rows and their order stable. Actions relevant to the current state are highlighted, while unavailable actions remain visible and dimmed so that the key reference does not disappear as the cursor or selection changes. Click an item to use the same dispatcher as its key binding. A disabled item explains its precondition in the status bar.
+Normal browsing and transfer mode use the same three-row structure and keep their item order stable. Transfer mode adds only its pane-specific focus and copy/move actions to the corresponding operation groups; basic cursor movement remains omitted from the help bar. Actions relevant to the current state are highlighted, while unavailable actions remain visible and dimmed so that the key reference does not disappear as the cursor or selection changes. Click an item to use the same dispatcher as its key binding. A disabled item explains its precondition in the status bar.
 You can also press `:` to open the command palette and search for available actions.
 
 | Key | Action |

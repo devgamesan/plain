@@ -1303,14 +1303,14 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     split_terminal_hint = " | t term" if os.name == "posix" else ""
 
     assert help_state.lines == (
-        "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit",
+        "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd",
         "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv",
-        f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette",
+        f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | q quit | : palette",
     )
     assert help_state.text == (
-        "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
+        "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd\n"
         "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv\n"
-        f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
+        f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | q quit | : palette"
     )
 
 
@@ -1327,7 +1327,6 @@ def test_select_help_bar_keeps_stable_actions_and_marks_clipboard_unavailable() 
         "s",
         ".",
         "[ ]",
-        "q",
         "space",
         "c",
         "x",
@@ -1343,7 +1342,7 @@ def test_select_help_bar_keeps_stable_actions_and_marks_clipboard_unavailable() 
     )
     if os.name == "posix":
         expected_keys += ("t",)
-    expected_keys += (":",)
+    expected_keys += ("q", ":")
     assert tuple(action.key for action in help_state.actions) == expected_keys
     assert actions_by_key["v"].enabled is False
     assert actions_by_key["v"].disabled_reason == "Clipboard is empty"
@@ -1395,17 +1394,23 @@ def test_select_help_bar_for_transfer_mode_prioritizes_transfer_actions() -> Non
     help_state = select_help_bar_state(state)
 
     assert help_state.lines == (
-        "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit",
-        "Space select | c copy | x cut | v paste | d trash | D permanent | "
-        "r rename | z undo",
-        ". hidden | N new-dir | : palette",
+        "enter open | . hidden | [ ] focus",
+        "space select | c copy | x cut | v paste | y copy-to-pane | m move-to-pane | "
+        "d delete | r rename | z undo",
+        "N new-dir | p/Esc close | q quit | : palette",
     )
     assert help_state.text == (
-        "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit\n"
-        "Space select | c copy | x cut | v paste | d trash | D permanent | "
-        "r rename | z undo\n"
-        ". hidden | N new-dir | : palette"
+        "enter open | . hidden | [ ] focus\n"
+        "space select | c copy | x cut | v paste | y copy-to-pane | m move-to-pane | "
+        "d delete | r rename | z undo\n"
+        "N new-dir | p/Esc close | q quit | : palette"
     )
+    focus_action = next(
+        action for action in help_state.actions if action.action_id == "focus_transfer_pane"
+    )
+    assert focus_action.enabled is True
+    assert focus_action.emphasized is True
+    assert focus_action.dispatch_key == "["
 
 
 def test_select_help_bar_for_busy_mode() -> None:

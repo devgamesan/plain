@@ -2,8 +2,10 @@
 
 Complete list of keybindings for all zivo modes.
 
-In normal browsing, the help bar keeps its standard three rows and item order
-stable. It highlights actions relevant to the current cursor, selection,
+Normal browsing and transfer mode use the same three-row help-bar structure and
+keep their item order stable. Transfer adds only pane-specific focus and
+copy/move actions to the corresponding operation groups; basic cursor movement
+is intentionally omitted. The bar highlights actions relevant to the current cursor, selection,
 clipboard, or undo state, and dims actions whose preconditions are not met
 without removing their key reference. Clicking a help item uses the same
 dispatcher as pressing its key in browsing, search-workspace, and transfer

@@ -19,12 +19,12 @@ def test_browsing_help_shortcuts_are_backed_by_the_browsing_keymap() -> None:
 
 
 def test_transfer_help_shortcuts_are_backed_by_the_transfer_keymap() -> None:
-    advertised_keys = {
-        "space" if key == "Space" else key
-        for line in TRANSFER_HELP_LINES
-        for key, _label in line
-        if key not in {"[ ]", "p/Esc"}
-    }
+    advertised_keys = set()
+    for line in TRANSFER_HELP_LINES:
+        for key, _label in line:
+            if key in {"[ ]", "p/Esc"}:
+                continue
+            advertised_keys.add(key)
 
     assert advertised_keys <= TRANSFER_KEYMAP
     assert {"[", "]", "p", "escape"} <= TRANSFER_KEYMAP

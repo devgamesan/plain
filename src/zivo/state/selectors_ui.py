@@ -91,6 +91,8 @@ def _help_action_relevance(action_id: str, state: AppState) -> bool:
     }
     if action_id in target_ids:
         return bool(state.current_pane.selected_paths or state.current_pane.cursor_path)
+    if action_id == "focus_transfer_pane":
+        return state.layout_mode == "transfer"
     if action_id == "paste_clipboard":
         return bool(state.clipboard.paths)
     if action_id == "undo_last_operation":
@@ -150,17 +152,20 @@ def _build_help_actions(
     lines: tuple[tuple[tuple[str, str], ...], ...],
     *,
     keymap: dict[str, str] | None = None,
+    dispatch_keys: dict[str, str] | None = None,
 ) -> tuple[HelpBarAction, ...]:
     """Build stable help items while deriving status through input dispatch."""
 
     resolved_keymap = keymap or {}
+    resolved_dispatch_keys = dispatch_keys or {}
     actions: list[HelpBarAction] = []
     for line_index, shortcuts in enumerate(lines):
         for key, label in shortcuts:
             action_id = resolved_keymap.get(key, key)
-            dispatch_key = key
-            if key == "[ ]" and action_id == key:
-                action_id = "go_back"
+            dispatch_key = resolved_dispatch_keys.get(key, key)
+            if key == "[ ]":
+                if action_id == key:
+                    action_id = "go_back"
                 dispatch_key = "["
             elif key == "Space":
                 dispatch_key = "space"
@@ -279,6 +284,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
 
         transfer_lines = tuple(TRANSFER_HELP_LINES)
         transfer_action_ids = {
+            "enter": "enter_directory",
             "[ ]": "focus_transfer_pane",
             "y": "transfer_copy",
             "m": "transfer_move",
@@ -303,7 +309,11 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
         }
         return HelpBarState(
             tuple(_format_help_line(line) for line in transfer_lines),
-            _build_help_actions(state, transfer_lines, keymap=transfer_keymap),
+            _build_help_actions(
+                state,
+                transfer_lines,
+                keymap=transfer_keymap,
+            ),
         )
     if is_search_workspace_path(state.current_path):
         search_lines = (
@@ -329,11 +339,12 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     from .input_browsing import BROWSING_HELP_LINES, BROWSING_KEYMAP
 
     browsing_lines = (
-        BROWSING_HELP_LINES[0],
+        BROWSING_HELP_LINES[0][:-1],
         (*BROWSING_HELP_LINES[1], ("ctrl+j/k", "prv")),
         (
             *BROWSING_HELP_LINES[2][:-1],
             *terminal_actions,
+            BROWSING_HELP_LINES[0][-1],
             BROWSING_HELP_LINES[2][-1],
         ),
     )

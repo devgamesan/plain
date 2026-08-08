@@ -170,9 +170,6 @@ SEARCH_WORKSPACE_COMMAND_IDS = frozenset(
         "edit_with_terminal_editor",
         "edit_with_gui_editor",
         "copy_path",
-        "copy_targets",
-        "enter_directory",
-        "toggle_selection",
         "toggle_hidden",
         "show_about",
         "edit_config",
@@ -581,69 +578,6 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                     enabled=True,
                 )
             )
-        items.extend(
-            (
-                CommandPaletteItem(
-                    id="copy_targets",
-                    label="Copy selection or cursor target",
-                    shortcut="c",
-                    enabled=True,
-                ),
-                CommandPaletteItem(
-                    id="cut_targets",
-                    label="Cut selection or cursor target",
-                    shortcut="x",
-                    enabled=not is_search_workspace,
-                ),
-            )
-        )
-        if not is_search_workspace:
-            items.append(
-                CommandPaletteItem(
-                    id="paste_clipboard",
-                    label="Paste clipboard",
-                    shortcut="v",
-                    enabled=bool(state.clipboard.paths),
-                )
-            )
-
-    if not has_target and not is_search_workspace and state.clipboard.paths:
-        items.append(
-            CommandPaletteItem(
-                id="paste_clipboard",
-                label="Paste clipboard",
-                shortcut="v",
-                enabled=True,
-            )
-        )
-
-    if has_visible_entries:
-        items.append(
-            CommandPaletteItem(
-                id="toggle_selection",
-                label="Select current target",
-                shortcut="space",
-                enabled=state.current_pane.cursor_path is not None,
-            )
-        )
-    if has_single_target and single_target_entry.kind == "dir":
-        items.append(
-            CommandPaletteItem(
-                id="enter_directory",
-                label="Enter directory",
-                shortcut="enter",
-                enabled=True,
-            )
-        )
-    if state.current_pane.selected_paths:
-        items.append(
-            CommandPaletteItem(
-                id="clear_selection",
-                label="Clear selection",
-                shortcut="esc",
-                enabled=True,
-            )
-        )
 
     items.extend(
         [

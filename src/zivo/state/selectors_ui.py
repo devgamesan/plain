@@ -9,13 +9,13 @@ from zivo.models import (
     CommandPaletteViewState,
     ConfigDialogState,
     ConflictDialogState,
-    HelpBarAction,
     HelpBarState,
     InputBarState,
     InputDialogState,
     ShellCommandDialogState,
     StatusBarState,
 )
+from zivo.platform_support import is_split_terminal_supported
 from zivo.windows_paths import is_search_workspace_path
 
 from .command_palette import parse_go_query
@@ -48,9 +48,6 @@ from .selectors_shared import (
     compute_search_visible_window,
     get_command_palette_items,
     normalize_command_palette_cursor,
-    select_current_entry_for_path,
-    select_has_visible_current_entries,
-    select_single_target_entry,
 )
 
 
@@ -77,140 +74,8 @@ def select_status_bar_state(state: AppState) -> StatusBarState:
     )
 
 
-def _help_action(
-    action_id: str,
-    label: str,
-    key: str,
-    priority: int,
-    *,
-    dispatch_key: str | None = None,
-) -> HelpBarAction:
-    return HelpBarAction(
-        action_id=action_id,
-        label=label,
-        key=key,
-        priority=priority,
-        dispatch_key=dispatch_key,
-    )
-
-
-def _contextual_browsing_actions(state: AppState) -> tuple[HelpBarAction, ...]:
-    """Return target-focused actions; discovery actions are a separate row."""
-
-    search_workspace = is_search_workspace_path(state.current_path)
-    if state.current_pane.selected_paths:
-        actions = [_help_action("copy_targets", "Copy", "c", 10)]
-        if not search_workspace:
-            actions.extend(
-                (
-                    _help_action("cut_targets", "Cut", "x", 11),
-                    _help_action("delete_targets", "Move to trash", "d", 12),
-                )
-            )
-        if not search_workspace and select_single_target_entry(state) is not None:
-            actions.append(_help_action("rename", "Rename", "r", 13))
-        if state.clipboard.paths and not search_workspace:
-            actions.append(_help_action("paste_clipboard", "Paste", "v", 30))
-        actions.append(_help_action("clear_selection", "Clear selection", "esc", 20))
-        return tuple(actions)
-
-    cursor_entry = select_current_entry_for_path(state, state.current_pane.cursor_path)
-    if cursor_entry is not None and cursor_entry.kind == "file":
-        if search_workspace:
-            return (
-                _help_action("open", "Open", "enter", 40),
-                _help_action("edit_with_terminal_editor", "Edit", "e", 41),
-                _help_action("toggle_selection", "Select", "space", 42),
-                _help_action("copy_targets", "Copy", "c", 43),
-            )
-        if state.clipboard.paths:
-            return (
-                _help_action("paste_clipboard", "Paste", "v", 30),
-                _help_action("open", "Open", "enter", 40),
-                _help_action("edit_with_terminal_editor", "Edit", "e", 41),
-                _help_action("copy_targets", "Copy", "c", 42),
-                _help_action("cut_targets", "Cut", "x", 43),
-            )
-        return (
-            _help_action("open", "Open", "enter", 40),
-            _help_action("edit_with_terminal_editor", "Edit", "e", 41),
-            _help_action("toggle_selection", "Select", "space", 42),
-            _help_action("copy_targets", "Copy", "c", 43),
-            _help_action("cut_targets", "Cut", "x", 44),
-        )
-    if cursor_entry is not None and cursor_entry.kind == "dir":
-        actions = [
-            _help_action("enter_directory", "Enter dir", "enter", 40),
-            _help_action("toggle_selection", "Select", "space", 41),
-            _help_action("copy_targets", "Copy", "c", 42),
-            _help_action("cut_targets", "Cut", "x", 43),
-        ]
-        if state.clipboard.paths and not search_workspace:
-            actions.insert(0, _help_action("paste_clipboard", "Paste", "v", 30))
-        return tuple(actions)
-    if not select_has_visible_current_entries(state):
-        actions = [
-            _help_action("create_file", "New file", "n", 50),
-            _help_action("create_dir", "New dir", "N", 51),
-        ]
-        if state.clipboard.paths and not search_workspace:
-            actions.append(_help_action("paste_clipboard", "Paste", "v", 30))
-        return tuple(actions)
-    return ()
-
-
-def _discovery_actions(state: AppState) -> tuple[HelpBarAction, ...]:
-    """Return the stable feature-discovery row for the current layout."""
-
-    if is_search_workspace_path(state.current_path):
-        return (
-            _help_action("begin_filter", "Filter", "/", 10),
-            _help_action("cycle_sort", "Sort", "s", 11),
-            _help_action("toggle_hidden", "Hidden", ".", 12),
-            _help_action("begin_exit_current_path", "Quit", "q", 13),
-            _help_action("command_palette", "More", ":", 90),
-        )
-    return (
-        _help_action("begin_filter", "Filter", "/", 10),
-        _help_action("file_search", "Find", "f", 11),
-        _help_action("grep_search", "Grep", "g", 12),
-        _help_action("begin_exit_current_path", "Quit", "q", 13),
-        _help_action("command_palette", "More", ":", 90),
-    )
-
-
-def _contextual_transfer_actions(state: AppState) -> tuple[HelpBarAction, ...]:
-    """Return target-focused actions for the active transfer pane."""
-
-    transfer = state.transfer_left if state.active_transfer_pane == "left" else state.transfer_right
-    if transfer is None:
-        return ()
-    if transfer.pane.selected_paths:
-        actions = [
-            _help_action("copy_targets", "Copy", "c", 10),
-            _help_action("cut_targets", "Cut", "x", 11),
-            _help_action("delete_targets", "Trash", "d", 12),
-            _help_action("clear_selection", "Clear", "esc", 20),
-        ]
-    else:
-        actions = [
-            _help_action("copy_targets", "Copy", "c", 10),
-            _help_action("cut_targets", "Cut", "x", 11),
-            _help_action("toggle_selection", "Select", "space", 12),
-        ]
-    if state.clipboard.paths:
-        actions.insert(0, _help_action("paste_clipboard", "Paste", "v", 5))
-    return tuple(actions)
-
-
-def _transfer_discovery_actions() -> tuple[HelpBarAction, ...]:
-    return (
-        _help_action("focus_transfer_pane", "Focus", "[ ]", 10, dispatch_key="["),
-        _help_action("transfer_copy", "Copy pane", "y", 11),
-        _help_action("transfer_move", "Move pane", "m", 12),
-        _help_action("begin_exit_current_path", "Quit", "q", 13),
-        _help_action("command_palette", "More", ":", 90),
-    )
+def _format_help_line(shortcuts: tuple[tuple[str, str], ...]) -> str:
+    return " | ".join(f"{key} {label}" for key, label in shortcuts)
 
 
 def select_help_bar_state(state: AppState) -> HelpBarState:
@@ -298,13 +163,28 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     if state.ui_mode == "BUSY":
         return HelpBarState(("processing...",))
     if state.layout_mode == "transfer":
+        from .input_transfer import TRANSFER_HELP_LINES
+
+        return HelpBarState(tuple(_format_help_line(line) for line in TRANSFER_HELP_LINES))
+    if is_search_workspace_path(state.current_path):
         return HelpBarState(
-            actions=_contextual_transfer_actions(state),
-            discovery_actions=_transfer_discovery_actions(),
+            (
+                "enter open | e edit | / filter | s sort | . hidden | "
+                "[ ] bk/fwd | q quit",
+                "space select | c copy | z undo | ctrl+j/k prv",
+                ": palette",
+            )
         )
+    split_terminal_hint = " | t term" if is_split_terminal_supported() else ""
+    from .input_browsing import BROWSING_HELP_LINES
+
     return HelpBarState(
-        actions=_contextual_browsing_actions(state),
-        discovery_actions=_discovery_actions(state),
+        (
+            _format_help_line(BROWSING_HELP_LINES[0]),
+            f"{_format_help_line(BROWSING_HELP_LINES[1])} | ctrl+j/k prv",
+            f"{_format_help_line(BROWSING_HELP_LINES[2][:-1])}{split_terminal_hint} | "
+            f"{_format_help_line(BROWSING_HELP_LINES[2][-1:])}",
+        )
     )
 
 

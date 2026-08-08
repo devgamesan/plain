@@ -1304,12 +1304,12 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
 
     assert help_state.lines == (
         "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit",
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv",
+        "space select | c copy | x cut | v paste | d delete | r rename | z undo",
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette",
     )
     assert help_state.text == (
         "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv\n"
+        "space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
 
@@ -1320,9 +1320,9 @@ def test_select_help_bar_for_search_workspace_shows_available_actions_only() -> 
     help_state = select_help_bar_state(state)
 
     assert help_state.lines == (
-        "enter open | e edit | O gui editor | i info | "
-        "/ filter | s sort | . hidden | [ ] bk/fwd | q quit",
-        "space select | c copy | z undo | ctrl+j/k prv",
+        "enter open | e edit | / filter | s sort | . hidden | "
+        "[ ] bk/fwd | q quit",
+        "space select | c copy | z undo",
         ": palette",
     )
     assert "x cut" not in help_state.text
@@ -1336,16 +1336,16 @@ def test_select_help_bar_for_transfer_mode_prioritizes_transfer_actions() -> Non
     help_state = select_help_bar_state(state)
 
     assert help_state.lines == (
-        "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit",
-        "Space select | c copy | x cut | v paste | d trash | D permanent | "
-        "r rename | z undo",
-        ". hidden | N new-dir | : palette",
+        "enter dir | . hidden | [ ] focus | p/Esc close | q quit",
+        "space select | c copy | x cut | v paste | y copy-to-pane | "
+        "m move-to-pane | d delete | r rename | z undo",
+        "N new-dir | : palette",
     )
     assert help_state.text == (
-        "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit\n"
-        "Space select | c copy | x cut | v paste | d trash | D permanent | "
-        "r rename | z undo\n"
-        ". hidden | N new-dir | : palette"
+        "enter dir | . hidden | [ ] focus | p/Esc close | q quit\n"
+        "space select | c copy | x cut | v paste | y copy-to-pane | "
+        "m move-to-pane | d delete | r rename | z undo\n"
+        "N new-dir | : palette"
     )
 
 

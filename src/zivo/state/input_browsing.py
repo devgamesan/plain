@@ -148,6 +148,24 @@ BROWSING_HELP_LINES = (
     ),
 )
 
+SEARCH_WORKSPACE_HELP_LINES = (
+    (
+        ("enter", "open"),
+        ("e", "edit"),
+        ("/", "filter"),
+        ("s", "sort"),
+        (".", "hidden"),
+        ("[ ]", "bk/fwd"),
+        ("q", "quit"),
+    ),
+    (
+        ("space", "select"),
+        ("c", "copy"),
+        ("z", "undo"),
+    ),
+    ((":", "palette"),),
+)
+
 SEARCH_WORKSPACE_BLOCKED_COMMANDS = frozenset(
     {
         "begin_file_search",

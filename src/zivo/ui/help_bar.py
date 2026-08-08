@@ -16,7 +16,7 @@ class HelpBar(Static):
         id: str | None = None,
         classes: str | None = None,
     ) -> None:
-        super().__init__(Text(state.text), id=id, classes=classes)
+        super().__init__(self._render_text(state), id=id, classes=classes)
         self.state = state
 
     def set_state(self, state: HelpBarState) -> None:
@@ -25,4 +25,15 @@ class HelpBar(Static):
         if state == self.state:
             return
         self.state = state
-        self.update(Text(state.text))
+        self.update(self._render_text(state))
+
+    @staticmethod
+    def _render_text(state: HelpBarState) -> Text:
+        """Render fixed logical rows with tail elision at narrow widths."""
+
+        rendered = Text(no_wrap=True, overflow="ellipsis")
+        for index, line in enumerate(state.lines):
+            if index:
+                rendered.append("\n")
+            rendered.append(line)
+        return rendered

@@ -134,6 +134,7 @@ class ChildPaneViewState:
     syntax_theme: str = "monokai"
     permissions_label: str = ""
     preview_word_wrap: bool = False
+    preview_scroll_hint: str | None = None
     view_kind: str = "entries"
     status: PaneStatusViewState | None = None
     metadata: tuple[MetadataItemViewState, ...] = ()

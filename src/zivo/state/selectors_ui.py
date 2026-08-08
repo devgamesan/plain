@@ -167,13 +167,10 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
 
         return HelpBarState(tuple(_format_help_line(line) for line in TRANSFER_HELP_LINES))
     if is_search_workspace_path(state.current_path):
+        from .input_browsing import SEARCH_WORKSPACE_HELP_LINES
+
         return HelpBarState(
-            (
-                "enter open | e edit | / filter | s sort | . hidden | "
-                "[ ] bk/fwd | q quit",
-                "space select | c copy | z undo | ctrl+j/k prv",
-                ": palette",
-            )
+            tuple(_format_help_line(line) for line in SEARCH_WORKSPACE_HELP_LINES)
         )
     split_terminal_hint = " | t term" if is_split_terminal_supported() else ""
     from .input_browsing import BROWSING_HELP_LINES
@@ -181,7 +178,7 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     return HelpBarState(
         (
             _format_help_line(BROWSING_HELP_LINES[0]),
-            f"{_format_help_line(BROWSING_HELP_LINES[1])} | ctrl+j/k prv",
+            _format_help_line(BROWSING_HELP_LINES[1]),
             f"{_format_help_line(BROWSING_HELP_LINES[2][:-1])}{split_terminal_hint} | "
             f"{_format_help_line(BROWSING_HELP_LINES[2][-1:])}",
         )

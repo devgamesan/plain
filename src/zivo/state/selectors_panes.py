@@ -55,6 +55,9 @@ IMAGE_PREVIEW_EXTENSIONS = frozenset(
 PDF_PREVIEW_EXTENSIONS = frozenset({".pdf"})
 OFFICE_PREVIEW_EXTENSIONS = frozenset({".docx", ".xlsx", ".pptx"})
 
+_BROWSING_PREVIEW_SCROLL_HINT = "Ctrl+J/K scroll preview"
+_REPLACE_PREVIEW_SCROLL_HINT = "Shift+↑/↓ scroll preview"
+
 
 @dataclass(frozen=True)
 class CurrentPaneProjection:
@@ -229,6 +232,7 @@ def select_child_pane_for_cursor(
             syntax_theme,
             permissions_label,
             state.config.display.preview_word_wrap,
+            preview_scroll_hint=_browsing_preview_scroll_hint(state),
         )
     if state.child_pane.mode == "preview" and state.child_pane.preview_message is not None:
         preview_path = state.child_pane.preview_path or cursor_entry.path
@@ -466,6 +470,11 @@ def _select_replace_preview_pane(
         state.child_pane.preview_highlight_line,
         syntax_theme,
         preview_word_wrap=state.config.display.preview_word_wrap,
+        preview_scroll_hint=(
+            _REPLACE_PREVIEW_SCROLL_HINT
+            if state.child_pane.preview_content is not None
+            else None
+        ),
     )
 
 
@@ -680,6 +689,7 @@ def _build_child_preview_view(
     syntax_theme: str,
     permissions_label: str = "",
     preview_word_wrap: bool = False,
+    preview_scroll_hint: str | None = None,
 ) -> ChildPaneViewState:
     return ChildPaneViewState(
         title=preview_title or _format_child_preview_title(preview_path, preview_truncated),
@@ -694,6 +704,7 @@ def _build_child_preview_view(
         syntax_theme=syntax_theme,
         permissions_label=permissions_label,
         preview_word_wrap=preview_word_wrap,
+        preview_scroll_hint=preview_scroll_hint,
         view_kind="preview",
     )
 
@@ -794,6 +805,20 @@ def _select_visible_cut_paths(
     cut_paths: frozenset[str],
 ) -> frozenset[str]:
     return frozenset(entry.path for entry in visible_entries if entry.path in cut_paths)
+
+
+def _browsing_preview_scroll_hint(state: AppState) -> str | None:
+    """Return the scroll hint for a normal right-pane preview."""
+
+    if state.layout_mode == "transfer":
+        return None
+    if (
+        state.ui_mode == "BROWSING"
+        and state.child_pane.mode == "preview"
+        and state.child_pane.preview_content is not None
+    ):
+        return _BROWSING_PREVIEW_SCROLL_HINT
+    return None
 
 
 @lru_cache(maxsize=256)

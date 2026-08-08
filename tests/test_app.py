@@ -1234,6 +1234,10 @@ async def test_app_browsing_preview_scrolls_with_brackets() -> None:
         await _wait_for_row_count(app, 1)
         await _wait_for_child_preview(app, "Preview: README.md", "line 000")
 
+        preview_help = app.query_one("#child-pane-preview-help", Label)
+        assert str(preview_help.renderable) == "Ctrl+J/K scroll preview"
+        assert preview_help.display is True
+
         child_preview_scroll = app.query_one("#child-pane-preview-scroll", VerticalScroll)
         initial_scroll_y = child_preview_scroll.scroll_y
 
@@ -3140,7 +3144,7 @@ async def test_app_displays_browsing_help_bar() -> None:
     split_terminal_hint = " | t term" if os.name == "posix" else ""
     expected_help = (
         "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv\n"
+        "space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
 
@@ -3245,10 +3249,10 @@ async def test_app_displays_transfer_help_bar() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
-        "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit\n"
-        "Space select | c copy | x cut | v paste | d trash | D permanent | "
-        "r rename | z undo\n"
-        ". hidden | N new-dir | : palette"
+        "enter dir | . hidden | [ ] focus | p/Esc close | q quit\n"
+        "space select | c copy | x cut | v paste | y copy-to-pane | "
+        "m move-to-pane | d delete | r rename | z undo\n"
+        "N new-dir | : palette"
     )
 
     async with app.run_test() as pilot:
@@ -4506,6 +4510,7 @@ async def test_app_command_palette_replace_text_previews_and_applies_selected_fi
 
         child_pane = select_shell_data(app.app_state).child_pane
         assert child_pane.preview_title == "Replace Preview"
+        assert child_pane.preview_scroll_hint == "Shift+↑/↓ scroll preview"
         assert child_pane.preview_content is not None
         assert "--- " in child_pane.preview_content
         assert "+++ " in child_pane.preview_content

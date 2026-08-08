@@ -9,6 +9,7 @@ from zivo.models import (
     CommandPaletteViewState,
     ConfigDialogState,
     ConflictDialogState,
+    HelpBarAction,
     HelpBarState,
     InputBarState,
     InputDialogState,
@@ -76,6 +77,117 @@ def select_status_bar_state(state: AppState) -> StatusBarState:
 
 def _format_help_line(shortcuts: tuple[tuple[str, str], ...]) -> str:
     return " | ".join(f"{key} {label}" for key, label in shortcuts)
+
+
+def _help_action_relevance(action_id: str, state: AppState) -> bool:
+    """Return whether an action deserves visual emphasis in the current state."""
+
+    target_ids = {
+        "copy_targets",
+        "cut_targets",
+        "delete_targets",
+        "permanent_delete_targets",
+        "begin_rename",
+    }
+    if action_id in target_ids:
+        return bool(state.current_pane.selected_paths or state.current_pane.cursor_path)
+    if action_id == "paste_clipboard":
+        return bool(state.clipboard.paths)
+    if action_id == "undo_last_operation":
+        return bool(state.undo_stack)
+    if action_id in {"open_in_editor", "enter_or_open"}:
+        return True
+    if action_id in {"create_file", "create_dir"}:
+        return True
+    return False
+
+
+def _help_action_status(
+    state: AppState,
+    *,
+    action_id: str,
+    dispatch_key: str,
+) -> tuple[bool, str | None]:
+    """Use the central dispatcher as the source of truth for availability."""
+
+    if action_id == "paste_clipboard" and not state.clipboard.paths:
+        return False, "Clipboard is empty"
+    if action_id == "undo_last_operation" and not state.undo_stack:
+        return False, "Nothing to undo"
+
+    from .actions_ui import SetNotification
+    from .input import dispatch_key_input
+
+    dispatched = dispatch_key_input(state, key=dispatch_key)
+    meaningful = tuple(action for action in dispatched if not isinstance(action, SetNotification))
+    if meaningful:
+        return True, None
+    warning = next(
+        (
+            action.notification.message
+            for action in dispatched
+            if isinstance(action, SetNotification)
+            and action.notification is not None
+            and action.notification.level in {"warning", "error"}
+        ),
+        None,
+    )
+    if warning:
+        return False, warning
+    if action_id in {
+        "cursor_up",
+        "cursor_down",
+        "cursor_pageup",
+        "cursor_pagedown",
+        "preview_scroll",
+    }:
+        return True, None
+    return False, None
+
+
+def _build_help_actions(
+    state: AppState,
+    lines: tuple[tuple[tuple[str, str], ...], ...],
+    *,
+    keymap: dict[str, str] | None = None,
+) -> tuple[HelpBarAction, ...]:
+    """Build stable help items while deriving status through input dispatch."""
+
+    resolved_keymap = keymap or {}
+    actions: list[HelpBarAction] = []
+    for line_index, shortcuts in enumerate(lines):
+        for key, label in shortcuts:
+            action_id = resolved_keymap.get(key, key)
+            dispatch_key = key
+            if key == "[ ]" and action_id == key:
+                action_id = "go_back"
+                dispatch_key = "["
+            elif key == "Space":
+                dispatch_key = "space"
+            elif key == "ctrl+j/k":
+                action_id = "preview_scroll"
+                dispatch_key = "ctrl+j"
+            elif key == "p/Esc":
+                action_id = "toggle_transfer_mode"
+                dispatch_key = "p"
+            enabled, disabled_reason = _help_action_status(
+                state,
+                action_id=action_id,
+                dispatch_key=dispatch_key,
+            )
+            actions.append(
+                HelpBarAction(
+                    action_id=action_id,
+                    key=key,
+                    label=label,
+                    line_index=line_index,
+                    enabled=enabled,
+                    emphasized=enabled and _help_action_relevance(action_id, state),
+                    disabled_reason=disabled_reason,
+                    dispatch_key=dispatch_key,
+                )
+            )
+    return tuple(actions)
 
 
 def select_help_bar_state(state: AppState) -> HelpBarState:
@@ -165,26 +277,69 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     if state.layout_mode == "transfer":
         from .input_transfer import TRANSFER_HELP_LINES
 
-        return HelpBarState(tuple(_format_help_line(line) for line in TRANSFER_HELP_LINES))
-    if is_search_workspace_path(state.current_path):
+        transfer_lines = tuple(TRANSFER_HELP_LINES)
+        transfer_action_ids = {
+            "[ ]": "focus_transfer_pane",
+            "y": "transfer_copy",
+            "m": "transfer_move",
+            "p/Esc": "toggle_transfer_mode",
+            "q": "begin_exit_current_path",
+            "Space": "toggle_selection",
+            "c": "copy_targets",
+            "x": "cut_targets",
+            "v": "paste_clipboard",
+            "d": "delete_targets",
+            "D": "permanent_delete_targets",
+            "r": "begin_rename",
+            "z": "undo_last_operation",
+            ".": "toggle_hidden",
+            "N": "create_dir",
+            ":": "begin_command_palette",
+        }
+        transfer_keymap = {
+            key: transfer_action_ids.get(key, key)
+            for line in transfer_lines
+            for key, _label in line
+        }
         return HelpBarState(
+            tuple(_format_help_line(line) for line in transfer_lines),
+            _build_help_actions(state, transfer_lines, keymap=transfer_keymap),
+        )
+    if is_search_workspace_path(state.current_path):
+        search_lines = (
             (
-                "enter open | e edit | / filter | s sort | . hidden | "
-                "[ ] bk/fwd | q quit",
-                "space select | c copy | z undo | ctrl+j/k prv",
-                ": palette",
-            )
+                ("enter", "open"),
+                ("e", "edit"),
+                ("/", "filter"),
+                ("s", "sort"),
+                (".", "hidden"),
+                ("[ ]", "bk/fwd"),
+                ("q", "quit"),
+            ),
+            (("space", "select"), ("c", "copy"), ("z", "undo"), ("ctrl+j/k", "prv")),
+            ((":", "palette"),),
         )
-    split_terminal_hint = " | t term" if is_split_terminal_supported() else ""
-    from .input_browsing import BROWSING_HELP_LINES
+        from .input_browsing import BROWSING_KEYMAP
 
-    return HelpBarState(
-        (
-            _format_help_line(BROWSING_HELP_LINES[0]),
-            f"{_format_help_line(BROWSING_HELP_LINES[1])} | ctrl+j/k prv",
-            f"{_format_help_line(BROWSING_HELP_LINES[2][:-1])}{split_terminal_hint} | "
-            f"{_format_help_line(BROWSING_HELP_LINES[2][-1:])}",
+        return HelpBarState(
+            tuple(_format_help_line(line) for line in search_lines),
+            _build_help_actions(state, search_lines, keymap=BROWSING_KEYMAP),
         )
+    terminal_actions = (("t", "term"),) if is_split_terminal_supported() else ()
+    from .input_browsing import BROWSING_HELP_LINES, BROWSING_KEYMAP
+
+    browsing_lines = (
+        BROWSING_HELP_LINES[0],
+        (*BROWSING_HELP_LINES[1], ("ctrl+j/k", "prv")),
+        (
+            *BROWSING_HELP_LINES[2][:-1],
+            *terminal_actions,
+            BROWSING_HELP_LINES[2][-1],
+        ),
+    )
+    return HelpBarState(
+        tuple(_format_help_line(line) for line in browsing_lines),
+        _build_help_actions(state, browsing_lines, keymap=BROWSING_KEYMAP),
     )
 
 

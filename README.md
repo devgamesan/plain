@@ -12,7 +12,7 @@
 
 zivo is a TUI file manager designed to be usable without memorizing dozens of shortcuts.
 
-By default, it keeps actions relevant to the current state visible in the help bar, and lets you run everything else from the command palette. You can browse, preview, search, grep, replace, and transfer files without leaving the terminal.
+By default, the help bar keeps the standard key reference visible and highlights actions relevant to the current state. Unavailable actions remain visible but are dimmed with a reason available through the status message; browsing, search-workspace, and transfer help items can also be clicked. You can browse, preview, search, grep, replace, and transfer files without leaving the terminal.
 
 ---
 
@@ -99,7 +99,7 @@ zivo-cd
 
 ## Basic controls
 
-By default, actions relevant to the current state are shown in the help bar.
+The help bar keeps the standard three rows and their order stable. Actions relevant to the current state are highlighted, while unavailable actions remain visible and dimmed so that the key reference does not disappear as the cursor or selection changes. Click an item to use the same dispatcher as its key binding. A disabled item explains its precondition in the status bar.
 You can also press `:` to open the command palette and search for available actions.
 
 | Key | Action |

@@ -460,6 +460,12 @@ class zivoApp(App[None]):
 
         await self._dispatch_pane_action(message.action_id)
 
+    async def on_help_bar_action_clicked(self, message: HelpBar.ActionClicked) -> None:
+        """Route help-bar clicks through the central keyboard dispatcher."""
+
+        key = message.action.dispatch_key or message.action.key
+        await self._dispatch_key_press(key)
+
     async def action_dispatch_bound_key(self, key: str) -> None:
         """Handle priority key bindings through the central dispatcher."""
 

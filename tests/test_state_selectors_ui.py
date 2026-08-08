@@ -33,6 +33,12 @@ test_select_conflict_dialog_state_formats_zip_confirmation = (
 test_select_help_bar_defaults_to_browsing_shortcuts = (
     cases.test_select_help_bar_defaults_to_browsing_shortcuts
 )
+test_select_help_bar_keeps_stable_actions_and_marks_clipboard_unavailable = (
+    cases.test_select_help_bar_keeps_stable_actions_and_marks_clipboard_unavailable
+)
+test_select_help_bar_emphasizes_target_and_clipboard_actions_without_removing_items = (
+    cases.test_select_help_bar_emphasizes_target_and_clipboard_actions_without_removing_items
+)
 test_select_help_bar_for_transfer_mode_prioritizes_transfer_actions = (
     cases.test_select_help_bar_for_transfer_mode_prioritizes_transfer_actions
 )

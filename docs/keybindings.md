@@ -2,6 +2,14 @@
 
 Complete list of keybindings for all zivo modes.
 
+In normal browsing, the help bar keeps its standard three rows and item order
+stable. It highlights actions relevant to the current cursor, selection,
+clipboard, or undo state, and dims actions whose preconditions are not met
+without removing their key reference. Clicking a help item uses the same
+dispatcher as pressing its key in browsing, search-workspace, and transfer
+mode; clicking an unavailable item explains the
+precondition in the status bar.
+
 ---
 
 ## Normal Mode

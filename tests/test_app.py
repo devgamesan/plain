@@ -3152,6 +3152,30 @@ async def test_app_displays_browsing_help_bar() -> None:
 
 
 @pytest.mark.asyncio
+async def test_help_bar_click_uses_the_keyboard_dispatcher() -> None:
+    path = str(Path("/tmp/zivo-help-click").resolve())
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: _build_snapshot(
+                path,
+                (DirectoryEntryState(f"{path}/docs", "docs", "dir"),),
+                child_path=f"{path}/docs",
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test():
+        await _wait_for_snapshot_loaded(app, path)
+        help_bar = app.query_one("#help-bar", HelpBar)
+        create_action = next(action for action in help_bar.state.actions if action.key == "n")
+
+        await app.on_help_bar_action_clicked(HelpBar.ActionClicked(create_action))
+
+        assert app.app_state.ui_mode == "CREATE"
+
+
+@pytest.mark.asyncio
 async def test_app_transfer_mode_refreshes_left_cursor_and_focuses_right_pane() -> None:
     path = str(Path("/tmp/zivo-transfer-focus").resolve())
     loader = FakeBrowserSnapshotLoader(

@@ -1314,6 +1314,65 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     )
 
 
+def test_select_help_bar_keeps_stable_actions_and_marks_clipboard_unavailable() -> None:
+    state = build_initial_app_state()
+
+    help_state = select_help_bar_state(state)
+    actions_by_key = {action.key: action for action in help_state.actions}
+
+    expected_keys = (
+        "enter",
+        "e",
+        "/",
+        "s",
+        ".",
+        "[ ]",
+        "q",
+        "space",
+        "c",
+        "x",
+        "v",
+        "d",
+        "r",
+        "z",
+        "ctrl+j/k",
+        "f",
+        "g",
+        "n",
+        "N",
+    )
+    if os.name == "posix":
+        expected_keys += ("t",)
+    expected_keys += (":",)
+    assert tuple(action.key for action in help_state.actions) == expected_keys
+    assert actions_by_key["v"].enabled is False
+    assert actions_by_key["v"].disabled_reason == "Clipboard is empty"
+    assert actions_by_key["n"].enabled is True
+    assert actions_by_key["N"].enabled is True
+
+
+def test_select_help_bar_emphasizes_target_and_clipboard_actions_without_removing_items() -> None:
+    initial = build_initial_app_state()
+    state = replace(
+        initial,
+        current_pane=replace(
+            initial.current_pane,
+            selected_paths=frozenset({f"{initial.current_path}/README.md"}),
+        ),
+        clipboard=replace(initial.clipboard, mode="copy", paths=("/tmp/source.txt",)),
+    )
+
+    actions = {action.key: action for action in select_help_bar_state(state).actions}
+
+    assert actions["c"].emphasized is True
+    assert actions["x"].emphasized is True
+    assert actions["d"].emphasized is True
+    assert actions["v"].enabled is True
+    assert actions["v"].emphasized is True
+    assert actions["n"].enabled is True
+    assert actions["N"].enabled is True
+
+
 def test_select_help_bar_for_search_workspace_shows_available_actions_only() -> None:
     state = build_search_workspace_state()
 

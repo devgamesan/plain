@@ -173,10 +173,31 @@ class TabBarState:
 
 
 @dataclass(frozen=True)
+class HelpBarAction:
+    """One stable help-bar item and its current availability."""
+
+    action_id: str
+    key: str
+    label: str
+    line_index: int
+    enabled: bool = True
+    emphasized: bool = False
+    disabled_reason: str | None = None
+    dispatch_key: str | None = None
+
+    @property
+    def text(self) -> str:
+        """Return the compact key/label representation."""
+
+        return f"{self.key} {self.label}"
+
+
+@dataclass(frozen=True)
 class HelpBarState:
-    """Compact help summary rendered above the status bar."""
+    """Stable help summary with optional per-action availability metadata."""
 
     lines: tuple[str, ...]
+    actions: tuple[HelpBarAction, ...] = ()
 
     @property
     def text(self) -> str:

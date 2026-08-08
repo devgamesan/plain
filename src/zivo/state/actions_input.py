@@ -75,6 +75,11 @@ class BeginShellCommandInput:
 
 
 @dataclass(frozen=True)
+class BeginConfigEditor:
+    """Open the startup configuration editor."""
+
+
+@dataclass(frozen=True)
 class DismissConfigEditor:
     """Close the config editor without saving pending changes."""
 

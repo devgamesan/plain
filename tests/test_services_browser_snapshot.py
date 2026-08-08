@@ -250,7 +250,10 @@ def test_live_browser_snapshot_loader_skips_image_preview_when_disabled(tmp_path
         enable_image_preview=False,
     )
 
-    assert pane.mode == "entries"
+    assert pane.mode == "preview"
+    assert pane.preview_reason == "disabled"
+    assert pane.preview_metadata is not None
+    assert pane.preview_metadata.display_name == "preview.png"
     assert pane.entries == ()
     assert preview_loader.calls == []
 
@@ -270,6 +273,7 @@ def test_live_browser_snapshot_loader_marks_missing_chafa_for_images(tmp_path) -
     assert snapshot.child_pane.preview_message == (
         "Preview unavailable: install `chafa` for image preview"
     )
+    assert snapshot.child_pane.preview_reason == "dependency_missing"
 
 
 def test_live_browser_snapshot_loader_skips_office_preview_when_disabled(tmp_path) -> None:
@@ -290,7 +294,8 @@ def test_live_browser_snapshot_loader_skips_office_preview_when_disabled(tmp_pat
         enable_office_preview=False,
     )
 
-    assert pane.mode == "entries"
+    assert pane.mode == "preview"
+    assert pane.preview_reason == "disabled"
     assert pane.entries == ()
     assert preview_loader.calls == []
  
@@ -314,7 +319,7 @@ def test_live_browser_snapshot_loader_caches_document_previews(tmp_path) -> None
     assert preview_loader.calls == [f"{report}:{64 * 1024}"]
 
 
-def test_pandoc_document_preview_loader_returns_none_when_pandoc_is_missing(
+def test_pandoc_document_preview_loader_reports_missing_dependency(
     tmp_path,
     monkeypatch,
 ) -> None:
@@ -329,7 +334,10 @@ def test_pandoc_document_preview_loader_returns_none_when_pandoc_is_missing(
         lambda name: None,
     )
 
-    assert loader.load_preview(report, preview_max_bytes=64 * 1024) is None
+    preview = loader.load_preview(report, preview_max_bytes=64 * 1024)
+    assert preview is not None
+    assert preview.reason == "dependency_missing"
+    assert preview.message == "Office preview unavailable: install `pandoc`"
 
 
 def test_pandoc_document_preview_loader_uses_pandoc_command(tmp_path, monkeypatch) -> None:
@@ -700,8 +708,12 @@ def test_pdftotext_pdf_preview_loader_caches_missing_pdftotext(
 
     monkeypatch.setattr("zivo.services.previews.core.shutil.which", _which)
 
-    assert loader.load_preview(first, preview_max_bytes=64 * 1024) is None
-    assert loader.load_preview(second, preview_max_bytes=64 * 1024) is None
+    first_preview = loader.load_preview(first, preview_max_bytes=64 * 1024)
+    second_preview = loader.load_preview(second, preview_max_bytes=64 * 1024)
+    assert first_preview is not None
+    assert second_preview is not None
+    assert first_preview.reason == "dependency_missing"
+    assert second_preview.reason == "dependency_missing"
     assert which_calls == ["pdftotext"]
 
 
@@ -726,7 +738,8 @@ def test_live_browser_snapshot_loader_skips_pdf_preview_when_disabled(
         enable_pdf_preview=False,
     )
 
-    assert pane.mode == "entries"
+    assert pane.mode == "preview"
+    assert pane.preview_reason == "disabled"
     assert pane.entries == ()
 
 

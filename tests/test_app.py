@@ -1599,12 +1599,19 @@ async def test_app_hides_text_preview_in_child_pane_when_preview_disabled() -> N
     async with app.run_test():
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 1)
+        await _wait_for_child_preview(
+            app,
+            "Preview",
+            "Preview disabled in settings",
+        )
 
         child_list = app.query_one("#child-pane-list", Static)
         child_preview_scroll = app.query_one("#child-pane-preview-scroll", VerticalScroll)
 
-        assert child_list.display is True
-        assert child_preview_scroll.display is False
+        assert child_list.display is False
+        assert child_preview_scroll.display is True
+        preview = app.query_one("#child-pane-preview", Static)
+        assert "[:] Edit config" in str(preview.renderable)
 
 
 @pytest.mark.asyncio
@@ -1670,7 +1677,12 @@ async def test_app_updates_child_preview_when_cursor_moves_between_files() -> No
             )
         )
         await _wait_for_cursor_path(app, config)
-        await _wait_for_child_entries(app, [], timeout=1.0)
+        await _wait_for_child_preview(
+            app,
+            "Child Directory",
+            "Loading preview…",
+            timeout=1.0,
+        )
         await _wait_for_child_preview(app, "Preview: config.toml", "enable_text_preview = true")
         await _wait_for_child_pane_runtime_idle(app, timeout=1.0)
 
@@ -2091,7 +2103,12 @@ async def test_app_hides_stale_child_entries_while_new_child_snapshot_is_pending
         await pilot.press("down")
         await _wait_for_cursor_path(app, f"{path}/src")
         await _wait_for_child_pane_request_count(loader, 1, timeout=1.0)
-        await _wait_for_child_entries(app, [], timeout=1.0)
+        await _wait_for_child_preview(
+            app,
+            "Child Directory",
+            "Loading directory…",
+            timeout=1.0,
+        )
         await _wait_for_child_entries(app, ["main.py"], timeout=1.0)
         await _wait_for_child_pane_runtime_idle(app, timeout=1.0)
 
@@ -6214,7 +6231,7 @@ async def test_app_cursor_move_refreshes_large_child_pane_without_remount(
 
         assert app.query_one("#child-pane-list", Static) is child_list
         assert len(_side_pane_lines(child_list)) == 1000
-        assert update_calls == 2
+        assert update_calls == 1
 
 
 # --- Pane visibility on narrow terminals (Issue #390) ---
@@ -6392,3 +6409,28 @@ class TestCommandPaletteClick:
 
             # After SubmitCommandPalette, palette should be closed
             assert app.app_state.command_palette is None
+
+
+@pytest.mark.asyncio
+async def test_app_renders_empty_directory_action_and_routes_it_to_create_flow() -> None:
+    path = str(Path("/tmp/zivo-empty-state").resolve())
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={path: _build_snapshot(path, (), child_path=path, child_entries=())}
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(120, 20)):
+        await _wait_for_predicate(
+            lambda: app.app_state.pending_browser_snapshot_request_id is None,
+            message="empty directory snapshot did not finish",
+        )
+        status = app.query_one("#current-pane-status", Static)
+        assert status.display is True
+        assert "Empty directory" in str(status.renderable)
+        assert "[n] Create file" in str(status.renderable)
+
+        await app.on_main_pane_action_clicked(MainPane.ActionClicked("create_file"))
+
+        assert app.app_state.ui_mode == "CREATE"
+        assert app.app_state.pending_input is not None
+        assert app.app_state.pending_input.create_kind == "file"

@@ -115,6 +115,7 @@ class DirectoryEntryState:
     owner: str | None = None
     group: str | None = None
     symlink: bool = False
+    symlink_target: str | None = None
 
 
 @dataclass(frozen=True)
@@ -135,6 +136,23 @@ class PaneState:
     preview_truncated: bool = False
     preview_start_line: int | None = None
     preview_highlight_line: int | None = None
+    preview_reason: str | None = None
+    preview_metadata: "PreviewMetadataState | None" = None
+
+
+@dataclass(frozen=True)
+class PreviewMetadataState:
+    """Filesystem metadata retained for compact preview fallbacks."""
+
+    display_name: str
+    type_label: str
+    size_bytes: int | None = None
+    modified_at: datetime | None = None
+    permissions_mode: int | None = None
+    owner: str | None = None
+    group: str | None = None
+    symlink_target: str | None = None
+    archive_entry_count: int | None = None
 
 
 @dataclass(frozen=True)

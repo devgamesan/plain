@@ -84,6 +84,9 @@ from zivo.state import (
 from zivo.state.actions import (
     Action,
     ActivateTabByIndex,
+    BeginConfigEditor,
+    BeginCreateInput,
+    CancelFilterInput,
     EnterCursorDirectory,
     EnterTransferDirectory,
     ExitCurrentPath,
@@ -94,6 +97,7 @@ from zivo.state.actions import (
     SetCursorPath,
     SetTerminalHeight,
     SetTransferCursorPath,
+    ShowAttributes,
 )
 from zivo.ui import (
     AttributeDialog,
@@ -451,6 +455,11 @@ class zivoApp(App[None]):
         if self._app_state.active_transfer_pane != pane:
             await self.dispatch_actions((FocusTransferPane(pane),))
 
+    async def on_main_pane_action_clicked(self, message: MainPane.ActionClicked) -> None:
+        """Run a center-pane empty-state action through the reducer."""
+
+        await self._dispatch_pane_action(message.action_id)
+
     async def action_dispatch_bound_key(self, key: str) -> None:
         """Handle priority key bindings through the central dispatcher."""
 
@@ -643,6 +652,23 @@ class zivoApp(App[None]):
                 await self._open_or_enter_path(message.path)
             return
         await self._open_or_enter_path(message.path)
+
+    async def on_child_pane_action_clicked(self, message: ChildPane.ActionClicked) -> None:
+        """Run a child-pane fallback action through the reducer."""
+
+        await self._dispatch_pane_action(message.action_id)
+
+    async def _dispatch_pane_action(self, action_id: str) -> None:
+        actions = {
+            "clear_filter": CancelFilterInput(),
+            "create_file": BeginCreateInput("file"),
+            "create_directory": BeginCreateInput("dir"),
+            "show_attributes": ShowAttributes(),
+            "edit_config": BeginConfigEditor(),
+        }
+        action = actions.get(action_id)
+        if action is not None:
+            await self.dispatch_actions((action,))
 
     def on_child_pane_preview_clicked(self, _message: ChildPane.PreviewClicked) -> None:
         """Move focus to the preview scroll container when the preview is clicked."""

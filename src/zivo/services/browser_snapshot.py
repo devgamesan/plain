@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import mimetypes
 import threading
 from collections import OrderedDict
 from dataclasses import dataclass, field, replace
@@ -46,6 +47,7 @@ from zivo.state.models import (
     DirectoryEntryState,
     GrepSearchResultState,
     PaneState,
+    PreviewMetadataState,
     build_initial_app_state,
     resolve_parent_directory_path,
 )
@@ -293,6 +295,7 @@ class LiveBrowserSnapshotLoader:
                         entries=(),
                         mode="preview",
                         preview_message=PREVIEW_PERMISSION_DENIED_MESSAGE,
+                        preview_reason="permission_denied",
                     )
                 raise
 
@@ -300,7 +303,11 @@ class LiveBrowserSnapshotLoader:
         if child_path.is_dir():
             try:
                 child_entries = self._list_directory(str(child_path))
-                return PaneState(directory_path=str(child_path), entries=child_entries)
+                return PaneState(
+                    directory_path=str(child_path),
+                    entries=child_entries,
+                    preview_metadata=self._build_preview_metadata(child_path),
+                )
             except OSError as error:
                 if _is_permission_denied_error(error):
                     return PaneState(
@@ -308,15 +315,32 @@ class LiveBrowserSnapshotLoader:
                         entries=(),
                         mode="preview",
                         preview_message=PREVIEW_PERMISSION_DENIED_MESSAGE,
+                        preview_reason="permission_denied",
+                        preview_metadata=self._build_preview_metadata(child_path),
                     )
                 raise
 
         if is_supported_archive_path(child_path):
             try:
                 child_entries = self.archive_list.list_archive_entries(str(child_path))
-                return PaneState(directory_path=str(child_path), entries=child_entries)
+                return PaneState(
+                    directory_path=str(child_path),
+                    entries=child_entries,
+                    preview_metadata=self._build_preview_metadata(
+                        child_path,
+                        archive_entry_count=len(child_entries),
+                    ),
+                )
             except OSError:
-                return PaneState(directory_path=current_path, entries=())
+                return PaneState(
+                    directory_path=current_path,
+                    entries=(),
+                    mode="preview",
+                    preview_path=str(child_path),
+                    preview_message=PREVIEW_UNSUPPORTED_MESSAGE,
+                    preview_reason="error",
+                    preview_metadata=self._build_preview_metadata(child_path),
+                )
 
         preview = self._load_cached_text_preview(
             child_path,
@@ -338,9 +362,44 @@ class LiveBrowserSnapshotLoader:
                 preview_kind=preview.content_kind,
                 preview_message=preview.message,
                 preview_truncated=preview.truncated,
+                preview_reason=preview.reason,
+                preview_metadata=self._build_preview_metadata(child_path),
             )
 
-        return PaneState(directory_path=current_path, entries=())
+        return PaneState(
+            directory_path=current_path,
+            entries=(),
+            mode="preview",
+            preview_path=str(child_path),
+            preview_reason=preview.reason or "disabled",
+            preview_metadata=self._build_preview_metadata(child_path),
+        )
+
+    def _build_preview_metadata(
+        self,
+        path: Path,
+        *,
+        archive_entry_count: int | None = None,
+    ) -> PreviewMetadataState:
+        inspect_entry = getattr(self.filesystem, "inspect_entry", None)
+        entry = None
+        if inspect_entry is not None:
+            try:
+                entry = inspect_entry(str(path))
+            except OSError:
+                entry = None
+        mime_type, _encoding = mimetypes.guess_type(path.name)
+        return PreviewMetadataState(
+            display_name=entry.name if entry is not None else path.name,
+            type_label=mime_type or path.suffix.lstrip(".").upper() or "File",
+            size_bytes=entry.size_bytes if entry is not None else None,
+            modified_at=entry.modified_at if entry is not None else None,
+            permissions_mode=entry.permissions_mode if entry is not None else None,
+            owner=entry.owner if entry is not None else None,
+            group=entry.group if entry is not None else None,
+            symlink_target=entry.symlink_target if entry is not None else None,
+            archive_entry_count=archive_entry_count,
+        )
 
     def load_current_pane_snapshot(
         self,

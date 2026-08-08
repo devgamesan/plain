@@ -9,6 +9,7 @@ from zivo.models import BookmarkConfig, ExternalLaunchRequest
 from .actions import (
     Action,
     AddBookmark,
+    BeginConfigEditor,
     BeginShellCommandInput,
     CancelShellCommandInput,
     ConfigSaveCompleted,
@@ -39,7 +40,7 @@ from .effects import (
     RunConfigSaveEffect,
     RunShellCommandEffect,
 )
-from .models import AppState, NotificationState, ShellCommandState
+from .models import AppState, ConfigEditorState, NotificationState, ShellCommandState
 from .reducer_common import (
     ReducerFn,
     apply_config_to_runtime_state,
@@ -63,6 +64,25 @@ def handle_terminal_config_action(
     if handler is not None:
         return handler(state, action, reduce_state)  # type: ignore[arg-type]
     return None
+
+
+def _handle_begin_config_editor(
+    state: AppState,
+    action: BeginConfigEditor,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return finalize(
+        replace(
+            state,
+            ui_mode="CONFIG",
+            notification=None,
+            command_palette=None,
+            pending_file_search_request_id=None,
+            pending_grep_search_request_id=None,
+            attribute_inspection=None,
+            config_editor=ConfigEditorState(path=state.config_path, draft=state.config),
+        )
+    )
 
 
 def _notification_for_shell_command(result) -> tuple[str, str]:
@@ -625,6 +645,7 @@ def _handle_set_terminal_height(
 _TerminalConfigHandler = Callable[[AppState, Action, ReducerFn], ReduceResult]
 
 _TERMINAL_CONFIG_HANDLERS: dict[type[Action], _TerminalConfigHandler] = {
+    BeginConfigEditor: _handle_begin_config_editor,
     BeginShellCommandInput: _handle_begin_shell_command_input,
     DismissConfigEditor: _handle_dismiss_config_editor,
     CancelShellCommandInput: _handle_cancel_shell_command_input,

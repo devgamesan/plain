@@ -2,7 +2,13 @@
 
 from dataclasses import replace
 
-from zivo.models import CurrentSummaryState, ThreePaneShellData, TransferPaneViewState
+from zivo.models import (
+    CurrentSummaryState,
+    PaneActionViewState,
+    PaneStatusViewState,
+    ThreePaneShellData,
+    TransferPaneViewState,
+)
 
 from .entry_state_helpers import select_visible_entry_states
 from .models import AppState, PaneState, TransferPaneId
@@ -127,6 +133,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         current_pane_update=current_pane_update,
         current_summary=current_pane.summary,
         current_context_input=select_input_bar_state(state),
+        current_pane_status=_select_current_pane_status(state, current_pane.visible_entries),
         help=select_help_bar_state(state),
         command_palette=select_command_palette_state(state),
         status=select_status_bar_state(state),
@@ -155,6 +162,36 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         transfer_left=_select_transfer_pane(state, "left"),
         transfer_right=_select_transfer_pane(state, "right"),
     )
+
+
+def _select_current_pane_status(
+    state: AppState,
+    visible_entries,
+) -> PaneStatusViewState | None:
+    if (
+        state.pending_browser_snapshot_request_id is not None
+        and not state.current_pane.entries
+    ):
+        return PaneStatusViewState(kind="loading", title="Loading directory…")
+    if visible_entries:
+        return None
+    if state.filter.query:
+        return PaneStatusViewState(
+            kind="filtered_empty",
+            title=f'No matches for "{state.filter.query}"',
+            actions=(PaneActionViewState("clear_filter", "Clear filter", "Esc"),),
+        )
+    if not state.current_pane.entries:
+        return PaneStatusViewState(
+            kind="empty",
+            title="Empty directory",
+            detail="Create a file or directory to get started",
+            actions=(
+                PaneActionViewState("create_file", "Create file", "n"),
+                PaneActionViewState("create_directory", "Create directory", "N"),
+            ),
+        )
+    return PaneStatusViewState(kind="empty", title="No visible items")
 
 
 def _select_transfer_pane(

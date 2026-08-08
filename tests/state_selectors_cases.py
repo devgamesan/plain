@@ -45,6 +45,7 @@ from zivo.state import (
     PasteConflictState,
     PendingInputState,
     PendingKeySequenceState,
+    PreviewMetadataState,
     ReplacePreviewPaletteState,
     ReplacePreviewResultState,
     RffPaletteState,
@@ -397,8 +398,10 @@ def test_select_shell_data_hides_stale_preview_while_request_is_pending() -> Non
 
     shell = select_shell_data(state)
 
-    assert shell.child_pane.is_preview is False
-    assert shell.child_pane.entries == ()
+    assert shell.child_pane.is_preview is True
+    assert shell.child_pane.view_kind == "loading"
+    assert shell.child_pane.status is not None
+    assert shell.child_pane.status.title == "Loading preview…"
 
 
 def test_select_pane_entries_show_directory_sizes_from_cache() -> None:
@@ -3611,3 +3614,73 @@ def test_select_command_palette_state_grs_preview_title_with_counts() -> None:
     palette_state = select_command_palette_state(state)
     assert palette_state is not None
     assert palette_state.title == "Replace in Selected Files (1 file(s), 2 match(es)) (1-1 / 1)"
+
+
+def test_select_shell_data_distinguishes_empty_and_filtered_empty_directory() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        current_pane=PaneState(directory_path=state.current_path, entries=()),
+    )
+
+    shell = select_shell_data(state)
+    assert shell.current_pane_status is not None
+    assert shell.current_pane_status.kind == "empty"
+    assert [action.action_id for action in shell.current_pane_status.actions] == [
+        "create_file",
+        "create_directory",
+    ]
+    assert [action.shortcut for action in shell.current_pane_status.actions] == ["n", "N"]
+
+    filtered = replace(
+        state,
+        current_pane=PaneState(
+            directory_path=state.current_path,
+            entries=(DirectoryEntryState(f"{state.current_path}/README.md", "README.md", "file"),),
+        ),
+        filter=replace(state.filter, query="[report]", active=True),
+    )
+    filtered_shell = select_shell_data(filtered)
+    assert filtered_shell.current_pane_status is not None
+    assert filtered_shell.current_pane_status.kind == "filtered_empty"
+    assert filtered_shell.current_pane_status.title == 'No matches for "[report]"'
+    assert filtered_shell.current_pane_status.actions[0].action_id == "clear_filter"
+    assert filtered_shell.current_pane_status.actions[0].shortcut == "Esc"
+
+
+def test_select_shell_data_builds_typed_metadata_fallback() -> None:
+    state = build_initial_app_state()
+    target = f"{state.current_path}/data.bin"
+    state = replace(
+        state,
+        current_pane=PaneState(
+            directory_path=state.current_path,
+            entries=(DirectoryEntryState(target, "data.bin", "file"),),
+            cursor_path=target,
+        ),
+        child_pane=PaneState(
+            directory_path=state.current_path,
+            entries=(),
+            mode="preview",
+            preview_path=target,
+            preview_reason="unsupported",
+            preview_metadata=PreviewMetadataState(
+                display_name="data.bin",
+                type_label="BIN",
+                size_bytes=2048,
+                owner="alice",
+                group="staff",
+            ),
+        ),
+    )
+
+    fallback = select_shell_data(state).child_pane
+    assert fallback.view_kind == "unsupported"
+    assert fallback.status is not None
+    assert fallback.status.actions[0].action_id == "show_attributes"
+    assert [(item.label, item.value) for item in fallback.metadata] == [
+        ("Name", "data.bin"),
+        ("Type", "BIN"),
+        ("Size", "2.0KiB"),
+        ("Owner/group", "alice/staff"),
+    ]

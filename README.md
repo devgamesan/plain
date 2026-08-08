@@ -30,6 +30,7 @@ By default, it keeps actions relevant to the current state visible in the help b
 - **No memorization required**: relevant standard shortcuts are shown in the help bar
 - **Context-aware command palette**: press `:` to browse fixed Navigate, File, Search, View, System, and Custom actions sections
 - **Three-pane preview**: preview directories, text, images, PDF, and Office files
+- **Explicit pane states**: distinguish empty, filtered, loading, disabled, unsupported, dependency-missing, and permission-denied states; unavailable previews fall back to compact file metadata
 - **Transfer mode**: copy and move files between two directories side by side
 - **Search and grep**: find files, grep recursively, and open files from results
 - **Replace with preview**: choose a scope, review diffs, then apply a batch replacement
@@ -155,6 +156,8 @@ See [Commands](docs/commands.md) for the full command list.
 - **Replace**: one scope-aware flow for current file, selected files, directories, found files, and grep result files
 
 ### Preview
+
+Empty directories and zero-result filters show their reason and an available next action. The right pane shows loading state explicitly and, when content preview is unavailable, falls back to a compact summary such as type, size, modified time, permissions, owner/group, symlink target, or archive entry count. Missing optional commands are reported without crashing the application.
 - Text, images (chafa; optional Kitty graphics protocol on compatible terminals), PDF (pdftotext), Office (pandoc)
 
 ### Transfer mode

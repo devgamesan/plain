@@ -25,6 +25,7 @@ from .pane_rendering import (
     _render_file_entries,
     _resolve_component_styles,
 )
+from .pane_status import render_pane_status
 from .side_pane import SidePane
 
 _SGR_SEQUENCE_RE = re.compile(r"\x1b\[([0-9;]*)m")
@@ -54,6 +55,13 @@ class ChildPane(Vertical):
         def __init__(self, pane_id: str | None) -> None:
             super().__init__()
             self.pane_id = pane_id
+
+    class ActionClicked(Message):
+        """Notify the app that a fallback action was clicked."""
+
+        def __init__(self, action_id: str) -> None:
+            super().__init__()
+            self.action_id = action_id
 
     def __init__(
         self,
@@ -141,6 +149,11 @@ class ChildPane(Vertical):
         self._refresh_rendered_content()
 
     def on_click(self, event: events.Click) -> None:
+        action_id = event.style.meta.get("pane_action_id")
+        if action_id is not None:
+            event.stop()
+            self.post_message(self.ActionClicked(str(action_id)))
+            return
         if self._state.is_preview:
             event.stop()
             self.post_message(self.PreviewClicked(self.id))
@@ -345,6 +358,9 @@ class ChildPane(Vertical):
         render_width: int,
         chafa_override: str | None = None,
     ):
+        if state.status is not None:
+            return render_pane_status(state.status, state.metadata)
+
         if state.preview_message is not None:
             return Text(state.preview_message, style="italic dim")
 
@@ -616,6 +632,9 @@ class ChildPane(Vertical):
             state.preview_message,
             state.preview_start_line,
             state.preview_highlight_line,
+            state.view_kind,
+            state.status,
+            state.metadata,
         )
 
     @staticmethod
@@ -631,6 +650,9 @@ class ChildPane(Vertical):
                 state.preview_start_line,
                 state.preview_highlight_line,
                 state.syntax_theme,
+                state.view_kind,
+                state.status,
+                state.metadata,
             )
         return ("list", state.entries)
 

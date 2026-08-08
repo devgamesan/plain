@@ -24,6 +24,8 @@ zivo itself can be installed and started with `uv`, but some features depend on 
 | Image preview | `chafa` (Kitty graphics protocol on compatible terminals with `image_preview_mode = "kitty"` or `"auto"`) |
 | PDF preview | `pdftotext` / `poppler` |
 | Office preview | `pandoc` |
+
+These preview tools are optional. When one is unavailable, zivo names the missing command, keeps the application running, and shows compact metadata plus an available fallback action instead of a traceback.
 | Grep search | `ripgrep` |
 
 ### OS-specific installation examples

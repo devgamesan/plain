@@ -187,8 +187,7 @@ def _select_current_pane_status(
             title="Empty directory",
             detail="Create a file or directory to get started",
             actions=(
-                PaneActionViewState("create_file", "Create file", "n"),
-                PaneActionViewState("create_directory", "Create directory", "N"),
+                PaneActionViewState("create", "Create", ":"),
             ),
         )
     return PaneStatusViewState(kind="empty", title="No visible items")

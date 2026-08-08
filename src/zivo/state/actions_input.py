@@ -49,6 +49,11 @@ class BeginCreateInput:
 
 
 @dataclass(frozen=True)
+class CycleCreateKind:
+    """Toggle the file or directory type in the unified create flow."""
+
+
+@dataclass(frozen=True)
 class BeginSymlinkInput:
     """Enter symlink input mode for a single source path."""
 

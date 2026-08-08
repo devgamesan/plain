@@ -415,7 +415,7 @@ def test_create_space_dispatches_input_update() -> None:
         state,
         ui_mode="CREATE",
         pending_input=PendingInputState(
-            prompt="New file: ", value="new", cursor_pos=3, create_kind="file"
+            prompt="Name or path: ", value="new", cursor_pos=3, create_kind="file"
         ),
     )
 

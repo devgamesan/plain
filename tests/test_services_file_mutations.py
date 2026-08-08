@@ -476,6 +476,45 @@ def test_file_mutation_service_raises_create_directory_error() -> None:
         service.execute(CreatePathRequest(parent_dir="/tmp/zivo", name="docs", kind="dir"))
 
 
+def test_file_mutation_service_creates_missing_parents_for_nested_file(tmp_path) -> None:
+    service = LiveFileMutationService()
+
+    result = service.execute(
+        CreatePathRequest(
+            parent_dir=str(tmp_path), name="reports/2026/january.txt", kind="file"
+        )
+    )
+
+    target = tmp_path / "reports" / "2026" / "january.txt"
+    assert target.is_file()
+    assert result.path == str(target)
+    assert result.message == "Created file reports/2026/january.txt"
+
+
+def test_file_mutation_service_rejects_create_path_outside_parent(tmp_path) -> None:
+    service = LiveFileMutationService()
+
+    with pytest.raises(OSError, match="must stay within the current directory"):
+        service.execute(
+            CreatePathRequest(parent_dir=str(tmp_path), name="../escape.txt", kind="file")
+        )
+
+    assert not (tmp_path.parent / "escape.txt").exists()
+
+
+def test_file_mutation_service_keeps_created_parents_when_final_create_fails(tmp_path) -> None:
+    target = tmp_path / "reports" / "january.txt"
+    adapter = StubFileOperationAdapter(failing_paths={str(target)})
+    service = LiveFileMutationService(adapter=adapter)
+
+    with pytest.raises(OSError, match="created parent directories"):
+        service.execute(
+            CreatePathRequest(parent_dir=str(tmp_path), name="reports/january.txt", kind="file")
+        )
+
+    assert (tmp_path / "reports").is_dir()
+
+
 def test_file_mutation_service_reports_partial_delete_failures() -> None:
     adapter = StubFileOperationAdapter(failing_paths={"/tmp/zivo/src"})
     service = LiveFileMutationService(adapter=adapter)

@@ -1498,7 +1498,7 @@ def test_dismiss_name_conflict_restores_create_mode_and_keeps_input() -> None:
         build_initial_app_state(),
         ui_mode="CONFIRM",
         pending_input=PendingInputState(
-            prompt="New file: ",
+            prompt="Name or path: ",
             value="docs",
             create_kind="file",
         ),

@@ -27,6 +27,7 @@ from .reducer_config import (
     config_editor_labels,
     format_config_field_value,
 )
+from .reducer_pending_input import pending_input_parent_and_target
 from .selectors_shared import (
     _build_command_palette_items_view,
     _build_file_search_input_fields,
@@ -238,10 +239,8 @@ def select_input_dialog_state(state: AppState) -> InputDialogState | None:
         title = "Compress"
     elif state.ui_mode == "SYMLINK":
         title = "Create Symlink"
-    elif state.pending_input.create_kind == "file":
-        title = "New File"
     else:
-        title = "New Directory"
+        title = "Create"
     details: tuple[str, ...] = ()
     if state.ui_mode in {"CHMOD", "CHOWN"}:
         target_paths = (
@@ -286,6 +285,14 @@ def select_input_dialog_state(state: AppState) -> InputDialogState | None:
             f"Recursive: {'Yes' if recursive else 'No'}",
             "Symlinks are skipped and never followed.",
         )
+    elif state.ui_mode == "CREATE":
+        parent_path, target_path = pending_input_parent_and_target(state)
+        kind = "File" if state.pending_input.create_kind == "file" else "Directory"
+        details = (
+            f"Type: {kind} (Tab to switch)",
+            f"Parent directory: {parent_path or 'Unavailable'}",
+            f"Target: {target_path or 'Enter a relative path'}",
+        )
     return InputDialogState(
         title=title,
         prompt=state.pending_input.prompt,
@@ -297,6 +304,8 @@ def select_input_dialog_state(state: AppState) -> InputDialogState | None:
             else
             "tab complete | enter apply | esc cancel"
             if state.ui_mode == "SYMLINK"
+            else "tab switch type | enter apply | esc cancel"
+            if state.ui_mode == "CREATE"
             else "enter apply | esc cancel"
         ),
         details=details,

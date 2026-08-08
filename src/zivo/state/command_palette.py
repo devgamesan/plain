@@ -139,9 +139,8 @@ _COMMAND_METADATA: dict[str, CommandPaletteMetadata] = {
     "edit_config": CommandPaletteMetadata(
         "System", ("config", "settings", "preferences"), 90
     ),
-    "create_file": CommandPaletteMetadata("File", ("new", "file", "create", "touch"), 18),
-    "create_dir": CommandPaletteMetadata(
-        "File", ("new", "directory", "folder", "create", "mkdir"), 19
+    "create": CommandPaletteMetadata(
+        "File", ("new", "file", "directory", "folder", "create", "touch", "mkdir"), 18
     ),
     "transfer_copy_to_opposite_pane": CommandPaletteMetadata(
         "File", ("copy", "transfer", "other pane"), 20
@@ -629,15 +628,9 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                 enabled=True,
             ),
             CommandPaletteItem(
-                id="create_file",
-                label="Create file",
-                shortcut="n",
-                enabled=not is_search_workspace,
-            ),
-            CommandPaletteItem(
-                id="create_dir",
-                label="Create directory",
-                shortcut="N",
+                id="create",
+                label="Create",
+                shortcut=None,
                 enabled=not is_search_workspace,
             )
         ]
@@ -846,8 +839,7 @@ def _disabled_reason(state: AppState, item_id: str) -> str:
     if item_id in {
         "add_bookmark",
         "remove_bookmark",
-        "create_file",
-        "create_dir",
+        "create",
         "toggle_transfer_mode",
     }:
         return "Unavailable in Search Workspace"

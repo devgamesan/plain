@@ -84,23 +84,24 @@ TRANSFER_KEYMAP = {
 
 TRANSFER_HELP_LINES = (
     (
+        ("enter", "dir"),
+        (".", "hidden"),
         ("[ ]", "focus"),
-        ("y", "copy-to-pane"),
-        ("m", "move-to-pane"),
         ("p/Esc", "close"),
         ("q", "quit"),
     ),
     (
-        ("Space", "select"),
+        ("space", "select"),
         ("c", "copy"),
         ("x", "cut"),
         ("v", "paste"),
-        ("d", "trash"),
-        ("D", "permanent"),
+        ("y", "copy-to-pane"),
+        ("m", "move-to-pane"),
+        ("d", "delete"),
         ("r", "rename"),
         ("z", "undo"),
     ),
-    ((".", "hidden"), ("N", "new-dir"), (":", "palette")),
+    (("N", "new-dir"), (":", "palette")),
 )
 
 REMOVED_DIRECT_KEYS = frozenset({"i", "C", "B", "G", "M", "O", "T", "H", "R"})

@@ -69,6 +69,13 @@ Screen {
     scrollbar-size: 1 1;
 }
 
+.pane-preview-help {
+    height: 1;
+    padding: 0 1;
+    background: $surface;
+    color: $text-muted;
+}
+
 .pane-status {
     layer: status;
     height: 1fr;

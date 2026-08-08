@@ -11,8 +11,10 @@ from zivo.models import (
     CurrentPaneRowUpdate,
     CurrentPaneSizeUpdate,
     CurrentSummaryState,
+    HelpBarState,
     PaneEntry,
 )
+from zivo.ui.help_bar import HelpBar
 from zivo.ui.pane_rendering import _FileEntryLabelCache
 from zivo.ui.panes import (
     ChildPane,
@@ -43,6 +45,22 @@ def _style_map() -> dict[str, Style]:
         "ft-symlink-cut": Style.parse("bold cyan dim"),
         "ft-symlink-sel": Style.parse("bold cyan"),
     }
+
+
+def test_help_bar_keeps_three_rows_and_uses_tail_ellipsis() -> None:
+    state = HelpBarState(
+        (
+            "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit",
+            "space select | c copy | x cut | v paste | d delete | r rename | z undo",
+            "f find | g grep | n new-file | N new-dir | : palette",
+        )
+    )
+
+    rendered = HelpBar._render_text(state)
+
+    assert rendered.no_wrap is True
+    assert rendered.overflow == "ellipsis"
+    assert rendered.plain.count("\n") == 2
 
 
 def test_truncate_middle_keeps_text_when_width_is_sufficient() -> None:

@@ -99,6 +99,10 @@ class ChildPane(Vertical):
         return f"{self.id}-preview-scroll" if self.id else None
 
     @property
+    def preview_help_id(self) -> str | None:
+        return f"{self.id}-preview-help" if self.id else None
+
+    @property
     def permissions_id(self) -> str | None:
         return f"{self.id}-permissions" if self.id else None
 
@@ -131,8 +135,15 @@ class ChildPane(Vertical):
         preview_scroll.can_focus = True
         preview_scroll.display = self._state.is_preview
         list_content.display = not self._state.is_preview
+        preview_help = Label(
+            self._state.preview_scroll_hint or "",
+            id=self.preview_help_id,
+            classes="pane-preview-help",
+        )
+        preview_help.display = self._state.preview_scroll_hint is not None
         yield list_content
         yield preview_scroll
+        yield preview_help
         permissions = Static(
             self._state.permissions_label,
             id=self.permissions_id,
@@ -217,6 +228,16 @@ class ChildPane(Vertical):
         if mode_changed:
             list_widget.display = not state.is_preview
             scroll_widget.display = state.is_preview
+        try:
+            preview_help = self._preview_help_widget()
+        except NoMatches:
+            preview_help = None
+        if preview_help is not None and (
+            state.preview_scroll_hint != previous_state.preview_scroll_hint
+            or mode_changed
+        ):
+            preview_help.update(state.preview_scroll_hint or "")
+            preview_help.display = state.preview_scroll_hint is not None
         if state.permissions_label != previous_state.permissions_label:
             self._permissions_widget().update(state.permissions_label)
         if render_signature_changed or mode_changed:
@@ -339,6 +360,9 @@ class ChildPane(Vertical):
 
     def _preview_scroll_widget(self) -> VerticalScroll:
         return self.query_one(f"#{self.preview_scroll_id}", VerticalScroll)
+
+    def _preview_help_widget(self) -> Label:
+        return self.query_one(f"#{self.preview_help_id}", Label)
 
     def _permissions_widget(self) -> Static:
         return self.query_one(f"#{self.permissions_id}", Static)

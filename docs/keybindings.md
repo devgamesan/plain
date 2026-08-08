@@ -2,6 +2,20 @@
 
 Complete list of keybindings for all zivo modes.
 
+## Help Bar
+
+The three-row help bar keeps a stable order. Browsing uses these groups:
+
+1. `enter open`, `e edit`, `/ filter`, `s sort`, `. hidden`, `[ ] bk/fwd`, `q quit`
+2. `space select`, `c copy`, `x cut`, `v paste`, `d delete`, `r rename`, `z undo`
+3. `f find`, `g grep`, `n new-file`, `N new-dir`, `t term`, `: palette`
+
+Search Workspace shows `enter open`, `e edit`, `/ filter`, `s sort`, `. hidden`, `[ ] bk/fwd`, `q quit`, then `space select`, `c copy`, `z undo`, and `: palette`.
+
+Transfer shows `enter dir`, `. hidden`, `[ ] focus`, `p/Esc close`, `q quit`, then `space select`, `c copy`, `x cut`, `v paste`, `y copy-to-pane`, `m move-to-pane`, `d delete`, `r rename`, `z undo`, and finally `N new-dir`, `: palette`. `D` remains documented below but is intentionally omitted from the help bar.
+
+When a right-pane preview is active, its footer shows `Ctrl+J/K scroll preview`. Replace previews use `Shift+↑/↓ scroll preview`. `Ctrl+↑/↓` are aliases for normal preview scrolling. Narrow terminals keep three rows and elide lower-frequency items from the right.
+
 ---
 
 ## Normal Mode

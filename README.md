@@ -12,7 +12,7 @@
 
 zivo is a TUI file manager designed to be usable without memorizing dozens of shortcuts.
 
-By default, it keeps actions relevant to the current state visible in the help bar, and lets you run everything else from the command palette. You can browse, preview, search, grep, replace, and transfer files without leaving the terminal.
+By default, it keeps a stable, mode-specific set of standard shortcuts visible in the help bar, and lets you run lower-frequency actions from the command palette. You can browse, preview, search, grep, replace, and transfer files without leaving the terminal.
 
 ---
 
@@ -37,7 +37,7 @@ By default, it keeps actions relevant to the current state visible in the help b
 
 ---
 
-Browse directories across three panes while previewing files on the right. Use file search and grep to quickly jump to any file. The help bar follows the current state and standard keybindings, so you never feel lost.
+Browse directories across three panes while previewing files on the right. Use file search and grep to quickly jump to any file. The help bar keeps the important shortcuts in a predictable order, so you never feel lost.
 
 ![](docs/resources/basic_operation.gif)
 
@@ -99,7 +99,10 @@ zivo-cd
 
 ## Basic controls
 
-By default, actions relevant to the current state are shown in the help bar.
+The help bar keeps three logical rows with a stable order. Browsing shows navigation, file operations, and search/create actions. Search Workspace keeps only the available subset in the same relative order. Transfer adds pane focus and copy/move-to-pane actions to the corresponding groups. On narrow terminals, each row elides lower-frequency items from the right without adding extra rows.
+
+When a preview is active, the footer of the right pane shows `Ctrl+J/K scroll preview`. The replace-preview screen uses `Shift+↑/↓ scroll preview`; `Ctrl+↑/↓` is an alias for the normal preview controls.
+
 You can also press `:` to open the command palette and search for available actions.
 
 | Key | Action |

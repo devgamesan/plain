@@ -2,6 +2,20 @@
 
 zivo の全モードにおけるキーバインディング一覧です。
 
+## ヘルプバー
+
+ヘルプバーは3つの論理行を一定の順序で表示します。Browsing のグループは次の通りです。
+
+1. `enter open`、`e edit`、`/ filter`、`s sort`、`. hidden`、`[ ] bk/fwd`、`q quit`
+2. `space select`、`c copy`、`x cut`、`v paste`、`d delete`、`r rename`、`z undo`
+3. `f find`、`g grep`、`n new-file`、`N new-dir`、`t term`、`: palette`
+
+Search Workspace は `enter open`、`e edit`、`/ filter`、`s sort`、`. hidden`、`[ ] bk/fwd`、`q quit`、続いて `space select`、`c copy`、`z undo`、`: palette` を表示します。
+
+Transfer は `enter dir`、`. hidden`、`[ ] focus`、`p/Esc close`、`q quit`、続いて `space select`、`c copy`、`x cut`、`v paste`、`y copy-to-pane`、`m move-to-pane`、`d delete`、`r rename`、`z undo`、最後に `N new-dir`、`: palette` を表示します。`D` は下記のキーバインディングには残しますが、ヘルプバーには表示しません。
+
+右ペインでプレビュー中は、ペイン下部に `Ctrl+J/K scroll preview` を表示します。置換プレビューでは `Shift+↑/↓ scroll preview` を使用します。通常プレビューでは `Ctrl+↑/↓` も別名として使えます。狭い端末でも3行を維持し、各行の右端から低頻度の項目を省略します。
+
 ---
 
 ## 通常モード

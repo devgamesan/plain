@@ -1935,13 +1935,13 @@ def test_select_command_palette_state_filters_query() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
     state = replace(
         state,
-        command_palette=replace(state.command_palette, query="create dir"),
+            command_palette=replace(state.command_palette, query="create"),
     )
 
     palette_state = select_command_palette_state(state)
 
     assert palette_state is not None
-    assert [item.label for item in palette_state.items] == ["Create directory"]
+    assert [item.label for item in palette_state.items] == ["Create"]
 
 
 def test_select_command_palette_state_uses_hidden_toggle_label_from_state() -> None:
@@ -2550,16 +2550,18 @@ def test_select_input_bar_state_for_create_mode() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCreateInput("file"))
     state = replace(
         state,
-        pending_input=PendingInputState(prompt="New file: ", value="notes.txt", create_kind="file"),
+        pending_input=PendingInputState(
+            prompt="Name or path: ", value="notes.txt", create_kind="file"
+        ),
     )
 
     input_dialog = select_input_dialog_state(state)
 
     assert input_dialog is not None
-    assert input_dialog.title == "New File"
-    assert input_dialog.prompt == "New file: "
+    assert input_dialog.title == "Create"
+    assert input_dialog.prompt == "Name or path: "
     assert input_dialog.value == "notes.txt"
-    assert input_dialog.hint == "enter apply | esc cancel"
+    assert input_dialog.hint == "tab switch type | enter apply | esc cancel"
 
 
 def test_select_input_dialog_state_shows_recursive_safety_details() -> None:
@@ -3626,11 +3628,8 @@ def test_select_shell_data_distinguishes_empty_and_filtered_empty_directory() ->
     shell = select_shell_data(state)
     assert shell.current_pane_status is not None
     assert shell.current_pane_status.kind == "empty"
-    assert [action.action_id for action in shell.current_pane_status.actions] == [
-        "create_file",
-        "create_directory",
-    ]
-    assert [action.shortcut for action in shell.current_pane_status.actions] == ["n", "N"]
+    assert [action.action_id for action in shell.current_pane_status.actions] == ["create"]
+    assert [action.shortcut for action in shell.current_pane_status.actions] == [":"]
 
     filtered = replace(
         state,

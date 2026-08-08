@@ -3485,7 +3485,7 @@ async def test_app_palette_keeps_current_table_cursor_row() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_command_palette_create_file_opens_context_input() -> None:
+async def test_app_command_palette_create_opens_context_input() -> None:
     path = str(Path("/tmp/zivo-command-palette-create").resolve())
     loader = FakeBrowserSnapshotLoader(
         snapshots={
@@ -3510,9 +3510,9 @@ async def test_app_command_palette_create_file_opens_context_input() -> None:
         assert app.app_state.ui_mode == "CREATE"
         assert input_dialog.display is True
         assert input_dialog.state is not None
-        assert input_dialog.state.title == "New File"
-        assert input_dialog.state.prompt == "New file: "
-        assert input_dialog.state.hint == "enter apply | esc cancel"
+        assert input_dialog.state.title == "Create"
+        assert input_dialog.state.prompt == "Name or path: "
+        assert input_dialog.state.hint == "tab switch type | enter apply | esc cancel"
 
 
 @pytest.mark.asyncio
@@ -5797,8 +5797,8 @@ async def test_app_create_name_conflict_dialog_returns_to_input(tmp_path) -> Non
         assert dialog.display is False
         assert input_dialog.display is True
         assert input_dialog.state is not None
-        assert input_dialog.state.title == "New File"
-        assert input_dialog.state.prompt == "New file: "
+        assert input_dialog.state.title == "Create"
+        assert input_dialog.state.prompt == "Name or path: "
         assert input_dialog.state.value == "docs"
 
 
@@ -6427,9 +6427,9 @@ async def test_app_renders_empty_directory_action_and_routes_it_to_create_flow()
         status = app.query_one("#current-pane-status", Static)
         assert status.display is True
         assert "Empty directory" in str(status.renderable)
-        assert "[n] Create file" in str(status.renderable)
+        assert "[:] Create" in str(status.renderable)
 
-        await app.on_main_pane_action_clicked(MainPane.ActionClicked("create_file"))
+        await app.on_main_pane_action_clicked(MainPane.ActionClicked("create"))
 
         assert app.app_state.ui_mode == "CREATE"
         assert app.app_state.pending_input is not None

@@ -479,12 +479,8 @@ def _run_edit_config_command(state: AppState) -> ReduceResult:
     )
 
 
-def _run_create_file_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
+def _run_create_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
     return reduce_state(state, BeginCreateInput("file"))
-
-
-def _run_create_dir_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
-    return reduce_state(state, BeginCreateInput("dir"))
 
 
 def _run_exit_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
@@ -624,10 +620,8 @@ def _run_palette_command_item(
         return _run_toggle_hidden_command(next_state, reduce_state)
     if item_id == "edit_config":
         return _run_edit_config_command(state)
-    if item_id == "create_file":
-        return _run_create_file_command(next_state, reduce_state)
-    if item_id == "create_dir":
-        return _run_create_dir_command(next_state, reduce_state)
+    if item_id == "create":
+        return _run_create_command(next_state, reduce_state)
     return finalize(next_state)
 
 

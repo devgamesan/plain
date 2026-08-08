@@ -22,6 +22,7 @@ from .actions import (
     ConfirmSymlinkOverwrite,
     ConfirmZipCompress,
     CycleConfigEditorValue,
+    CycleCreateKind,
     DeletePendingInputForward,
     DismissAboutDialog,
     DismissAttributeDialog,
@@ -166,6 +167,9 @@ def dispatch_input_dialog_input(
 
     if key == "tab" and state.ui_mode in {"CHMOD", "CHOWN"}:
         return supported(TogglePendingInputRecursive())
+
+    if key == "tab" and state.ui_mode == "CREATE":
+        return supported(CycleCreateKind())
 
     if key == "enter":
         return supported(SubmitPendingInput())

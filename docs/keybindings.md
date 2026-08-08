@@ -26,8 +26,8 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 | `v` | Paste from clipboard |
 | `z` | Undo the last reversible file operation |
 | `r` | Rename selected item |
-| `n` | Create new file |
-| `N` | Create new directory |
+| `n` | Open Create with File selected |
+| `N` | Open Create with Directory selected |
 | `d` | Move selected items to trash |
 | `D` | Permanently delete selected items |
 | `Delete` | Move selected items to trash (fn + Delete on macOS) |

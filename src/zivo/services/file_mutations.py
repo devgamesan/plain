@@ -3,7 +3,7 @@
 import os
 import stat
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from time import sleep
 from typing import Mapping, Protocol
 
@@ -102,14 +102,40 @@ class LiveFileMutationService:
         )
 
     def _execute_create(self, request: CreatePathRequest) -> FileMutationResult:
-        target_path = _absolute_entry_path(request.parent_dir) / request.name
+        target_path = _resolve_create_target(request.parent_dir, request.name)
+        created_parents = self._create_missing_parent_directories(target_path)
         if request.kind == "file":
-            self.adapter.create_file(str(target_path))
+            try:
+                self.adapter.create_file(str(target_path))
+            except OSError as error:
+                raise _create_error_with_created_parents(error, created_parents) from error
             message = f"Created file {request.name}"
         else:
-            self.adapter.create_directory(str(target_path))
+            try:
+                self.adapter.create_directory(str(target_path))
+            except OSError as error:
+                raise _create_error_with_created_parents(error, created_parents) from error
             message = f"Created directory {request.name}"
         return FileMutationResult(path=str(target_path), message=message)
+
+    def _create_missing_parent_directories(self, target_path: Path) -> tuple[Path, ...]:
+        """Create absent ancestors only; never roll back paths created before an error."""
+
+        missing: list[Path] = []
+        parent = target_path.parent
+        while not parent.exists():
+            missing.append(parent)
+            parent = parent.parent
+        if not parent.is_dir():
+            raise OSError(f"Target parent is not a directory: {parent}")
+        created: list[Path] = []
+        try:
+            for directory in reversed(missing):
+                directory.mkdir()
+                created.append(directory)
+        except OSError as error:
+            raise _create_error_with_created_parents(error, tuple(created)) from error
+        return tuple(created)
 
     def _execute_symlink(self, request: CreateSymlinkRequest) -> FileMutationResult:
         source_path = _absolute_entry_path(request.source_path)
@@ -514,6 +540,35 @@ def _format_owner_group(owner: str | None, group: str | None) -> str:
     if group is not None:
         return f":{group}"
     return "<unchanged>"
+
+
+def _create_error_with_created_parents(
+    error: OSError, created_parents: tuple[Path, ...]
+) -> OSError:
+    """Preserve an execution error while telling the user which parents remain."""
+
+    if not created_parents:
+        return OSError(str(error) or "Create failed")
+    paths = ", ".join(str(path) for path in created_parents)
+    return OSError(f"{str(error) or 'Create failed'}; created parent directories: {paths}")
+
+
+def _resolve_create_target(parent_dir: str, name: str) -> Path:
+    """Defend the mutation boundary against absolute and escaping create paths."""
+
+    if Path(name).is_absolute() or PureWindowsPath(name).is_absolute():
+        raise OSError("Name or path must be relative")
+    base_path = _absolute_entry_path(parent_dir)
+    target_path = Path(os.path.abspath(base_path / name))
+    try:
+        target_path.relative_to(base_path)
+    except ValueError as error:
+        raise OSError("Name or path must stay within the current directory") from error
+    try:
+        target_path.resolve(strict=False).relative_to(base_path.resolve(strict=False))
+    except ValueError as error:
+        raise OSError("Name or path must stay within the current directory") from error
+    return target_path
 
 
 def _build_chown_result(

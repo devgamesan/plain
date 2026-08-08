@@ -16,6 +16,7 @@ from .actions_input import (
     CancelShellCommandInput,
     ConfirmFilterInput,
     CycleConfigEditorValue,
+    CycleCreateKind,
     DeletePendingInputForward,
     DismissAboutDialog,
     DismissAttributeDialog,
@@ -72,6 +73,7 @@ __all__ = [
     "BeginChmodInput",
     "BeginChownInput",
     "BeginCreateInput",
+    "CycleCreateKind",
     "BeginConfigEditor",
     "BeginExtractArchiveInput",
     "BeginFilterInput",
@@ -340,6 +342,7 @@ Action = (
     | BeginChownInput
     | BeginRenameInput
     | BeginCreateInput
+    | CycleCreateKind
     | BeginConfigEditor
     | BeginSymlinkInput
     | BeginExtractArchiveInput

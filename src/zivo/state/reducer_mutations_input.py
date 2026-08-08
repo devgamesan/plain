@@ -19,6 +19,7 @@ from .actions import (
     CancelPendingInput,
     CancelSymlinkOverwriteConfirmation,
     ConfirmSymlinkOverwrite,
+    CycleCreateKind,
     DeletePendingInputForward,
     DismissNameConflict,
     MovePendingInputCursor,
@@ -336,14 +337,13 @@ def _handle_begin_create_input(state, action, reduce_state):
             message="Cannot create files in search workspace",
         )
 
-    prompt = "New file: " if action.kind == "file" else "New directory: "
     return finalize(
         replace(
             state,
             ui_mode="CREATE",
             notification=None,
             pending_input=PendingInputState(
-                prompt=prompt,
+                prompt="Name or path: ",
                 create_kind=action.kind,
             ),
             command_palette=None,
@@ -359,6 +359,13 @@ def _handle_begin_create_input(state, action, reduce_state):
             attribute_inspection=None,
         )
     )
+
+
+def _handle_cycle_create_kind(state, action, reduce_state):
+    if state.ui_mode != "CREATE" or state.pending_input is None:
+        return finalize(state)
+    kind = "dir" if state.pending_input.create_kind == "file" else "file"
+    return finalize(replace(state, pending_input=replace(state.pending_input, create_kind=kind)))
 
 
 def _handle_set_pending_input_value(state, action, reduce_state):
@@ -607,6 +614,7 @@ INPUT_MUTATION_HANDLERS: dict[type, MutationHandler] = {
     BeginZipCompressInput: _handle_begin_zip_compress_input,
     BeginRenameInput: _handle_begin_rename_input,
     BeginCreateInput: _handle_begin_create_input,
+    CycleCreateKind: _handle_cycle_create_kind,
     BeginSymlinkInput: _handle_begin_symlink_input,
     SetPendingInputValue: _handle_set_pending_input_value,
     TogglePendingInputRecursive: _handle_toggle_pending_input_recursive,

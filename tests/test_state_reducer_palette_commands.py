@@ -115,16 +115,16 @@ def test_set_command_palette_query_resets_cursor() -> None:
     assert next_state.command_palette.query == "dir"
     assert next_state.command_palette.cursor_index == 0
 
-def test_submit_command_palette_runs_create_file_flow() -> None:
+def test_submit_command_palette_runs_unified_create_flow() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("create file"))
+    state = _reduce_state(state, SetCommandPaletteQuery("create"))
 
     next_state = _reduce_state(state, SubmitCommandPalette())
 
     assert next_state.ui_mode == "CREATE"
     assert next_state.command_palette is None
     assert next_state.pending_input == PendingInputState(
-        prompt="New file: ",
+        prompt="Name or path: ",
         value="",
         create_kind="file",
     )

@@ -41,9 +41,10 @@ def _guess_preview_lexer(path: str) -> str:
 def build_entry_label(entry: PaneEntry) -> str:
     """Return the complete entry label before width-based truncation."""
 
+    name = f"{entry.name}{entry.type_marker}"
     if entry.name_detail is None:
-        return entry.name
-    return f"{entry.name}  ({entry.name_detail})"
+        return name
+    return f"{name}  ({entry.name_detail})"
 
 
 def truncate_middle(text: str, max_width: int) -> str:

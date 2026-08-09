@@ -161,6 +161,7 @@ sequenceDiagram
 - Mounts and refreshes the widget tree for the three-pane browser, dialogs, and split terminal
 - Applies selector-generated view models to widgets
 - Handles split-terminal focus and terminal-size synchronization
+- Active-pane styling is shown only while a pane accepts `BROWSING` / `FILTER` input. Normal browsing uses a round accent border and heading color, while Transfer uses the stronger heavy accent border and filled heading. Row state remains color-independent with `>` (cursor), `*` (selected), and `x` (cut) in the two-slot state column, plus `@` (symlink) and `*` (executable) as name suffixes; cut takes precedence over selection
 
 ### `src/zivo/state/input.py`
 
@@ -208,6 +209,7 @@ sequenceDiagram
 - Builds `ThreePaneShellData` from `AppState`
 - Applies filter, sort, and directory-size display only to the main pane, while parent and child panes remain fixed-order
 - In transfer mode, builds display models for two `MainPane` instances and leaves Parent / Child / Preview out of the visible layout
+- Central and transfer-pane headings use `PaneHeadingState` to keep role, target name, item count, selected count, sort label, and active state in one selector-owned model
 - Formats display text for the help bar, status bar, input bar, command palette, conflict dialog, attribute dialog, config dialog, and split terminal
 - Summarizes busy state, extraction progress, search errors, and notifications for the UI
 

@@ -15,7 +15,7 @@ Screen {
 .pane {
     height: 1fr;
     min-width: 20;
-    border: round $surface;
+    border: round $panel;
     background: $boost;
 }
 
@@ -37,15 +37,37 @@ Screen {
     border: heavy $accent;
 }
 
+.active-pane {
+    border: heavy $accent;
+}
+
+.browser-active-pane {
+    border: round $accent;
+}
+
 #child-pane {
     width: 2.2fr;
 }
 
 .pane-title {
     height: 1;
+    width: 1fr;
     padding: 0 1;
     background: $surface;
     color: $text-muted;
+    text-style: bold;
+    overflow: hidden;
+}
+
+.active-pane .pane-title {
+    background: $accent;
+    color: $text;
+    text-style: bold;
+}
+
+.browser-active-pane .pane-title {
+    background: $surface;
+    color: $accent;
     text-style: bold;
 }
 
@@ -58,6 +80,11 @@ Screen {
 .pane-table {
     scrollbar-size: 0 0;
     layer: content;
+}
+
+.pane-content {
+    height: 1fr;
+    layers: content status;
 }
 
 .pane-preview {
@@ -91,9 +118,11 @@ Screen {
 
 .pane-summary {
     height: 1;
+    width: 1fr;
     padding: 0 1;
     background: $surface;
     color: $text;
+    overflow: hidden;
 }
 
 #tab-bar,

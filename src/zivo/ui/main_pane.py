@@ -18,6 +18,7 @@ from zivo.models.shell_data import (
     CurrentSummaryState,
     InputBarState,
     PaneEntry,
+    PaneHeadingState,
     PaneStatusViewState,
 )
 
@@ -60,17 +61,17 @@ class _MainPaneDataTable(DataTable):
 class MainPane(Vertical):
     """Center pane with detailed columns for the current directory."""
 
-    COLUMN_LABELS = ("Sel", "Name", "Size", "Modified")
+    COLUMN_LABELS = ("St", "Name", "Size", "Modified")
     COLUMN_KEYS = ("sel", "name", "size", "modified")
     COMPONENT_CLASSES = FILE_TYPE_COMPONENT_CLASSES
     NAME_MIN_WIDTH = 3
     FIXED_COLUMN_PREFERRED_WIDTHS = {
-        "sel": 1,
+        "sel": 2,
         "size": 9,
         "modified": 16,
     }
     FIXED_COLUMN_MIN_WIDTHS = {
-        "sel": 1,
+        "sel": 2,
         "size": 4,
         "modified": 5,
     }
@@ -108,12 +109,14 @@ class MainPane(Vertical):
         cursor_visible: bool = True,
         context_input: InputBarState | None = None,
         status: PaneStatusViewState | None = None,
+        heading: PaneHeadingState | None = None,
         *,
         id: str | None = None,
         classes: str | None = None,
     ) -> None:
         super().__init__(id=id, classes=classes)
         self._title = title
+        self._heading = heading
         self._entries = tuple(entries)
         self._path_row_index = self._build_path_row_index(self._entries)
         self._summary = summary
@@ -143,18 +146,17 @@ class MainPane(Vertical):
         return f"{self.id}-summary-bar" if self.id else None
 
     def compose(self) -> ComposeResult:
-        yield Label(self._title, classes="pane-title")
+        yield Label(self._heading_text(), classes="pane-title")
         yield SummaryBar(self._summary, id=self.summary_id, classes="pane-summary")
         yield InputBar(self._context_input, id=self.context_input_id, classes="pane-context-input")
         table = _MainPaneDataTable(id=self.table_id, classes="pane-table")
-        yield table
         status = Static(
             render_pane_status(self._status),
             id=f"{self.id}-status" if self.id else None,
             classes="pane-status",
         )
         status.display = self._status is not None
-        yield status
+        yield Vertical(table, status, classes="pane-content")
 
     def on_mount(self) -> None:
         """Populate the table after the widget is attached to an app."""
@@ -224,6 +226,7 @@ class MainPane(Vertical):
             return
 
         previous_entries = self._entries
+        previous_cursor_index = self._cursor_index
         self._entries = next_entries
         self._path_row_index = self._build_path_row_index(self._entries)
         self._cursor_index = cursor_index
@@ -234,6 +237,8 @@ class MainPane(Vertical):
             else:
                 self._update_changed_rows(table, previous_entries, next_entries)
             self._clear_hover_cursor(table)
+        if cursor_changed and not entries_changed:
+            self._update_cursor_markers(table, previous_cursor_index, self._cursor_index)
         if entries_changed or cursor_changed:
             self._apply_cursor_state(table)
 
@@ -251,10 +256,27 @@ class MainPane(Vertical):
         if not force_sync and not cursor_changed and not visibility_changed:
             return
 
+        previous_cursor_index = self._cursor_index
         self._cursor_index = cursor_index
         self._cursor_visible = cursor_visible
         table = self.query_one(DataTable)
+        if cursor_changed:
+            self._update_cursor_markers(table, previous_cursor_index, cursor_index)
         self._apply_cursor_state(table)
+
+    def set_heading(self, heading: PaneHeadingState | None) -> None:
+        """Update the semantic pane heading without remounting the pane."""
+
+        if heading == self._heading:
+            return
+        self._heading = heading
+        self.query_one(".pane-title", Label).update(self._heading_text())
+
+    def _heading_text(self) -> str:
+        if self._heading is None:
+            return self._title
+        marker = ">" if self._heading.active else " "
+        return f"{marker} {self._heading.role} — {self._heading.target_name}"
 
     def _sync_cursor(self, table: DataTable) -> None:
         if not self._entries or self._cursor_index is None:
@@ -355,7 +377,8 @@ class MainPane(Vertical):
         table = self.query_one(DataTable)
         column_widths = self._allocate_column_widths(table)
         for row_key, entry in changed_rows:
-            next_cells = self._build_row_cells(entry, column_widths)
+            row_index = self._path_row_index.get(entry.path)
+            next_cells = self._build_row_cells(entry, column_widths, row_index=row_index)
             for column_key, next_cell in zip(
                 self.COLUMN_KEYS,
                 next_cells,
@@ -400,7 +423,7 @@ class MainPane(Vertical):
         ):
             if previous_entry == next_entry:
                 continue
-            next_cells = self._build_row_cells(next_entry, column_widths)
+            next_cells = self._build_row_cells(next_entry, column_widths, row_index=index)
             row_key = self._slot_row_key(index)
             for column_key, next_cell in zip(
                 self.COLUMN_KEYS,
@@ -428,7 +451,7 @@ class MainPane(Vertical):
         )
         for index, entry in enumerate(self._entries):
             table.add_row(
-                *self._build_row_cells(entry, column_widths),
+                *self._build_row_cells(entry, column_widths, row_index=index),
                 key=self._slot_row_key(index),
             )
         self._last_table_width = table.size.width
@@ -466,9 +489,14 @@ class MainPane(Vertical):
         self,
         entry: PaneEntry,
         column_widths: dict[str, int],
+        *,
+        row_index: int | None = None,
     ) -> tuple[Text, Text, Text, Text]:
         return (
-            self._render_cell(entry.selection_marker, entry),
+            self._render_cell(
+                entry.state_marker(cursor=row_index == self._cursor_index, max_width=2),
+                entry,
+            ),
             self._render_cell(
                 truncate_middle(build_entry_label(entry), column_widths["name"]),
                 entry,
@@ -476,6 +504,30 @@ class MainPane(Vertical):
             self._render_cell(entry.size_label, entry),
             self._render_cell(entry.modified_label, entry),
         )
+
+    def _update_cursor_markers(
+        self,
+        table: DataTable,
+        previous_index: int | None,
+        next_index: int | None,
+    ) -> None:
+        """Refresh only state cells affected by a cursor move."""
+
+        for row_index in {previous_index, next_index}:
+            if row_index is None or not 0 <= row_index < len(self._entries):
+                continue
+            entry = self._entries[row_index]
+            try:
+                table.update_cell(
+                    self._slot_row_key(row_index),
+                    "sel",
+                    self._render_cell(
+                        entry.state_marker(cursor=row_index == next_index, max_width=2),
+                        entry,
+                    ),
+                )
+            except KeyError:
+                continue
 
     @classmethod
     def _allocate_column_widths(cls, table: DataTable) -> dict[str, int]:

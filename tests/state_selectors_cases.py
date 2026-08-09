@@ -2304,6 +2304,7 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
     assert "> Theme: textual-dark" in dialog.lines
     assert "  Text preview: true" in dialog.lines
     assert "  Image preview: true" in dialog.lines
+    assert "  Preview syntax theme: auto" in dialog.lines
     assert "  ── Sorting ──" in dialog.lines
     assert "  Default sort field: name" in dialog.lines
     assert "  ── Selected Setting ──" in dialog.lines

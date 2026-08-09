@@ -90,10 +90,16 @@ class BulkRenameDialog(Container):
             status = row.status.title()
             if row.message:
                 status += f": {row.message}"
-            new_name = row.new_name
+            old_name = row.old_name[:24].ljust(24)
             if row.editing:
-                new_name = _render_cursor(new_name, row.cursor_pos)
-            text.append(f"{marker} {row.old_name:<24.24} {new_name:<24.24} {status}\n")
+                new_name = _render_cursor(row.new_name, row.cursor_pos)
+                new_name.truncate(24, overflow="ellipsis")
+                new_name.append(" " * max(0, 24 - len(new_name.plain)))
+            else:
+                new_name = Text(row.new_name[:24].ljust(24))
+            text.append(f"{marker} {old_name} ")
+            text.append(new_name)
+            text.append(f" {status}\n")
         text.rstrip()
         return text
 

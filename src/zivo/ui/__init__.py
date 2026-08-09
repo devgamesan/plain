@@ -13,6 +13,7 @@ from .shell_command_dialog import ShellCommandDialog
 from .status_bar import StatusBar
 from .summary_bar import SummaryBar
 from .tab_bar import TabBar
+from .transfer_header import TransferHeaderBar
 
 __all__ = [
     "AttributeDialog",
@@ -30,4 +31,5 @@ __all__ = [
     "StatusBar",
     "SummaryBar",
     "TabBar",
+    "TransferHeaderBar",
 ]

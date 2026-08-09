@@ -1389,15 +1389,13 @@ def test_select_help_bar_for_transfer_mode_prioritizes_transfer_actions() -> Non
     help_state = select_help_bar_state(state)
 
     assert help_state.lines == (
-        "enter dir | . hidden | [ ] focus | p/Esc close | q quit",
-        "space select | c copy | x cut | v paste | y copy-to-pane | "
-        "m move-to-pane | d delete | r rename | z undo",
+        "enter dir | . hidden | Tab switch-pane | p/Esc close | q quit",
+        "space select | c copy-to-pane | m move-to-pane | d delete | r rename | z undo",
         "N new-dir | : palette",
     )
     assert help_state.text == (
-        "enter dir | . hidden | [ ] focus | p/Esc close | q quit\n"
-        "space select | c copy | x cut | v paste | y copy-to-pane | "
-        "m move-to-pane | d delete | r rename | z undo\n"
+        "enter dir | . hidden | Tab switch-pane | p/Esc close | q quit\n"
+        "space select | c copy-to-pane | m move-to-pane | d delete | r rename | z undo\n"
         "N new-dir | : palette"
     )
 

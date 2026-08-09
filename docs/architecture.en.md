@@ -181,8 +181,8 @@ sequenceDiagram
 
 ### `src/zivo/state/reducer_transfer.py`
 
-- Handles two-pane transfer mode open / close, left-right focus, and movement / selection inside each transfer pane
-- Reuses the existing `PasteRequest` and clipboard paste effect for copy / move into the opposite pane
+- Handles two-pane transfer mode open / close, Tab-driven pane focus, and movement / selection inside each transfer pane
+- Reuses the existing `PasteRequest` (tagged `origin="transfer"`) and clipboard paste effect for Copy / Move into the opposite pane
 - Owns transfer-pane directory snapshot loading and reloads both transfer panes after paste completion
 
 ### `src/zivo/state/reducer_mutations.py`
@@ -336,7 +336,7 @@ Notes:
 - Switches sort by name (natural sort: numeric runs ordered by value) / modified time / size and toggles directories-first ordering
 - Shows recursive directory sizes for visible directories when needed
 - Supports selection toggle, clear selection, copy / cut / paste
-- Supports left-right focus, copy / move between panes, and existing clipboard paste in two-pane transfer mode
+- Supports Tab pane focus, Copy / Move between panes, and a transfer header showing direction and counts in two-pane transfer mode
 - Detects paste conflicts and resolves them with overwrite / skip / rename
 - Renames a single target
 - Creates files and directories

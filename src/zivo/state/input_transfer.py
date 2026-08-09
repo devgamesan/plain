@@ -1,9 +1,6 @@
 """Keyboard handling for the two-pane transfer layout."""
 
 from .actions import (
-    ActivateNextTab,
-    ActivatePreviousTab,
-    ActivateTabByIndex,
     BeginBookmarkSearch,
     BeginCommandPalette,
     BeginCreateInput,
@@ -11,9 +8,6 @@ from .actions import (
     BeginExitCurrentPath,
     BeginRenameInput,
     ClearTransferSelection,
-    CloseCurrentTab,
-    CopyTargets,
-    CutTargets,
     EnterTransferDirectory,
     FocusTransferPane,
     GoToTransferHome,
@@ -22,8 +16,6 @@ from .actions import (
     MoveTransferCursor,
     MoveTransferCursorAndSelectRange,
     MoveTransferCursorByPage,
-    OpenNewTab,
-    PasteClipboardToTransferPane,
     SelectAllVisibleTransferEntries,
     ToggleHiddenFiles,
     ToggleTransferMode,
@@ -44,14 +36,8 @@ TRANSFER_KEYMAP = {
     "d",
     "delete",
     "shift+delete",
-    "o",
     "r",
-    "v",
-    "w",
-    "x",
     "~",
-    "[",
-    "]",
     "up",
     "down",
     "j",
@@ -70,7 +56,6 @@ TRANSFER_KEYMAP = {
     "right",
     "h",
     "left",
-    "y",
     "m",
     ".",
     "z",
@@ -86,16 +71,13 @@ TRANSFER_HELP_LINES = (
     (
         ("enter", "dir"),
         (".", "hidden"),
-        ("[ ]", "focus"),
+        ("Tab", "switch-pane"),
         ("p/Esc", "close"),
         ("q", "quit"),
     ),
     (
         ("space", "select"),
-        ("c", "copy"),
-        ("x", "cut"),
-        ("v", "paste"),
-        ("y", "copy-to-pane"),
+        ("c", "copy-to-pane"),
         ("m", "move-to-pane"),
         ("d", "delete"),
         ("r", "rename"),
@@ -105,6 +87,10 @@ TRANSFER_HELP_LINES = (
 )
 
 REMOVED_DIRECT_KEYS = frozenset({"i", "C", "B", "G", "M", "O", "T", "H", "R"})
+
+# Keys removed from transfer-mode direct operation, consolidated into Tab/c/m.
+# Kept separate from REMOVED_DIRECT_KEYS because x/v stay valid in browsing mode.
+TRANSFER_REMOVED_DIRECT_KEYS = frozenset({"x", "v", "y", "[", "]"})
 
 
 def dispatch_transfer_input(
@@ -122,18 +108,13 @@ def dispatch_transfer_input(
     if key in REMOVED_DIRECT_KEYS:
         return ()
 
-    direct_tab_actions = _dispatch_direct_tab_input(state, key=key)
-    if direct_tab_actions:
-        return direct_tab_actions
+    if key in TRANSFER_REMOVED_DIRECT_KEYS:
+        return ()
 
-    if key == "tab":
-        return supported(ActivateNextTab())
-    if key == "shift+tab":
-        return supported(ActivatePreviousTab())
-    if key == "[":
-        return supported(FocusTransferPane("left"))
-    if key == "]":
-        return supported(FocusTransferPane("right"))
+    # Only two panes exist, so Tab and shift+tab both focus the opposite pane.
+    if key in {"tab", "shift+tab"}:
+        opposite = "right" if state.active_transfer_pane == "left" else "left"
+        return supported(FocusTransferPane(opposite))
     if key in {"up", "k"}:
         return supported(MoveTransferCursor(delta=-1, visible_paths=visible_paths))
     if key in {"down", "j"}:
@@ -183,7 +164,7 @@ def dispatch_transfer_input(
         return supported(GoToTransferParent())
     if key == "~":
         return supported(GoToTransferHome())
-    if key == "y":
+    if key == "c":
         return supported(TransferCopyToOppositePane())
     if key == "m":
         return supported(TransferMoveToOppositePane())
@@ -199,11 +180,6 @@ def dispatch_transfer_input(
         return supported(ToggleTransferMode())
     if key == "q":
         return supported(BeginExitCurrentPath())
-
-    if key == "o":
-        return supported(OpenNewTab())
-    if key == "w":
-        return supported(CloseCurrentTab())
 
     if key == "N":
         return supported(BeginCreateInput("dir"))
@@ -238,39 +214,10 @@ def dispatch_transfer_input(
             return warn("Rename requires a single target")
         return supported(BeginRenameInput(target_paths[0]))
 
-    if key == "c":
-        selected_paths = tuple(
-            path
-            for path in visible_paths
-            if path in transfer.pane.selected_paths
-        )
-        target_paths = selected_paths if selected_paths else (
-            (transfer.pane.cursor_path,) if transfer.pane.cursor_path else ()
-        )
-        if not target_paths:
-            return warn("Nothing to copy")
-        return supported(CopyTargets(target_paths))
-
-    if key == "x":
-        selected_paths = tuple(
-            path
-            for path in visible_paths
-            if path in transfer.pane.selected_paths
-        )
-        target_paths = selected_paths if selected_paths else (
-            (transfer.pane.cursor_path,) if transfer.pane.cursor_path else ()
-        )
-        if not target_paths:
-            return warn("Nothing to cut")
-        return supported(CutTargets(target_paths))
-
-    if key == "v":
-        return supported(PasteClipboardToTransferPane())
-
     return warn(
-        "Use [], space, c copy, x cut, v paste, y copy-to-pane, "
-        "m move-to-pane, d trash, D permanent-delete, r rename, z undo, b bookmarks, "
-        ". hidden, o new-tab, w close-tab, or p/Esc to close"
+        "Use Tab to switch pane, space select, c copy-to-pane, "
+        "m move-to-pane, d trash, D permanent-delete, r rename, z undo, "
+        "b bookmarks, . hidden, N new-dir, : palette, or p/Esc to close"
     )
 
 
@@ -290,14 +237,3 @@ def _visible_paths(state: AppState, pane: PaneState) -> tuple[str, ...]:
             state.sort,
         )
     )
-
-
-def _dispatch_direct_tab_input(state: AppState, *, key: str) -> DispatchedActions:
-    if len(key) != 1 or not key.isdigit():
-        return ()
-
-    tab_number = 10 if key == "0" else int(key)
-    tab_count = len(state.browser_tabs) if state.browser_tabs else 1
-    if tab_number > tab_count:
-        return warn(f"Tab {tab_number} is not open")
-    return supported(ActivateTabByIndex(tab_number - 1))

@@ -3195,7 +3195,7 @@ async def test_app_transfer_mode_refreshes_left_cursor_and_focuses_right_pane() 
         assert app.app_state.transfer_left.pane.cursor_path == f"{path}/src"
         assert left_table.cursor_row == 1
 
-        await pilot.press("]")
+        await pilot.press("tab")
         await pilot.pause()
 
         assert app.app_state.active_transfer_pane == "right"
@@ -3249,9 +3249,8 @@ async def test_app_displays_transfer_help_bar() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
-        "enter dir | . hidden | [ ] focus | p/Esc close | q quit\n"
-        "space select | c copy | x cut | v paste | y copy-to-pane | "
-        "m move-to-pane | d delete | r rename | z undo\n"
+        "enter dir | . hidden | Tab switch-pane | p/Esc close | q quit\n"
+        "space select | c copy-to-pane | m move-to-pane | d delete | r rename | z undo\n"
         "N new-dir | : palette"
     )
 

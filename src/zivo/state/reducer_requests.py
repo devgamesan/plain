@@ -71,6 +71,7 @@ def run_paste_request(state, request: PasteRequest) -> ReduceResult:
         paste_conflict=None,
         delete_confirmation=None,
         pending_paste_request_id=request_id,
+        pending_paste_request=request,
         next_request_id=request_id + 1,
         ui_mode="BUSY",
     )
@@ -253,6 +254,33 @@ def cursor_path_after_file_mutation(
                 return remaining_paths[current_index]
         return remaining_paths[-1]
     return result.path
+
+
+def cursor_path_after_transfer_move(pane, removed_paths: set[str]) -> str | None:
+    """Pick a transfer-pane cursor after a move removes some source paths.
+
+    Mirrors :func:`cursor_path_after_file_mutation`: keep the cursor when it
+    survives, otherwise fall back to the next visible entry at the same display
+    position, then the last remaining entry.
+    """
+
+    active_entries = pane.entries
+    if not removed_paths:
+        return pane.cursor_path
+    remaining_paths = [
+        entry.path for entry in active_entries if entry.path not in removed_paths
+    ]
+    if not remaining_paths:
+        return None
+    current_cursor = pane.cursor_path
+    if current_cursor is not None and current_cursor not in removed_paths:
+        return current_cursor
+    original_paths = [entry.path for entry in active_entries]
+    if current_cursor in original_paths:
+        current_index = original_paths.index(current_cursor)
+        if current_index < len(remaining_paths):
+            return remaining_paths[current_index]
+    return remaining_paths[-1]
 
 
 def restore_ui_mode_after_pending_input(state) -> str:

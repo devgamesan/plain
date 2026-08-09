@@ -181,8 +181,8 @@ sequenceDiagram
 
 ### `src/zivo/state/reducer_transfer.py`
 
-- 2ペイン転送モードの開閉、左右フォーカス、左右ペイン内の移動と選択を担当する
-- 反対側ペインへの copy / move は既存 `PasteRequest` と clipboard paste effect を再利用する
+- 2ペイン転送モードの開閉、Tab によるペインフォーカス、左右ペイン内の移動と選択を担当する
+- 反対側ペインへの Copy / Move は既存 `PasteRequest`（`origin="transfer"` を付与）と clipboard paste effect を再利用する
 - 転送ペインの directory snapshot 読み込みと、paste 後の左右ペイン再読み込みを担当する
 
 ### `src/zivo/state/reducer_mutations.py`
@@ -336,7 +336,7 @@ stateDiagram-v2
 - 名前（自然順） / 更新日時 / サイズソートと directory-first 切り替え
 - 必要に応じた可視ディレクトリの再帰サイズ表示
 - 選択トグル、選択解除、copy / cut / paste
-- 2ペイン転送モードでの左右フォーカス、左右間 copy / move、既存 clipboard paste
+- 2ペイン転送モードでの Tab ペインフォーカス、左右間 Copy / Move、方向と件数を示す転送ヘッダー
 - 貼り付け時の競合検出と overwrite / skip / rename の解決
 - 単一対象の rename
 - 新規ファイル / 新規ディレクトリ作成

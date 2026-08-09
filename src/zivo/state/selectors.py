@@ -7,11 +7,16 @@ from zivo.models import (
     PaneActionViewState,
     PaneStatusViewState,
     ThreePaneShellData,
+    TransferHeaderState,
     TransferPaneViewState,
 )
 
-from .entry_state_helpers import select_visible_entry_states
-from .models import AppState, PaneState, TransferPaneId
+from .entry_state_helpers import (
+    select_transfer_target_count,
+    select_transfer_target_paths,
+    select_visible_entry_states,
+)
+from .models import AppState, PaneState, TransferPaneId, TransferPaneState
 from .selectors_panes import (
     CurrentPaneProjection as _CurrentPaneProjection,
 )
@@ -88,6 +93,9 @@ __all__ = [
     "select_tab_bar_state",
     "select_target_file_paths",
     "select_target_paths",
+    "select_transfer_header_state",
+    "select_transfer_target_count",
+    "select_transfer_target_paths",
     "select_visible_current_entry_states",
 ]
 
@@ -159,6 +167,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         shell,
         layout_mode="transfer",
         current_path=transfer_current_path,
+        transfer_header=select_transfer_header_state(state),
         transfer_left=_select_transfer_pane(state, "left"),
         transfer_right=_select_transfer_pane(state, "right"),
     )
@@ -234,6 +243,38 @@ def _select_visible_transfer_entry_states(
         "",
         False,
         state.sort,
+    )
+
+
+def _select_active_transfer_pane(state: AppState) -> TransferPaneState | None:
+    return state.transfer_left if state.active_transfer_pane == "left" else state.transfer_right
+
+
+def _opposite_transfer_pane_id(pane_id: TransferPaneId) -> TransferPaneId:
+    return "right" if pane_id == "left" else "left"
+
+
+def select_transfer_header_state(state: AppState) -> TransferHeaderState | None:
+    """Build the transfer direction/source/destination/count summary."""
+
+    if state.layout_mode != "transfer":
+        return None
+    active = _select_active_transfer_pane(state)
+    opposite = (
+        state.transfer_right
+        if state.active_transfer_pane == "left"
+        else state.transfer_left
+    )
+    if active is None or opposite is None:
+        return None
+    target_count = select_transfer_target_count(state)
+    return TransferHeaderState(
+        source_side=state.active_transfer_pane,
+        source_path=active.current_path,
+        destination_path=opposite.current_path,
+        selected_count=len(active.pane.selected_paths),
+        target_count=target_count,
+        has_target=target_count > 0,
     )
 
 

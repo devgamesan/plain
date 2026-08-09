@@ -35,14 +35,15 @@ def test_search_workspace_help_shortcuts_are_backed_by_the_browsing_keymap() -> 
 
 def test_transfer_help_shortcuts_are_backed_by_the_transfer_keymap() -> None:
     advertised_keys = {
-        "space" if key == "Space" else key
+        key
         for line in TRANSFER_HELP_LINES
         for key, _label in line
-        if key not in {"[ ]", "p/Esc"}
+        if key not in {"p/Esc", "Tab"}
     }
 
     assert advertised_keys <= TRANSFER_KEYMAP
-    assert {"[", "]", "p", "escape"} <= TRANSFER_KEYMAP
+    assert {"tab", "shift+tab", "p", "escape", "c", "m"} <= TRANSFER_KEYMAP
+    assert {"[", "]", "y", "x", "v"}.isdisjoint(TRANSFER_KEYMAP)
 
 
 def test_low_frequency_direct_keys_are_removed_from_standard_keymaps() -> None:

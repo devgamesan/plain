@@ -3,7 +3,12 @@
 from dataclasses import replace
 from functools import lru_cache
 
-from .models import AppState, DirectoryEntryState, DirectorySizeCacheEntry, SortState
+from .models import (
+    AppState,
+    DirectoryEntryState,
+    DirectorySizeCacheEntry,
+    SortState,
+)
 from .natural_sort import natural_sort_key
 
 
@@ -42,6 +47,43 @@ def target_paths(state: AppState) -> tuple[str, ...]:
     if cursor_entry is None:
         return ()
     return (cursor_entry.path,)
+
+
+def select_transfer_target_paths(state: AppState) -> tuple[str, ...]:
+    """Return the active transfer pane's target paths (selected, else cursor)."""
+
+    transfer = (
+        state.transfer_left
+        if state.active_transfer_pane == "left"
+        else state.transfer_right
+    )
+    if transfer is None:
+        return ()
+    visible_entries = select_visible_entry_states(
+        transfer.pane.entries,
+        state.directory_size_cache,
+        state.show_hidden,
+        "",
+        False,
+        state.sort,
+    )
+    selected_paths = tuple(
+        entry.path for entry in visible_entries if entry.path in transfer.pane.selected_paths
+    )
+    if selected_paths:
+        return selected_paths
+    if transfer.pane.cursor_path is None:
+        return ()
+    for entry in visible_entries:
+        if entry.path == transfer.pane.cursor_path:
+            return (entry.path,)
+    return ()
+
+
+def select_transfer_target_count(state: AppState) -> int:
+    """Return the number of transfer targets in the active pane."""
+
+    return len(select_transfer_target_paths(state))
 
 
 def current_entry_for_path(

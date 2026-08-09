@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 ClipboardOperationMode = Literal["copy", "cut"]
+PasteOrigin = Literal["clipboard", "transfer"]
 ConflictResolution = Literal["overwrite", "skip", "rename"]
 CreateKind = Literal["file", "dir"]
 DeleteMode = Literal["trash", "permanent"]
@@ -21,6 +22,7 @@ class PasteRequest:
     source_paths: tuple[str, ...]
     destination_dir: str
     conflict_resolution: ConflictResolution | None = None
+    origin: PasteOrigin = "clipboard"
 
 
 @dataclass(frozen=True)

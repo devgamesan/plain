@@ -3251,7 +3251,7 @@ async def test_app_displays_transfer_help_bar() -> None:
     expected_help = (
         "enter dir | . hidden | Tab switch-pane | p/Esc close | q quit\n"
         "space select | c copy-to-pane | m move-to-pane | d delete | r rename | z undo\n"
-        "N new-dir | : palette"
+        "n new-file | N new-dir | : palette"
     )
 
     async with app.run_test() as pilot:

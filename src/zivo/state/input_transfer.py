@@ -32,6 +32,7 @@ from .selectors import compute_current_pane_visible_window
 TRANSFER_KEYMAP = {
     "D",
     "N",
+    "n",
     "c",
     "d",
     "delete",
@@ -83,7 +84,7 @@ TRANSFER_HELP_LINES = (
         ("r", "rename"),
         ("z", "undo"),
     ),
-    (("N", "new-dir"), (":", "palette")),
+    (("n", "new-file"), ("N", "new-dir"), (":", "palette")),
 )
 
 REMOVED_DIRECT_KEYS = frozenset({"i", "C", "B", "G", "M", "O", "T", "H", "R"})
@@ -185,6 +186,9 @@ def dispatch_transfer_input(
     if key == "q":
         return supported(BeginExitCurrentPath())
 
+    if key == "n":
+        return supported(BeginCreateInput("file"))
+
     if key == "N":
         return supported(BeginCreateInput("dir"))
 
@@ -221,7 +225,7 @@ def dispatch_transfer_input(
     return warn(
         "Use Tab to switch pane, space select, c copy-to-pane, "
         "m move-to-pane, d trash, D permanent-delete, r rename, z undo, "
-        "b bookmarks, . hidden, N new-dir, : palette, or p/Esc to close"
+        "b bookmarks, . hidden, n new-file, N new-dir, : palette, or p/Esc to close"
     )
 
 

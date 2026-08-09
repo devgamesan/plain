@@ -1004,8 +1004,8 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
         ),
         CommandPaletteItem(
             id="create",
-            label="Create file or directory",
-            shortcut="N",
+            label="Create file",
+            shortcut="n",
             enabled=_active_transfer_pane_state(state) is not None,
         ),
         CommandPaletteItem(

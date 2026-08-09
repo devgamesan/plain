@@ -43,6 +43,8 @@ def test_transfer_help_shortcuts_are_backed_by_the_transfer_keymap() -> None:
 
     assert advertised_keys <= TRANSFER_KEYMAP
     assert {"tab", "shift+tab", "p", "escape", "c", "m"} <= TRANSFER_KEYMAP
+    # n (new-file) / N (new-dir) are both bound so transfer matches browsing.
+    assert {"n", "N"} <= TRANSFER_KEYMAP
     assert {"[", "]", "y", "x", "v"}.isdisjoint(TRANSFER_KEYMAP)
 
 

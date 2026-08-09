@@ -91,6 +91,18 @@ class TransferPaneViewState:
 
 
 @dataclass(frozen=True)
+class TransferHeaderState:
+    """Direction and source/destination summary shown above the transfer panes."""
+
+    source_side: Literal["left", "right"]
+    source_path: str
+    destination_path: str
+    selected_count: int
+    target_count: int
+    has_target: bool
+
+
+@dataclass(frozen=True)
 class PaneActionViewState:
     """One executable action shown inside an empty or fallback pane."""
 
@@ -310,6 +322,7 @@ class ThreePaneShellData:
     shell_command_dialog: ShellCommandDialogState | None = None
     input_dialog: InputDialogState | None = None
     layout_mode: Literal["browser", "transfer"] = "browser"
+    transfer_header: TransferHeaderState | None = None
     transfer_left: TransferPaneViewState | None = None
     transfer_right: TransferPaneViewState | None = None
 

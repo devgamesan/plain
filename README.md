@@ -46,7 +46,7 @@ Press `:` to search and run any action from the command palette. The palette sup
 ![](docs/resources/command_palette.gif)
 
 Transfer mode puts two directories side by side for easy copy and move operations.
-Press `y` to copy or `m` to move files to the opposite pane, and verify results immediately.
+Press `c` to copy or `m` to move selected items to the opposite pane; the header shows the direction and counts.
 ![](docs/resources/transfer_mode_operation.gif)
 
 ---
@@ -99,7 +99,7 @@ zivo-cd
 
 ## Basic controls
 
-The help bar keeps three logical rows with a stable order. Browsing shows navigation, file operations, and search/create actions. Search Workspace keeps only the available subset in the same relative order. Transfer adds pane focus and copy/move-to-pane actions to the corresponding groups. On narrow terminals, each row elides lower-frequency items from the right without adding extra rows.
+The help bar keeps three logical rows with a stable order. Browsing shows navigation, file operations, and search/create actions. Search Workspace keeps only the available subset in the same relative order. Transfer adds Tab pane switching and copy/move-to-opposite-pane actions to the corresponding groups. On narrow terminals, each row elides lower-frequency items from the right without adding extra rows.
 
 When a preview is active, the footer of the right pane shows `Ctrl+J/K scroll preview`. The replace-preview screen uses `Shift+↑/↓ scroll preview`; `Ctrl+↑/↓` is an alias for the normal preview controls.
 
@@ -142,7 +142,7 @@ See [Commands](docs/commands.md) for the full command list.
 - **Go**: search bookmarks, recent history, open tabs, Home, or a direct path in one view; use `@bookmark`, `@history`, `@tab`, or `@home` prefixes to filter the source
 
 ### File operations
-- **Copy / Cut / Paste**: within a pane or across panes in Transfer mode
+- **Copy / Cut / Paste**: within a pane (normal mode only)
 - **Rename**: inline rename
 - **Permissions and ownership**: change selected targets' octal mode or owner/group from the command palette on POSIX-style filesystems
 - **Delete**: move to trash (`d`) or permanently delete (`D`); permanent delete shows target count, total size, representative names, and an irreversible-operation warning
@@ -165,6 +165,8 @@ Empty directories and zero-result filters show their reason and an available nex
 
 ### Transfer mode
 - Side-by-side two-pane layout for copying or moving files between directories
+- `Tab` switches the source/destination pane; the header shows direction, paths, and selection count
+- `c` copies and `m` moves the selected (or focused) items to the opposite pane
 
 ### Command palette
 - Press `:` to search and execute any action via incremental search. No need to memorize keybindings

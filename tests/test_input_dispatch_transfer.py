@@ -1,20 +1,12 @@
 from tests.test_state_reducer import _reduce_state
-from zivo.state import NotificationState, build_initial_app_state, dispatch_key_input
+from zivo.state import build_initial_app_state, dispatch_key_input
 from zivo.state.actions import (
-    ActivateNextTab,
-    ActivatePreviousTab,
-    ActivateTabByIndex,
     BeginCommandPalette,
     BeginDeleteTargets,
     BeginExitCurrentPath,
     BeginRenameInput,
     ClearTransferSelection,
-    CloseCurrentTab,
-    CopyTargets,
-    CutTargets,
     FocusTransferPane,
-    OpenNewTab,
-    PasteClipboardToTransferPane,
     SetNotification,
     ToggleHiddenFiles,
     ToggleTransferMode,
@@ -24,16 +16,24 @@ from zivo.state.actions import (
 )
 
 
-def test_transfer_mode_uses_brackets_for_pane_focus() -> None:
+def test_transfer_mode_tab_switches_pane_focus() -> None:
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
 
-    assert dispatch_key_input(state, key="[") == (
-        SetNotification(None),
-        FocusTransferPane("left"),
-    )
-    assert dispatch_key_input(state, key="]") == (
+    # Left pane is active by default; Tab and shift+tab focus the opposite pane.
+    assert dispatch_key_input(state, key="tab") == (
         SetNotification(None),
         FocusTransferPane("right"),
+    )
+    assert dispatch_key_input(state, key="shift+tab") == (
+        SetNotification(None),
+        FocusTransferPane("right"),
+    )
+
+    # With the right pane active, Tab focuses the left pane.
+    state = _reduce_state(state, FocusTransferPane("right"))
+    assert dispatch_key_input(state, key="tab") == (
+        SetNotification(None),
+        FocusTransferPane("left"),
     )
 
 
@@ -95,34 +95,6 @@ def test_transfer_mode_double_escape_exits_with_selection() -> None:
     )
 
 
-def test_transfer_mode_keeps_tab_keys_for_browser_tabs() -> None:
-    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
-
-    assert dispatch_key_input(state, key="tab") == (SetNotification(None), ActivateNextTab())
-    assert dispatch_key_input(state, key="shift+tab") == (
-        SetNotification(None),
-        ActivatePreviousTab(),
-    )
-
-
-def test_transfer_mode_number_activates_direct_tab() -> None:
-    state = _reduce_state(build_initial_app_state(), OpenNewTab())
-    state = _reduce_state(state, ToggleTransferMode())
-
-    assert dispatch_key_input(state, key="1") == (
-        SetNotification(None),
-        ActivateTabByIndex(0),
-    )
-
-
-def test_transfer_mode_number_warns_when_target_tab_is_missing() -> None:
-    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
-
-    assert dispatch_key_input(state, key="2") == (
-        SetNotification(NotificationState(level="warning", message="Tab 2 is not open")),
-    )
-
-
 def test_transfer_mode_p_toggles_back_to_browser_mode() -> None:
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
 
@@ -142,35 +114,29 @@ def test_transfer_mode_q_exits_app() -> None:
     )
 
 
-def test_transfer_mode_uses_non_function_keys_for_copy_and_move() -> None:
+def test_transfer_mode_c_copies_to_opposite_pane() -> None:
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
 
-    assert dispatch_key_input(state, key="y") == (
+    assert dispatch_key_input(state, key="c") == (
         SetNotification(None),
         TransferCopyToOppositePane(),
     )
+
+
+def test_transfer_mode_m_moves_to_opposite_pane() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+
     assert dispatch_key_input(state, key="m") == (
         SetNotification(None),
         TransferMoveToOppositePane(),
     )
 
 
-def test_transfer_mode_opens_new_tab_with_o() -> None:
+def test_transfer_removed_direct_keys_are_swallowed() -> None:
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
 
-    assert dispatch_key_input(state, key="o") == (
-        SetNotification(None),
-        OpenNewTab(),
-    )
-
-
-def test_transfer_mode_closes_current_tab_with_w() -> None:
-    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
-
-    assert dispatch_key_input(state, key="w") == (
-        SetNotification(None),
-        CloseCurrentTab(),
-    )
+    for key in ("x", "v", "y", "[", "]"):
+        assert dispatch_key_input(state, key=key) == ()
 
 
 def test_transfer_mode_exposes_undo_and_hidden_toggle() -> None:
@@ -180,89 +146,6 @@ def test_transfer_mode_exposes_undo_and_hidden_toggle() -> None:
     assert dispatch_key_input(state, key=".") == (SetNotification(None), ToggleHiddenFiles())
 
 
-def test_transfer_mode_c_copies_selected_or_focused_entry_to_clipboard() -> None:
-    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
-
-    result = dispatch_key_input(state, key="c")
-    assert len(result) == 2
-    assert result[0] == SetNotification(None)
-    assert isinstance(result[1], CopyTargets)
-    # カーソル位置のファイルがターゲットになる
-    assert len(result[1].paths) == 1
-    assert result[1].paths[0].endswith("/docs")
-
-
-def test_transfer_mode_c_warns_when_no_targets() -> None:
-    from dataclasses import replace
-
-    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
-    # カーソルをクリアしてターゲットがない状態を作る
-    updated_left_pane = replace(
-        state.transfer_left.pane,
-        cursor_path=None,
-        selected_paths=(),
-    )
-    updated_right_pane = replace(
-        state.transfer_right.pane,
-        cursor_path=None,
-        selected_paths=(),
-    )
-    transfer_left = replace(state.transfer_left, pane=updated_left_pane)
-    transfer_right = replace(state.transfer_right, pane=updated_right_pane)
-    state = replace(state, transfer_left=transfer_left, transfer_right=transfer_right)
-
-    result = dispatch_key_input(state, key="c")
-    assert len(result) == 1
-    assert isinstance(result[0], SetNotification)
-    assert result[0].notification.message == "Nothing to copy"
-
-
-def test_transfer_mode_x_cuts_selected_or_focused_entry_to_clipboard() -> None:
-    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
-
-    result = dispatch_key_input(state, key="x")
-    assert len(result) == 2
-    assert result[0] == SetNotification(None)
-    assert isinstance(result[1], CutTargets)
-    # カーソル位置のファイルがターゲットになる
-    assert len(result[1].paths) == 1
-    assert result[1].paths[0].endswith("/docs")
-
-
-def test_transfer_mode_x_warns_when_no_targets() -> None:
-    from dataclasses import replace
-
-    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
-    # カーソルをクリアしてターゲットがない状態を作る
-    updated_left_pane = replace(
-        state.transfer_left.pane,
-        cursor_path=None,
-        selected_paths=(),
-    )
-    updated_right_pane = replace(
-        state.transfer_right.pane,
-        cursor_path=None,
-        selected_paths=(),
-    )
-    transfer_left = replace(state.transfer_left, pane=updated_left_pane)
-    transfer_right = replace(state.transfer_right, pane=updated_right_pane)
-    state = replace(state, transfer_left=transfer_left, transfer_right=transfer_right)
-
-    result = dispatch_key_input(state, key="x")
-    assert len(result) == 1
-    assert isinstance(result[0], SetNotification)
-    assert result[0].notification.message == "Nothing to cut"
-
-
-def test_transfer_mode_v_pastes_from_clipboard_to_focused_pane() -> None:
-    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
-
-    result = dispatch_key_input(state, key="v")
-    assert len(result) == 2
-    assert result[0] == SetNotification(None)
-    assert isinstance(result[1], PasteClipboardToTransferPane)
-
-
 def test_transfer_mode_colon_begins_command_palette() -> None:
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
 
@@ -270,6 +153,7 @@ def test_transfer_mode_colon_begins_command_palette() -> None:
         SetNotification(None),
         BeginCommandPalette(),
     )
+
 
 def test_removed_direct_shortcuts_are_unbound_in_transfer_mode() -> None:
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())

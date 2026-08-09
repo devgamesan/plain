@@ -17,7 +17,7 @@ from zivo.windows_paths import (
     normalize_windows_path,
 )
 
-from .entry_state_helpers import select_visible_entry_states
+from .entry_state_helpers import select_transfer_target_paths, select_visible_entry_states
 from .models import (
     AppState,
     GoCandidateSource,
@@ -798,6 +798,8 @@ def _disabled_reason(state: AppState, item_id: str) -> str:
 
     target = select_single_target_entry(state)
     has_target = bool(select_target_paths(state))
+    if item_id in {"transfer_copy_to_opposite_pane", "transfer_move_to_opposite_pane"}:
+        return "Select or focus an item to transfer"
     if item_id in {"go_back", "go_forward"}:
         return "No directory history in this direction"
     if item_id == "undo_last_operation":
@@ -888,7 +890,6 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
     has_target = bool(target_paths)
     has_single_target = _transfer_single_target_entry(state) is not None
     has_visible_entries = bool(_transfer_visible_entries(state))
-    can_paste = state.clipboard.mode != "none" and bool(state.clipboard.paths)
     tab_count = len(state.browser_tabs) or 1
     chmod_item = (
         (
@@ -943,49 +944,31 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
         CommandPaletteItem(
             id="new_tab",
             label="New tab",
-            shortcut="o",
+            shortcut=None,
             enabled=True,
         ),
         CommandPaletteItem(
             id="next_tab",
             label="Next tab",
-            shortcut="tab",
+            shortcut=None,
             enabled=tab_count > 1,
         ),
         CommandPaletteItem(
             id="previous_tab",
             label="Previous tab",
-            shortcut="shift+tab",
+            shortcut=None,
             enabled=tab_count > 1,
         ),
         CommandPaletteItem(
             id="close_current_tab",
             label="Close current tab",
-            shortcut="w",
+            shortcut=None,
             enabled=tab_count > 1,
-        ),
-        CommandPaletteItem(
-            id="copy_targets",
-            label="Copy selection",
-            shortcut="c",
-            enabled=has_target,
-        ),
-        CommandPaletteItem(
-            id="cut_targets",
-            label="Cut selection",
-            shortcut="x",
-            enabled=has_target,
-        ),
-        CommandPaletteItem(
-            id="paste_clipboard",
-            label="Paste clipboard",
-            shortcut="v",
-            enabled=can_paste,
         ),
         CommandPaletteItem(
             id="transfer_copy_to_opposite_pane",
             label="Copy to opposite pane",
-            shortcut="y",
+            shortcut="c",
             enabled=has_target,
         ),
         CommandPaletteItem(
@@ -1018,6 +1001,12 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
             label="Move to trash",
             shortcut="d",
             enabled=has_target,
+        ),
+        CommandPaletteItem(
+            id="create",
+            label="Create file or directory",
+            shortcut="N",
+            enabled=_active_transfer_pane_state(state) is not None,
         ),
         CommandPaletteItem(
             id="toggle_hidden",
@@ -1318,20 +1307,7 @@ def _transfer_visible_entries(state: AppState):
 
 
 def _transfer_target_paths(state: AppState) -> tuple[str, ...]:
-    transfer = _active_transfer_pane_state(state)
-    if transfer is None:
-        return ()
-    visible_entries = _transfer_visible_entries(state)
-    selected_paths = tuple(
-        entry.path
-        for entry in visible_entries
-        if entry.path in transfer.pane.selected_paths
-    )
-    if selected_paths:
-        return selected_paths
-    if any(entry.path == transfer.pane.cursor_path for entry in visible_entries):
-        return (transfer.pane.cursor_path,)
-    return ()
+    return select_transfer_target_paths(state)
 
 
 def _transfer_single_target_entry(state: AppState):

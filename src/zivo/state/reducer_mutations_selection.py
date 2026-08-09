@@ -32,7 +32,10 @@ from .reducer_common import (
     sync_child_pane,
 )
 from .reducer_mutations_common import MutationHandler, push_undo_entry, undo_entry_for_paste
-from .reducer_transfer import request_all_transfer_pane_snapshots
+from .reducer_transfer import (
+    apply_transfer_paste_result,
+    request_all_transfer_pane_snapshots,
+)
 
 
 def _handle_toggle_selection(state, action, reduce_state):
@@ -241,6 +244,7 @@ def _handle_clipboard_paste_needs_resolution(state, action, reduce_state):
             delete_confirmation=None,
             name_conflict=None,
             pending_paste_request_id=None,
+            pending_paste_request=None,
             ui_mode="CONFIRM",
         )
     )
@@ -250,8 +254,18 @@ def _handle_clipboard_paste_completed(state, action, reduce_state):
     if action.request_id != state.pending_paste_request_id:
         return finalize(state)
 
+    origin = (
+        state.pending_paste_request.origin
+        if state.pending_paste_request is not None
+        else "clipboard"
+    )
+
     next_clipboard = state.clipboard
-    if state.clipboard.mode == "cut" and action.summary.success_count > 0:
+    if (
+        origin == "clipboard"
+        and state.clipboard.mode == "cut"
+        and action.summary.success_count > 0
+    ):
         next_clipboard = ClipboardState()
 
     next_state = replace(
@@ -267,8 +281,14 @@ def _handle_clipboard_paste_completed(state, action, reduce_state):
         name_conflict=None,
         post_reload_notification=notification_for_paste_summary(action.summary),
         pending_paste_request_id=None,
+        pending_paste_request=None,
         ui_mode="BROWSING",
     )
+    if origin == "transfer" and next_state.layout_mode == "transfer":
+        next_state = apply_transfer_paste_result(
+            next_state, action.summary, action.applied_changes
+        )
+        return request_all_transfer_pane_snapshots(next_state)
     if next_state.layout_mode == "transfer":
         return request_all_transfer_pane_snapshots(next_state)
     return request_snapshot_refresh(next_state)
@@ -285,6 +305,7 @@ def _handle_clipboard_paste_failed(state, action, reduce_state):
             delete_confirmation=None,
             name_conflict=None,
             pending_paste_request_id=None,
+            pending_paste_request=None,
             ui_mode="BROWSING",
         )
     )

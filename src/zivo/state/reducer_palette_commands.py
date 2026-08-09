@@ -74,7 +74,11 @@ from .reducer_palette_shared import (
     selected_current_file_paths,
 )
 from .reducer_transfer import request_transfer_pane_snapshot
-from .selectors import select_target_paths, select_visible_current_entry_states
+from .selectors import (
+    select_target_paths,
+    select_transfer_target_paths,
+    select_visible_current_entry_states,
+)
 
 
 def _active_transfer_pane(state: AppState):
@@ -98,18 +102,7 @@ def _transfer_visible_paths(state: AppState) -> tuple[str, ...]:
 
 
 def _transfer_target_paths(state: AppState) -> tuple[str, ...]:
-    transfer = _active_transfer_pane(state)
-    if transfer is None:
-        return ()
-    visible_paths = _transfer_visible_paths(state)
-    selected_paths = tuple(
-        path for path in visible_paths if path in transfer.pane.selected_paths
-    )
-    if selected_paths:
-        return selected_paths
-    if transfer.pane.cursor_path in visible_paths:
-        return (transfer.pane.cursor_path,)
-    return ()
+    return select_transfer_target_paths(state)
 
 
 def _transfer_single_target_path(state: AppState) -> str | None:

@@ -37,7 +37,7 @@ from .actions import (
     TransferPaneSnapshotLoaded,
 )
 from .effects import LoadTransferPaneEffect, ReduceResult
-from .entry_state_helpers import select_visible_entry_states
+from .entry_state_helpers import select_transfer_target_paths, select_visible_entry_states
 from .models import (
     AppState,
     NotificationState,
@@ -47,7 +47,11 @@ from .models import (
     resolve_parent_directory_path,
 )
 from .reducer_common import finalize, move_cursor, run_paste_request, select_range_paths
-from .reducer_requests import browser_snapshot_invalidation_paths, build_history_after_snapshot_load
+from .reducer_requests import (
+    browser_snapshot_invalidation_paths,
+    build_history_after_snapshot_load,
+    cursor_path_after_transfer_move,
+)
 
 ReducerFn = Callable[[object, Action], ReduceResult]
 
@@ -604,15 +608,16 @@ def _handle_transfer_pane_snapshot_failed(
 
 
 def _run_transfer_to_opposite(state: AppState, *, mode: str) -> ReduceResult:
-    active = _require_transfer_pane(state, state.active_transfer_pane)
+    _require_transfer_pane(state, state.active_transfer_pane)
     opposite = _require_transfer_pane(state, _opposite_pane_id(state.active_transfer_pane))
-    targets = _transfer_target_paths(state, active)
+    targets = select_transfer_target_paths(state)
     if not targets:
-        verb = "copy" if mode == "copy" else "move"
         return finalize(
             replace(
                 state,
-                notification=NotificationState(level="warning", message=f"Nothing to {verb}"),
+                notification=NotificationState(
+                    level="warning", message="Select or focus an item to transfer"
+                ),
             )
         )
     return run_paste_request(
@@ -621,19 +626,33 @@ def _run_transfer_to_opposite(state: AppState, *, mode: str) -> ReduceResult:
             mode=mode,  # type: ignore[arg-type]
             source_paths=targets,
             destination_dir=opposite.current_path,
+            origin="transfer",
         ),
     )
 
 
-def _transfer_target_paths(state: AppState, transfer: TransferPaneState) -> tuple[str, ...]:
-    visible_entries = _visible_transfer_entries(state, transfer.pane)
-    selected_paths = tuple(
-        entry.path for entry in visible_entries if entry.path in transfer.pane.selected_paths
+def apply_transfer_paste_result(state, summary, applied_changes):
+    """Clear successful source selection and normalize cursor after a transfer."""
+
+    transfer = (
+        state.transfer_left
+        if state.active_transfer_pane == "left"
+        else state.transfer_right
     )
-    if selected_paths:
-        return selected_paths
-    entry = _transfer_cursor_entry(state, transfer)
-    return () if entry is None else (entry.path,)
+    if transfer is None:
+        return state
+    successful_sources = {change.source_path for change in applied_changes}
+    if not successful_sources:
+        return state
+    remaining_selected = transfer.pane.selected_paths - successful_sources
+    new_cursor = transfer.pane.cursor_path
+    if summary.mode == "cut":
+        new_cursor = cursor_path_after_transfer_move(transfer.pane, successful_sources)
+    new_pane = replace(transfer.pane, selected_paths=remaining_selected, cursor_path=new_cursor)
+    new_transfer = replace(transfer, pane=new_pane)
+    if state.active_transfer_pane == "left":
+        return replace(state, transfer_left=new_transfer)
+    return replace(state, transfer_right=new_transfer)
 
 
 def _transfer_cursor_entry(state: AppState, transfer: TransferPaneState):

@@ -22,6 +22,7 @@ from zivo.ui import (
     SidePane,
     StatusBar,
     TabBar,
+    TransferHeaderBar,
 )
 
 
@@ -87,9 +88,10 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
                 classes="pane side-pane",
             ),
         ]
-    body_children: list[Any] = [
-        Horizontal(*browser_row_children, id="browser-row"),
-    ]
+    body_children: list[Any] = []
+    if shell.layout_mode == "transfer" and shell.transfer_left and shell.transfer_right:
+        body_children.append(TransferHeaderBar(shell.transfer_header, id="transfer-header"))
+    body_children.append(Horizontal(*browser_row_children, id="browser-row"))
     return Vertical(*body_children, id="body")
 
 
@@ -223,6 +225,11 @@ async def refresh_shell(
     tab_bar.set_state(shell.tab_bar)
     current_path_bar.set_path(shell.current_path)
     if shell.layout_mode == "transfer" and shell.transfer_left and shell.transfer_right:
+        try:
+            transfer_header = app.query_one("#transfer-header", TransferHeaderBar)
+            transfer_header.set_state(shell.transfer_header)
+        except NoMatches:
+            pass
         current_pane.set_entries(shell.transfer_left.entries, shell.transfer_left.cursor_index)
         current_pane.set_cursor_state(
             shell.transfer_left.cursor_index,

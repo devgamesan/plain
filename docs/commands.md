@@ -2,7 +2,7 @@
 
 Complete list of commands available in the command palette, opened with `:`.
 Lower-frequency attribute, path-copy, bookmark-edit, external-launch, and reload actions are intentionally available here. Destination navigation is handled by the unified `Go` command, while `~`, `[`, `]`, and `b` remain quick paths.
-In transfer mode, the command palette only shows commands that are available for the active transfer pane.
+In transfer mode, the command palette only shows commands that are available for the active transfer pane, including Copy to opposite pane (`c`) and Move to opposite pane (`m`). Browser tab operations (new/next/previous/close tab) are palette-only in transfer mode since `Tab` switches panes.
 The tab strip is only shown when two or more browser tabs are open.
 
 When the query is empty, the palette shows the fixed `Navigate`, `File`, `Search`, `View`, `System`, and `Custom actions` sections. Category order and command ranking are deterministic and do not use usage history or telemetry.

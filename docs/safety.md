@@ -26,7 +26,7 @@ zivo includes several safety mechanisms to prevent accidents during file operati
 ## Undo
 
 - Press `z` to undo the most recent file operation.
-- Undoable operations: rename, paste, and move to trash.
+- Undoable operations: rename, paste (including cross-pane Copy/Move in Transfer mode), and move to trash.
 - `Undo last file operation` is hidden from the command palette when the undo history is empty.
 - Only reversible file operations are recorded in the undo history.
 
@@ -34,7 +34,7 @@ zivo includes several safety mechanisms to prevent accidents during file operati
 
 ## Paste Conflict Resolution
 
-- When the paste destination already contains a file with the same name, a conflict dialog is shown.
+- When the paste destination already contains a file with the same name (including the opposite pane during a Transfer-mode Copy/Move), a conflict dialog is shown.
 - Choose from `o` (overwrite), `s` (skip), `r` (rename), or `Esc` (cancel).
 - The default behavior is configurable via `behavior.paste_conflict_action` in `config.toml`.
 

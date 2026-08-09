@@ -12,7 +12,7 @@ The three-row help bar keeps a stable order. Browsing uses these groups:
 
 Search Workspace shows `enter open`, `e edit`, `/ filter`, `s sort`, `. hidden`, `[ ] bk/fwd`, `q quit`, then `space select`, `c copy`, `z undo`, and `: palette`.
 
-Transfer shows `enter dir`, `. hidden`, `[ ] focus`, `p/Esc close`, `q quit`, then `space select`, `c copy`, `x cut`, `v paste`, `y copy-to-pane`, `m move-to-pane`, `d delete`, `r rename`, `z undo`, and finally `N new-dir`, `: palette`. `D` remains documented below but is intentionally omitted from the help bar.
+Transfer shows `enter dir`, `. hidden`, `Tab switch-pane`, `p/Esc close`, `q quit`, then `space select`, `c copy-to-pane`, `m move-to-pane`, `d delete`, `r rename`, `z undo`, and finally `N new-dir`, `: palette`. `D` remains documented below but is intentionally omitted from the help bar.
 
 When a right-pane preview is active, its footer shows `Ctrl+J/K scroll preview`. Replace previews use `Shift+↑/↓ scroll preview`. `Ctrl+↑/↓` are aliases for normal preview scrolling. Narrow terminals keep three rows and elide lower-frequency items from the right.
 
@@ -73,10 +73,12 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 
 ## Transfer Mode
 
+The active pane is the source and the opposite pane is the destination; the direction and counts are shown in the header. Clipboard cut/copy/paste (`c`/`x`/`v`) are normal-mode only.
+
 | Key | Action |
 | --- | ------ |
-| `Esc` | Return to normal mode / Clear selection |
-| `[` / `]` | Focus the left/right transfer pane |
+| `Tab` / `Shift+Tab` | Switch focus to the opposite pane (sets transfer direction) |
+| `Esc` | Clear selection, or return to normal mode when nothing is selected |
 | `j` / `↓` | Move down in the focused pane |
 | `k` / `↑` | Move up in the focused pane |
 | `PageUp` / `PageDown` | Move by page in the focused pane |
@@ -87,11 +89,8 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 | `Space` | Toggle selection and move down in the focused pane |
 | `Shift+↑` / `Shift+↓` | Extend selection in the focused pane |
 | `a` | Select all visible entries in the focused pane |
-| `c` | Copy selected items to clipboard |
-| `x` | Cut selected items to clipboard |
-| `v` | Paste from clipboard to focused pane |
-| `y` | Copy focused-pane targets to opposite pane (copy-to-pane) |
-| `m` | Move focused-pane targets to opposite pane (move-to-pane) |
+| `c` | Copy selected (or focused) items to the opposite pane |
+| `m` | Move selected (or focused) items to the opposite pane |
 | `d` | Delete focused-pane targets to trash |
 | `D` | Permanently delete focused-pane targets |
 | `Delete` / `Shift+Delete` | Move to trash / permanently delete |
@@ -100,14 +99,11 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 | `.` | Toggle hidden files |
 | `N` | Create new directory in the focused pane |
 | `b` | Open the Go view filtered to bookmarks |
-| `:` | Open a transfer-mode command palette with transfer-available commands only |
-| `o` | Open new tab |
-| `w` | Close current tab |
-| `1`-`9`, `0` | Switch to tab 1-9, or tab 10 with `0` |
-| `tab` | Switch to next tab |
-| `shift+tab` | Switch to previous tab |
-| `p` / `Esc` | Return to normal mode |
+| `:` | Open a transfer-mode command palette (new/rename/delete/tabs/etc.) |
+| `p` | Return to normal mode |
 | `q` | Exit the application |
+
+Browser tab operations (new/switch/close tab) are reachable from the transfer-mode command palette (`:`), since `Tab` switches panes.
 
 ---
 

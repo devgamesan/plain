@@ -664,6 +664,7 @@ class AppState:
     pending_browser_snapshot_request_id: int | None = None
     pending_child_pane_request_id: int | None = None
     pending_paste_request_id: int | None = None
+    pending_paste_request: PasteRequest | None = None
     pending_file_mutation_request_id: int | None = None
     pending_delete_prepare_request_id: int | None = None
     pending_archive_prepare_request_id: int | None = None

@@ -4,7 +4,6 @@ from zivo.windows_paths import is_search_workspace_path
 
 from .actions import (
     Action,
-    ActivateTabByIndex,
     AddBookmark,
     BeginBookmarkSearch,
     BeginCommandPalette,
@@ -58,6 +57,7 @@ from .input_common import (
     BrowsingHandler,
     DispatchedActions,
     current_entry,
+    dispatch_direct_tab_input,
     supported,
     visible_paths,
     warn,
@@ -236,17 +236,6 @@ def dispatch_browsing_input(
 
 def noop_browsing_handler(_state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
     return ()
-
-
-def dispatch_direct_tab_input(state: AppState, *, key: str) -> DispatchedActions:
-    if len(key) != 1 or not key.isdigit():
-        return ()
-
-    tab_number = 10 if key == "0" else int(key)
-    tab_count = len(state.browser_tabs) if state.browser_tabs else 1
-    if tab_number > tab_count:
-        return warn(f"Tab {tab_number} is not open")
-    return supported(ActivateTabByIndex(tab_number - 1))
 
 
 def simple(action_cls: type[Action]) -> BrowsingHandler:

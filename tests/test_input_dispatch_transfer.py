@@ -1,12 +1,14 @@
 from tests.test_state_reducer import _reduce_state
 from zivo.state import build_initial_app_state, dispatch_key_input
 from zivo.state.actions import (
+    ActivateTabByIndex,
     BeginCommandPalette,
     BeginDeleteTargets,
     BeginExitCurrentPath,
     BeginRenameInput,
     ClearTransferSelection,
     FocusTransferPane,
+    OpenNewTab,
     SetNotification,
     ToggleHiddenFiles,
     ToggleTransferMode,
@@ -14,6 +16,7 @@ from zivo.state.actions import (
     TransferMoveToOppositePane,
     UndoLastOperation,
 )
+from zivo.state.models import NotificationState
 
 
 def test_transfer_mode_tab_switches_pane_focus() -> None:
@@ -34,6 +37,28 @@ def test_transfer_mode_tab_switches_pane_focus() -> None:
     assert dispatch_key_input(state, key="tab") == (
         SetNotification(None),
         FocusTransferPane("left"),
+    )
+
+
+def test_transfer_mode_number_keys_switch_browser_tabs() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+    state = _reduce_state(state, OpenNewTab())  # 2 つ目のブラウザタブを追加
+
+    assert dispatch_key_input(state, key="2") == (
+        SetNotification(None),
+        ActivateTabByIndex(1),
+    )
+    assert dispatch_key_input(state, key="1") == (
+        SetNotification(None),
+        ActivateTabByIndex(0),
+    )
+
+
+def test_transfer_mode_number_key_warns_when_target_tab_is_missing() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+
+    assert dispatch_key_input(state, key="2") == (
+        SetNotification(NotificationState(level="warning", message="Tab 2 is not open")),
     )
 
 

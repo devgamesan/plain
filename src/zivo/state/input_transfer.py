@@ -25,7 +25,7 @@ from .actions import (
     UndoLastOperation,
 )
 from .entry_state_helpers import select_visible_entry_states
-from .input_common import DispatchedActions, supported, warn
+from .input_common import DispatchedActions, dispatch_direct_tab_input, supported, warn
 from .models import AppState, PaneState, TransferPaneState
 from .selectors import compute_current_pane_visible_window
 
@@ -104,6 +104,10 @@ def dispatch_transfer_input(
     if transfer is None:
         return supported(ToggleTransferMode())
     visible_paths = _visible_paths(state, transfer.pane)
+
+    direct_tab_actions = dispatch_direct_tab_input(state, key=key)
+    if direct_tab_actions:
+        return direct_tab_actions
 
     if key in REMOVED_DIRECT_KEYS:
         return ()

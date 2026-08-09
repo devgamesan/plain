@@ -24,6 +24,7 @@ from .selectors_panes import (
     _project_current_pane_entries,
     _select_current_pane_entries,
     build_pane_heading,
+    pane_accepts_navigation_input,
     select_child_entries,
     select_current_entries,
     select_current_summary_state,
@@ -145,7 +146,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
             "Current",
             state.current_pane.directory_path,
             current_pane.summary,
-            active=state.layout_mode != "transfer",
+            active=state.layout_mode != "transfer" and pane_accepts_navigation_input(state),
         ),
         current_context_input=select_input_bar_state(state),
         current_pane_status=_select_current_pane_status(state, current_pane.visible_entries),
@@ -237,12 +238,13 @@ def _select_transfer_pane(
         summary=summary,
         cursor_index=cursor_index,
         cursor_visible=state.ui_mode != "FILTER",
-        active=state.active_transfer_pane == pane_id,
+        active=state.active_transfer_pane == pane_id and pane_accepts_navigation_input(state),
         heading=build_pane_heading(
             "Left" if pane_id == "left" else "Right",
             transfer.current_path,
             summary,
-            active=state.active_transfer_pane == pane_id,
+            active=state.active_transfer_pane == pane_id
+            and pane_accepts_navigation_input(state),
         ),
     )
 

@@ -161,7 +161,7 @@ sequenceDiagram
 - Mounts and refreshes the widget tree for the three-pane browser, dialogs, and split terminal
 - Applies selector-generated view models to widgets
 - Handles split-terminal focus and terminal-size synchronization
-- Active panes combine an accent border, a heading marker, and bold text; row state also uses ASCII markers `>` (cursor), `*` (selected), `x` (cut), `@` (symlink), and `+` (executable) so it remains legible without color. To protect the name column on narrow layouts, compound states show the first two markers in priority order
+- Active-pane styling is shown only while a pane accepts `BROWSING` / `FILTER` input. Normal browsing uses a round accent border and heading color, while Transfer uses the stronger heavy accent border and filled heading. Row state remains color-independent with `>` (cursor), `*` (selected), and `x` (cut) in the two-slot state column, plus `@` (symlink) and `*` (executable) as name suffixes; cut takes precedence over selection
 
 ### `src/zivo/state/input.py`
 

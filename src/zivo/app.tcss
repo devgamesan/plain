@@ -41,6 +41,10 @@ Screen {
     border: heavy $accent;
 }
 
+.browser-active-pane {
+    border: round $accent;
+}
+
 #child-pane {
     width: 2.2fr;
 }
@@ -61,6 +65,12 @@ Screen {
     text-style: bold;
 }
 
+.browser-active-pane .pane-title {
+    background: $surface;
+    color: $accent;
+    text-style: bold;
+}
+
 .pane-list,
 .pane-preview,
 .pane-table {
@@ -70,6 +80,11 @@ Screen {
 .pane-table {
     scrollbar-size: 0 0;
     layer: content;
+}
+
+.pane-content {
+    height: 1fr;
+    layers: content status;
 }
 
 .pane-preview {

@@ -82,7 +82,9 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
                 context_input=shell.current_context_input,
                 status=shell.current_pane_status,
                 id="current-pane",
-                classes="pane main-pane active-pane",
+                classes=_browser_pane_classes(
+                    shell.current_heading is not None and shell.current_heading.active,
+                ),
                 heading=shell.current_heading,
             ),
             ChildPane(
@@ -107,6 +109,14 @@ def _transfer_pane_classes(active: bool) -> str:
     if active:
         return "pane main-pane transfer-pane active-pane active-transfer-pane"
     return "pane main-pane transfer-pane"
+
+
+def _browser_pane_classes(active: bool) -> str:
+    """Return normal-browser classes, with a lighter active treatment."""
+
+    if active:
+        return "pane main-pane active-pane browser-active-pane"
+    return "pane main-pane"
 
 
 async def refresh_shell(
@@ -279,7 +289,14 @@ async def refresh_shell(
         )
         current_pane.set_summary(shell.current_summary)
         current_pane.set_heading(shell.current_heading)
-        current_pane.set_class(True, "active-pane")
+        current_pane.set_class(
+            shell.current_heading is not None and shell.current_heading.active,
+            "active-pane",
+        )
+        current_pane.set_class(
+            shell.current_heading is not None and shell.current_heading.active,
+            "browser-active-pane",
+        )
         current_pane.set_context_input(shell.current_context_input)
         current_pane.set_status(shell.current_pane_status)
     await parent_pane.set_entries(shell.parent_entries)

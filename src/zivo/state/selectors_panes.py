@@ -144,6 +144,18 @@ def build_pane_heading(
     )
 
 
+def pane_accepts_navigation_input(state: AppState) -> bool:
+    """Return whether a directory pane is the current keyboard context.
+
+    Overlay modes keep the directory visible in the background, but keyboard
+    input belongs to the palette or dialog. Keeping this decision in the
+    selector prevents a stale active border from suggesting that the pane is
+    still receiving input.
+    """
+
+    return state.ui_mode in {"BROWSING", "FILTER"}
+
+
 def _format_pane_target_name(path: str) -> str:
     """Return a compact target name while preserving filesystem roots."""
 

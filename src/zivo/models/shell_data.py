@@ -40,23 +40,32 @@ class PaneEntry:
         return "*" if self.selected else " "
 
     def state_marker(self, *, cursor: bool = False, max_width: int | None = None) -> str:
-        """Return color-independent ASCII markers for visible row state."""
+        """Return color-independent ASCII markers for interaction state.
+
+        The first slot identifies the cursor and the second slot identifies
+        the pending action. Cut takes precedence over selection because a
+        cut row is necessarily part of the current selection and must remain
+        distinguishable in the narrow state column.
+        """
 
         markers: list[str] = []
         if cursor:
             markers.append(">")
-        if self.selected:
-            markers.append("*")
         if self.cut:
             markers.append("x")
-        if self.symlink:
-            markers.append("@")
-        if self.executable:
-            markers.append("+")
+        elif self.selected:
+            markers.append("*")
         marker = "".join(markers) or " "
         if max_width is not None and len(marker) > max_width:
             return marker[:max_width]
         return marker
+
+    @property
+    def type_marker(self) -> str:
+        """Return familiar ASCII suffixes for non-interaction file types."""
+
+        executable_marker = self.executable and self.kind == "file"
+        return ("@" if self.symlink else "") + ("*" if executable_marker else "")
 
 
 @dataclass(frozen=True)

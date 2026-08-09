@@ -61,7 +61,7 @@ class _MainPaneDataTable(DataTable):
 class MainPane(Vertical):
     """Center pane with detailed columns for the current directory."""
 
-    COLUMN_LABELS = ("State", "Name", "Size", "Modified")
+    COLUMN_LABELS = ("St", "Name", "Size", "Modified")
     COLUMN_KEYS = ("sel", "name", "size", "modified")
     COMPONENT_CLASSES = FILE_TYPE_COMPONENT_CLASSES
     NAME_MIN_WIDTH = 3
@@ -150,14 +150,13 @@ class MainPane(Vertical):
         yield SummaryBar(self._summary, id=self.summary_id, classes="pane-summary")
         yield InputBar(self._context_input, id=self.context_input_id, classes="pane-context-input")
         table = _MainPaneDataTable(id=self.table_id, classes="pane-table")
-        yield table
         status = Static(
             render_pane_status(self._status),
             id=f"{self.id}-status" if self.id else None,
             classes="pane-status",
         )
         status.display = self._status is not None
-        yield status
+        yield Vertical(table, status, classes="pane-content")
 
     def on_mount(self) -> None:
         """Populate the table after the widget is attached to an app."""

@@ -161,7 +161,7 @@ sequenceDiagram
 - 3 ペイン本体、dialog、split terminal を含む widget ツリーの mount / refresh を担当する
 - selector が返した view model を各 widget へ反映する
 - split terminal の focus 制御と terminal サイズ同期を行う
-- アクティブペインは accent 境界・見出し記号・太字を併用し、行状態は ASCII の `>`（カーソル）、`*`（選択）、`x`（カット）、`@`（symlink）、`+`（executable）で色以外にも示す。状態列は一覧幅を守るため、複合時は優先順の先頭2記号までを表示する
+- アクティブペインは入力を受け付ける `BROWSING` / `FILTER` のときだけ表示し、通常ブラウズは accent の丸枠と見出し色、Transfer は太い accent 枠と塗りつぶし見出しで強度を分ける。行状態は状態列の `>`（カーソル）、`*`（選択）、`x`（カット）と、名前末尾の `@`（symlink）、`*`（executable）で色以外にも示す。状態列はカーソルと操作状態の2スロットを保ち、カットを選択より優先する
 
 ### `src/zivo/state/input.py`
 

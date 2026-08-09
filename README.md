@@ -148,7 +148,7 @@ See [Commands](docs/commands.md) for the full command list.
 
 ### File operations
 - **Copy / Cut / Paste / Duplicate**: within a pane (normal mode only); Duplicate keeps the original and creates a safe same-directory copy
-- **Rename**: inline rename
+- **Rename**: inline single-item rename, or a reviewable `Rename N items` editor for two or more selected items (literal Find/Replace, validation, progress, and same-directory staging)
 - **Permissions and ownership**: change selected targets' octal mode or owner/group from the command palette on POSIX-style filesystems
 - **Delete**: move to trash (`d`) or permanently delete (`D`); permanent delete shows target count, total size, representative names, and an irreversible-operation warning
 - **Undo**: revert rename, paste, duplicate, or trash operations
@@ -210,7 +210,7 @@ zivo includes safety mechanisms to prevent data loss during file operations.
 
 - **Move to trash**: `d` / `Delete` moves items to the OS trash (confirmation dialog configurable)
 - **Permanent delete**: `D` / `Shift+Delete` always asks for confirmation; multiple targets or directories require `Enter` followed by an explicit uppercase `D`
-- **Undo**: `z` reverses the last rename, paste, or trash operation
+- **Undo**: `z` reverses the last rename, bulk rename, paste, or trash operation
 - **Paste conflict resolution**: choose overwrite, skip, or rename on name collision
 - **Replace preview**: review diffs before applying batch replacements
 - **More details**: see [Safety](docs/safety.md)

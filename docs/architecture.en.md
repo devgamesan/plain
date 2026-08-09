@@ -344,7 +344,7 @@ Notes:
 - Supports selection toggle, clear selection, copy / cut / paste
 - Supports Tab pane focus, Copy / Move between panes, and a transfer header showing direction and counts in two-pane transfer mode
 - Detects paste conflicts and resolves them with overwrite / skip / rename
-- Renames a single target
+- Renames a single target and safely bulk-renames same-directory targets via temporary staging
 - Creates files and directories
 - Moves items to trash with confirmation
 - Opens files with the OS default app

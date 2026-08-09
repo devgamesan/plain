@@ -31,6 +31,12 @@ from .browser_snapshot import (
     LiveBrowserSnapshotLoader,
     snapshot_from_app_state,
 )
+from .bulk_rename import (
+    BulkRenameProgressCallback,
+    BulkRenameService,
+    FakeBulkRenameService,
+    LiveBulkRenameService,
+)
 from .clipboard_operations import (
     ClipboardOperationService,
     FakeClipboardOperationService,
@@ -126,6 +132,8 @@ __all__ = [
     "ArchiveListService",
     "AttributeInspectionService",
     "BrowserSnapshotLoader",
+    "BulkRenameProgressCallback",
+    "BulkRenameService",
     "ClipboardOperationService",
     "ConfigSaveService",
     "CustomActionService",
@@ -150,6 +158,7 @@ __all__ = [
     "InvalidFileSearchQueryError",
     "InvalidGrepSearchQueryError",
     "FakeBrowserSnapshotLoader",
+    "FakeBulkRenameService",
     "FakeClipboardOperationService",
     "FakeCustomActionService",
     "FakeExternalLaunchService",
@@ -168,6 +177,7 @@ __all__ = [
     "LiveClipboardOperationService",
     "LiveCustomActionService",
     "LiveBrowserSnapshotLoader",
+    "LiveBulkRenameService",
     "PREVIEW_PERMISSION_DENIED_MESSAGE",
     "LiveConfigSaveService",
     "LiveShellCommandService",

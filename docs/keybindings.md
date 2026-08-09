@@ -180,6 +180,17 @@ When the `Replace text` preview is open in the right pane, `Shift+↑` / `Shift+
 | --- | ------ |
 | Text input / `Backspace` / `Enter` / `Esc` | Edit, confirm, or cancel rename/create input |
 
+## Bulk Rename Mode
+
+| Key | Behavior |
+| --- | --- |
+| `↑` / `↓` / `j` / `k` | Move between New Name rows |
+| `Enter` | Start/finish row editing, apply Find/Replace draft, run `Rename items`, or cancel |
+| `Tab` / `Shift+Tab` | Cycle table, Find, Replace, Replace in draft, Rename items, and Cancel |
+| Text input / `←` / `→` / `Home` / `End` / `Backspace` / `Delete` | Edit the selected row's New Name |
+| `Ctrl+V` | Paste clipboard text into the selected row |
+| `Esc` | Close the overlay and discard the draft |
+
 ---
 
 ## Confirmation Dialog Mode

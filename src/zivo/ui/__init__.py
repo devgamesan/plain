@@ -1,6 +1,7 @@
 """Textual UI components for zivo."""
 
 from .attribute_dialog import AttributeDialog
+from .bulk_rename_dialog import BulkRenameDialog
 from .command_palette import CommandPalette
 from .config_dialog import ConfigDialog
 from .conflict_dialog import ConflictDialog
@@ -17,6 +18,7 @@ from .transfer_header import TransferHeaderBar
 
 __all__ = [
     "AttributeDialog",
+    "BulkRenameDialog",
     "CommandPalette",
     "ConfigDialog",
     "ConflictDialog",

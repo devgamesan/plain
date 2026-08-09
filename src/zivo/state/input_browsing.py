@@ -1,11 +1,15 @@
 """Browsing-mode key bindings and dispatcher."""
 
+from pathlib import Path
+
+from zivo.models import BulkRenameTarget
 from zivo.windows_paths import is_search_workspace_path
 
 from .actions import (
     Action,
     AddBookmark,
     BeginBookmarkSearch,
+    BeginBulkRename,
     BeginCommandPalette,
     BeginCreateInput,
     BeginDeleteTargets,
@@ -453,8 +457,15 @@ def handle_toggle_bookmark(state: AppState, _ctx: BrowsingCtx) -> DispatchedActi
 def handle_begin_rename(_state: AppState, ctx: BrowsingCtx) -> DispatchedActions:
     if not ctx.target_paths:
         return warn("Nothing to rename")
-    if len(ctx.target_paths) != 1:
-        return warn("Rename requires a single target")
+    if len(ctx.target_paths) >= 2:
+        return supported(
+            BeginBulkRename(
+                parent_dir=_state.current_pane.directory_path,
+                targets=tuple(
+                    BulkRenameTarget(path, Path(path).name) for path in ctx.target_paths
+                ),
+            )
+        )
     return supported(BeginRenameInput(ctx.target_paths[0]))
 
 

@@ -11,7 +11,22 @@ DeleteMode = Literal["trash", "permanent"]
 MutationResultLevel = Literal["info", "warning", "error"]
 ArchiveFormat = Literal["zip", "tar", "tar.gz", "tar.bz2", "gz", "bz2"]
 FileMutationOperation = Literal["rename", "create", "delete", "symlink", "chmod", "chown"]
-UndoOperationKind = Literal["rename", "paste_copy", "paste_cut", "trash_delete"]
+UndoOperationKind = Literal[
+    "rename",
+    "bulk_rename",
+    "paste_copy",
+    "paste_cut",
+    "trash_delete",
+]
+BulkRenameItemStatus = Literal[
+    "ready",
+    "unchanged",
+    "error",
+    "renamed",
+    "restored",
+    "failed",
+    "recovery_failed",
+]
 
 
 @dataclass(frozen=True)
@@ -150,6 +165,89 @@ class RenameRequest:
 
     source_path: str
     new_name: str
+
+
+@dataclass(frozen=True)
+class BulkRenameTarget:
+    """One requested same-directory bulk rename."""
+
+    source_path: str
+    new_name: str
+
+
+@dataclass(frozen=True)
+class BulkRenameRequest:
+    """Request to rename multiple entries within one directory."""
+
+    parent_dir: str
+    targets: tuple[BulkRenameTarget, ...]
+
+
+@dataclass(frozen=True)
+class BulkRenamePlanItem:
+    """Validation or execution state for one bulk rename row."""
+
+    source_path: str
+    old_name: str
+    new_name: str
+    status: BulkRenameItemStatus = "ready"
+    message: str | None = None
+    current_path: str | None = None
+
+
+@dataclass(frozen=True)
+class BulkRenameValidationResult:
+    """Preflight result used by the editor and execution service."""
+
+    items: tuple[BulkRenamePlanItem, ...]
+
+    @property
+    def changed_count(self) -> int:
+        return sum(
+            item.status in {"ready", "renamed", "restored"}
+            for item in self.items
+        )
+
+    @property
+    def unchanged_count(self) -> int:
+        return sum(item.status == "unchanged" for item in self.items)
+
+    @property
+    def error_count(self) -> int:
+        return sum(item.status == "error" for item in self.items)
+
+    @property
+    def executable(self) -> bool:
+        return self.changed_count > 0 and self.error_count == 0
+
+
+@dataclass(frozen=True)
+class BulkRenameAppliedChange:
+    """One successful rename recorded for bulk Undo."""
+
+    source_path: str
+    destination_path: str
+
+
+@dataclass(frozen=True)
+class BulkRenameExecutionResult:
+    """Terminal result returned from the bulk rename service."""
+
+    validation: BulkRenameValidationResult
+    applied_changes: tuple[BulkRenameAppliedChange, ...] = ()
+    rolled_back: bool = False
+    message: str = ""
+
+    @property
+    def success_count(self) -> int:
+        return sum(item.status == "renamed" for item in self.validation.items)
+
+    @property
+    def failure_count(self) -> int:
+        return sum(
+            item.status in {"error", "failed", "recovery_failed"}
+            for item in self.validation.items
+        )
 
 
 @dataclass(frozen=True)

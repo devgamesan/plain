@@ -18,6 +18,7 @@ from zivo.state import (
     RunArchiveExtractEffect,
     RunArchivePreparationEffect,
     RunAttributeInspectionEffect,
+    RunBulkRenameEffect,
     RunClipboardPasteEffect,
     RunConfigSaveEffect,
     RunCustomActionEffect,
@@ -33,6 +34,7 @@ from zivo.state import (
 )
 from zivo.state.actions import (
     ArchiveExtractProgress,
+    BulkRenameProgress,
     CustomActionCompleted,
     CustomActionFailed,
     DuplicateProgress,
@@ -69,6 +71,24 @@ def schedule_duplicate(app: Any, effect: RunDuplicateEffect) -> None:
             name=f"duplicate:{effect.request_id}",
             group="duplicate",
             description=effect.request.destination_dir,
+            exclusive=True,
+        ),
+    )
+
+
+def schedule_bulk_rename(app: Any, effect: RunBulkRenameEffect) -> None:
+    run_worker(
+        app,
+        effect,
+        partial(
+            app._bulk_rename_service.execute,
+            effect.request,
+            progress_callback=partial(report_bulk_rename_progress, app, effect.request_id),
+        ),
+        WorkerSpec(
+            name=f"bulk-rename:{effect.request_id}",
+            group="bulk-rename",
+            description=effect.request.parent_dir,
             exclusive=True,
         ),
     )
@@ -521,6 +541,30 @@ def report_duplicate_progress(
 ) -> None:
     actions = (
         DuplicateProgress(
+            request_id=request_id,
+            completed_entries=completed_entries,
+            total_entries=total_entries,
+            current_path=current_path,
+        ),
+    )
+    try:
+        if app._thread_id == threading.get_ident():
+            app.call_next(app.dispatch_actions, actions)
+            return
+        app.call_from_thread(app.call_next, app.dispatch_actions, actions)
+    except (RuntimeError, FutureCancelledError):
+        return
+
+
+def report_bulk_rename_progress(
+    app: Any,
+    request_id: int,
+    completed_entries: int,
+    total_entries: int,
+    current_path: str | None,
+) -> None:
+    actions = (
+        BulkRenameProgress(
             request_id=request_id,
             completed_entries=completed_entries,
             total_entries=total_entries,

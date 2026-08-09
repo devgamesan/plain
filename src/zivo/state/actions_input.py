@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from zivo.models import CreateKind
+from zivo.models import BulkRenameTarget, CreateKind
 
 
 @dataclass(frozen=True)
@@ -25,6 +25,97 @@ class BeginRenameInput:
     """Enter rename input mode for a single path."""
 
     path: str
+
+
+@dataclass(frozen=True)
+class BeginBulkRename:
+    """Open the bulk rename editor for selected targets."""
+
+    parent_dir: str
+    targets: tuple[BulkRenameTarget, ...]
+
+
+@dataclass(frozen=True)
+class SetBulkRenameName:
+    """Replace one bulk rename row's draft name."""
+
+    row_index: int
+    value: str
+
+
+@dataclass(frozen=True)
+class SetBulkRenameFindReplace:
+    """Update the bulk rename literal find/replace drafts."""
+
+    find_text: str
+    replace_text: str
+
+
+@dataclass(frozen=True)
+class MoveBulkRenameCursor:
+    """Move the selected bulk rename row."""
+
+    delta: int
+
+
+@dataclass(frozen=True)
+class CycleBulkRenameField:
+    """Move focus between bulk rename fields and actions."""
+
+    delta: int
+
+
+@dataclass(frozen=True)
+class SetBulkRenameEditing:
+    """Toggle editing mode for the selected New Name row."""
+
+    editing: bool
+
+
+@dataclass(frozen=True)
+class MoveBulkRenameTextCursor:
+    """Move the selected New Name text cursor."""
+
+    delta: int
+
+
+@dataclass(frozen=True)
+class SetBulkRenameTextCursor:
+    """Set the selected New Name text cursor."""
+
+    cursor_pos: int
+
+
+@dataclass(frozen=True)
+class DeleteBulkRenameTextBackward:
+    """Delete the character before the selected New Name cursor."""
+
+
+@dataclass(frozen=True)
+class DeleteBulkRenameTextForward:
+    """Delete the character at the selected New Name cursor."""
+
+
+@dataclass(frozen=True)
+class PasteIntoBulkRename:
+    """Paste text into the selected New Name draft."""
+
+    text: str
+
+
+@dataclass(frozen=True)
+class ApplyBulkRenameFindReplace:
+    """Apply the current literal find/replace drafts to New Name values."""
+
+
+@dataclass(frozen=True)
+class ApplyBulkRename:
+    """Apply the validated bulk rename plan."""
+
+
+@dataclass(frozen=True)
+class CancelBulkRename:
+    """Close the bulk rename editor without applying it."""
 
 
 @dataclass(frozen=True)

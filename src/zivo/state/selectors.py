@@ -59,6 +59,7 @@ from .selectors_shared import (
 )
 from .selectors_ui import (
     select_attribute_dialog_state,
+    select_bulk_rename_dialog_state,
     select_command_palette_state,
     select_config_dialog_state,
     select_conflict_dialog_state,
@@ -79,6 +80,7 @@ __all__ = [
     "get_command_palette_items",
     "normalize_command_palette_cursor",
     "select_attribute_dialog_state",
+    "select_bulk_rename_dialog_state",
     "select_child_entries",
     "select_command_palette_state",
     "select_config_dialog_state",
@@ -173,6 +175,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         config_dialog=select_config_dialog_state(state),
         shell_command_dialog=select_shell_command_dialog_state(state),
         input_dialog=select_input_dialog_state(state),
+        bulk_rename_dialog=select_bulk_rename_dialog_state(state),
     )
     if state.layout_mode != "transfer":
         return shell

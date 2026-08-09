@@ -1,6 +1,9 @@
 """Reducer actions for app state transitions."""
 
 from .actions_input import (
+    ApplyBulkRename,
+    ApplyBulkRenameFindReplace,
+    BeginBulkRename,
     BeginChmodInput,
     BeginChownInput,
     BeginConfigEditor,
@@ -11,23 +14,34 @@ from .actions_input import (
     BeginShellCommandInput,
     BeginSymlinkInput,
     BeginZipCompressInput,
+    CancelBulkRename,
     CancelFilterInput,
     CancelPendingInput,
     CancelShellCommandInput,
     ConfirmFilterInput,
+    CycleBulkRenameField,
     CycleConfigEditorValue,
     CycleCreateKind,
+    DeleteBulkRenameTextBackward,
+    DeleteBulkRenameTextForward,
     DeletePendingInputForward,
     DismissAboutDialog,
     DismissAttributeDialog,
     DismissConfigEditor,
     DismissNameConflict,
+    MoveBulkRenameCursor,
+    MoveBulkRenameTextCursor,
     MoveConfigEditorCursor,
     MovePendingInputCursor,
     MoveShellCommandCursor,
+    PasteIntoBulkRename,
     PasteIntoPendingInput,
     PasteIntoShellCommand,
     SaveConfigEditor,
+    SetBulkRenameEditing,
+    SetBulkRenameFindReplace,
+    SetBulkRenameName,
+    SetBulkRenameTextCursor,
     SetFilterQuery,
     SetPendingInputCursor,
     SetPendingInputValue,
@@ -79,6 +93,10 @@ __all__ = [
     "BeginExtractArchiveInput",
     "BeginFilterInput",
     "BeginRenameInput",
+    "BeginBulkRename",
+    "ApplyBulkRename",
+    "ApplyBulkRenameFindReplace",
+    "CancelBulkRename",
     "BeginShellCommandInput",
     "BeginSymlinkInput",
     "BeginZipCompressInput",
@@ -87,18 +105,28 @@ __all__ = [
     "CancelShellCommandInput",
     "ConfirmFilterInput",
     "CycleConfigEditorValue",
+    "CycleBulkRenameField",
+    "DeleteBulkRenameTextBackward",
+    "DeleteBulkRenameTextForward",
     "DeletePendingInputForward",
     "DismissAboutDialog",
     "DismissAttributeDialog",
     "DismissConfigEditor",
     "DismissNameConflict",
     "MoveConfigEditorCursor",
+    "MoveBulkRenameCursor",
+    "MoveBulkRenameTextCursor",
     "MovePendingInputCursor",
     "MoveShellCommandCursor",
     "PasteIntoPendingInput",
+    "PasteIntoBulkRename",
     "PasteIntoShellCommand",
     "SaveConfigEditor",
     "SetFilterQuery",
+    "SetBulkRenameEditing",
+    "SetBulkRenameFindReplace",
+    "SetBulkRenameName",
+    "SetBulkRenameTextCursor",
     "SetPendingInputCursor",
     "SetPendingInputValue",
     "TogglePendingInputRecursive",
@@ -243,6 +271,9 @@ from .actions_runtime import (
     AttributeInspectionLoaded,
     BrowserSnapshotFailed,
     BrowserSnapshotLoaded,
+    BulkRenameCompleted,
+    BulkRenameFailed,
+    BulkRenameProgress,
     ChildPaneSnapshotFailed,
     ChildPaneSnapshotLoaded,
     ClipboardPasteCompleted,
@@ -350,7 +381,21 @@ Action = (
     | CancelFilterInput
     | BeginChmodInput
     | BeginChownInput
+    | BeginBulkRename
     | BeginRenameInput
+    | SetBulkRenameName
+    | SetBulkRenameFindReplace
+    | SetBulkRenameEditing
+    | SetBulkRenameTextCursor
+    | MoveBulkRenameCursor
+    | MoveBulkRenameTextCursor
+    | CycleBulkRenameField
+    | DeleteBulkRenameTextBackward
+    | DeleteBulkRenameTextForward
+    | PasteIntoBulkRename
+    | ApplyBulkRenameFindReplace
+    | ApplyBulkRename
+    | CancelBulkRename
     | BeginCreateInput
     | CycleCreateKind
     | BeginConfigEditor
@@ -476,6 +521,9 @@ Action = (
     | DuplicateProgress
     | DuplicateCompleted
     | DuplicateFailed
+    | BulkRenameProgress
+    | BulkRenameCompleted
+    | BulkRenameFailed
     | ArchivePreparationCompleted
     | ArchivePreparationFailed
     | ArchiveExtractProgress

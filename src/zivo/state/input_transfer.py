@@ -1,7 +1,12 @@
 """Keyboard handling for the two-pane transfer layout."""
 
+from pathlib import Path
+
+from zivo.models import BulkRenameTarget
+
 from .actions import (
     BeginBookmarkSearch,
+    BeginBulkRename,
     BeginCommandPalette,
     BeginCreateInput,
     BeginDeleteTargets,
@@ -218,6 +223,15 @@ def dispatch_transfer_input(
         target_paths = selected_paths if selected_paths else (
             (transfer.pane.cursor_path,) if transfer.pane.cursor_path else ()
         )
+        if len(target_paths) >= 2:
+            return supported(
+                BeginBulkRename(
+                    parent_dir=transfer.current_path,
+                    targets=tuple(
+                        BulkRenameTarget(path, Path(path).name) for path in target_paths
+                    ),
+                )
+            )
         if len(target_paths) != 1:
             return warn("Rename requires a single target")
         return supported(BeginRenameInput(target_paths[0]))

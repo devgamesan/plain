@@ -674,9 +674,15 @@ def _build_contextual_command_items(state: AppState) -> tuple[CommandPaletteItem
     has_single_target = single_target is not None
     search_workspace = is_search_workspace_path(state.current_path)
     chmod_supported = _is_chmod_supported()
+    rename_label = f"Rename {len(target_paths)} items" if len(target_paths) >= 2 else "Rename"
     items = (
         CommandPaletteItem("show_attributes", "Show attributes", None, has_single_target),
-        CommandPaletteItem("rename", "Rename", "r", has_single_target and not search_workspace),
+        CommandPaletteItem(
+            "rename",
+            rename_label,
+            "r",
+            has_target and not search_workspace,
+        ),
         CommandPaletteItem(
             "change_permissions",
             "Change permissions",
@@ -1014,9 +1020,13 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
         ),
         CommandPaletteItem(
             id="rename",
-            label="Rename",
+            label=(
+                f"Rename {len(target_paths)} items"
+                if len(target_paths) >= 2
+                else "Rename"
+            ),
             shortcut="r",
-            enabled=has_single_target,
+            enabled=has_target,
         ),
         *chmod_item,
         CommandPaletteItem(

@@ -179,6 +179,17 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 | --- | ------ |
 | 文字入力 / `Backspace` / `Enter` / `Esc` | リネームや新規作成の入力値を編集、確定、キャンセル |
 
+## 一括リネームモード
+
+| キー | 動作 |
+| --- | ------ |
+| `↑` / `↓` / `j` / `k` | New Name の行を移動 |
+| `Enter` | 行の編集を開始／終了、Find/Replace の下書き適用、`Rename items`、`Cancel` を実行 |
+| `Tab` / `Shift+Tab` | 表、Find、Replace、Replace in draft、Rename items、Cancel のフォーカスを移動 |
+| 文字入力 / `←` / `→` / `Home` / `End` / `Backspace` / `Delete` | 選択行の New Name を編集 |
+| `Ctrl+V` | クリップボードを選択行へ貼り付け |
+| `Esc` | オーバーレイを閉じ、変更を破棄 |
+
 ---
 
 ## 確認ダイアログモード

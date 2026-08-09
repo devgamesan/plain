@@ -661,7 +661,8 @@ class zivoApp(App[None]):
     async def _dispatch_pane_action(self, action_id: str) -> None:
         actions = {
             "clear_filter": CancelFilterInput(),
-            "create": BeginCreateInput("file"),
+            "create_file": BeginCreateInput("file"),
+            "create_dir": BeginCreateInput("dir"),
             "show_attributes": ShowAttributes(),
             "edit_config": BeginConfigEditor(),
         }

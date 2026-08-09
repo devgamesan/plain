@@ -3679,8 +3679,11 @@ def test_select_shell_data_distinguishes_empty_and_filtered_empty_directory() ->
     shell = select_shell_data(state)
     assert shell.current_pane_status is not None
     assert shell.current_pane_status.kind == "empty"
-    assert [action.action_id for action in shell.current_pane_status.actions] == ["create"]
-    assert [action.shortcut for action in shell.current_pane_status.actions] == [":"]
+    assert [action.action_id for action in shell.current_pane_status.actions] == [
+        "create_file",
+        "create_dir",
+    ]
+    assert [action.shortcut for action in shell.current_pane_status.actions] == ["n", "N"]
 
     filtered = replace(
         state,

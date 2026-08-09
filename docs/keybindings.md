@@ -59,8 +59,6 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 | `o` | Open new tab |
 | `w` | Close current tab |
 | `1`-`9`, `0` | Switch to tab 1-9, or tab 10 with `0` |
-| `tab` | Switch to next tab |
-| `shift+tab` | Switch to previous tab |
 | `:` | Open command palette |
 | `q` | Quit |
 | `[` | Go back in history |
@@ -78,6 +76,7 @@ The active pane is the source and the opposite pane is the destination; the dire
 | Key | Action |
 | --- | ------ |
 | `Tab` / `Shift+Tab` | Switch focus to the opposite pane (sets transfer direction) |
+| `1`-`9`, `0` | Switch to tab 1-9, or tab 10 with `0` |
 | `Esc` | Clear selection, or return to normal mode when nothing is selected |
 | `j` / `↓` | Move down in the focused pane |
 | `k` / `↑` | Move up in the focused pane |
@@ -103,7 +102,7 @@ The active pane is the source and the opposite pane is the destination; the dire
 | `p` | Return to normal mode |
 | `q` | Exit the application |
 
-Browser tab operations (new/switch/close tab) are reachable from the transfer-mode command palette (`:`), since `Tab` switches panes.
+Browser tab operations are reachable from the transfer-mode command palette (`:`); switch tabs directly with number keys `1`-`9`/`0`. `Tab` switches panes.
 
 ---
 

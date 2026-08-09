@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from zivo.windows_paths import paths_equal
 
-from .actions import Action, SetNotification
+from .actions import Action, ActivateTabByIndex, SetNotification
 from .models import AppState, DirectoryEntryState, NotificationState
 from .selectors import select_visible_current_entry_states
 
@@ -43,3 +43,16 @@ def supported(*actions: Action) -> DispatchedActions:
 
 def warn(message: str) -> DispatchedActions:
     return (SetNotification(NotificationState(level="warning", message=message)),)
+
+
+def dispatch_direct_tab_input(state: AppState, *, key: str) -> DispatchedActions:
+    """Activate the browser tab selected by a number key (1-9, 0 for the 10th)."""
+
+    if len(key) != 1 or not key.isdigit():
+        return ()
+
+    tab_number = 10 if key == "0" else int(key)
+    tab_count = len(state.browser_tabs) if state.browser_tabs else 1
+    if tab_number > tab_count:
+        return warn(f"Tab {tab_number} is not open")
+    return supported(ActivateTabByIndex(tab_number - 1))

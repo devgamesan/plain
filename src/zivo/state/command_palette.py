@@ -400,13 +400,13 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         CommandPaletteItem(
             id="next_tab",
             label="Next tab",
-            shortcut="tab",
+            shortcut=None,
             enabled=tab_count > 1,
         ),
         CommandPaletteItem(
             id="previous_tab",
             label="Previous tab",
-            shortcut="shift+tab",
+            shortcut=None,
             enabled=tab_count > 1,
         ),
         CommandPaletteItem(

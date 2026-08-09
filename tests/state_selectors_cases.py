@@ -3233,7 +3233,7 @@ def test_select_tab_bar_state_marks_active_tab() -> None:
     assert [tab.active for tab in tab_bar.tabs] == [False, True]
 
 
-def test_command_palette_includes_tab_commands_with_lowercase_shortcuts() -> None:
+def test_command_palette_tab_commands_have_no_direct_shortcut() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
 
     palette_state = select_command_palette_state(state)
@@ -3241,8 +3241,8 @@ def test_command_palette_includes_tab_commands_with_lowercase_shortcuts() -> Non
     assert palette_state is not None
     items = {item.label: item for item in palette_state.items}
     assert items["New tab"].shortcut == "o"
-    assert items["Next tab"].shortcut == "tab"
-    assert items["Previous tab"].shortcut == "shift+tab"
+    assert items["Next tab"].shortcut is None
+    assert items["Previous tab"].shortcut is None
     assert items["Close current tab"].shortcut == "w"
     assert items["Close current tab"].enabled is False
 

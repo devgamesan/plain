@@ -1908,7 +1908,7 @@ async def test_app_hides_tab_bar_until_multiple_tabs_are_open() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_tab_shortcuts_switch_between_browser_tabs() -> None:
+async def test_app_number_keys_switch_between_browser_tabs() -> None:
     path = str(Path("/tmp/zivo-tabs").resolve())
     docs_path = f"{path}/docs"
     loader = FakeBrowserSnapshotLoader(
@@ -1949,13 +1949,13 @@ async def test_app_tab_shortcuts_switch_between_browser_tabs() -> None:
         current_path_bar = await _wait_for_current_path_bar(app)
         assert str(current_path_bar.renderable) == f"Current Path: {docs_path}"
 
-        await pilot.press("shift+tab")
+        await pilot.press("1")
         await _wait_for_snapshot_loaded(app, path)
         current_path_bar = await _wait_for_current_path_bar(app)
         assert str(current_path_bar.renderable) == f"Current Path: {path}"
         assert app.focused is current_table
 
-        await pilot.press("tab")
+        await pilot.press("2")
         await _wait_for_snapshot_loaded(app, docs_path)
         current_path_bar = await _wait_for_current_path_bar(app)
         assert str(current_path_bar.renderable) == f"Current Path: {docs_path}"

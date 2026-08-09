@@ -44,6 +44,7 @@ from zivo.state.actions import (
     ChildPaneSnapshotLoaded,
     ClearSelection,
     CloseCurrentTab,
+    CloseTabByIndex,
     ConfigSaveCompleted,
     ConfigSaveFailed,
     ConfirmFilterInput,
@@ -2688,6 +2689,27 @@ def test_activate_tab_by_index_ignores_out_of_range_index() -> None:
 
 def test_close_current_tab_warns_when_only_one_tab_remains() -> None:
     next_state = _reduce_state(build_initial_app_state(), CloseCurrentTab())
+
+    assert next_state.notification == NotificationState(
+        level="warning",
+        message="Cannot close the last tab",
+    )
+
+
+def test_close_tab_by_index_preserves_active_tab_when_closing_another_tab() -> None:
+    state = _reduce_state(build_initial_app_state(), OpenNewTab())
+    state = _reduce_state(state, OpenNewTab())
+    active_path = state.current_path
+
+    next_state = _reduce_state(state, CloseTabByIndex(0))
+
+    assert next_state.active_tab_index == 1
+    assert next_state.current_path == active_path
+    assert len(select_browser_tabs(next_state)) == 2
+
+
+def test_close_tab_by_index_warns_when_only_one_tab_remains() -> None:
+    next_state = _reduce_state(build_initial_app_state(), CloseTabByIndex(0))
 
     assert next_state.notification == NotificationState(
         level="warning",

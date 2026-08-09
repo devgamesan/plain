@@ -39,6 +39,8 @@ By default, it keeps a stable, mode-specific set of standard shortcuts visible i
 
 Browse directories across three panes while previewing files on the right. Use file search and grep to quickly jump to any file. The help bar keeps the important shortcuts in a predictable order, so you never feel lost.
 
+The path bar exposes clickable breadcrumb segments and Back/Forward availability. When multiple tabs are open, the tab strip shows the active tab and mouse-only close/new affordances. Click `Name`, `Size`, or `Modified` headers to sort; the active direction and folders-first state remain visible. Narrow terminals keep the current path, active tab, Name column, and sort state visible while eliding lower-priority details.
+
 ![](docs/resources/basic_operation.gif)
 
 Press `:` to search and run any action from the command palette. The palette supports incremental search, letting you find and execute commands quickly without memorizing keybindings.
@@ -140,6 +142,7 @@ See [Commands](docs/commands.md) for the full command list.
 - **Directory history**: go back / forward through visited directories
 - **Bookmarks**: save directories and open them from the bookmark-filtered Go view with `b`
 - **Go**: search bookmarks, recent history, open tabs, Home, or a direct path in one view; use `@bookmark`, `@history`, `@tab`, or `@home` prefixes to filter the source
+- **Direct UI controls**: click breadcrumb segments, Back/Forward (normal browsing), tabs, and sortable column headers; Search Workspace uses a dedicated non-breadcrumb label
 
 ### File operations
 - **Copy / Cut / Paste**: within a pane (normal mode only)

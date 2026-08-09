@@ -19,6 +19,16 @@ class TabBar(Static):
             super().__init__()
             self.tab_index = tab_index
 
+    class TabClosed(Message):
+        """Notify the app that a tab close affordance was clicked."""
+
+        def __init__(self, tab_index: int) -> None:
+            super().__init__()
+            self.tab_index = tab_index
+
+    class NewTabClicked(Message):
+        """Notify the app that the new-tab affordance was clicked."""
+
     def __init__(
         self,
         state: TabBarState,
@@ -26,7 +36,11 @@ class TabBar(Static):
         id: str | None = None,
         classes: str | None = None,
     ) -> None:
-        super().__init__(self._render_state(state), id=id, classes=classes)
+        super().__init__(
+            self._render_state(state, include_new=True),
+            id=id,
+            classes=classes,
+        )
         self.state = state
         self.display = len(state.tabs) > 1
         self._hovered_index: int | None = None
@@ -39,26 +53,102 @@ class TabBar(Static):
         if state == self.state:
             return
         self.state = state
-        self.update(self._render_state(state))
+        self.update(self._render_state(state, include_new=True, max_width=self.size.width))
 
     @staticmethod
-    def _render_state(state: TabBarState, hovered_index: int | None = None) -> Text:
+    def _render_state(
+        state: TabBarState,
+        hovered_index: int | None = None,
+        *,
+        include_new: bool = False,
+        max_width: int | None = None,
+    ) -> Text:
         rendered = Text(no_wrap=True, overflow="ellipsis")
-        for index, tab in enumerate(state.tabs, start=1):
-            if index > 1:
+        if not state.tabs:
+            return rendered
+
+        tab_texts = [f"[{index}:{tab.label}]" for index, tab in enumerate(state.tabs, 1)]
+        suffix = " [+]" if include_new else ""
+        visible = list(range(len(state.tabs)))
+        if max_width and max_width > 0:
+            full_width = len(" ".join(tab_texts)) + len(suffix)
+            if full_width > max_width:
+                active_index = next(
+                    (index for index, tab in enumerate(state.tabs) if tab.active),
+                    0,
+                )
+                preferred = [active_index]
+                if active_index > 0:
+                    preferred.append(active_index - 1)
+                if active_index + 1 < len(state.tabs):
+                    preferred.append(active_index + 1)
+                for index in range(len(state.tabs)):
+                    if index not in preferred:
+                        preferred.append(index)
+                visible = []
+                for index in preferred:
+                    candidate = sorted((*visible, index))
+                    overflow_count = len(state.tabs) - len(candidate)
+                    candidate_text = " ".join(tab_texts[item] for item in candidate)
+                    if overflow_count:
+                        candidate_text += f" … (+{overflow_count})"
+                    candidate_text += suffix
+                    if len(candidate_text) <= max_width or not visible:
+                        visible.append(index)
+                    if len(visible) >= 3 and len(
+                        " ".join(tab_texts[item] for item in visible)
+                        + (
+                            f" … (+{len(state.tabs) - len(visible)})"
+                            if len(visible) < len(state.tabs)
+                            else ""
+                        )
+                        + suffix
+                    ) <= max_width:
+                        continue
+                visible = sorted(set(visible))
+
+        for position, index in enumerate(visible):
+            tab = state.tabs[index]
+            if position:
                 rendered.append(" ")
+            display_index = index + 1
             if tab.active:
                 base_style = Style(reverse=True, bold=True)
-            elif hovered_index == index:
+            elif hovered_index == display_index:
                 base_style = Style(bold=True, underline=True)
             else:
                 base_style = Style(bold=True)
-            style = Style(meta={"tab_index": index}) + base_style
-            rendered.append(f"[{index}:{tab.label}]", style)
+            style = Style(meta={"tab_index": display_index, "tab_action": "activate"}) + base_style
+            rendered.append(tab_texts[index], style)
+            if hovered_index == display_index:
+                rendered.append(" ")
+                rendered.append(
+                    "×",
+                    Style(
+                        meta={"tab_close_index": display_index, "tab_action": "close"},
+                        bold=True,
+                    ),
+                )
+
+        if len(visible) < len(state.tabs):
+            rendered.append(f" … (+{len(state.tabs) - len(visible)})")
+        if include_new:
+            rendered.append(" ")
+            rendered.append("[+]", Style(meta={"tab_action": "new"}, bold=True))
         return rendered
 
     def on_click(self, event: events.Click) -> None:
         meta = event.style.meta
+        action = meta.get("tab_action")
+        if action == "new":
+            event.stop()
+            self.post_message(self.NewTabClicked())
+            return
+        close_index = meta.get("tab_close_index")
+        if close_index is not None:
+            event.stop()
+            self.post_message(self.TabClosed(tab_index=int(close_index) - 1))
+            return
         tab_index = meta.get("tab_index")
         if tab_index is None:
             return
@@ -67,15 +157,36 @@ class TabBar(Static):
 
     def on_mouse_move(self, event: events.MouseMove) -> None:
         meta = event.style.meta
-        tab_index = meta.get("tab_index")
+        tab_index = meta.get("tab_index", meta.get("tab_close_index"))
         new_hovered = int(tab_index) if tab_index is not None else None
         if new_hovered != self._hovered_index:
             self._hovered_index = new_hovered
             self.update(
-                self._render_state(self.state, hovered_index=self._hovered_index)
+                self._render_state(
+                    self.state,
+                    hovered_index=self._hovered_index,
+                    include_new=True,
+                    max_width=self.size.width,
+                )
             )
 
     def on_leave(self, _event: events.Leave) -> None:
         if self._hovered_index is not None:
             self._hovered_index = None
-            self.update(self._render_state(self.state))
+            self.update(
+                self._render_state(
+                    self.state,
+                    include_new=True,
+                    max_width=self.size.width,
+                )
+            )
+
+    def on_resize(self, _event: events.Resize) -> None:
+        self.update(
+            self._render_state(
+                self.state,
+                hovered_index=self._hovered_index,
+                include_new=True,
+                max_width=self.size.width,
+            )
+        )

@@ -874,6 +874,9 @@ def _build_current_summary(
         item_count=item_count,
         selected_count=selected_count,
         sort_label=_format_sort_label(sort),
+        sort_field=sort.field,
+        sort_descending=sort.descending,
+        directories_first=sort.directories_first,
     )
 
 

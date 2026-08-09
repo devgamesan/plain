@@ -107,6 +107,28 @@ def test_pane_entry_defaults_executable_to_false() -> None:
     assert entry.executable is False
 
 
+def test_main_pane_header_labels_expose_sort_and_directory_grouping() -> None:
+    summary = CurrentSummaryState(
+        item_count=2,
+        selected_count=0,
+        sort_label="size desc",
+        sort_field="size",
+        sort_descending=True,
+        directories_first=False,
+    )
+    pane = MainPane("Current", (), summary=summary)
+
+    assert pane._header_label("name") == "Name · mixed"
+    assert pane._header_label("size") == "Size ↓"
+    assert pane._header_label("modified") == "Modified"
+
+
+def test_main_pane_hides_low_priority_columns_at_narrow_width() -> None:
+    assert MainPane._select_visible_column_keys(80) == MainPane.COLUMN_KEYS
+    assert MainPane._select_visible_column_keys(36) == ("sel", "name", "size")
+    assert MainPane._select_visible_column_keys(24) == ("sel", "name")
+
+
 def test_child_pane_renders_image_preview_as_ansi() -> None:
     renderable = ChildPane._render_preview(
         ChildPaneViewState(

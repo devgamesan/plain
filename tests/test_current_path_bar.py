@@ -8,6 +8,7 @@ import pytest
 from rich.style import Style
 from rich.text import Text
 
+from zivo.models import PathBarState
 from zivo.ui.current_path_bar import CurrentPathBar
 from zivo.windows_paths import (
     WINDOWS_DRIVES_LABEL,
@@ -172,6 +173,43 @@ def test_display_path_matches_plain_text() -> None:
     assert str(bar.renderable) == f"Current Path: {path}"
 
 
+def test_render_path_state_exposes_history_controls_and_breadcrumb_metadata() -> None:
+    rendered = CurrentPathBar._render_path_state(
+        PathBarState(
+            path="/home/user/project",
+            can_go_back=True,
+            can_go_forward=False,
+        )
+    )
+
+    assert rendered.plain.startswith("[‹] [›]  Current Path: / › home › user › project")
+    metadata = [span.style.meta for span in rendered.spans if span.style and span.style.meta]
+    assert {"path_navigation": "back", "navigation_enabled": True} in metadata
+    assert {"path_navigation": "forward", "navigation_enabled": False} in metadata
+    assert {"path_segment": "/home/user", "segment_index": 2} in metadata
+
+
+def test_render_path_state_elides_middle_segments_and_labels_search_workspace() -> None:
+    rendered = CurrentPathBar._render_path_state(
+        PathBarState(path="/home/user/projects/zivo/tests", show_history_controls=False),
+        max_width=38,
+    )
+    assert "…" in rendered.plain
+    assert "tests" in rendered.plain
+
+    search = CurrentPathBar._render_path_state(
+        PathBarState(
+            path="search://filename%3Apy?target=all&hidden=false",
+            show_history_controls=False,
+        )
+    )
+    assert search.plain == "Search Workspace: search:filename:py"
+    assert not any(
+        span.style and span.style.meta and "path_segment" in span.style.meta
+        for span in search.spans
+    )
+
+
 # ---------------------------------------------------------------------------
 # Widget-level click / hover behaviour
 # ---------------------------------------------------------------------------
@@ -211,6 +249,25 @@ def test_click_on_prefix_does_nothing() -> None:
         bar.post_message = original
 
     assert len(messages) == 0
+
+
+def test_click_on_enabled_history_control_posts_navigation_message() -> None:
+    bar = CurrentPathBar(
+        "/home/user/dir",
+        state=PathBarState(path="/home/user/dir", can_go_back=True),
+    )
+    messages: list[CurrentPathBar.PathNavigationClicked] = []
+    original = bar.post_message
+    bar.post_message = lambda msg: messages.append(msg)  # type: ignore[method-assign]
+    try:
+        bar.on_click(_make_click_event(
+            meta={"path_navigation": "back", "navigation_enabled": True},
+        ))
+    finally:
+        bar.post_message = original
+
+    assert len(messages) == 1
+    assert messages[0].direction == "back"
 
 
 def _make_click_event(*, meta: dict) -> object:

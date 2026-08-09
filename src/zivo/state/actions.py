@@ -143,6 +143,7 @@ from .actions_navigation import (
     AddBookmark,
     ClearTransferSelection,
     CloseCurrentTab,
+    CloseTabByIndex,
     CopyPathsToClipboard,
     EnterCursorDirectory,
     EnterTransferDirectory,
@@ -375,6 +376,7 @@ Action = (
     | ActivateNextTab
     | ActivatePreviousTab
     | CloseCurrentTab
+    | CloseTabByIndex
     | MoveCursor
     | JumpCursor
     | MoveCursorByPage

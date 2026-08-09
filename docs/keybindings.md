@@ -16,6 +16,8 @@ Transfer shows `enter dir`, `. hidden`, `Tab switch-pane`, `p/Esc close`, `q qui
 
 When a right-pane preview is active, its footer shows `Ctrl+J/K scroll preview`. Replace previews use `Shift+↑/↓ scroll preview`. `Ctrl+↑/↓` are aliases for normal preview scrolling. Narrow terminals keep three rows and elide lower-frequency items from the right.
 
+Mouse affordances mirror these actions: click breadcrumb segments or normal-browsing Back/Forward controls to navigate, click a tab to activate it, hover a tab for `×` close, use `+` for a new tab, and click the Name/Size/Modified headers to sort. Search Workspace is shown as a dedicated label, and Transfer mode does not add path-bar history buttons.
+
 ---
 
 ## Normal Mode

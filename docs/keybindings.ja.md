@@ -16,6 +16,8 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 
 右ペインでプレビュー中は、ペイン下部に `Ctrl+J/K scroll preview` を表示します。置換プレビューでは `Shift+↑/↓ scroll preview` を使用します。通常プレビューでは `Ctrl+↑/↓` も別名として使えます。狭い端末でも3行を維持し、各行の右端から低頻度の項目を省略します。
 
+マウス操作も同じActionを使います。breadcrumb segmentまたは通常ブラウズのBack/Forwardをクリックして移動し、タブ本体で切替、hover時の`×`でclose、`+`で新規タブを実行できます。Name/Size/Modified headerのクリックはsortを変更します。Search Workspaceは専用ラベルで表示し、Transfer modeにパスバー履歴ボタンは追加しません。
+
 ---
 
 ## 通常モード
@@ -102,7 +104,7 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 | `p` | 通常モードに戻る |
 | `q` | アプリを終了 |
 
-ブラウザタブ操作は転送モードのコマンドパレット（`:`）から利用できます。タブの切替は数字キー（`1`〜`0`）で直接行え、`Tab` はペイン切替に使います。
+キーボードのブラウザタブ操作は転送モードのコマンドパレット（`:`）から利用できます。タブの切替は数字キー（`1`〜`0`）で直接行え、`Tab` はペイン切替に使います。表示中のタブバーはマウスで切替・close・新規タブを実行できます。
 
 ---
 

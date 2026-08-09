@@ -208,8 +208,9 @@ sequenceDiagram
 
 - Builds `ThreePaneShellData` from `AppState`
 - Applies filter, sort, and directory-size display only to the main pane, while parent and child panes remain fixed-order
+- Builds a selector-owned `ResponsivePaneLayoutState`: 120+ columns show Parent / Current / Child, 80–119 show Current / Child, and below 80 show one Current or Details view. Resizing preserves the browser cursor, selection, and filter; `Tab` toggles only the narrow view
 - In transfer mode, builds display models for two `MainPane` instances and leaves Parent / Child / Preview out of the visible layout
-- Central and transfer-pane headings use `PaneHeadingState` to keep role, target name, item count, selected count, sort label, and active state in one selector-owned model
+- Central and transfer-pane headings use `PaneHeadingState` to keep role, target name, item count, selected count, sort label, and active state in one selector-owned model, with semantic Parent / Current / Contents / Preview / Results labels
 - Formats display text for the help bar, status bar, input bar, command palette, conflict dialog, attribute dialog, config dialog, and split terminal
 - Summarizes busy state, extraction progress, search errors, and notifications for the UI
 

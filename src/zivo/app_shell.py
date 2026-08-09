@@ -68,7 +68,7 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
     else:
         browser_row_children = [
             SidePane(
-                "Parent Directory",
+                shell.parent_heading,
                 shell.parent_entries,
                 id="parent-pane",
                 classes="pane side-pane",
@@ -93,6 +93,9 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
                 classes="pane side-pane",
             ),
         ]
+        browser_row_children[0].display = shell.responsive_layout.show_parent
+        browser_row_children[1].display = shell.responsive_layout.show_current
+        browser_row_children[2].display = shell.responsive_layout.show_child
     body_children: list[Any] = []
     if shell.layout_mode == "transfer" and shell.transfer_left and shell.transfer_right:
         body_children.append(TransferHeaderBar(shell.transfer_header, id="transfer-header"))
@@ -308,10 +311,15 @@ async def refresh_shell(
         current_pane.set_context_input(shell.current_context_input)
         current_pane.set_status(shell.current_pane_status)
     await parent_pane.set_entries(shell.parent_entries)
+    parent_pane.set_title(shell.parent_heading)
     await child_pane.set_state(shell.child_pane)
     if app_state.layout_mode == "transfer":
         parent_pane.display = False
         child_pane.display = False
+    else:
+        parent_pane.display = shell.responsive_layout.show_parent
+        current_pane.display = shell.responsive_layout.show_current
+        child_pane.display = shell.responsive_layout.show_child
     if theme_changed:
         def _refresh_themed_panes() -> None:
             parent_pane.refresh_styles()

@@ -62,6 +62,7 @@ def _handle_request_browser_snapshot(
         pending_directory_size_request_id=None,
         next_request_id=request_id + 1,
         ui_mode="BUSY" if action.blocking else state.ui_mode,
+        narrow_pane_view="current",
     )
 
     if getattr(action, "progressive", True) and not action.blocking:

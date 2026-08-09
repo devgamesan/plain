@@ -83,8 +83,10 @@ from zivo.state.actions import (
     SetPendingKeySequence,
     SetSort,
     SetTerminalHeight,
+    SetTerminalWidth,
     SetUiMode,
     ToggleHiddenFiles,
+    ToggleNarrowPaneView,
     ToggleSelection,
 )
 from zivo.windows_paths import WINDOWS_DRIVES_ROOT
@@ -2014,6 +2016,34 @@ class TestSetTerminalHeight:
         next_state = _reduce_state(state, SetTerminalHeight(height=24))
 
         assert next_state is state
+
+
+class TestResponsivePaneState:
+    def test_updates_terminal_width_and_resets_narrow_view_at_breakpoint(self) -> None:
+        state = replace(
+            build_initial_app_state(),
+            terminal_width=72,
+            narrow_pane_view="details",
+        )
+
+        next_state = _reduce_state(state, SetTerminalWidth(width=80))
+
+        assert next_state.terminal_width == 80
+        assert next_state.narrow_pane_view == "current"
+
+    def test_toggle_narrow_view(self) -> None:
+        state = replace(build_initial_app_state(), terminal_width=72)
+
+        details = _reduce_state(state, ToggleNarrowPaneView())
+        current = _reduce_state(details, ToggleNarrowPaneView())
+
+        assert details.narrow_pane_view == "details"
+        assert current.narrow_pane_view == "current"
+
+    def test_toggle_narrow_view_is_ignored_outside_narrow_browser(self) -> None:
+        state = replace(build_initial_app_state(), terminal_width=80)
+
+        assert _reduce_state(state, ToggleNarrowPaneView()) is state
 
 def test_jump_cursor_start() -> None:
     state = build_initial_app_state()

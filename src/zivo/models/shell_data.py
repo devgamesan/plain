@@ -8,6 +8,8 @@ from zivo.models.shell_command import ShellCommandResult
 EntryKind = Literal["dir", "file"]
 NotificationLevel = Literal["info", "warning", "error"]
 PreviewKind = Literal["text", "image"]
+PaneWidthClass = Literal["wide", "medium", "narrow"]
+ResponsivePaneView = Literal["current", "details"]
 
 
 @dataclass(frozen=True)
@@ -128,6 +130,7 @@ class PaneHeadingState:
     selected_count: int
     sort_label: str
     active: bool = False
+    status_label: str | None = None
 
 
 @dataclass(frozen=True)
@@ -204,6 +207,7 @@ class ChildPaneViewState:
     view_kind: str = "entries"
     status: PaneStatusViewState | None = None
     metadata: tuple[MetadataItemViewState, ...] = ()
+    header_title: str | None = None
 
     @property
     def is_preview(self) -> bool:
@@ -214,6 +218,12 @@ class ChildPaneViewState:
             or self.preview_content is not None
             or self.preview_message is not None
         )
+
+    @property
+    def display_title(self) -> str:
+        """Return the semantic title rendered in the pane header."""
+
+        return self.header_title or self.title
 
 
 @dataclass(frozen=True)
@@ -353,6 +363,17 @@ class InputDialogState:
 
 
 @dataclass(frozen=True)
+class ResponsivePaneLayoutState:
+    """Responsive browser visibility derived from terminal width and state."""
+
+    width_class: PaneWidthClass
+    show_parent: bool
+    show_current: bool
+    show_child: bool
+    narrow_view: ResponsivePaneView = "current"
+
+
+@dataclass(frozen=True)
 class ThreePaneShellData:
     """Complete display state for the shell UI."""
 
@@ -376,6 +397,13 @@ class ThreePaneShellData:
     config_dialog: ConfigDialogState | None = None
     shell_command_dialog: ShellCommandDialogState | None = None
     input_dialog: InputDialogState | None = None
+    responsive_layout: ResponsivePaneLayoutState = ResponsivePaneLayoutState(
+        width_class="wide",
+        show_parent=True,
+        show_current=True,
+        show_child=True,
+    )
+    parent_heading: str = "Parent Directory"
     layout_mode: Literal["browser", "transfer"] = "browser"
     path_bar: PathBarState | None = None
     transfer_header: TransferHeaderState | None = None

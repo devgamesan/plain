@@ -53,6 +53,7 @@ from .actions import (
     ShowAbout,
     ShowAttributes,
     ToggleHiddenFiles,
+    ToggleNarrowPaneView,
     ToggleTransferMode,
     TransferCopyToOppositePane,
     TransferMoveToOppositePane,
@@ -557,6 +558,8 @@ def _run_palette_command_item(
         return _run_exit_command(next_state, reduce_state)
     if item_id == "toggle_transfer_mode":
         return reduce_state(next_state, ToggleTransferMode())
+    if item_id == "toggle_narrow_pane_view":
+        return reduce_state(next_state, ToggleNarrowPaneView())
     if item_id == "undo_last_operation":
         return reduce_state(next_state, UndoLastOperation())
     if item_id == "copy_targets":

@@ -98,6 +98,7 @@ from zivo.state.actions import (
     SubmitCommandPalette,
     SubmitPendingInput,
     ToggleHiddenFiles,
+    ToggleNarrowPaneView,
     TogglePendingInputRecursive,
     ToggleSelectionAndAdvance,
     ToggleTransferMode,

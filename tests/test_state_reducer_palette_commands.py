@@ -98,6 +98,25 @@ def test_begin_command_palette_keeps_current_cursor_path() -> None:
 
     assert next_state.current_pane.cursor_path == "/home/tadashi/develop/zivo/tests"
 
+
+def test_submit_command_palette_toggles_narrow_details_view() -> None:
+    state = _reduce_state(
+        replace(build_initial_app_state(), terminal_width=72),
+        BeginCommandPalette(),
+    )
+    assert state.command_palette is not None
+    items = command_palette_module.get_command_palette_items(state)
+    item_index = next(
+        index for index, item in enumerate(items) if item.id == "toggle_narrow_pane_view"
+    )
+    state = replace(state, command_palette=replace(state.command_palette, cursor_index=item_index))
+
+    next_state = _reduce_state(state, SubmitCommandPalette())
+
+    assert next_state.ui_mode == "BROWSING"
+    assert next_state.command_palette is None
+    assert next_state.narrow_pane_view == "details"
+
 def test_move_command_palette_cursor_clamps_to_visible_commands() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
 

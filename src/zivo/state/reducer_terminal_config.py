@@ -31,9 +31,11 @@ from .actions import (
     SetShellCommandCursor,
     SetShellCommandValue,
     SetTerminalHeight,
+    SetTerminalWidth,
     ShellCommandCompleted,
     ShellCommandFailed,
     SubmitShellCommand,
+    ToggleNarrowPaneView,
 )
 from .effects import (
     ReduceResult,
@@ -638,6 +640,38 @@ def _handle_set_terminal_height(
     return finalize(replace(state, terminal_height=action.height))
 
 
+def _handle_set_terminal_width(
+    state: AppState,
+    action: SetTerminalWidth,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del reduce_state
+    width = max(0, action.width)
+    if width == state.terminal_width:
+        return finalize(state)
+    next_view = state.narrow_pane_view
+    if (state.terminal_width < 80) != (width < 80):
+        next_view = "current"
+    return finalize(replace(state, terminal_width=width, narrow_pane_view=next_view))
+
+
+def _handle_toggle_narrow_pane_view(
+    state: AppState,
+    action: ToggleNarrowPaneView,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del action, reduce_state
+    if (
+        state.layout_mode != "browser"
+        or state.ui_mode != "BROWSING"
+        or state.terminal_width >= 80
+        or state.current_pane.cursor_path is None
+    ):
+        return finalize(state)
+    next_view = "details" if state.narrow_pane_view == "current" else "current"
+    return finalize(replace(state, narrow_pane_view=next_view, notification=None))
+
+
 # ---------------------------------------------------------------------------
 # Dispatch table
 # ---------------------------------------------------------------------------
@@ -671,4 +705,6 @@ _TERMINAL_CONFIG_HANDLERS: dict[type[Action], _TerminalConfigHandler] = {
     ConfigSaveCompleted: _handle_config_save_completed,
     ConfigSaveFailed: _handle_config_save_failed,
     SetTerminalHeight: _handle_set_terminal_height,
+    SetTerminalWidth: _handle_set_terminal_width,
+    ToggleNarrowPaneView: _handle_toggle_narrow_pane_view,
 }

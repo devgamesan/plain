@@ -48,6 +48,7 @@ from .actions import (
     SetSort,
     ShowAttributes,
     ToggleHiddenFiles,
+    ToggleNarrowPaneView,
     ToggleSelectionAndAdvance,
     ToggleTransferMode,
     UndoLastOperation,
@@ -112,6 +113,7 @@ BROWSING_KEYMAP = {
     "pagedown": "cursor_pagedown",
     "o": "open_new_tab",
     "w": "close_current_tab",
+    "tab": "toggle_narrow_pane_view",
 }
 
 # Help content is intentionally defined next to the authoritative key map so
@@ -217,6 +219,11 @@ def dispatch_browsing_input(
             and command in SEARCH_WORKSPACE_BLOCKED_COMMANDS
         ):
             return warn("Unavailable in search workspace")
+        if (
+            is_search_workspace_path(state.current_path)
+            and command == "toggle_narrow_pane_view"
+        ):
+            return ()
         handler = BROWSING_COMMAND_DISPATCH.get(command)
         if handler is not None:
             return handler(state, ctx)
@@ -484,6 +491,14 @@ def handle_enter_directory(_state: AppState, ctx: BrowsingCtx) -> DispatchedActi
     return ()
 
 
+def handle_toggle_narrow_pane_view(state: AppState, ctx: BrowsingCtx) -> DispatchedActions:
+    if state.terminal_width >= 80:
+        return ()
+    if ctx.cursor_entry is None:
+        return warn("Details view requires a focused item")
+    return supported(ToggleNarrowPaneView())
+
+
 BROWSING_SIMPLE_DISPATCH: dict[str, type[Action]] = {
     "begin_filter": BeginFilterInput,
     "begin_bookmark_search": BeginBookmarkSearch,
@@ -540,6 +555,7 @@ BROWSING_COMPLEX_DISPATCH: dict[str, BrowsingHandler] = {
     "open_in_editor": handle_open_in_editor,
     "open_in_gui_editor": handle_open_in_gui_editor,
     "enter_directory": handle_enter_directory,
+    "toggle_narrow_pane_view": handle_toggle_narrow_pane_view,
 }
 
 BROWSING_COMMAND_DISPATCH: dict[str, BrowsingHandler] = {

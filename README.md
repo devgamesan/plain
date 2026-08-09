@@ -30,6 +30,7 @@ By default, it keeps a stable, mode-specific set of standard shortcuts visible i
 - **No memorization required**: relevant standard shortcuts are shown in the help bar
 - **Context-aware command palette**: press `:` to browse fixed Navigate, File, Search, View, System, and Custom actions sections
 - **Three-pane preview**: preview directories, text, images, PDF, and Office files
+- **Responsive panes**: 120+ columns show Parent / Current / Contents, 80–119 show Current / Contents, and narrower terminals use `Tab` to switch between the current file list and Details
 - **Explicit pane states**: distinguish empty, filtered, loading, disabled, unsupported, dependency-missing, and permission-denied states; unavailable previews fall back to compact file metadata
 - **Transfer mode**: copy and move files between two directories side by side
 - **Search and grep**: find files, grep recursively, and open files from results
@@ -37,7 +38,7 @@ By default, it keeps a stable, mode-specific set of standard shortcuts visible i
 
 ---
 
-Browse directories across three panes while previewing files on the right. Use file search and grep to quickly jump to any file. The help bar keeps the important shortcuts in a predictable order, so you never feel lost.
+Browse directories across three panes while previewing files on the right. Use file search and grep to quickly jump to any file. On terminals below 80 columns, press `Tab` to switch between the current file list and the details view without losing the cursor or selection. The help bar keeps the important shortcuts in a predictable order, so you never feel lost.
 
 The path bar exposes clickable breadcrumb segments and Back/Forward availability. When multiple tabs are open, the tab strip shows the active tab and mouse-only close/new affordances. Click `Name`, `Size`, or `Modified` headers to sort; the active direction and folders-first state remain visible. Narrow terminals keep the current path, active tab, Name column, and sort state visible while eliding lower-priority details.
 
@@ -118,6 +119,7 @@ You can also press `:` to open the command palette and search for available acti
 | `f` | Find files |
 | `g` | Grep search |
 | `p` | Toggle Transfer mode |
+| `Tab` (below 80 columns) | Toggle current file list / Details view |
 | `q` | Quit |
 
 See [Keybindings](docs/keybindings.md) for the full list.

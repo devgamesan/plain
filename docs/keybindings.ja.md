@@ -12,6 +12,8 @@ zivo の全モードにおけるキーバインディング一覧です。
 
 Search Workspace は `enter open`、`e edit`、`/ filter`、`s sort`、`. hidden`、`[ ] bk/fwd`、`q quit`、続いて `space select`、`c copy`、`z undo`、`: palette` を表示します。
 
+80 列未満の通常ブラウズでは `Tab` で詳細ビュー（プレビュー／検索結果）と current のファイル一覧を切り替えます。カーソル、選択、フィルタ、プレビュー対象は保持し、`j` / `k` は underlying current 一覧のカーソルを移動します。Search Workspace では従来どおり `Tab` を入力欄の移動に使用します。
+
 Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q quit`、続いて `space select`、`c copy-to-pane`、`m move-to-pane`、`d delete`、`r rename`、`z undo`、最後に `N new-dir`、`: palette` を表示します。`D` は下記のキーバインディングには残しますが、ヘルプバーには表示しません。
 
 右ペインでプレビュー中は、ペイン下部に `Ctrl+J/K scroll preview` を表示します。置換プレビューでは `Shift+↑/↓ scroll preview` を使用します。通常プレビューでは `Ctrl+↑/↓` も別名として使えます。狭い端末でも3行を維持し、各行の右端から低頻度の項目を省略します。
@@ -68,6 +70,7 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 | `Ctrl+J` / `Ctrl+↑` | 右ペインのテキストプレビューを 1 ページ上へスクロール |
 | `Ctrl+K` / `Ctrl+↓` | 右ペインのテキストプレビューを 1 ページ下へスクロール |
 | `p` | 2 ペイン転送モードを切り替え |
+| `Tab`（80 列未満） | current のファイル一覧と詳細ビュー（プレビュー／検索結果）を切り替え |
 
 ---
 

@@ -62,6 +62,7 @@ from zivo.state import (
     select_help_bar_state,
     select_input_bar_state,
     select_parent_entries,
+    select_responsive_pane_layout,
     select_shell_data,
     select_status_bar_state,
     select_tab_bar_state,
@@ -1082,6 +1083,41 @@ def test_select_shell_data_exposes_visible_cursor_index() -> None:
     assert shell.current_cursor_visible is True
 
 
+def test_select_responsive_pane_layout_uses_width_breakpoints_and_narrow_view() -> None:
+    state = build_initial_app_state()
+
+    wide = select_responsive_pane_layout(replace(state, terminal_width=120))
+    medium = select_responsive_pane_layout(replace(state, terminal_width=80))
+    narrow_current = select_responsive_pane_layout(replace(state, terminal_width=79))
+    narrow_details = select_responsive_pane_layout(
+        replace(state, terminal_width=79, narrow_pane_view="details")
+    )
+
+    assert (wide.width_class, wide.show_parent, wide.show_current, wide.show_child) == (
+        "wide",
+        True,
+        True,
+        True,
+    )
+    assert (medium.width_class, medium.show_parent, medium.show_current, medium.show_child) == (
+        "medium",
+        False,
+        True,
+        True,
+    )
+    assert (narrow_current.show_current, narrow_current.show_child) == (True, False)
+    assert (narrow_details.show_current, narrow_details.show_child) == (False, True)
+
+
+def test_select_shell_data_exposes_semantic_pane_headers() -> None:
+    state = build_initial_app_state()
+    shell = select_shell_data(state)
+
+    assert shell.parent_heading.startswith("Parent · ")
+    assert shell.current_heading.role == "Current"
+    assert shell.child_pane.display_title.startswith("Contents · ")
+
+
 def test_select_shell_data_hides_cursor_while_filtering() -> None:
     state = _reduce_state(build_initial_app_state(), BeginFilterInput())
 
@@ -1463,6 +1499,30 @@ def test_removed_direct_shortcuts_remain_available_without_palette_shortcuts() -
 
     assert labels <= items.keys()
     assert all(items[label].shortcut is None for label in labels)
+
+
+def test_command_palette_exposes_one_dynamic_narrow_view_command() -> None:
+    state = replace(
+        build_initial_app_state(),
+        terminal_width=72,
+        command_palette=CommandPaletteState(),
+    )
+
+    items = command_palette_module.get_command_palette_items(state)
+    narrow_items = [item for item in items if item.id == "toggle_narrow_pane_view"]
+
+    assert len(narrow_items) == 1
+    assert narrow_items[0].label == "Show preview or contents"
+    assert narrow_items[0].shortcut == "tab"
+    assert narrow_items[0].enabled is True
+
+    details = replace(state, narrow_pane_view="details")
+    details_item = next(
+        item
+        for item in command_palette_module.get_command_palette_items(details)
+        if item.id == "toggle_narrow_pane_view"
+    )
+    assert details_item.label == "Back to file list"
 
 
 def test_command_palette_items_for_search_workspace_explain_unavailable_actions() -> None:

@@ -318,7 +318,11 @@ class MainPane(Vertical):
         if self._heading is None:
             return self._title
         marker = ">" if self._heading.active else " "
-        return f"{marker} {self._heading.role} — {self._heading.target_name}"
+        if self._heading.status_label is None:
+            return f"{marker} {self._heading.role} — {self._heading.target_name}"
+        title = f"{self._heading.role} · {self._heading.target_name}"
+        title += f" · {self._heading.status_label}"
+        return f"{marker} {title}"
 
     def _sync_cursor(self, table: DataTable) -> None:
         if not self._entries or self._cursor_index is None:

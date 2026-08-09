@@ -1,43 +1,31 @@
 """Overlay geometry and pane visibility helpers."""
 
+from dataclasses import replace
 from typing import Any
 
 from textual.containers import Container
 from textual.css.query import NoMatches
 
+from zivo.state.selectors import select_responsive_pane_layout
 from zivo.ui import MainPane
-
-_PANE_VISIBILITY_NARROW_THRESHOLD = 66
-_PANE_VISIBILITY_MEDIUM_THRESHOLD = 100
 
 
 def update_pane_visibility(app: Any, width: int) -> None:
-    """Show or hide side panes based on terminal width."""
+    """Show or hide browser panes based on terminal width and narrow view."""
     try:
         parent_pane = app.query_one("#parent-pane")
+        current_pane = app.query_one("#current-pane")
         child_pane = app.query_one("#child-pane")
     except NoMatches:
         return
 
-    if app._app_state.layout_mode == "transfer":
-        parent_pane.display = False
-        child_pane.display = False
-        return
-
-    if width >= _PANE_VISIBILITY_MEDIUM_THRESHOLD:
-        parent_pane.display = True
-    elif width >= _PANE_VISIBILITY_NARROW_THRESHOLD:
-        parent_pane.display = False
-    else:
-        parent_pane.display = False
-
-    if width >= _PANE_VISIBILITY_NARROW_THRESHOLD:
-        child_pane.display = True
-    else:
-        child_pane.display = False
+    layout = select_responsive_pane_layout(replace(app._app_state, terminal_width=width))
+    parent_pane.display = layout.show_parent
+    current_pane.display = layout.show_current
+    child_pane.display = layout.show_child
 
 
-def get_target_overlay_pane(app: Any) -> MainPane | None:
+def get_target_overlay_pane(app: Any) -> Any | None:
     """Get the target pane for overlay positioning based on current mode."""
     if (
         app._app_state.layout_mode == "transfer"
@@ -49,7 +37,10 @@ def get_target_overlay_pane(app: Any) -> MainPane | None:
             pass
 
     try:
-        return app.query_one("#current-pane", MainPane)
+        current_pane = app.query_one("#current-pane", MainPane)
+        if current_pane.display:
+            return current_pane
+        return app.query_one("#child-pane")
     except NoMatches:
         return None
 

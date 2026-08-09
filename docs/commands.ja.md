@@ -27,6 +27,7 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 | `Go to home directory` | 常に表示 | ホームディレクトリへ移動します。 |
 | `Reload directory` | 常に表示 | 現在ディレクトリを再読み込みします。 |
 | `Toggle transfer mode` / `Close transfer mode` | 常に表示 | 通常の 3 ペインブラウザと 2 ペイン転送レイアウトを切り替えます。 |
+| `Show preview or contents` / `Back to file list` | 80 列未満の通常ブラウズでフォーカス対象があるとき | 狭い端末で表示するビューを current のファイル一覧と詳細ペイン（プレビュー／検索結果）の間で切り替えます。ラベルは現在のビューに応じて変わり、直接キーは `Tab` です。Search Workspace の `Tab` は入力欄移動を維持します。 |
 | `Undo last file operation` | Undo 履歴があるとき | 直前の Undo 対象リネーム、貼り付け、ゴミ箱移動を取り消します。 |
 | `Select all` | 現在ディレクトリに表示中の項目が 1 件以上あるとき | 現在ディレクトリで表示中の項目をすべて選択します。 |
 | `Save results` | grep 検索結果を表示中 | 現在の grep 結果を現在のディレクトリの `grep_results.txt` へ保存します。設定済みの grep プレビュー context 行を含み、既存ファイルは変更しません。 |

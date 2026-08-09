@@ -175,12 +175,21 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
     split_terminal_hint = " | t term" if is_split_terminal_supported() else ""
     from .input_browsing import BROWSING_HELP_LINES
 
+    browsing_lines = BROWSING_HELP_LINES
+    if state.terminal_width < 80 and state.current_pane.cursor_path is not None:
+        view_hint = "file-list" if state.narrow_pane_view == "details" else "details"
+        browsing_lines = (
+            BROWSING_HELP_LINES[0],
+            BROWSING_HELP_LINES[1],
+            (*BROWSING_HELP_LINES[2], ("tab", view_hint)),
+        )
+
     return HelpBarState(
         (
-            _format_help_line(BROWSING_HELP_LINES[0]),
-            _format_help_line(BROWSING_HELP_LINES[1]),
-            f"{_format_help_line(BROWSING_HELP_LINES[2][:-1])}{split_terminal_hint} | "
-            f"{_format_help_line(BROWSING_HELP_LINES[2][-1:])}",
+            _format_help_line(browsing_lines[0]),
+            _format_help_line(browsing_lines[1]),
+            f"{_format_help_line(browsing_lines[2][:-1])}{split_terminal_hint} | "
+            f"{_format_help_line(browsing_lines[2][-1:])}",
         )
     )
 

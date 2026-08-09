@@ -27,6 +27,7 @@ Search also matches command keywords and common aliases. Exact label matches ran
 | `Go to home directory` | Always | Navigates to the home directory. |
 | `Reload directory` | Always | Reloads the current directory. |
 | `Toggle transfer mode` / `Close transfer mode` | Always | Switches between the normal three-pane browser and the two-pane transfer layout. |
+| `Show preview or contents` / `Back to file list` | Normal browsing below 80 columns with a focused entry | Toggles the single visible narrow-terminal view between the current file list and the details pane. The label follows the current view; `Tab` is the direct shortcut. Search Workspace keeps `Tab` for input-field navigation. |
 | `Undo last file operation` | Undo history is not empty | Reverses the most recent undoable rename, paste, or trash operation. |
 | `Select all` | Current directory has at least one visible entry | Selects every currently visible entry in the current directory, respecting hidden-file visibility and any active filter. |
 | `Save results` | Grep search results are shown | Saves the current grep results to `grep_results.txt` in the current directory, including the configured grep preview context lines. Existing files are left unchanged. |

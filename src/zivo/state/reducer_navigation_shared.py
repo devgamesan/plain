@@ -65,6 +65,7 @@ def load_browser_tab_from_tabs(
         active_transfer_pane=tab.active_transfer_pane,
         transfer_left=tab.transfer_left,
         transfer_right=tab.transfer_right,
+        narrow_pane_view="current",
     )
 
 
@@ -253,5 +254,6 @@ def promote_child_pane_to_current(
         pending_child_pane_request_id=None,
         pending_directory_size_request_id=None,
         ui_mode="BROWSING",
+        narrow_pane_view="current",
         history=build_history_after_snapshot_load(state, path),
     )

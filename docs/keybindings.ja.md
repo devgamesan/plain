@@ -181,6 +181,8 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 
 ## 一括リネームモード
 
+一括リネームを開くと `Find` が最初からアクティブです。複数選択時は `r` または `Rename N items` でこのモードを開きます。個別の新しい名前を編集する場合は `Shift+Tab` で表へ戻ります。
+
 | キー | 動作 |
 | --- | ------ |
 | `↑` / `↓` / `j` / `k` | New Name の行を移動 |

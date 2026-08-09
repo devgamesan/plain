@@ -182,6 +182,8 @@ When the `Replace text` preview is open in the right pane, `Shift+↑` / `Shift+
 
 ## Bulk Rename Mode
 
+Bulk rename opens with `Find` active so a multi-selection is ready for a literal Find/Replace operation. Press `r` or choose `Rename N items` with multiple selections; use `Shift+Tab` to move back to the table for direct per-row editing.
+
 | Key | Behavior |
 | --- | --- |
 | `↑` / `↓` / `j` / `k` | Move between New Name rows |

@@ -131,6 +131,7 @@ def _handle_begin_bulk_rename(
             parent_dir=action.parent_dir,
             targets=action.targets,
             items=_initial_items(state, action.targets),
+            active_field="find",
             text_cursor_pos=len(action.targets[0].new_name) if action.targets else 0,
         )
     )

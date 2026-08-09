@@ -36,9 +36,9 @@ class BulkRenameDialog(Container):
         yield Static("", id="bulk-rename-replace")
         yield Static("", id="bulk-rename-status")
         yield Horizontal(
-            Button("Replace in draft", id="bulk-rename-replace-action"),
-            Button("Rename items", id="bulk-rename-apply"),
-            Button("Cancel", id="bulk-rename-cancel"),
+            self._action_button("Replace in draft", "bulk-rename-replace-action"),
+            self._action_button("Rename items", "bulk-rename-apply"),
+            self._action_button("Cancel", "bulk-rename-cancel"),
             id="bulk-rename-actions",
         )
 
@@ -65,6 +65,20 @@ class BulkRenameDialog(Container):
                 self.query_one(selector, Static).update("")
             return
 
+        action_fields = {
+            "bulk-rename-replace-action": "replace_action",
+            "bulk-rename-apply": "apply",
+            "bulk-rename-cancel": "cancel",
+        }
+        for button_id, field in action_fields.items():
+            button = self.query_one(f"#{button_id}", Button)
+            # Keyboard focus is managed by the reducer. Native Button focus
+            # would otherwise add a second, conflicting tab order.
+            button.can_focus = False
+            button.remove_class("bulk-rename-active")
+            if state.active_field == field:
+                button.add_class("bulk-rename-active")
+
         self.query_one("#bulk-rename-title", Static).update(state.title)
         self.query_one("#bulk-rename-summary", Static).update(state.summary)
         self.query_one("#bulk-rename-table", Static).update(self._render_rows(state))
@@ -82,9 +96,21 @@ class BulkRenameDialog(Container):
         self.query_one("#bulk-rename-apply", Button).disabled = not state.apply_enabled
 
     @staticmethod
+    def _action_button(label: str, button_id: str) -> Button:
+        button = Button(label, id=button_id)
+        # Tab/Enter are dispatched centrally, so these buttons must not
+        # participate in Textual's independent DOM focus traversal.
+        button.can_focus = False
+        return button
+
+    @staticmethod
     def _render_rows(state: BulkRenameDialogState) -> Text:
         text = Text()
-        text.append("  Old Name                 New Name                 Status\n", style="bold")
+        header_style = "bold reverse" if state.active_field == "table" else "bold"
+        text.append(
+            "  Old Name                 New Name                 Status\n",
+            style=header_style,
+        )
         for row in state.rows:
             marker = ">" if row.selected else " "
             status = row.status.title()
@@ -105,7 +131,8 @@ class BulkRenameDialog(Container):
 
     @staticmethod
     def _render_field(label: str, value: str, active: bool) -> Text:
-        text = Text(f"{label}: {value}")
+        marker = "> " if active else "  "
+        text = Text(f"{marker}{label}: {value}")
         if active:
             text.stylize("reverse")
         return text

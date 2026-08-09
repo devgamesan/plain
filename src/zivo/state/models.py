@@ -381,7 +381,10 @@ class BulkRenameEditorState:
     find_text: str = ""
     replace_text: str = ""
     cursor_index: int = 0
-    active_field: BulkRenameField = "table"
+    # Find/Replace is the primary bulk operation. Start there so a
+    # multi-selection can be renamed without first tabbing through the row
+    # editor; Shift+Tab still provides access to direct row editing.
+    active_field: BulkRenameField = "find"
     editing: bool = False
     text_cursor_pos: int = 0
     result_message: str | None = None

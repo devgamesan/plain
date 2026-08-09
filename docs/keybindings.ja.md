@@ -58,8 +58,6 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 | `t` | foreground shell を開く（zivo を一時停止し、現在のターミナルで対話シェルを開く。exit で zivo に戻る） |
 | `o` | 新しいタブを開く |
 | `w` | 現在のタブを閉じる |
-| `tab` | 次のタブへ切り替える |
-| `shift+tab` | 前のタブへ切り替える |
 | `1`〜`0` | 数字キーで対応するタブへ切り替える（1が最初のタブ、0が10番目のタブ） |
 | `:` | コマンドパレットを開く |
 | `q` | 終了 |

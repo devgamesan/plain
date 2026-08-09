@@ -613,20 +613,20 @@ def test_browsing_w_closes_current_tab() -> None:
     assert actions == (SetNotification(None), CloseCurrentTab())
 
 
-def test_browsing_tab_activates_next_tab() -> None:
+def test_browsing_tab_is_no_longer_bound() -> None:
     state = build_initial_app_state()
 
     actions = dispatch_key_input(state, key="tab")
 
-    assert actions == (SetNotification(None), ActivateNextTab())
+    assert actions == ()
 
 
-def test_browsing_shift_tab_activates_previous_tab() -> None:
+def test_browsing_shift_tab_is_no_longer_bound() -> None:
     state = build_initial_app_state()
 
     actions = dispatch_key_input(state, key="shift+tab")
 
-    assert actions == (SetNotification(None), ActivatePreviousTab())
+    assert actions == ()
 
 
 def test_browsing_number_activates_direct_tab() -> None:

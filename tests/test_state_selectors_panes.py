@@ -3,8 +3,8 @@ from tests import state_selectors_cases as cases
 test_build_placeholder_app_state_keeps_parent_pane_empty_at_root = (
     cases.test_build_placeholder_app_state_keeps_parent_pane_empty_at_root
 )
-test_command_palette_includes_tab_commands_with_lowercase_shortcuts = (
-    cases.test_command_palette_includes_tab_commands_with_lowercase_shortcuts
+test_command_palette_tab_commands_have_no_direct_shortcut = (
+    cases.test_command_palette_tab_commands_have_no_direct_shortcut
 )
 test_directory_size_target_paths_only_uses_current_pane_directories = (
     cases.test_directory_size_target_paths_only_uses_current_pane_directories

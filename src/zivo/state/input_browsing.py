@@ -4,8 +4,6 @@ from zivo.windows_paths import is_search_workspace_path
 
 from .actions import (
     Action,
-    ActivateNextTab,
-    ActivatePreviousTab,
     ActivateTabByIndex,
     AddBookmark,
     BeginBookmarkSearch,
@@ -114,8 +112,6 @@ BROWSING_KEYMAP = {
     "pagedown": "cursor_pagedown",
     "o": "open_new_tab",
     "w": "close_current_tab",
-    "tab": "activate_next_tab",
-    "shift+tab": "activate_previous_tab",
 }
 
 # Help content is intentionally defined next to the authoritative key map so
@@ -519,8 +515,6 @@ BROWSING_SIMPLE_DISPATCH: dict[str, type[Action]] = {
     "undo_last_operation": UndoLastOperation,
     "open_new_tab": OpenNewTab,
     "close_current_tab": CloseCurrentTab,
-    "activate_next_tab": ActivateNextTab,
-    "activate_previous_tab": ActivatePreviousTab,
     "begin_exit_current_path": BeginExitCurrentPath,
     "exit_current_path": ExitCurrentPath,
     "show_attributes": ShowAttributes,

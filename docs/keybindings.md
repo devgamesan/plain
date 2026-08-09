@@ -59,8 +59,6 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 | `o` | Open new tab |
 | `w` | Close current tab |
 | `1`-`9`, `0` | Switch to tab 1-9, or tab 10 with `0` |
-| `tab` | Switch to next tab |
-| `shift+tab` | Switch to previous tab |
 | `:` | Open command palette |
 | `q` | Quit |
 | `[` | Go back in history |

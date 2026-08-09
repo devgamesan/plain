@@ -143,12 +143,24 @@
 - [ ] 最後のタブは閉じられないこと
 - [ ] 1-9, 0 キーで対応するタブに切り替わること
 - [ ] 各タブで独立したディレクトリを表示できること
+- [ ] タブバーのactive、hover close、newが区別され、非対象領域のクリックで閉じないこと
+- [ ] 狭い幅でactive tabと前後tabが優先され、overflow件数が表示されること
 
 #### 履歴
 - [ ] 「Go」で最近の履歴を検索できること（`@history` / `@recent`）
 - [ ] [ キーまたは「Go back」で前のディレクトリに戻れること
 - [ ] ] キーまたは「Go forward」で次のディレクトリに進めること
 - [ ] 履歴がない場合、適切なメッセージが表示されること
+- [ ] 通常ブラウズのパスバーにBack/Forwardの可否が表示され、無効ボタンで状態が変わらないこと
+- [ ] パスsegmentがクリック可能と判断でき、長いパスは中央が省略されること
+- [ ] Search Workspaceがfilesystem breadcrumbと混同されないこと
+
+#### 列ヘッダー
+- [ ] Name/Size/Modified headerのクリックでsortが変更されること
+- [ ] active sort列と昇順/降順indicatorが表示されること
+- [ ] header clickと`s`が同じsort stateを更新すること
+- [ ] folders-firstまたはmixedの状態が表示されること
+- [ ] 狭い幅で非表示のheaderがクリック対象にならないこと
 
 #### ブックマーク
 - [ ] b キーでGo画面がブックマーク限定で開くこと

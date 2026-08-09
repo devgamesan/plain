@@ -87,14 +87,19 @@ from zivo.state.actions import (
     BeginConfigEditor,
     BeginCreateInput,
     CancelFilterInput,
+    CloseTabByIndex,
     EnterCursorDirectory,
     EnterTransferDirectory,
     ExitCurrentPath,
     FocusTransferPane,
+    GoBack,
+    GoForward,
     NavigateTransferToPath,
+    OpenNewTab,
     OpenPathWithDefaultApp,
     RequestBrowserSnapshot,
     SetCursorPath,
+    SetSort,
     SetTerminalHeight,
     SetTransferCursorPath,
     ShowAttributes,
@@ -264,7 +269,11 @@ class zivoApp(App[None]):
 
     def compose(self) -> ComposeResult:
         shell = select_shell_data(self._app_state)
-        yield CurrentPathBar(shell.current_path, id="current-path-bar")
+        yield CurrentPathBar(
+            shell.current_path,
+            state=shell.path_bar,
+            id="current-path-bar",
+        )
         yield self._build_body(shell)
         yield Container(
             CommandPalette(shell.command_palette, id="command-palette"),
@@ -448,6 +457,21 @@ class zivoApp(App[None]):
             double_click=message.double_click,
         )
 
+    async def on_main_pane_sort_header_clicked(
+        self,
+        message: MainPane.SortHeaderClicked,
+    ) -> None:
+        """Apply header sorting through the same action used by ``s``."""
+
+        field = message.field
+        if field == self._app_state.sort.field:
+            descending = not self._app_state.sort.descending
+        else:
+            descending = field in {"size", "modified"}
+        await self.dispatch_actions(
+            (SetSort(field=field, descending=descending),),
+        )
+
     async def on_main_pane_pane_clicked(self, message: MainPane.PaneClicked) -> None:
         """Handle clicks on a transfer pane area (not on a specific row)."""
 
@@ -603,6 +627,16 @@ class zivoApp(App[None]):
 
         await self.dispatch_actions((ActivateTabByIndex(index=message.tab_index),))
 
+    async def on_tab_bar_tab_closed(self, message: TabBar.TabClosed) -> None:
+        """Close the tab represented by a tab-bar close affordance."""
+
+        await self.dispatch_actions((CloseTabByIndex(index=message.tab_index),))
+
+    async def on_tab_bar_new_tab_clicked(self, _message: TabBar.NewTabClicked) -> None:
+        """Open a new tab through the existing navigation action."""
+
+        await self.dispatch_actions((OpenNewTab(),))
+
     async def on_current_path_bar_path_segment_clicked(
         self,
         message: CurrentPathBar.PathSegmentClicked,
@@ -617,6 +651,15 @@ class zivoApp(App[None]):
         await self.dispatch_actions(
             (RequestBrowserSnapshot(message.path, blocking=True),),
         )
+
+    async def on_current_path_bar_path_navigation_clicked(
+        self,
+        message: CurrentPathBar.PathNavigationClicked,
+    ) -> None:
+        """Route path-bar history controls through the existing actions."""
+
+        action: Action = GoBack() if message.direction == "back" else GoForward()
+        await self.dispatch_actions((action,))
 
     async def on_side_pane_entry_clicked(self, message: SidePane.EntryClicked) -> None:
         """Handle left parent-pane clicks from the widget message path."""

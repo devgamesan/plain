@@ -7,6 +7,7 @@ from .actions import (
     ActivatePreviousTab,
     ActivateTabByIndex,
     CloseCurrentTab,
+    CloseTabByIndex,
     OpenNewTab,
 )
 from .effects import ReduceResult
@@ -95,10 +96,45 @@ def _handle_close_current_tab(
     return maybe_request_directory_sizes(next_state, reduce_state)
 
 
+def _handle_close_tab_by_index(
+    state: AppState,
+    action: CloseTabByIndex,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    tabs = list(select_browser_tabs(state))
+    if len(tabs) <= 1:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message="Cannot close the last tab",
+                ),
+            )
+        )
+    if action.index < 0 or action.index >= len(tabs):
+        return finalize(state)
+
+    del tabs[action.index]
+    if action.index < state.active_tab_index:
+        next_index = state.active_tab_index - 1
+    elif action.index == state.active_tab_index:
+        next_index = min(state.active_tab_index, len(tabs) - 1)
+    else:
+        next_index = state.active_tab_index
+    next_state = load_browser_tab_from_tabs(
+        replace(state, notification=None),
+        tuple(tabs),
+        next_index,
+    )
+    return maybe_request_directory_sizes(next_state, reduce_state)
+
+
 TAB_NAVIGATION_HANDLERS = {
     OpenNewTab: _handle_open_new_tab,
     ActivateTabByIndex: _handle_activate_tab_by_index,
     ActivateNextTab: _handle_activate_next_tab,
     ActivatePreviousTab: _handle_activate_previous_tab,
     CloseCurrentTab: _handle_close_current_tab,
+    CloseTabByIndex: _handle_close_tab_by_index,
 }

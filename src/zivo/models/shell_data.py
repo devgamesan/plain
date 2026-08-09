@@ -103,6 +103,19 @@ class CurrentSummaryState:
     item_count: int
     selected_count: int
     sort_label: str
+    sort_field: Literal["name", "modified", "size"] = "name"
+    sort_descending: bool = False
+    directories_first: bool = True
+
+
+@dataclass(frozen=True)
+class PathBarState:
+    """Display state for the current path bar and its navigation affordances."""
+
+    path: str
+    can_go_back: bool = False
+    can_go_forward: bool = False
+    show_history_controls: bool = True
 
 
 @dataclass(frozen=True)
@@ -364,6 +377,7 @@ class ThreePaneShellData:
     shell_command_dialog: ShellCommandDialogState | None = None
     input_dialog: InputDialogState | None = None
     layout_mode: Literal["browser", "transfer"] = "browser"
+    path_bar: PathBarState | None = None
     transfer_header: TransferHeaderState | None = None
     transfer_left: TransferPaneViewState | None = None
     transfer_right: TransferPaneViewState | None = None
@@ -413,6 +427,11 @@ def build_dummy_shell_data() -> ThreePaneShellData:
     return ThreePaneShellData(
         tab_bar=TabBarState((TabItemState("zivo", active=True),)),
         current_path="/home/tadashi/develop/zivo",
+        path_bar=PathBarState(
+            path="/home/tadashi/develop/zivo",
+            can_go_back=False,
+            can_go_forward=False,
+        ),
         parent_entries=(
             PaneEntry("develop", "dir"),
             PaneEntry("downloads", "dir"),
@@ -433,6 +452,9 @@ def build_dummy_shell_data() -> ThreePaneShellData:
             item_count=len(current_entries),
             selected_count=0,
             sort_label="name asc",
+            sort_field="name",
+            sort_descending=False,
+            directories_first=True,
         ),
         current_heading=PaneHeadingState(
             role="Current",

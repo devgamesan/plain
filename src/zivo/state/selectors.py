@@ -6,6 +6,7 @@ from zivo.models import (
     CurrentSummaryState,
     PaneActionViewState,
     PaneStatusViewState,
+    PathBarState,
     ThreePaneShellData,
     TransferHeaderState,
     TransferPaneViewState,
@@ -88,6 +89,7 @@ __all__ = [
     "select_input_bar_state",
     "select_input_dialog_state",
     "select_parent_entries",
+    "select_path_bar_state",
     "select_shell_command_dialog_state",
     "select_shell_data",
     "select_single_target_entry",
@@ -125,6 +127,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
     shell = ThreePaneShellData(
         tab_bar=select_tab_bar_state(state),
         current_path=state.current_pane.directory_path,
+        path_bar=select_path_bar_state(state),
         parent_entries=select_parent_entries(state),
         current_entries=(
             _select_current_pane_entries(
@@ -175,9 +178,24 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         shell,
         layout_mode="transfer",
         current_path=transfer_current_path,
+        path_bar=PathBarState(
+            path=transfer_current_path,
+            show_history_controls=False,
+        ),
         transfer_header=select_transfer_header_state(state),
         transfer_left=_select_transfer_pane(state, "left"),
         transfer_right=_select_transfer_pane(state, "right"),
+    )
+
+
+def select_path_bar_state(state: AppState) -> PathBarState:
+    """Build the path bar state without exposing reducer details to the UI."""
+
+    return PathBarState(
+        path=state.current_pane.directory_path,
+        can_go_back=bool(state.history.back),
+        can_go_forward=bool(state.history.forward),
+        show_history_controls=state.layout_mode != "transfer",
     )
 
 
@@ -224,6 +242,9 @@ def _select_transfer_pane(
         item_count=len(visible_entries),
         selected_count=len(transfer.pane.selected_paths),
         sort_label=_format_sort_label(state.sort),
+        sort_field=state.sort.field,
+        sort_descending=state.sort.descending,
+        directories_first=state.sort.directories_first,
     )
     return TransferPaneViewState(
         title="Left Directory" if pane_id == "left" else "Right Directory",

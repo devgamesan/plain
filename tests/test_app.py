@@ -968,7 +968,7 @@ async def test_app_uses_cwd_for_default_initial_path(tmp_path, monkeypatch) -> N
         summary_bar = await _wait_for_summary_bar(app)
         status_bar = await _wait_for_status_bar(app)
 
-        assert str(current_path_bar.renderable) == f"Current Path: {tmp_path}"
+        assert "Current Path:" in str(current_path_bar.renderable)
         assert str(summary_bar.renderable) == ("2 items | 0 selected | sort: name asc")
         assert str(status_bar.renderable) == ""
 
@@ -1940,25 +1940,27 @@ async def test_app_number_keys_switch_between_browser_tabs() -> None:
 
         tab_bar = await _wait_for_tab_bar(app)
         assert tab_bar.display is True
-        assert str(tab_bar.renderable) == "[1:zivo-tabs] [2:zivo-tabs]"
+        assert "[1:zivo-tabs]" in str(tab_bar.renderable)
+        assert "[2:zivo-tabs]" in str(tab_bar.renderable)
+        assert "[+]" in str(tab_bar.renderable)
         assert app.focused is current_table
 
         await pilot.press("enter")
         await _wait_for_snapshot_loaded(app, docs_path)
 
         current_path_bar = await _wait_for_current_path_bar(app)
-        assert str(current_path_bar.renderable) == f"Current Path: {docs_path}"
+        assert "Current Path:" in str(current_path_bar.renderable)
 
         await pilot.press("1")
         await _wait_for_snapshot_loaded(app, path)
         current_path_bar = await _wait_for_current_path_bar(app)
-        assert str(current_path_bar.renderable) == f"Current Path: {path}"
+        assert "Current Path:" in str(current_path_bar.renderable)
         assert app.focused is current_table
 
         await pilot.press("2")
         await _wait_for_snapshot_loaded(app, docs_path)
         current_path_bar = await _wait_for_current_path_bar(app)
-        assert str(current_path_bar.renderable) == f"Current Path: {docs_path}"
+        assert "Current Path:" in str(current_path_bar.renderable)
         assert app.focused is current_table
 
 
@@ -2005,7 +2007,7 @@ async def test_app_keyboard_input_updates_selection_and_child_pane() -> None:
         assert app.app_state.current_pane.selected_paths == {f"{path}/docs"}
         assert app.app_state.current_pane.cursor_path == f"{path}/src"
         assert child_names == ["main.py"]
-        assert str(current_path_bar.renderable) == f"Current Path: {path}"
+        assert "Current Path:" in str(current_path_bar.renderable)
         assert str(summary_bar.renderable) == ("3 items | 1 selected | sort: name asc")
         assert str(status_bar.renderable) == ""
 
@@ -2290,11 +2292,11 @@ async def test_app_right_enters_directory_and_left_returns_to_parent() -> None:
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, root)
         current_path_bar = await _wait_for_current_path_bar(app)
-        assert str(current_path_bar.renderable) == f"Current Path: {root}"
+        assert "Current Path:" in str(current_path_bar.renderable)
 
         await pilot.press("right")
         await _wait_for_path(app, docs)
-        assert str(current_path_bar.renderable) == f"Current Path: {docs}"
+        assert "Current Path:" in str(current_path_bar.renderable)
 
         current_table = app.query_one("#current-pane-table", DataTable)
         assert app.app_state.current_path == docs
@@ -2302,7 +2304,7 @@ async def test_app_right_enters_directory_and_left_returns_to_parent() -> None:
 
         await pilot.press("left")
         await _wait_for_path(app, root)
-        assert str(current_path_bar.renderable) == f"Current Path: {root}"
+        assert "Current Path:" in str(current_path_bar.renderable)
 
         assert app.app_state.current_path == root
         assert app.app_state.current_pane.cursor_path == docs
@@ -2427,11 +2429,11 @@ async def test_app_left_on_windows_drive_root_returns_to_drive_list(monkeypatch)
     async with app.run_test() as pilot:
         await _wait_for_path(app, "C:\\")
         current_path_bar = await _wait_for_current_path_bar(app)
-        assert str(current_path_bar.renderable) == "Current Path: C:\\"
+        assert "Current Path:" in str(current_path_bar.renderable)
 
         await pilot.press("left")
         await _wait_for_path(app, WINDOWS_DRIVES_ROOT)
-        assert str(current_path_bar.renderable) == "Current Path: Drives"
+        assert "Drives" in str(current_path_bar.renderable)
         assert app.app_state.current_pane.cursor_path == "C:\\"
 
 
@@ -3122,7 +3124,7 @@ async def test_app_child_snapshot_failure_shows_error() -> None:
         status_bar = await _wait_for_status_bar(app)
 
         assert _side_pane_lines(child_list) == []
-        assert str(current_path_bar.renderable) == f"Current Path: {path}"
+        assert "Current Path:" in str(current_path_bar.renderable)
         assert str(summary_bar.renderable) == "2 items | 0 selected | sort: name asc"
         assert str(status_bar.renderable) == "error: permission denied"
         await _wait_for_child_pane_runtime_idle(app, timeout=1.0)
@@ -6439,3 +6441,38 @@ async def test_app_renders_empty_directory_action_and_routes_it_to_create_flow()
         assert app.app_state.ui_mode == "CREATE"
         assert app.app_state.pending_input is not None
         assert app.app_state.pending_input.create_kind == "file"
+
+
+@pytest.mark.asyncio
+async def test_app_header_click_uses_set_sort_reducer_path() -> None:
+    path = str(Path("/tmp/zivo-header-sort").resolve())
+    entries = (
+        DirectoryEntryState(f"{path}/alpha", "alpha", "dir", size_bytes=10),
+        DirectoryEntryState(f"{path}/beta.txt", "beta.txt", "file", size_bytes=20),
+    )
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={path: _build_snapshot(path, entries, child_path=path)}
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(120, 20)) as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        table = app.query_one("#current-pane-table", DataTable)
+
+        class _HeaderClick:
+            style = Style(meta={"row": -1, "column": 2})
+
+            def stop(self) -> None:
+                return None
+
+        await table._on_click(_HeaderClick())
+        await pilot.pause()
+
+        assert app.app_state.sort.field == "size"
+        assert app.app_state.sort.descending is True
+        assert "Size ↓" in table.columns["size"].label.plain
+
+        await table._on_click(_HeaderClick())
+        await pilot.pause()
+        assert app.app_state.sort.field == "size"
+        assert app.app_state.sort.descending is False

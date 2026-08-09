@@ -6,7 +6,7 @@ from textual.containers import Container, Horizontal, Vertical
 from textual.css.query import NoMatches
 from textual.widgets import DataTable
 
-from zivo.models import ThreePaneShellData
+from zivo.models import PathBarState, ThreePaneShellData
 from zivo.state.models import AppState
 from zivo.ui import (
     AttributeDialog,
@@ -172,7 +172,13 @@ async def refresh_shell(
             except NoMatches:
                 pass
         await app.mount(TabBar(shell.tab_bar, id="tab-bar"))
-        await app.mount(CurrentPathBar(shell.current_path, id="current-path-bar"))
+        await app.mount(
+            CurrentPathBar(
+                shell.current_path,
+                state=shell.path_bar or PathBarState(path=shell.current_path),
+                id="current-path-bar",
+            )
+        )
         await app.mount(build_body(shell))
         await app.mount(
             Container(
@@ -236,7 +242,9 @@ async def refresh_shell(
         return
 
     tab_bar.set_state(shell.tab_bar)
-    current_path_bar.set_path(shell.current_path)
+    current_path_bar.set_state(
+        shell.path_bar or PathBarState(path=shell.current_path)
+    )
     if shell.layout_mode == "transfer" and shell.transfer_left and shell.transfer_right:
         try:
             transfer_header = app.query_one("#transfer-header", TransferHeaderBar)

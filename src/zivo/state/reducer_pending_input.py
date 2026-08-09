@@ -15,6 +15,7 @@ from zivo.models import (
     RecursiveChownRequest,
     RenameRequest,
 )
+from zivo.path_validation import validate_path_segment
 from zivo.windows_paths import join_path, resolve_parent_directory_path
 
 from .reducer_path_helpers import (
@@ -107,6 +108,9 @@ def validate_pending_input(state, *, is_macos: bool) -> str | None:
         return "Names cannot include path separators"
     if is_macos and ":" in name:
         return "Names cannot include colons"
+    name_error = validate_path_segment(name, is_macos=is_macos)
+    if name_error is not None:
+        return name_error
 
     parent_path, current_target_path = pending_input_parent_and_target(state)
     if parent_path is None:
@@ -204,25 +208,7 @@ def validate_create_path_input(state, *, is_macos: bool) -> str | None:
 
 
 def _validate_create_path_segment(segment: str, *, is_macos: bool) -> str | None:
-    if "\x00" in segment:
-        return "Names cannot include null characters"
-    if is_macos and ":" in segment:
-        return "Names cannot include colons"
-    if os.name == "nt":
-        if any(char in '<>:"/\\|?*' for char in segment) or segment.endswith((" ", ".")):
-            return f"Invalid path segment '{segment}'"
-        stem = segment.split(".", 1)[0].upper()
-        reserved_names = {
-            "CON",
-            "PRN",
-            "AUX",
-            "NUL",
-            *(f"COM{index}" for index in range(1, 10)),
-            *(f"LPT{index}" for index in range(1, 10)),
-        }
-        if stem in reserved_names:
-            return f"Reserved path segment '{segment}'"
-    return None
+    return validate_path_segment(segment, is_macos=is_macos)
 
 
 def is_name_conflict_validation_error(state, message: str) -> bool:

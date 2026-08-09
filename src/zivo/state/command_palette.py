@@ -117,7 +117,10 @@ _COMMAND_METADATA: dict[str, CommandPaletteMetadata] = {
     "copy_targets": CommandPaletteMetadata(
         "File", ("copy", "duplicate", "yank"), 14
     ),
-    "cut_targets": CommandPaletteMetadata("File", ("cut", "move"), 15),
+    "duplicate_targets": CommandPaletteMetadata(
+        "File", ("duplicate", "clone", "copy", "replicate"), 15
+    ),
+    "cut_targets": CommandPaletteMetadata("File", ("cut", "move"), 16),
     "paste_clipboard": CommandPaletteMetadata(
         "File", ("paste", "clipboard", "insert"), 16
     ),
@@ -725,6 +728,12 @@ def _build_contextual_command_items(state: AppState) -> tuple[CommandPaletteItem
         CommandPaletteItem("copy_path", "Copy path", None, has_target),
         CommandPaletteItem("copy_targets", "Copy selection or cursor target", "c", has_target),
         CommandPaletteItem(
+            "duplicate_targets",
+            "Duplicate selection or cursor target",
+            None,
+            has_target and not search_workspace,
+        ),
+        CommandPaletteItem(
             "cut_targets",
             "Cut selection or cursor target",
             "x",
@@ -839,6 +848,7 @@ def _disabled_reason(state: AppState, item_id: str) -> str:
         "compress_as_zip",
         "copy_path",
         "copy_targets",
+        "duplicate_targets",
         "cut_targets",
         "delete_targets",
     }:

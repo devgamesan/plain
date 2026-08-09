@@ -60,6 +60,7 @@ from .actions_mutations import (
     ConfirmZipCompress,
     CopyTargets,
     CutTargets,
+    DuplicateTargets,
     PasteClipboard,
     ResolvePasteConflict,
     SelectAllVisibleEntries,
@@ -128,6 +129,7 @@ __all__ = [
     "ConfirmZipCompress",
     "CopyTargets",
     "CutTargets",
+    "DuplicateTargets",
     "PasteClipboard",
     "ResolvePasteConflict",
     "SelectAllVisibleEntries",
@@ -255,6 +257,9 @@ from .actions_runtime import (
     DeletePreparationFailed,
     DirectorySizesFailed,
     DirectorySizesLoaded,
+    DuplicateCompleted,
+    DuplicateFailed,
+    DuplicateProgress,
     ExternalLaunchCompleted,
     ExternalLaunchFailed,
     FileMutationCompleted,
@@ -430,6 +435,7 @@ Action = (
     | SelectAllVisibleEntries
     | CopyTargets
     | CutTargets
+    | DuplicateTargets
     | PasteClipboard
     | UndoLastOperation
     | ResolvePasteConflict
@@ -467,6 +473,9 @@ Action = (
     | ClipboardPasteNeedsResolution
     | ClipboardPasteCompleted
     | ClipboardPasteFailed
+    | DuplicateProgress
+    | DuplicateCompleted
+    | DuplicateFailed
     | ArchivePreparationCompleted
     | ArchivePreparationFailed
     | ArchiveExtractProgress

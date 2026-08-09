@@ -41,6 +41,7 @@ from zivo.services import (
     ConfigSaveService,
     CustomActionService,
     DirectorySizeService,
+    DuplicateOperationService,
     ExternalLaunchService,
     FileMutationService,
     FileSearchService,
@@ -53,6 +54,7 @@ from zivo.services import (
     LiveConfigSaveService,
     LiveCustomActionService,
     LiveDirectorySizeService,
+    LiveDuplicateOperationService,
     LiveExternalLaunchService,
     LiveFileMutationService,
     LiveFileSearchService,
@@ -188,6 +190,7 @@ class zivoApp(App[None]):
         clipboard_service: ClipboardOperationService | None = None,
         config_save_service: ConfigSaveService | None = None,
         directory_size_service: DirectorySizeService | None = None,
+        duplicate_service: DuplicateOperationService | None = None,
         file_mutation_service: FileMutationService | None = None,
         archive_extract_service: ArchiveExtractService | None = None,
         zip_compress_service: ZipCompressService | None = None,
@@ -231,6 +234,7 @@ class zivoApp(App[None]):
         self._clipboard_service = clipboard_service or LiveClipboardOperationService()
         self._config_save_service = config_save_service or LiveConfigSaveService()
         self._directory_size_service = directory_size_service or LiveDirectorySizeService()
+        self._duplicate_service = duplicate_service or LiveDuplicateOperationService()
         self._file_mutation_service = file_mutation_service or LiveFileMutationService()
         self._archive_extract_service = archive_extract_service or LiveArchiveExtractService()
         self._zip_compress_service = zip_compress_service or LiveZipCompressService()

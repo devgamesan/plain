@@ -178,6 +178,7 @@ SEARCH_WORKSPACE_BLOCKED_COMMANDS = frozenset(
         "open_terminal_window",
         "open_file_manager",
         "cut_targets",
+        "duplicate_targets",
         "paste_clipboard",
         "toggle_bookmark",
         "create_file",

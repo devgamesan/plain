@@ -27,6 +27,7 @@ from zivo.state import (
     RunAttributeInspectionEffect,
     RunConfigSaveEffect,
     RunCustomActionEffect,
+    RunDuplicateEffect,
     RunExternalLaunchEffect,
     TransferPaneState,
     build_initial_app_state,
@@ -148,6 +149,19 @@ def test_submit_command_palette_runs_unified_create_flow() -> None:
         value="",
         create_kind="file",
     )
+
+
+def test_submit_duplicate_command_starts_duplicate_effect() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("duplicate"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+    next_state = result.state
+
+    assert next_state.ui_mode == "BUSY"
+    assert next_state.command_palette is None
+    assert next_state.pending_duplicate_request_id == 1
+    assert isinstance(result.effects[0], RunDuplicateEffect)
 
 
 def test_custom_action_single_file_appears_in_command_palette() -> None:

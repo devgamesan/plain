@@ -87,6 +87,55 @@ class PasteExecutionResult:
 
 
 @dataclass(frozen=True)
+class DuplicateRequest:
+    """Request to duplicate entries beside their current parent directory."""
+
+    source_paths: tuple[str, ...]
+    destination_dir: str
+
+
+@dataclass(frozen=True)
+class DuplicateFailure:
+    """A single source entry that could not be duplicated."""
+
+    source_path: str
+    destination_path: str | None
+    message: str
+
+
+@dataclass(frozen=True)
+class DuplicateAppliedChange:
+    """A single entry created by a duplicate operation."""
+
+    source_path: str
+    destination_path: str
+
+
+@dataclass(frozen=True)
+class DuplicateSummary:
+    """Terminal result counts for a duplicate operation."""
+
+    destination_dir: str
+    total_count: int
+    success_count: int
+    failures: tuple[DuplicateFailure, ...] = ()
+
+    @property
+    def failure_count(self) -> int:
+        """Return the number of failed entries."""
+
+        return len(self.failures)
+
+
+@dataclass(frozen=True)
+class DuplicateExecutionResult:
+    """Completed result returned by the duplicate service."""
+
+    summary: DuplicateSummary
+    applied_changes: tuple[DuplicateAppliedChange, ...] = ()
+
+
+@dataclass(frozen=True)
 class TrashRestoreRecord:
     """Metadata required to restore a trashed entry back to its original path."""
 

@@ -7,6 +7,7 @@ from zivo.models import (
     PaneActionViewState,
     PaneStatusViewState,
     PathBarState,
+    ResponsivePaneLayoutState,
     ThreePaneShellData,
     TransferHeaderState,
     TransferPaneViewState,
@@ -22,6 +23,7 @@ from .selectors_panes import (
     CurrentPaneProjection as _CurrentPaneProjection,
 )
 from .selectors_panes import (
+    _format_pane_target_name,
     _project_current_pane_entries,
     _select_current_pane_entries,
     build_pane_heading,
@@ -92,6 +94,7 @@ __all__ = [
     "select_path_bar_state",
     "select_shell_command_dialog_state",
     "select_shell_data",
+    "select_responsive_pane_layout",
     "select_single_target_entry",
     "select_status_bar_state",
     "select_tab_bar_state",
@@ -124,6 +127,8 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         state.directory_size_delta.changed_paths,
         state.directory_size_delta.revision,
     )
+    responsive_layout = select_responsive_pane_layout(state)
+    current_status_label = _current_cursor_status_label(current_pane)
     shell = ThreePaneShellData(
         tab_bar=select_tab_bar_state(state),
         current_path=state.current_pane.directory_path,
@@ -150,6 +155,13 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
             state.current_pane.directory_path,
             current_pane.summary,
             active=state.layout_mode != "transfer" and pane_accepts_navigation_input(state),
+            status_label=current_status_label,
+        ),
+        responsive_layout=responsive_layout,
+        parent_heading=_format_directory_heading(
+            "Parent",
+            state.parent_pane.directory_path,
+            len(select_parent_entries(state)),
         ),
         current_context_input=select_input_bar_state(state),
         current_pane_status=_select_current_pane_status(state, current_pane.visible_entries),
@@ -197,6 +209,69 @@ def select_path_bar_state(state: AppState) -> PathBarState:
         can_go_forward=bool(state.history.forward),
         show_history_controls=state.layout_mode != "transfer",
     )
+
+
+def select_responsive_pane_layout(state: AppState) -> ResponsivePaneLayoutState:
+    """Return pane visibility from terminal width without changing browser state."""
+
+    if state.layout_mode == "transfer":
+        return ResponsivePaneLayoutState(
+            width_class=_pane_width_class(state.terminal_width),
+            show_parent=False,
+            show_current=True,
+            show_child=False,
+        )
+
+    width_class = _pane_width_class(state.terminal_width)
+    if width_class == "wide":
+        return ResponsivePaneLayoutState(
+            width_class=width_class,
+            show_parent=True,
+            show_current=True,
+            show_child=True,
+        )
+    if width_class == "medium":
+        return ResponsivePaneLayoutState(
+            width_class=width_class,
+            show_parent=False,
+            show_current=True,
+            show_child=True,
+        )
+
+    show_details = (
+        state.narrow_pane_view == "details"
+        and state.ui_mode != "FILTER"
+        and state.current_pane.cursor_path is not None
+    )
+    return ResponsivePaneLayoutState(
+        width_class=width_class,
+        show_parent=False,
+        show_current=not show_details,
+        show_child=show_details,
+        narrow_view="details" if show_details else "current",
+    )
+
+
+def _pane_width_class(width: int) -> str:
+    if width >= 120:
+        return "wide"
+    if width >= 80:
+        return "medium"
+    return "narrow"
+
+
+def _current_cursor_status_label(projection: _CurrentPaneProjection) -> str | None:
+    if projection.cursor_entry is None:
+        return None
+    try:
+        index = projection.visible_entries.index(projection.cursor_entry)
+    except ValueError:
+        return None
+    return f"{index + 1}/{len(projection.visible_entries)}"
+
+
+def _format_directory_heading(role: str, path: str, item_count: int) -> str:
+    return f"{role} · {_format_pane_target_name(path)} · {item_count} items"
 
 
 def _select_current_pane_status(
@@ -266,6 +341,11 @@ def _select_transfer_pane(
             summary,
             active=state.active_transfer_pane == pane_id
             and pane_accepts_navigation_input(state),
+            status_label=(
+                f"{cursor_index + 1}/{len(visible_entries)}"
+                if cursor_index is not None
+                else None
+            ),
         ),
     )
 

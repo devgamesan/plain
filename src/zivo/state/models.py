@@ -76,6 +76,7 @@ FileSearchFieldId = Literal["keyword", "target"]
 DirectorySizeStatus = Literal["pending", "ready", "failed"]
 CurrentPaneProjectionMode = Literal["full", "viewport"]
 LayoutMode = Literal["browser", "transfer"]
+NarrowPaneView = Literal["current", "details"]
 TransferPaneId = Literal["left", "right"]
 ConfigFieldId = Literal[
     "editor.command",
@@ -685,6 +686,8 @@ class AppState:
     pending_undo_entry: UndoEntry | None = None
     pending_undo_request_id: int | None = None
     terminal_height: int = 24
+    terminal_width: int = 120
+    narrow_pane_view: NarrowPaneView = "current"
     current_pane_projection_mode: CurrentPaneProjectionMode = "full"
     current_pane_window_start: int = 0
     next_request_id: int = 1

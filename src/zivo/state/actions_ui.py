@@ -44,3 +44,15 @@ class SetTerminalHeight:
     """Update the stored terminal height."""
 
     height: int
+
+
+@dataclass(frozen=True)
+class SetTerminalWidth:
+    """Update the stored terminal width used by responsive shell selectors."""
+
+    width: int
+
+
+@dataclass(frozen=True)
+class ToggleNarrowPaneView:
+    """Toggle the Current/Details presentation used below the narrow breakpoint."""

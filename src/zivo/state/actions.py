@@ -281,7 +281,9 @@ from .actions_ui import (
     SetNotification,
     SetPendingKeySequence,
     SetTerminalHeight,
+    SetTerminalWidth,
     SetUiMode,
+    ToggleNarrowPaneView,
 )
 
 Action = (
@@ -291,6 +293,8 @@ Action = (
     | ClearPendingKeySequence
     | SetNotification
     | SetTerminalHeight
+    | SetTerminalWidth
+    | ToggleNarrowPaneView
     | BeginFileSearch
     | BeginGrepSearch
     | SaveGrepResults

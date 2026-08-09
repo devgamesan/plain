@@ -12,6 +12,8 @@ The three-row help bar keeps a stable order. Browsing uses these groups:
 
 Search Workspace shows `enter open`, `e edit`, `/ filter`, `s sort`, `. hidden`, `[ ] bk/fwd`, `q quit`, then `space select`, `c copy`, `z undo`, and `: palette`.
 
+On terminals narrower than 80 columns, normal browsing uses `Tab` to toggle the details view (preview/results) and the current file list. The current cursor, selection, filter, and preview identity are preserved; `j` / `k` still move the underlying current-list cursor. Search Workspace keeps `Tab` for moving between its input fields.
+
 Transfer shows `enter dir`, `. hidden`, `Tab switch-pane`, `p/Esc close`, `q quit`, then `space select`, `c copy-to-pane`, `m move-to-pane`, `d delete`, `r rename`, `z undo`, and finally `N new-dir`, `: palette`. `D` remains documented below but is intentionally omitted from the help bar.
 
 When a right-pane preview is active, its footer shows `Ctrl+J/K scroll preview`. Replace previews use `Shift+↑/↓ scroll preview`. `Ctrl+↑/↓` are aliases for normal preview scrolling. Narrow terminals keep three rows and elide lower-frequency items from the right.
@@ -68,6 +70,7 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 | `Ctrl+J` / `Ctrl+↑` | Scroll the right-pane text preview up by a page |
 | `Ctrl+K` / `Ctrl+↓` | Scroll the right-pane text preview down by a page |
 | `p` | Toggle two-pane transfer mode |
+| `Tab` (under 80 columns) | Toggle between the current file list and the details view (preview/results) |
 
 ---
 

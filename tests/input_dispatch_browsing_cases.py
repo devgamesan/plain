@@ -149,6 +149,8 @@ def test_search_workspace_blocks_unavailable_browsing_shortcuts() -> None:
             ),
         )
 
+    assert dispatch_key_input(state, key="tab") == ()
+
 
 def test_removed_direct_shortcuts_are_unbound_in_browsing_and_search_workspace() -> None:
     for state in (build_initial_app_state(), build_search_workspace_state()):
@@ -613,12 +615,21 @@ def test_browsing_w_closes_current_tab() -> None:
     assert actions == (SetNotification(None), CloseCurrentTab())
 
 
-def test_browsing_tab_is_no_longer_bound() -> None:
-    state = build_initial_app_state()
+def test_browsing_tab_toggles_narrow_details_view() -> None:
+    state = replace(
+        build_initial_app_state(),
+        terminal_width=72,
+    )
 
     actions = dispatch_key_input(state, key="tab")
 
-    assert actions == ()
+    assert actions == (SetNotification(None), ToggleNarrowPaneView())
+
+
+def test_browsing_tab_is_ignored_at_medium_width() -> None:
+    state = replace(build_initial_app_state(), terminal_width=80)
+
+    assert dispatch_key_input(state, key="tab") == ()
 
 
 def test_browsing_shift_tab_is_no_longer_bound() -> None:

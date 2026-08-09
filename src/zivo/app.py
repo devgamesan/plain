@@ -101,6 +101,7 @@ from zivo.state.actions import (
     SetCursorPath,
     SetSort,
     SetTerminalHeight,
+    SetTerminalWidth,
     SetTransferCursorPath,
     ShowAttributes,
 )
@@ -313,6 +314,7 @@ class zivoApp(App[None]):
 
         await self.dispatch_actions((
             SetTerminalHeight(height=self.size.height),
+            SetTerminalWidth(width=self.size.width),
             RequestBrowserSnapshot(self._initial_path, blocking=True),
         ))
         self.call_after_refresh(lambda: sync_overlay_layout(self))
@@ -617,9 +619,12 @@ class zivoApp(App[None]):
         await handle_worker_state_changed(self, event)
 
     async def on_resize(self, event: events.Resize) -> None:
-        """Update the terminal height on resize."""
+        """Update terminal dimensions and responsive pane layout on resize."""
 
-        await self.dispatch_actions((SetTerminalHeight(height=event.size.height),))
+        await self.dispatch_actions((
+            SetTerminalHeight(height=event.size.height),
+            SetTerminalWidth(width=event.size.width),
+        ))
         sync_overlay_layout(self, event.size.width)
 
     async def on_tab_bar_tab_clicked(self, message: TabBar.TabClicked) -> None:

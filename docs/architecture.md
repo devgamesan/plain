@@ -208,8 +208,9 @@ sequenceDiagram
 
 - `AppState` から `ThreePaneShellData` を組み立てる
 - 中央ペインにだけ filter / sort / directory size 表示を適用し、親・子ペインは固定順で表示する
+- 端末幅に応じた `ResponsivePaneLayoutState` を作り、120 列以上は Parent / Current / Child、80〜119 列は Current / Child、80 列未満は Current または Details の単一ビューを描画する。幅変更ではブラウザのカーソル・選択・フィルタを変更せず、狭いビューだけ `Tab` で切り替える
 - 転送モードでは左右2つの `MainPane` 用表示モデルを組み立て、Parent / Child / Preview を描画対象から外す
-- 中央・転送ペインの見出しは `PaneHeadingState` として役割、対象名、item count、selected count、sort label、active 状態を一元化する
+- 中央・転送ペインの見出しは `PaneHeadingState` として役割、対象名、item count、selected count、sort label、active 状態を一元化し、Parent / Current / Contents / Preview / Results の意味を示す
 - help bar、status bar、input bar、command palette、conflict dialog、attribute dialog、config dialog、split terminal の表示文言を整形する
 - busy 状態、extract 進捗、検索エラー、通知メッセージを UI 向けに要約する
 

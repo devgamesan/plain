@@ -100,6 +100,12 @@ test_select_shell_data_emits_size_delta_updates_for_directory_size_changes = (
 test_select_shell_data_exposes_visible_cursor_index = (
     cases.test_select_shell_data_exposes_visible_cursor_index
 )
+test_select_responsive_pane_layout_uses_width_breakpoints_and_narrow_view = (
+    cases.test_select_responsive_pane_layout_uses_width_breakpoints_and_narrow_view
+)
+test_select_shell_data_exposes_semantic_pane_headers = (
+    cases.test_select_shell_data_exposes_semantic_pane_headers
+)
 test_select_shell_data_hides_cursor_while_filtering = (
     cases.test_select_shell_data_hides_cursor_while_filtering
 )

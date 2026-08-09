@@ -1,6 +1,6 @@
 """Pane-oriented selector implementations."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
 
@@ -131,6 +131,7 @@ def build_pane_heading(
     summary: CurrentSummaryState,
     *,
     active: bool,
+    status_label: str | None = None,
 ) -> PaneHeadingState:
     """Build a pane heading from the selector-owned summary values."""
 
@@ -141,6 +142,7 @@ def build_pane_heading(
         selected_count=summary.selected_count,
         sort_label=summary.sort_label,
         active=active,
+        status_label=status_label,
     )
 
 
@@ -192,7 +194,7 @@ def select_current_pane_projection(state: AppState) -> CurrentPaneProjection:
     )
 
 
-def select_child_pane_for_cursor(
+def _select_child_pane_for_cursor_base(
     state: AppState,
     cursor_entry: DirectoryEntryState | None,
 ) -> ChildPaneViewState:
@@ -319,6 +321,65 @@ def select_child_pane_for_cursor(
         syntax_theme,
         permissions_label,
     )
+
+
+def select_child_pane_for_cursor(
+    state: AppState,
+    cursor_entry: DirectoryEntryState | None,
+) -> ChildPaneViewState:
+    """Return child content with a selector-owned semantic header title."""
+
+    view = _select_child_pane_for_cursor_base(state, cursor_entry)
+    return _with_child_header(view, _format_child_semantic_title(state, view, cursor_entry))
+
+
+@lru_cache(maxsize=4096)
+def _with_child_header(view: ChildPaneViewState, title: str) -> ChildPaneViewState:
+    if view.header_title == title:
+        return view
+    return replace(view, header_title=title)
+
+
+def _format_child_semantic_title(
+    state: AppState,
+    view: ChildPaneViewState,
+    cursor_entry: DirectoryEntryState | None,
+) -> str:
+    if state.ui_mode == "PALETTE" and state.command_palette is not None:
+        palette = state.command_palette
+        if palette.source == "file_search":
+            target = palette.file_search.target
+            target_label = {
+                "files": "files",
+                "directories": "directories",
+                "all": "files and directories",
+            }.get(target, "results")
+            query = palette.query.strip() or "*"
+            return (
+                f'Results · {target_label} "{query}" · '
+                f"{len(palette.file_search.results)} results"
+            )
+        if palette.source == "grep_search":
+            query = palette.grep_search.keyword.strip() or palette.query.strip() or "*"
+            return f'Results · grep "{query}" · {len(palette.grep_search.results)} matches'
+        return view.title
+
+    if cursor_entry is None:
+        if view.status is not None and view.status.kind == "loading":
+            return "Contents · loading"
+        return "Contents · empty"
+
+    target_name = _format_pane_target_name(cursor_entry.path)
+    if view.status is not None and view.status.kind == "loading":
+        role = "Preview" if cursor_entry.kind == "file" else "Contents"
+        return f"{role} · {target_name} · loading"
+    if view.is_preview or cursor_entry.kind == "file":
+        title = f"Preview · {target_name}"
+        if cursor_entry.size_bytes is not None:
+            title += f" · {_format_size_label(cursor_entry.size_bytes)}"
+        return title
+
+    return f"Contents · {target_name} · {len(view.entries)} items"
 
 
 def _select_command_palette_preview_pane(

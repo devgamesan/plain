@@ -107,7 +107,7 @@ class ChildPane(Vertical):
         return f"{self.id}-permissions" if self.id else None
 
     def compose(self) -> ComposeResult:
-        yield Label(self._state.title, classes="pane-title")
+        yield Label(self._state.display_title, classes="pane-title")
         list_content = Static(
             _render_file_entries(
                 self._state.entries,
@@ -221,8 +221,8 @@ class ChildPane(Vertical):
         self._state = state
         if clear_previous_kitty_preview:
             self.call_after_refresh(self._clear_kitty_content)
-        if state.title != previous_state.title:
-            self.query_one(Label).update(state.title)
+        if state.display_title != previous_state.display_title:
+            self.query_one(Label).update(state.display_title)
         list_widget = self._list_widget()
         scroll_widget = self._preview_scroll_widget()
         if mode_changed:

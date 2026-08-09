@@ -82,6 +82,9 @@ _COMMAND_METADATA: dict[str, CommandPaletteMetadata] = {
     "toggle_transfer_mode": CommandPaletteMetadata(
         "Navigate", ("transfer", "two pane", "dual pane"), 80
     ),
+    "toggle_narrow_pane_view": CommandPaletteMetadata(
+        "View", ("preview", "contents", "details", "file list", "pane"), 43
+    ),
     "select_all": CommandPaletteMetadata("File", ("select", "all", "mark"), 40),
     "replace_text": CommandPaletteMetadata(
         "File", ("replace", "substitute", "edit text"), 45
@@ -444,6 +447,22 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
             enabled=True,
         ),
     ]
+
+    if state.terminal_width < 80 and not is_search_workspace_path(state.current_path):
+        has_cursor = state.current_pane.cursor_path is not None
+        items.append(
+            CommandPaletteItem(
+                id="toggle_narrow_pane_view",
+                label=(
+                    "Back to file list"
+                    if state.narrow_pane_view == "details"
+                    else "Show preview or contents"
+                ),
+                shortcut="tab",
+                enabled=has_cursor,
+                disabled_reason="Details view requires a focused item" if not has_cursor else None,
+            )
+        )
 
     is_search_workspace = is_search_workspace_path(state.current_path)
 

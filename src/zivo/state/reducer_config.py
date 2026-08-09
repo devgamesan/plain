@@ -562,7 +562,7 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
 
 CONFIG_EDITOR_CATEGORIES: tuple[tuple[str, tuple[int, ...]], ...] = (
     ("Editors", (0, 1)),
-    ("Appearance", (3, 2)),
+    ("Appearance", (3, 2, 10)),
     ("Preview", (5, 6, 8, 9)),
     ("Sorting", (13, 14, 15)),
     ("Safety", (18,)),

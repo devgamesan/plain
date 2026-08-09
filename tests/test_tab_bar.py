@@ -1,5 +1,8 @@
 """Tests for tab-bar affordances."""
 
+from rich.style import Style
+from textual import events
+
 from zivo.models import TabBarState, TabItemState
 from zivo.ui.tab_bar import TabBar
 
@@ -61,3 +64,67 @@ def test_tab_bar_narrow_render_prioritizes_active_neighbors() -> None:
     assert "[3:3]" in rendered.plain
     assert "[5:5]" in rendered.plain
     assert "+2" in rendered.plain or "+1" in rendered.plain
+
+
+def test_tab_bar_keeps_close_affordance_when_hover_event_has_no_metadata() -> None:
+    state = TabBarState(
+        (
+            TabItemState("one"),
+            TabItemState("two", active=True),
+        )
+    )
+    tab_bar = TabBar(state)
+    tab_bar._hovered_index = 2
+    tab_bar.update(TabBar._render_state(state, hovered_index=2, include_new=True))
+
+    tab_bar.on_mouse_move(
+        events.MouseMove(
+            widget=tab_bar,
+            x=0,
+            y=0,
+            delta_x=0,
+            delta_y=0,
+            button=0,
+            shift=False,
+            meta=False,
+            ctrl=False,
+            style=Style(),
+        )
+    )
+
+    assert tab_bar._hovered_index == 2
+    assert "×" in tab_bar.renderable.plain
+
+
+def test_tab_bar_close_click_falls_back_to_rendered_close_span() -> None:
+    state = TabBarState(
+        (
+            TabItemState("one"),
+            TabItemState("two", active=True),
+        )
+    )
+    tab_bar = TabBar(state)
+    tab_bar._hovered_index = 2
+    tab_bar.update(TabBar._render_state(state, hovered_index=2, include_new=True))
+    close_x = tab_bar.renderable.plain.index("×")
+    messages = []
+    tab_bar.post_message = messages.append
+
+    tab_bar.on_click(
+        events.Click(
+            widget=tab_bar,
+            x=close_x,
+            y=0,
+            delta_x=0,
+            delta_y=0,
+            button=1,
+            shift=False,
+            meta=False,
+            ctrl=False,
+            style=Style(),
+        )
+    )
+
+    assert len(messages) == 1
+    assert isinstance(messages[0], TabBar.TabClosed)
+    assert messages[0].tab_index == 1

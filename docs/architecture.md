@@ -161,6 +161,7 @@ sequenceDiagram
 - 3 ペイン本体、dialog、split terminal を含む widget ツリーの mount / refresh を担当する
 - selector が返した view model を各 widget へ反映する
 - split terminal の focus 制御と terminal サイズ同期を行う
+- アクティブペインは accent 境界・見出し記号・太字を併用し、行状態は ASCII の `>`（カーソル）、`*`（選択）、`x`（カット）、`@`（symlink）、`+`（executable）で色以外にも示す。状態列は一覧幅を守るため、複合時は優先順の先頭2記号までを表示する
 
 ### `src/zivo/state/input.py`
 
@@ -208,6 +209,7 @@ sequenceDiagram
 - `AppState` から `ThreePaneShellData` を組み立てる
 - 中央ペインにだけ filter / sort / directory size 表示を適用し、親・子ペインは固定順で表示する
 - 転送モードでは左右2つの `MainPane` 用表示モデルを組み立て、Parent / Child / Preview を描画対象から外す
+- 中央・転送ペインの見出しは `PaneHeadingState` として役割、対象名、item count、selected count、sort label、active 状態を一元化する
 - help bar、status bar、input bar、command palette、conflict dialog、attribute dialog、config dialog、split terminal の表示文言を整形する
 - busy 状態、extract 進捗、検索エラー、通知メッセージを UI 向けに要約する
 

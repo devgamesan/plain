@@ -39,6 +39,25 @@ class PaneEntry:
 
         return "*" if self.selected else " "
 
+    def state_marker(self, *, cursor: bool = False, max_width: int | None = None) -> str:
+        """Return color-independent ASCII markers for visible row state."""
+
+        markers: list[str] = []
+        if cursor:
+            markers.append(">")
+        if self.selected:
+            markers.append("*")
+        if self.cut:
+            markers.append("x")
+        if self.symlink:
+            markers.append("@")
+        if self.executable:
+            markers.append("+")
+        marker = "".join(markers) or " "
+        if max_width is not None and len(marker) > max_width:
+            return marker[:max_width]
+        return marker
+
 
 @dataclass(frozen=True)
 class CurrentPaneSizeUpdate:
@@ -78,6 +97,18 @@ class CurrentSummaryState:
 
 
 @dataclass(frozen=True)
+class PaneHeadingState:
+    """Semantic heading values for a directory pane."""
+
+    role: str
+    target_name: str
+    item_count: int
+    selected_count: int
+    sort_label: str
+    active: bool = False
+
+
+@dataclass(frozen=True)
 class TransferPaneViewState:
     """Display data for one side of the transfer layout."""
 
@@ -88,6 +119,7 @@ class TransferPaneViewState:
     cursor_index: int | None
     cursor_visible: bool = True
     active: bool = False
+    heading: PaneHeadingState | None = None
 
 
 @dataclass(frozen=True)
@@ -311,6 +343,7 @@ class ThreePaneShellData:
     current_cursor_visible: bool
     current_pane_update: CurrentPaneUpdateHint
     current_summary: CurrentSummaryState
+    current_heading: PaneHeadingState
     current_context_input: InputBarState | None
     current_pane_status: PaneStatusViewState | None
     help: HelpBarState
@@ -391,6 +424,14 @@ def build_dummy_shell_data() -> ThreePaneShellData:
             item_count=len(current_entries),
             selected_count=0,
             sort_label="name asc",
+        ),
+        current_heading=PaneHeadingState(
+            role="Current",
+            target_name="zivo",
+            item_count=len(current_entries),
+            selected_count=0,
+            sort_label="name asc",
+            active=True,
         ),
         current_context_input=None,
         current_pane_status=None,

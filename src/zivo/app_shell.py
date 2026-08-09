@@ -43,6 +43,7 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
                 _format_transfer_title(shell.transfer_left),
                 shell.transfer_left.entries,
                 summary=shell.transfer_left.summary,
+                heading=shell.transfer_left.heading,
                 cursor_index=shell.transfer_left.cursor_index,
                 cursor_visible=shell.transfer_left.cursor_visible,
                 context_input=None,
@@ -54,6 +55,7 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
                 _format_transfer_title(shell.transfer_right),
                 shell.transfer_right.entries,
                 summary=shell.transfer_right.summary,
+                heading=shell.transfer_right.heading,
                 cursor_index=shell.transfer_right.cursor_index,
                 cursor_visible=shell.transfer_right.cursor_visible,
                 context_input=None,
@@ -80,7 +82,8 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
                 context_input=shell.current_context_input,
                 status=shell.current_pane_status,
                 id="current-pane",
-                classes="pane main-pane",
+                classes="pane main-pane active-pane",
+                heading=shell.current_heading,
             ),
             ChildPane(
                 shell.child_pane,
@@ -102,7 +105,7 @@ def _format_transfer_title(pane: Any) -> str:
 
 def _transfer_pane_classes(active: bool) -> str:
     if active:
-        return "pane main-pane transfer-pane active-transfer-pane"
+        return "pane main-pane transfer-pane active-pane active-transfer-pane"
     return "pane main-pane transfer-pane"
 
 
@@ -237,10 +240,11 @@ async def refresh_shell(
             force_sync=True,
         )
         current_pane.set_summary(shell.transfer_left.summary)
+        current_pane.set_heading(shell.transfer_left.heading)
         current_pane.set_context_input(None)
         current_pane.set_status(None)
+        current_pane.set_class(shell.transfer_left.active, "active-pane")
         current_pane.set_class(shell.transfer_left.active, "active-transfer-pane")
-        current_pane.query_one("Label").update(_format_transfer_title(shell.transfer_left))
         try:
             transfer_right_pane = app.query_one("#transfer-right-pane", MainPane)
             transfer_right_pane.set_entries(
@@ -253,13 +257,12 @@ async def refresh_shell(
                 force_sync=True,
             )
             transfer_right_pane.set_summary(shell.transfer_right.summary)
+            transfer_right_pane.set_heading(shell.transfer_right.heading)
             transfer_right_pane.set_context_input(None)
+            transfer_right_pane.set_class(shell.transfer_right.active, "active-pane")
             transfer_right_pane.set_class(
                 shell.transfer_right.active,
                 "active-transfer-pane",
-            )
-            transfer_right_pane.query_one("Label").update(
-                _format_transfer_title(shell.transfer_right)
             )
         except NoMatches:
             pass
@@ -275,6 +278,8 @@ async def refresh_shell(
             shell.current_cursor_visible,
         )
         current_pane.set_summary(shell.current_summary)
+        current_pane.set_heading(shell.current_heading)
+        current_pane.set_class(True, "active-pane")
         current_pane.set_context_input(shell.current_context_input)
         current_pane.set_status(shell.current_pane_status)
     await parent_pane.set_entries(shell.parent_entries)

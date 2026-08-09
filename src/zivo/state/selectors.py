@@ -23,6 +23,7 @@ from .selectors_panes import (
 from .selectors_panes import (
     _project_current_pane_entries,
     _select_current_pane_entries,
+    build_pane_heading,
     select_child_entries,
     select_current_entries,
     select_current_summary_state,
@@ -140,6 +141,12 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         current_cursor_visible=state.ui_mode != "FILTER",
         current_pane_update=current_pane_update,
         current_summary=current_pane.summary,
+        current_heading=build_pane_heading(
+            "Current",
+            state.current_pane.directory_path,
+            current_pane.summary,
+            active=state.layout_mode != "transfer",
+        ),
         current_context_input=select_input_bar_state(state),
         current_pane_status=_select_current_pane_status(state, current_pane.visible_entries),
         help=select_help_bar_state(state),
@@ -212,6 +219,11 @@ def _select_transfer_pane(
         return None
     visible_entries = _select_visible_transfer_entry_states(state, transfer.pane)
     cursor_index = _find_current_cursor_index(visible_entries, transfer.pane.cursor_path)
+    summary = CurrentSummaryState(
+        item_count=len(visible_entries),
+        selected_count=len(transfer.pane.selected_paths),
+        sort_label=_format_sort_label(state.sort),
+    )
     return TransferPaneViewState(
         title="Left Directory" if pane_id == "left" else "Right Directory",
         path=transfer.current_path,
@@ -222,14 +234,16 @@ def _select_transfer_pane(
             transfer.pane.selected_paths,
             frozenset() if state.clipboard.mode != "cut" else frozenset(state.clipboard.paths),
         ),
-        summary=CurrentSummaryState(
-            item_count=len(visible_entries),
-            selected_count=len(transfer.pane.selected_paths),
-            sort_label=_format_sort_label(state.sort),
-        ),
+        summary=summary,
         cursor_index=cursor_index,
         cursor_visible=state.ui_mode != "FILTER",
         active=state.active_transfer_pane == pane_id,
+        heading=build_pane_heading(
+            "Left" if pane_id == "left" else "Right",
+            transfer.current_path,
+            summary,
+            active=state.active_transfer_pane == pane_id,
+        ),
     )
 
 

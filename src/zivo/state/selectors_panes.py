@@ -14,6 +14,7 @@ from zivo.models import (
     MetadataItemViewState,
     PaneActionViewState,
     PaneEntry,
+    PaneHeadingState,
     PaneStatusViewState,
     TabBarState,
     TabItemState,
@@ -122,6 +123,36 @@ def select_current_summary_state(state: AppState) -> CurrentSummaryState:
     """Return the summary model shown near the current pane."""
 
     return select_current_pane_projection(state).summary
+
+
+def build_pane_heading(
+    role: str,
+    target_path: str,
+    summary: CurrentSummaryState,
+    *,
+    active: bool,
+) -> PaneHeadingState:
+    """Build a pane heading from the selector-owned summary values."""
+
+    return PaneHeadingState(
+        role=role,
+        target_name=_format_pane_target_name(target_path),
+        item_count=summary.item_count,
+        selected_count=summary.selected_count,
+        sort_label=summary.sort_label,
+        active=active,
+    )
+
+
+def _format_pane_target_name(path: str) -> str:
+    """Return a compact target name while preserving filesystem roots."""
+
+    if path in {"/", "\\"}:
+        return path
+    normalized = path.rstrip("/\\")
+    if not normalized:
+        return path
+    return normalized.replace("\\", "/").rsplit("/", 1)[-1] or normalized
 
 
 def select_current_pane_projection(state: AppState) -> CurrentPaneProjection:

@@ -6431,9 +6431,10 @@ async def test_app_renders_empty_directory_action_and_routes_it_to_create_flow()
         status = app.query_one("#current-pane-status", Static)
         assert status.display is True
         assert "Empty directory" in str(status.renderable)
-        assert "[:] Create" in str(status.renderable)
+        assert "[n] New file" in str(status.renderable)
+        assert "[N] New directory" in str(status.renderable)
 
-        await app.on_main_pane_action_clicked(MainPane.ActionClicked("create"))
+        await app.on_main_pane_action_clicked(MainPane.ActionClicked("create_file"))
 
         assert app.app_state.ui_mode == "CREATE"
         assert app.app_state.pending_input is not None

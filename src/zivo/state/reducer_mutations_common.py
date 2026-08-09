@@ -75,3 +75,16 @@ def undo_entry_for_paste(
             for change in applied_changes
         ),
     )
+
+
+def undo_entry_for_duplicate(applied_changes) -> UndoEntry | None:
+    """Record all successful duplicate outputs as one copy-style undo."""
+
+    if not applied_changes:
+        return None
+    return UndoEntry(
+        kind="paste_copy",
+        steps=tuple(
+            UndoDeletePathStep(path=change.destination_path) for change in applied_changes
+        ),
+    )

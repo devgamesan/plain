@@ -9,6 +9,8 @@ from zivo.models import (
     CustomActionExecutionRequest,
     CustomActionResult,
     DeleteRequest,
+    DuplicateAppliedChange,
+    DuplicateSummary,
     ExternalLaunchRequest,
     ExtractArchiveRequest,
     ExtractArchiveResult,
@@ -197,6 +199,33 @@ class ClipboardPasteCompleted:
 @dataclass(frozen=True)
 class ClipboardPasteFailed:
     """Apply a terminal clipboard-operation failure."""
+
+    request_id: int
+    message: str
+
+
+@dataclass(frozen=True)
+class DuplicateProgress:
+    """Apply progress from a duplicate worker."""
+
+    request_id: int
+    completed_entries: int
+    total_entries: int
+    current_path: str | None = None
+
+
+@dataclass(frozen=True)
+class DuplicateCompleted:
+    """Apply the completed duplicate result."""
+
+    request_id: int
+    summary: DuplicateSummary
+    applied_changes: tuple[DuplicateAppliedChange, ...] = ()
+
+
+@dataclass(frozen=True)
+class DuplicateFailed:
+    """Apply a terminal duplicate failure."""
 
     request_id: int
     message: str

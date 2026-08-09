@@ -51,13 +51,37 @@ def test_command_palette_matches_aliases_and_is_deterministic() -> None:
     state = replace(state, command_palette=replace(state.command_palette, query="duplicate"))
 
     items = get_command_palette_items(state)
-    assert items[0].id == "copy_targets"
+    assert items[0].id == "duplicate_targets"
     assert items[0].keywords
 
     fuzzy_state = replace(state, command_palette=replace(state.command_palette, query="gth"))
     first = tuple(item.id for item in get_command_palette_items(fuzzy_state))
     second = tuple(item.id for item in get_command_palette_items(fuzzy_state))
     assert first == second
+
+
+def test_duplicate_command_is_available_for_a_focused_target_without_a_fixed_key() -> None:
+    state = reduce_state(build_initial_app_state(), BeginCommandPalette())
+
+    item = next(item for item in get_command_palette_items(state) if item.id == "duplicate_targets")
+
+    assert item.enabled is True
+    assert item.shortcut is None
+    assert "clone" in item.keywords
+
+
+def test_duplicate_command_is_disabled_in_search_workspace() -> None:
+    state = reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = replace(
+        state,
+        current_path="search://readme?target=files&hidden=false&root=%2Ftmp",
+        command_palette=replace(state.command_palette, query="duplicate"),
+    )
+
+    item = next(item for item in get_command_palette_items(state) if item.id == "duplicate_targets")
+
+    assert item.enabled is False
+    assert item.disabled_reason == "Unavailable in Search Workspace"
 
 
 def test_disabled_command_reason_is_shared_by_selector_and_submit_path() -> None:

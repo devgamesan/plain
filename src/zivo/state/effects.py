@@ -11,6 +11,7 @@ from zivo.models import (
     CreateZipArchiveRequest,
     CustomActionExecutionRequest,
     DeleteRequest,
+    DuplicateRequest,
     ExternalLaunchRequest,
     ExtractArchiveRequest,
     PasteRequest,
@@ -115,6 +116,14 @@ class RunClipboardPasteEffect:
 
     request_id: int
     request: PasteRequest
+
+
+@dataclass(frozen=True)
+class RunDuplicateEffect:
+    """Execute a same-directory duplicate operation outside the reducer."""
+
+    request_id: int
+    request: DuplicateRequest
 
 
 @dataclass(frozen=True)
@@ -282,6 +291,7 @@ Effect = (
     | RunDirectorySizeEffect
     | RunAttributeInspectionEffect
     | RunClipboardPasteEffect
+    | RunDuplicateEffect
     | RunFileMutationEffect
     | RunDeletePreparationEffect
     | RunUndoEffect

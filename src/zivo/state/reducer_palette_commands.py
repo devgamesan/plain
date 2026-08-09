@@ -35,6 +35,7 @@ from .actions import (
     CopyPathsToClipboard,
     CopyTargets,
     CutTargets,
+    DuplicateTargets,
     GoBack,
     GoForward,
     GoToHomeDirectory,
@@ -421,6 +422,15 @@ def _run_cut_targets_command(
     return reduce_state(next_state, CutTargets(target_paths))
 
 
+def _run_duplicate_targets_command(
+    state: AppState,
+    next_state: AppState,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del state
+    return reduce_state(next_state, DuplicateTargets())
+
+
 def _run_paste_clipboard_command(
     state: AppState,
     reduce_state: ReducerFn,
@@ -566,6 +576,8 @@ def _run_palette_command_item(
         return _run_copy_targets_command(state, next_state, reduce_state)
     if item_id == "cut_targets":
         return _run_cut_targets_command(state, next_state, reduce_state)
+    if item_id == "duplicate_targets":
+        return _run_duplicate_targets_command(state, next_state, reduce_state)
     if item_id == "paste_clipboard":
         return _run_paste_clipboard_command(next_state, reduce_state)
     if item_id == "transfer_copy_to_opposite_pane":

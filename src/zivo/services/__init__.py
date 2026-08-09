@@ -54,6 +54,11 @@ from .directory_size import (
     FakeDirectorySizeService,
     LiveDirectorySizeService,
 )
+from .duplicate_operations import (
+    DuplicateOperationService,
+    FakeDuplicateOperationService,
+    LiveDuplicateOperationService,
+)
 from .external_launcher import (
     ExternalLaunchService,
     FakeExternalLaunchService,
@@ -126,6 +131,7 @@ __all__ = [
     "CustomActionService",
     "default_zip_destination",
     "DirectorySizeService",
+    "DuplicateOperationService",
     "ExternalLaunchService",
     "FakeZipCompressService",
     "FakeGrepExportService",
@@ -140,6 +146,7 @@ __all__ = [
     "FakeGrepSearchService",
     "FakeShellCommandService",
     "FakeDirectorySizeService",
+    "FakeDuplicateOperationService",
     "InvalidFileSearchQueryError",
     "InvalidGrepSearchQueryError",
     "FakeBrowserSnapshotLoader",
@@ -157,6 +164,7 @@ __all__ = [
     "LiveGrepSearchService",
     "LiveFileMutationService",
     "LiveDirectorySizeService",
+    "LiveDuplicateOperationService",
     "LiveClipboardOperationService",
     "LiveCustomActionService",
     "LiveBrowserSnapshotLoader",

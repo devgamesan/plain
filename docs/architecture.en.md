@@ -52,6 +52,7 @@ flowchart LR
         Search["file_search.py / grep_search.py"]
         DirSize["directory_size.py"]
         Clipboard["clipboard_operations.py"]
+        Duplicate["duplicate_operations.py"]
         Mutations["file_mutations.py"]
         Archive["archive_extract.py"]
         Config["config.py"]
@@ -238,6 +239,7 @@ sequenceDiagram
   - `Edit with terminal editor`
   - `Edit with GUI editor`
   - `Copy path`
+  - `Duplicate` (non-overwriting same-parent copy of selected or focused targets)
   - `Move to trash`
   - `Open current directory with file manager`
   - `Open current directory with terminal`
@@ -257,6 +259,7 @@ sequenceDiagram
 - `grep_search.py`: handles recursive content search through `rg`
 - `directory_size.py`: calculates recursive sizes for visible directories
 - `clipboard_operations.py`: executes copy / cut / paste, detects conflicts, and records undo metadata
+- `duplicate_operations.py`: performs non-overwriting same-parent duplication with collision naming, symlink handling, per-target progress, and failures
 - `file_mutations.py`: handles rename / create / delete, captures trash-restore metadata, and recursively measures targets for permanent-delete confirmation
 - `undo_operations.py`: executes undo for reversible file operations
 - `archive_extract.py`: handles archive preflight scanning, conflict detection, safe extraction, and progress reporting

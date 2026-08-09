@@ -22,6 +22,7 @@ from zivo.state import (
     RunConfigSaveEffect,
     RunCustomActionEffect,
     RunDeletePreparationEffect,
+    RunDuplicateEffect,
     RunExternalLaunchEffect,
     RunFileMutationEffect,
     RunGrepExportEffect,
@@ -34,6 +35,7 @@ from zivo.state.actions import (
     ArchiveExtractProgress,
     CustomActionCompleted,
     CustomActionFailed,
+    DuplicateProgress,
     ExternalLaunchCompleted,
     ExternalLaunchFailed,
     ZipCompressProgress,
@@ -48,6 +50,24 @@ def schedule_clipboard_paste(app: Any, effect: RunClipboardPasteEffect) -> None:
         WorkerSpec(
             name=f"clipboard-paste:{effect.request_id}",
             group="clipboard-paste",
+            description=effect.request.destination_dir,
+            exclusive=True,
+        ),
+    )
+
+
+def schedule_duplicate(app: Any, effect: RunDuplicateEffect) -> None:
+    run_worker(
+        app,
+        effect,
+        partial(
+            app._duplicate_service.execute_duplicate,
+            effect.request,
+            progress_callback=partial(report_duplicate_progress, app, effect.request_id),
+        ),
+        WorkerSpec(
+            name=f"duplicate:{effect.request_id}",
+            group="duplicate",
             description=effect.request.destination_dir,
             exclusive=True,
         ),
@@ -477,6 +497,30 @@ def report_zip_compress_progress(
 ) -> None:
     actions = (
         ZipCompressProgress(
+            request_id=request_id,
+            completed_entries=completed_entries,
+            total_entries=total_entries,
+            current_path=current_path,
+        ),
+    )
+    try:
+        if app._thread_id == threading.get_ident():
+            app.call_next(app.dispatch_actions, actions)
+            return
+        app.call_from_thread(app.call_next, app.dispatch_actions, actions)
+    except (RuntimeError, FutureCancelledError):
+        return
+
+
+def report_duplicate_progress(
+    app: Any,
+    request_id: int,
+    completed_entries: int,
+    total_entries: int,
+    current_path: str | None,
+) -> None:
+    actions = (
+        DuplicateProgress(
             request_id=request_id,
             completed_entries=completed_entries,
             total_entries=total_entries,

@@ -130,7 +130,7 @@ See [Keybindings](docs/keybindings.md) for the full list.
 
 Press `:` to search and run available actions. With an empty query, the palette shows fixed Navigate, File, Search, View, System, and Custom actions sections. The full list is scrollable with the mouse wheel; `↑` / `↓` and `Ctrl+j` / `Ctrl+k` keep the selected row visible.
 
-Search accepts common aliases and keywords such as `duplicate` for Copy, `trash` for Move to trash, `grep` or `search contents` for Grep search, and `shell` for opening a terminal. Results are ranked deterministically. Commands that do not apply remain searchable but are dimmed with a concrete reason; pressing Enter on one shows the same reason as a warning. Registered custom actions are always listed, while actions that do not satisfy their configured context conditions are disabled with a reason; they are also searchable by name.
+Search accepts common aliases and keywords such as `duplicate` or `clone` for Duplicate, `trash` for Move to trash, `grep` or `search contents` for Grep search, and `shell` for opening a terminal. Duplicate copies the selected targets (or the focused target) beside the originals, automatically choosing a non-conflicting `copy`, `copy 2`, and so on name. Results are ranked deterministically. Commands that do not apply remain searchable but are dimmed with a concrete reason; pressing Enter on one shows the same reason as a warning. Registered custom actions are always listed, while actions that do not satisfy their configured context conditions are disabled with a reason; they are also searchable by name.
 
 See [Commands](docs/commands.md) for the full command list.
 
@@ -147,11 +147,11 @@ See [Commands](docs/commands.md) for the full command list.
 - **Direct UI controls**: click breadcrumb segments, Back/Forward (normal browsing), tabs, and sortable column headers; Search Workspace uses a dedicated non-breadcrumb label
 
 ### File operations
-- **Copy / Cut / Paste**: within a pane (normal mode only)
+- **Copy / Cut / Paste / Duplicate**: within a pane (normal mode only); Duplicate keeps the original and creates a safe same-directory copy
 - **Rename**: inline rename
 - **Permissions and ownership**: change selected targets' octal mode or owner/group from the command palette on POSIX-style filesystems
 - **Delete**: move to trash (`d`) or permanently delete (`D`); permanent delete shows target count, total size, representative names, and an irreversible-operation warning
-- **Undo**: revert rename, paste, or trash operations
+- **Undo**: revert rename, paste, duplicate, or trash operations
 - **Multi-selection**: select files with Space, or Select all
 
 ### Archives

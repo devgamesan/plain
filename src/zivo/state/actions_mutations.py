@@ -60,6 +60,11 @@ class PasteClipboard:
 
 
 @dataclass(frozen=True)
+class DuplicateTargets:
+    """Duplicate the current selection or cursor target beside itself."""
+
+
+@dataclass(frozen=True)
 class UndoLastOperation:
     """Undo the most recent reversible file operation."""
 

@@ -52,6 +52,7 @@ flowchart LR
         Search["file_search.py / grep_search.py"]
         DirSize["directory_size.py"]
         Clipboard["clipboard_operations.py"]
+        Duplicate["duplicate_operations.py"]
         Mutations["file_mutations.py"]
         Archive["archive_extract.py"]
         Config["config.py"]
@@ -238,6 +239,7 @@ sequenceDiagram
   - `Edit with terminal editor`
   - `Edit with GUI editor`
   - `Copy path`
+  - `Duplicate`（選択またはフォーカス対象を同じ親ディレクトリへ非上書き複製）
   - `Move to trash`
   - `Open current directory with file manager`
   - `Open current directory with terminal`
@@ -257,6 +259,7 @@ sequenceDiagram
 - `grep_search.py`: `rg` を使った再帰内容検索を担当する
 - `directory_size.py`: 可視ディレクトリの再帰サイズ計算を担当する
 - `clipboard_operations.py`: copy / cut / paste 実処理、競合検出、undo 用結果記録を担当する
+- `duplicate_operations.py`: 同じ親ディレクトリへの非上書き複製、衝突名生成、symlink、対象別進捗・失敗を担当する
 - `file_mutations.py`: rename / create / delete、trash undo 用 metadata 採取、完全削除確認用の再帰サイズ調査を担当する
 - `undo_operations.py`: reversible file operations の undo 実行を担当する
 - `archive_extract.py`: archive 事前走査、競合検出、安全な展開、進捗通知を担当する

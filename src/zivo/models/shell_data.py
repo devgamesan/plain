@@ -180,7 +180,7 @@ class PaneStatusViewState:
 
 @dataclass(frozen=True)
 class MetadataItemViewState:
-    """Compact metadata row used as a preview fallback."""
+    """One labeled metadata item used by fallback and attribute-bar views."""
 
     label: str
     value: str
@@ -201,7 +201,7 @@ class ChildPaneViewState:
     preview_start_line: int | None = None
     preview_highlight_line: int | None = None
     syntax_theme: str = "monokai"
-    permissions_label: str = ""
+    metadata_bar: tuple[MetadataItemViewState, ...] = ()
     preview_word_wrap: bool = False
     preview_scroll_hint: str | None = None
     view_kind: str = "entries"

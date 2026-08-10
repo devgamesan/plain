@@ -103,6 +103,15 @@ Screen {
     color: $text-muted;
 }
 
+.pane-metadata-bar {
+    height: 1;
+    width: 1fr;
+    padding: 0 1;
+    background: $surface;
+    color: $text-muted;
+    overflow: hidden;
+}
+
 .pane-status {
     layer: status;
     height: 1fr;

@@ -1070,6 +1070,55 @@ async def test_app_renders_text_preview_in_child_pane_for_file_cursor() -> None:
 
 
 @pytest.mark.asyncio
+async def test_app_renders_preview_metadata_bar_for_file_cursor() -> None:
+    path = str(Path("/tmp/zivo-preview-metadata").resolve())
+    readme = f"{path}/README.md"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: BrowserSnapshot(
+                current_path=path,
+                parent_pane=PaneState(
+                    directory_path="/tmp",
+                    entries=(DirectoryEntryState(path, "zivo-preview-metadata", "dir"),),
+                    cursor_path=path,
+                ),
+                current_pane=PaneState(
+                    directory_path=path,
+                    entries=(
+                        DirectoryEntryState(
+                            readme,
+                            "README.md",
+                            "file",
+                            size_bytes=2_150,
+                            permissions_mode=0o100644,
+                            owner="alice",
+                            group="staff",
+                        ),
+                    ),
+                    cursor_path=readme,
+                ),
+                child_pane=PaneState(
+                    directory_path=path,
+                    entries=(),
+                    mode="preview",
+                    preview_path=readme,
+                    preview_content="# Title\npreview body\n",
+                ),
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(120, 20)):
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_child_preview(app, "Preview · README.md", "# Title")
+
+        metadata_bar = app.query_one("#child-pane-metadata-bar", Static)
+
+        assert str(metadata_bar.renderable) == "2.1KiB · -rw-r--r-- (644) · alice staff"
+
+
+@pytest.mark.asyncio
 async def test_app_renders_image_preview_in_child_pane_for_file_cursor() -> None:
     path = str(Path("/tmp/zivo-image-preview").resolve())
     image = f"{path}/preview.png"

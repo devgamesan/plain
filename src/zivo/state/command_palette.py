@@ -58,7 +58,25 @@ class CommandPaletteMetadata:
     context_priority: int = 100
 
 
+NOTIFICATION_ACTION_IDS = frozenset(
+    {
+        "notification.undo",
+        "notification.open_destination",
+        "notification.retry",
+        "notification.details",
+    }
+)
+
+
 _COMMAND_METADATA: dict[str, CommandPaletteMetadata] = {
+    "notification.undo": CommandPaletteMetadata("Suggested", ("undo", "notification"), 0),
+    "notification.open_destination": CommandPaletteMetadata(
+        "Suggested", ("open", "destination", "notification"), 1
+    ),
+    "notification.retry": CommandPaletteMetadata("Suggested", ("retry", "notification"), 2),
+    "notification.details": CommandPaletteMetadata(
+        "Suggested", ("details", "notification"), 3
+    ),
     "go": CommandPaletteMetadata(
         "Navigate", ("go", "path", "directory", "history", "recent", "bookmark"), 5
     ),
@@ -156,11 +174,23 @@ _COMMAND_METADATA: dict[str, CommandPaletteMetadata] = {
     ),
 }
 
-_CATEGORY_ORDER = ("Navigate", "File", "Search", "View", "System", "Custom actions")
+_CATEGORY_ORDER = (
+    "Suggested",
+    "Navigate",
+    "File",
+    "Search",
+    "View",
+    "System",
+    "Custom actions",
+)
 
 
 SEARCH_WORKSPACE_COMMAND_IDS = frozenset(
     {
+        "notification.undo",
+        "notification.open_destination",
+        "notification.retry",
+        "notification.details",
         "go_back",
         "go_forward",
         "go",
@@ -309,6 +339,24 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
         if state.layout_mode == "transfer"
         else _build_command_palette_items(state)
     )
+    if (
+        state.command_palette.source == "commands"
+        and not query.strip()
+        and state.notification is not None
+        and state.notification.action is not None
+    ):
+        action = state.notification.action
+        items = (
+            CommandPaletteItem(
+                id=action.action_id,
+                label=action.label,
+                shortcut=None,
+                enabled=True,
+                category="Suggested",
+                context_priority=0,
+            ),
+            *items,
+        )
     return _prepare_command_palette_items(state, items, query)
 
 

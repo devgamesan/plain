@@ -234,11 +234,12 @@ def enter_palette(
     *,
     source: str = "commands",
     history_results: tuple[str, ...] = (),
+    preserve_notification: bool = False,
 ) -> AppState:
     return replace(
         state,
         ui_mode="PALETTE",
-        notification=None,
+        notification=state.notification if preserve_notification else None,
         pending_input=None,
         command_palette=CommandPaletteState(
             source=source,
@@ -260,11 +261,12 @@ def restore_browsing_from_palette(
     state: AppState,
     *,
     clear_name_conflict: bool = False,
+    preserve_notification: bool = False,
 ) -> AppState:
     next_state = replace(
         state,
         ui_mode="BROWSING",
-        notification=None,
+        notification=state.notification if preserve_notification else None,
         command_palette=None,
         pending_go_palette=None,
         pending_file_search_request_id=None,

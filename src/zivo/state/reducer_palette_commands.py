@@ -13,6 +13,7 @@ from zivo.models import (
 
 from .actions import (
     ActivateNextTab,
+    ActivateNotificationAction,
     ActivatePreviousTab,
     AddBookmark,
     BeginBookmarkSearch,
@@ -63,7 +64,11 @@ from .actions import (
     TransferMoveToOppositePane,
     UndoLastOperation,
 )
-from .command_palette import get_command_palette_items, normalize_command_palette_cursor
+from .command_palette import (
+    NOTIFICATION_ACTION_IDS,
+    get_command_palette_items,
+    normalize_command_palette_cursor,
+)
 from .effects import ReduceResult, RunAttributeInspectionEffect
 from .models import AppState, AttributeInspectionState, ConfigEditorState
 from .reducer_common import (
@@ -665,6 +670,14 @@ def handle_submit_commands_palette(state: AppState, reduce_state: ReducerFn) -> 
             level="warning",
             message=selected_item.disabled_reason
             or f"{selected_item.label} is not available in the current context",
+        )
+    if selected_item.id in NOTIFICATION_ACTION_IDS:
+        return reduce_state(
+            state,
+            ActivateNotificationAction(
+                action_id=selected_item.id,
+                revision=state.notification_revision,
+            ),
         )
     next_state = restore_browsing_from_palette(state)
     return _run_palette_command_item(state, next_state, selected_item.id, reduce_state)

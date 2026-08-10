@@ -604,6 +604,7 @@ def _handle_config_save_completed(
             notification=NotificationState(
                 level="info",
                 message=f"Config saved: {action.path}",
+                auto_dismiss=True,
             ),
         ),
         action.config,

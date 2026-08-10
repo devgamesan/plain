@@ -232,6 +232,26 @@ class StatusBarState:
 
     message: str | None = None
     message_level: NotificationLevel | None = None
+    action: "StatusBarActionState | None" = None
+    notification_revision: int = 0
+    auto_dismiss: bool = False
+
+
+@dataclass(frozen=True)
+class StatusBarActionState:
+    """Clickable notification action projected for the status bar."""
+
+    action_id: str
+    label: str
+
+
+@dataclass(frozen=True)
+class NotificationDetailsDialogState:
+    """Display state for a notification failure-details overlay."""
+
+    title: str
+    lines: tuple[str, ...]
+    options: tuple[str, ...] = ("enter close", "esc close")
 
 
 @dataclass(frozen=True)
@@ -419,6 +439,7 @@ class ThreePaneShellData:
     status: StatusBarState
     conflict_dialog: ConflictDialogState | None = None
     attribute_dialog: AttributeDialogState | None = None
+    notification_details_dialog: NotificationDetailsDialogState | None = None
     config_dialog: ConfigDialogState | None = None
     shell_command_dialog: ShellCommandDialogState | None = None
     input_dialog: InputDialogState | None = None

@@ -64,6 +64,7 @@ from .input_common import (
     current_entry,
     dispatch_direct_tab_input,
     supported,
+    supported_preserving_notification,
     visible_paths,
     warn,
 )
@@ -255,6 +256,12 @@ def simple(action_cls: type[Action]) -> BrowsingHandler:
         return supported(action_cls())
 
     return handler
+
+
+def handle_begin_command_palette(state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
+    if state.notification is not None and state.notification.action is not None:
+        return supported_preserving_notification(BeginCommandPalette())
+    return supported(BeginCommandPalette())
 
 
 def matching_multi_key_sequences(
@@ -574,4 +581,5 @@ BROWSING_COMMAND_DISPATCH: dict[str, BrowsingHandler] = {
     **{name: simple(cls) for name, cls in BROWSING_SIMPLE_DISPATCH.items()},
     **BROWSING_PARAM_DISPATCH,
     **BROWSING_COMPLEX_DISPATCH,
+    "begin_command_palette": handle_begin_command_palette,
 }

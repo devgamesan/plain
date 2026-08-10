@@ -9,6 +9,10 @@ In normal browsing, the path bar also exposes clickable breadcrumb segments and 
 
 When the query is empty, the palette shows the fixed `Navigate`, `File`, `Search`, `View`, `System`, and `Custom actions` sections. Category order and command ranking are deterministic and do not use usage history or telemetry.
 
+When the latest operation has a next action, the empty `commands` palette conditionally prepends one `Suggested` item. At most one action is exposed, in this order: `Undo`, `Open destination`, safe `Retry`, `Details`. The StatusBar and conditional `Suggested` item share the same stable action ID and reducer path; existing keyboard routes keep their current meanings. No new global key is added, and existing `Enter` / `r` meanings are unchanged. A final success notification auto-dismisses five seconds after display; processing, warning/error, and partial-success notifications do not.
+
+`Retry` is limited to a failed paste with no success/skip/overwrite and an original `PasteRequest` whose conflict resolution is unset, a duplicate with no success or applied changes, or archive/zip preparation failure. Each retry runs fresh preparation/preflight and can return to the existing conflict or reconfirmation flow. `Details` shows failure count, target paths, and reasons, and closes with `Enter` or `Esc`.
+
 The complete command list is scrollable with the mouse wheel. Keyboard cursor movement (`↑` / `↓` or `Ctrl+j` / `Ctrl+k`) automatically keeps the selected row visible.
 
 Search also matches command keywords and common aliases. Exact label matches rank first, followed by label prefixes, word prefixes, partial matches, and deterministic fuzzy matches. Disabled commands remain searchable and show a concrete reason; pressing Enter reports the same reason without executing the command. Custom actions remain governed by their configured context conditions and are searchable by name.
@@ -28,7 +32,7 @@ Search also matches command keywords and common aliases. Exact label matches ran
 | `Reload directory` | Always | Reloads the current directory. |
 | `Toggle transfer mode` / `Close transfer mode` | Always | Switches between the normal three-pane browser and the two-pane transfer layout. |
 | `Show preview or contents` / `Back to file list` | Normal browsing below 80 columns with a focused entry | Toggles the single visible narrow-terminal view between the current file list and the details pane. The label follows the current view; `Tab` is the direct shortcut. Search Workspace keeps `Tab` for input-field navigation. |
-| `Undo last file operation` | Undo history is not empty | Reverses the most recent undoable rename, paste, or trash operation. |
+| `Undo last file operation` | Undo history is not empty | Reverses the most recent undoable rename, paste, duplicate, or trash operation. |
 | `Select all` | Current directory has at least one visible entry | Selects every currently visible entry in the current directory, respecting hidden-file visibility and any active filter. |
 | `Save results` | Grep search results are shown | Saves the current grep results to `grep_results.txt` in the current directory, including the configured grep preview context lines. Existing files are left unchanged. |
 | `Replace text` | Always | Opens one scope-aware replacement palette. Scope is initially Selected files, Current file, or Current directory according to the current selection. Select Current file, Selected files, Current directory, Found files, or Grep result files; unavailable scopes explain why. Find/Replace is always shown, while filename and extension filters are shown when the scope searches recursively. The right pane shows a diff preview before confirmation. |

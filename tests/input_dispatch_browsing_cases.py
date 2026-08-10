@@ -119,6 +119,19 @@ def test_search_workspace_keeps_allowed_browsing_shortcuts() -> None:
     )
 
 
+def test_colon_preserves_actionable_notification_for_command_palette() -> None:
+    notification = NotificationState(
+        level="error",
+        message="Paste failed",
+        action=NotificationAction(action_id="notification.details", label="Details"),
+    )
+    for state in (
+        replace(build_initial_app_state(), notification=notification),
+        replace(build_search_workspace_state(), notification=notification),
+    ):
+        assert dispatch_key_input(state, key=":") == (BeginCommandPalette(),)
+
+
 def test_search_workspace_blocks_unavailable_browsing_shortcuts() -> None:
     state = build_search_workspace_state()
 

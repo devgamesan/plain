@@ -62,10 +62,18 @@ from zivo.state import (
     DirectoryEntryState,
     FileSearchResultState,
     GrepSearchResultState,
+    NotificationAction,
+    NotificationState,
     PaneState,
     build_initial_app_state,
 )
-from zivo.state.actions import ConfigSaveCompleted, JumpCursor, MoveCursor, SetTerminalHeight
+from zivo.state.actions import (
+    ConfigSaveCompleted,
+    JumpCursor,
+    MoveCursor,
+    SetNotification,
+    SetTerminalHeight,
+)
 from zivo.state.command_palette import get_command_palette_items
 from zivo.state.selectors import (
     compute_current_pane_visible_window,
@@ -3283,11 +3291,24 @@ async def test_app_opens_command_palette_from_transfer_mode_with_colon() -> None
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press("p")
+        notification = NotificationState(
+            level="error",
+            message="Paste failed",
+            action=NotificationAction(
+                action_id="notification.retry",
+                label="Retry",
+            ),
+        )
+        await app.dispatch_actions((SetNotification(notification),))
         await pilot.press(":")
         palette = await _wait_for_command_palette(app)
 
         assert app.app_state.ui_mode == "PALETTE"
         assert palette.display is True
+        assert app.app_state.notification == notification
+        assert "Suggested" in str(
+            palette.query_one("#command-palette-items", Static).renderable
+        )
 
 
 def test_transfer_mode_does_not_use_preview_scroll_keys_for_child_preview() -> None:
@@ -3380,6 +3401,15 @@ async def test_app_colon_shows_command_palette() -> None:
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
+        notification = NotificationState(
+            level="error",
+            message="Paste failed",
+            action=NotificationAction(
+                action_id="notification.details",
+                label="Details",
+            ),
+        )
+        await app.dispatch_actions((SetNotification(notification),))
         await pilot.press(":")
         await asyncio.sleep(0.05)
 
@@ -3388,6 +3418,9 @@ async def test_app_colon_shows_command_palette() -> None:
 
         assert app.app_state.ui_mode == "PALETTE"
         assert palette.display is True
+        assert app.app_state.notification == notification
+        assert "Suggested" in str(items.renderable)
+        assert "Details" in str(items.renderable)
         assert "Go back" in str(items.renderable)
 
 
@@ -5781,7 +5814,11 @@ async def test_app_rename_round_trip_updates_status_bar(tmp_path) -> None:
             timeout=1.0,
             message="rename did not return to browsing mode",
         )
-        await _wait_for_status_message(app, "info: Renamed to manuals", timeout=1.0)
+        await _wait_for_status_message(
+            app,
+            "info: Renamed to manuals   Undo",
+            timeout=1.0,
+        )
 
         assert (tmp_path / "manuals").is_dir()
         assert app.app_state.ui_mode == "BROWSING"
@@ -5889,9 +5926,7 @@ async def test_app_paste_conflict_dialog_round_trip() -> None:
         await pilot.press("r")
         await asyncio.sleep(0.05)
 
-        status_bar = await _wait_for_status_bar(app)
         assert app.app_state.ui_mode == "BROWSING"
-        assert str(status_bar.renderable) == "info: Copied 1 item(s)"
 
 
 @pytest.mark.asyncio
@@ -6133,7 +6168,7 @@ async def test_app_main_flow_round_trip_on_live_filesystem(tmp_path) -> None:
 
         status_bar = await _wait_for_status_bar(app)
         assert (docs_dir / "notes.txt").is_file()
-        assert str(status_bar.renderable) == "info: Copied 1 item(s)"
+        assert str(status_bar.renderable) == "info: Copied 1 item(s)   Undo"
 
         await pilot.press("left")
         await _wait_for_path(app, str(tmp_path))

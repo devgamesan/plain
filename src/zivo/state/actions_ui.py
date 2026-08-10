@@ -40,6 +40,21 @@ class SetNotification:
 
 
 @dataclass(frozen=True)
+class ActivateNotificationAction:
+    """Execute the currently displayed notification action."""
+
+    action_id: str
+    revision: int
+
+
+@dataclass(frozen=True)
+class DismissNotification:
+    """Dismiss a notification only when its revision is still current."""
+
+    revision: int
+
+
+@dataclass(frozen=True)
 class SetTerminalHeight:
     """Update the stored terminal height."""
 

@@ -14,7 +14,9 @@ from zivo.models import (
     HelpBarState,
     InputBarState,
     InputDialogState,
+    NotificationDetailsDialogState,
     ShellCommandDialogState,
+    StatusBarActionState,
     StatusBarState,
 )
 from zivo.platform_support import is_split_terminal_supported
@@ -70,9 +72,38 @@ def _format_attribute_permissions_label(state: AppState) -> str:
 def select_status_bar_state(state: AppState) -> StatusBarState:
     """Return a status bar model derived from app state."""
 
+    notification = state.notification
     return StatusBarState(
-        message=state.notification.message if state.notification else None,
-        message_level=state.notification.level if state.notification else None,
+        message=notification.message if notification else None,
+        message_level=notification.level if notification else None,
+        action=(
+            StatusBarActionState(
+                action_id=notification.action.action_id,
+                label=notification.action.label,
+            )
+            if notification is not None and notification.action is not None
+            else None
+        ),
+        notification_revision=state.notification_revision,
+        auto_dismiss=notification.auto_dismiss if notification else False,
+    )
+
+
+def select_notification_details_dialog_state(
+    state: AppState,
+) -> NotificationDetailsDialogState | None:
+    """Return the failure details overlay for the active notification."""
+
+    details = state.notification_details
+    if details is None:
+        return None
+    lines = [f"Failures: {details.failure_count}"]
+    for failure in details.failures:
+        lines.append(f"Path: {failure.path}")
+        lines.append(f"Reason: {failure.reason}")
+    return NotificationDetailsDialogState(
+        title="Notification details",
+        lines=tuple(lines),
     )
 
 

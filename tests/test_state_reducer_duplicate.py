@@ -3,6 +3,7 @@ from dataclasses import replace
 from tests.test_state_reducer import _reduce_state
 from zivo.models import DuplicateAppliedChange, DuplicateSummary, UndoDeletePathStep, UndoEntry
 from zivo.state import (
+    NotificationAction,
     NotificationState,
     RunDuplicateEffect,
     build_initial_app_state,
@@ -73,5 +74,15 @@ def test_duplicate_completion_records_one_undo_for_successful_outputs() -> None:
         UndoEntry(kind="paste_copy", steps=(UndoDeletePathStep(path=output),)),
     )
     assert next_state.post_reload_notification == NotificationState(
-        level="info", message="Duplicated 1 item(s)"
+        level="info",
+        message="Duplicated 1 item(s)",
+        action=NotificationAction(
+            action_id="notification.undo",
+            label="Undo",
+            payload=UndoEntry(
+                kind="paste_copy",
+                steps=(UndoDeletePathStep(path=output),),
+            ),
+        ),
+        auto_dismiss=True,
     )

@@ -41,6 +41,12 @@ def supported(*actions: Action) -> DispatchedActions:
     return (SetNotification(None), *actions)
 
 
+def supported_preserving_notification(*actions: Action) -> DispatchedActions:
+    """Dispatch supported actions without clearing an actionable notification."""
+
+    return actions
+
+
 def warn(message: str) -> DispatchedActions:
     return (SetNotification(NotificationState(level="warning", message=message)),)
 

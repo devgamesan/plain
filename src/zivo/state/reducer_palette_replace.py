@@ -1113,6 +1113,7 @@ def handle_text_replace_applied(
         post_reload_notification=NotificationState(
             level=action.result.level,
             message=action.result.message,
+            auto_dismiss=action.result.level == "info",
         ),
         notification=None,
     )

@@ -96,7 +96,11 @@ def _handle_custom_action_completed(
             state,
             ui_mode="BROWSING",
             pending_custom_action_request_id=None,
-            notification=NotificationState(level=level, message=message),
+            notification=NotificationState(
+                level=level,
+                message=message,
+                auto_dismiss=level == "info",
+            ),
         )
     )
 

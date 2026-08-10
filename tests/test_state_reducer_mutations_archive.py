@@ -12,6 +12,7 @@ from zivo.state import (
     ArchiveExtractConfirmationState,
     ArchiveExtractProgressState,
     LoadBrowserSnapshotEffect,
+    NotificationAction,
     NotificationState,
     PendingInputState,
     RunArchiveExtractEffect,
@@ -401,6 +402,13 @@ def test_archive_extract_completed_requests_snapshot_for_destination_parent() ->
     assert result.state.post_reload_notification == NotificationState(
         level="info",
         message="Extracted 2 entries to archive",
+        action=NotificationAction(
+            action_id="notification.open_destination",
+            label="Open destination",
+            payload=dest_path,
+        ),
+        auto_dismiss=True,
+        destination_path=dest_path,
     )
     assert result.effects == (
         LoadBrowserSnapshotEffect(
@@ -443,6 +451,13 @@ def test_zip_compress_completed_requests_snapshot_for_destination_parent() -> No
     assert result.state.post_reload_notification == NotificationState(
         level="info",
         message="Created output.zip with 2 entries",
+        action=NotificationAction(
+            action_id="notification.open_destination",
+            label="Open destination",
+            payload=dest_parent,
+        ),
+        auto_dismiss=True,
+        destination_path=dest_parent,
     )
     assert result.effects == (
         LoadBrowserSnapshotEffect(

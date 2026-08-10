@@ -82,6 +82,7 @@ def handle_grep_export_completed(
             notification=NotificationState(
                 level="info",
                 message=f"Exported {action.exported_results} results to {action.destination_path}",
+                auto_dismiss=True,
             ),
         )
     )

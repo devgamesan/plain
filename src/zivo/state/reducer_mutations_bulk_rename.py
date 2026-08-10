@@ -22,7 +22,12 @@ from .actions import (
     SetBulkRenameBaseName,
 )
 from .effects import ReduceResult, RunBulkRenameEffect
-from .models import AppState, BulkRenameEditorState, NotificationState
+from .models import (
+    AppState,
+    BulkRenameEditorState,
+    NotificationAction,
+    NotificationState,
+)
 from .reducer_common import ReducerFn, finalize, request_snapshot_refresh
 from .reducer_mutations_common import push_undo_entry
 from .reducer_transfer import request_all_transfer_pane_snapshots
@@ -318,6 +323,7 @@ def _handle_bulk_rename_completed(
     result = action.result
     if result.failure_count == 0 and result.success_count == result.validation.changed_count:
         next_state = _preserve_renamed_selection(state, result)
+        undo_entry = _bulk_rename_undo_entry(result)
         next_state = replace(
             next_state,
             bulk_rename=None,
@@ -326,8 +332,18 @@ def _handle_bulk_rename_completed(
             post_reload_notification=NotificationState(
                 level="info",
                 message=f"Renamed {result.success_count} item(s)",
+                action=(
+                    NotificationAction(
+                        action_id="notification.undo",
+                        label="Undo",
+                        payload=undo_entry,
+                    )
+                    if undo_entry is not None
+                    else None
+                ),
+                auto_dismiss=True,
             ),
-            undo_stack=push_undo_entry(state, _bulk_rename_undo_entry(result)),
+            undo_stack=push_undo_entry(state, undo_entry),
             ui_mode="BROWSING",
         )
         if state.layout_mode == "transfer":

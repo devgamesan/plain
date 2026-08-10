@@ -30,7 +30,13 @@ from .actions import (
     UndoLastOperation,
 )
 from .entry_state_helpers import select_visible_entry_states
-from .input_common import DispatchedActions, dispatch_direct_tab_input, supported, warn
+from .input_common import (
+    DispatchedActions,
+    dispatch_direct_tab_input,
+    supported,
+    supported_preserving_notification,
+    warn,
+)
 from .models import AppState, PaneState, TransferPaneState
 from .selectors import compute_current_pane_visible_window
 
@@ -185,6 +191,8 @@ def dispatch_transfer_input(
     if key == "b":
         return supported(BeginBookmarkSearch())
     if key == ":":
+        if state.notification is not None and state.notification.action is not None:
+            return supported_preserving_notification(BeginCommandPalette())
         return supported(BeginCommandPalette())
     if key == "p":
         return supported(ToggleTransferMode())

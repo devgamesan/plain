@@ -369,6 +369,7 @@ def test_text_replace_applied_refreshes_current_directory() -> None:
     assert result.state.post_reload_notification == NotificationState(
         level="info",
         message="Replaced 3 match(es) in 1 file(s)",
+        auto_dismiss=True,
     )
     assert result.effects == (
         LoadBrowserSnapshotEffect(

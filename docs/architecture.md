@@ -14,6 +14,7 @@
 - `selectors`: `AppState` から描画専用モデルを組み立てる
 - `services`: reducer 外で effect を実行するユースケース境界
 - `adapters`: OS / filesystem / clipboard など外部依存の実装
+- `actionable notifications`: 通知状態、stable action ID、revision付き timer、Details overlay の責務
 
 widget 側に操作分岐を持たせず、状態遷移は `state/` に寄せる構成です。  
 実際の UI 更新は `selectors` が作る view model と `app_shell.py` の組み立て処理に限定し、非同期処理の制御は `app_runtime.py` に分離しています。
@@ -175,6 +176,12 @@ sequenceDiagram
 
 - `AppState` の唯一の公開更新点
 - 実処理は責務別ハンドラへ振り分ける薄いエントリポイントとして振る舞う
+
+### 操作通知のアクション経路
+
+`NotificationState` は最大1つの `NotificationAction` と、必要に応じて destination/details の payload を保持する。`reducer_notifications.py` が `ActivateNotificationAction` を revision と action ID で検証し、Undo・移動・Retry・Details を既存 reducer/effect 経路へ委譲する。StatusBar のクリックと command palette の条件付き `Suggested` は同じ action ID を dispatch するため、表示経路が違っても二重実行防止と状態検証を共有する。
+
+`notification_revision` は通知が変わるたびに増え、StatusBar の5秒 timerから届く古い `DismissNotification` を拒否する。アクション開始時には通知を先に消費する。Details は `DETAIL` mode の既存 Enter/Esc 入力経路で閉じる。Retry は paste、duplicate、archive/zip preparation の allowlist に限定し、paste と archive/zip は fresh preflight/preparation を再実行する。最終成功だけを `auto_dismiss` 対象とし、処理中・warning/error・partial success は残す。
 
 ### `src/zivo/state/reducer_navigation.py`
 

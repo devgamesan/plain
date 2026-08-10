@@ -14,6 +14,7 @@ The current implementation is built around these responsibilities:
 - `selectors`: builds render-only models from `AppState`
 - `services`: use-case boundaries that execute effects outside the reducer
 - `adapters`: implementations for external dependencies such as the OS, filesystem, and clipboard
+- `actionable notifications`: notification state, stable action IDs, revision-checked timers, and the Details overlay
 
 The design keeps branching logic out of widgets and centralizes state transitions under `state/`.  
 Actual UI refresh stays confined to selector-produced view models plus `app_shell.py`, while async orchestration is split into `app_runtime.py`.
@@ -175,6 +176,12 @@ sequenceDiagram
 
 - The single public update point for `AppState`
 - Acts as a thin entrypoint that delegates work to responsibility-specific reducer handlers
+
+### Actionable operation-notification path
+
+`NotificationState` carries at most one `NotificationAction`, plus destination or details payloads when needed. `reducer_notifications.py` validates `ActivateNotificationAction` by revision and stable action ID, then delegates Undo, destination navigation, Retry, or Details to the existing reducer/effect paths. Status-bar clicks and the conditional `Suggested` command-palette item dispatch the same action ID, so their validation and duplicate-execution protection are shared.
+
+`notification_revision` increments whenever the visible notification changes and rejects stale `DismissNotification` messages from the StatusBar's five-second timer. The action is consumed before its effect starts. Details uses the existing `DETAIL` mode Enter/Esc input path. Retry is allowlisted to paste, duplicate, and archive/zip preparation failures; paste and archive/zip retries re-run fresh preflight/preparation. Only final success sets `auto_dismiss`; processing, warning/error, and partial-success notifications remain visible.
 
 ### `src/zivo/state/reducer_navigation.py`
 

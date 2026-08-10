@@ -9,7 +9,7 @@ from .actions import (
     UndoFailed,
     UndoLastOperation,
 )
-from .models import NotificationState
+from .models import NotificationAction, NotificationState
 from .reducer_common import (
     cursor_path_after_file_mutation,
     finalize,
@@ -68,10 +68,24 @@ def _handle_file_mutation_completed(state, action, reduce_state):
         symlink_overwrite_confirmation=None,
         name_conflict=None,
         pending_file_mutation_request_id=None,
-        undo_stack=push_undo_entry(state, undo_entry_for_file_mutation(action.result)),
+        undo_stack=push_undo_entry(
+            state,
+            undo_entry_for_file_mutation(action.result),
+        ),
         post_reload_notification=NotificationState(
             level=action.result.level,
             message=action.result.message,
+            action=(
+                NotificationAction(
+                    action_id="notification.undo",
+                    label="Undo",
+                    payload=undo_entry_for_file_mutation(action.result),
+                )
+                if action.result.level == "info"
+                and undo_entry_for_file_mutation(action.result) is not None
+                else None
+            ),
+            auto_dismiss=action.result.level == "info",
         ),
         ui_mode="BROWSING",
     )
@@ -114,6 +128,7 @@ def _handle_undo_completed(state, action, reduce_state):
         post_reload_notification=NotificationState(
             level=action.result.level,
             message=action.result.message,
+            auto_dismiss=action.result.level == "info",
         ),
         ui_mode="BROWSING",
     )

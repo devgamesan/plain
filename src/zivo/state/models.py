@@ -15,6 +15,7 @@ from zivo.models import (
     CreateZipArchiveRequest,
     CustomActionExecutionRequest,
     DeleteMode,
+    DuplicateRequest,
     ExtractArchiveRequest,
     PasteConflict,
     PasteConflictAction,
@@ -334,11 +335,48 @@ class HistoryState:
 
 
 @dataclass(frozen=True)
+class NotificationFailureDetail:
+    """One failed target shown by an actionable notification's details view."""
+
+    path: str
+    reason: str
+
+
+@dataclass(frozen=True)
+class NotificationDetails:
+    """Failure details retained for the notification details overlay."""
+
+    failure_count: int
+    failures: tuple[NotificationFailureDetail, ...] = ()
+
+
+NotificationActionId = Literal[
+    "notification.undo",
+    "notification.open_destination",
+    "notification.retry",
+    "notification.details",
+]
+
+
+@dataclass(frozen=True)
+class NotificationAction:
+    """Stable action metadata and immutable payload for a notification."""
+
+    action_id: NotificationActionId
+    label: str
+    payload: object | None = None
+
+
+@dataclass(frozen=True)
 class NotificationState:
     """Transient notification rendered by the UI shell."""
 
     level: NotificationLevel
     message: str
+    action: NotificationAction | None = None
+    auto_dismiss: bool = False
+    destination_path: str | None = None
+    details: NotificationDetails | None = None
 
 
 @dataclass(frozen=True)
@@ -663,6 +701,8 @@ class AppState:
     transfer_left: TransferPaneState | None = None
     transfer_right: TransferPaneState | None = None
     notification: NotificationState | None = None
+    notification_revision: int = 0
+    notification_details: NotificationDetails | None = None
     pending_input: PendingInputState | None = None
     bulk_rename: BulkRenameEditorState | None = None
     pending_key_sequence: PendingKeySequenceState | None = None
@@ -690,13 +730,17 @@ class AppState:
     pending_child_pane_request_id: int | None = None
     pending_paste_request_id: int | None = None
     pending_paste_request: PasteRequest | None = None
+    pending_paste_retry_requires_confirmation: bool = False
     pending_duplicate_request_id: int | None = None
+    pending_duplicate_request: DuplicateRequest | None = None
     pending_bulk_rename_request_id: int | None = None
     pending_file_mutation_request_id: int | None = None
     pending_delete_prepare_request_id: int | None = None
     pending_archive_prepare_request_id: int | None = None
+    pending_archive_prepare_request: ExtractArchiveRequest | None = None
     pending_archive_extract_request_id: int | None = None
     pending_zip_compress_prepare_request_id: int | None = None
+    pending_zip_compress_prepare_request: CreateZipArchiveRequest | None = None
     pending_zip_compress_request_id: int | None = None
     pending_file_search_request_id: int | None = None
     pending_grep_search_request_id: int | None = None

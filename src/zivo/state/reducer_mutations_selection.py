@@ -139,6 +139,7 @@ def _handle_copy_targets(state, action, reduce_state):
             notification=NotificationState(
                 level="info",
                 message=format_clipboard_message("Copied", action.paths),
+                auto_dismiss=True,
             ),
         )
     )
@@ -159,6 +160,7 @@ def _handle_cut_targets(state, action, reduce_state):
             notification=NotificationState(
                 level="info",
                 message=format_clipboard_message("Cut", action.paths),
+                auto_dismiss=True,
             ),
         )
     )
@@ -207,6 +209,7 @@ def _handle_cancel_paste_conflict(state, action, reduce_state):
             state,
             paste_conflict=None,
             delete_confirmation=None,
+            pending_paste_retry_requires_confirmation=False,
             ui_mode="BROWSING",
             notification=NotificationState(level="warning", message="Paste cancelled"),
         )
@@ -216,7 +219,10 @@ def _handle_cancel_paste_conflict(state, action, reduce_state):
 def _handle_clipboard_paste_needs_resolution(state, action, reduce_state):
     if action.request_id != state.pending_paste_request_id or not action.conflicts:
         return finalize(state)
-    if state.paste_conflict_action != "prompt":
+    if (
+        not state.pending_paste_retry_requires_confirmation
+        and state.paste_conflict_action != "prompt"
+    ):
         request = replace(
             action.request,
             conflict_resolution=state.paste_conflict_action,
@@ -229,6 +235,7 @@ def _handle_clipboard_paste_needs_resolution(state, action, reduce_state):
                 name_conflict=None,
                 notification=None,
                 pending_paste_request_id=None,
+                pending_paste_retry_requires_confirmation=False,
                 ui_mode="BROWSING",
             ),
             request,
@@ -245,6 +252,7 @@ def _handle_clipboard_paste_needs_resolution(state, action, reduce_state):
             name_conflict=None,
             pending_paste_request_id=None,
             pending_paste_request=None,
+            pending_paste_retry_requires_confirmation=False,
             ui_mode="CONFIRM",
         )
     )
@@ -268,20 +276,26 @@ def _handle_clipboard_paste_completed(state, action, reduce_state):
     ):
         next_clipboard = ClipboardState()
 
+    undo_entry = undo_entry_for_paste(action.summary, action.applied_changes)
     next_state = replace(
         state,
         clipboard=next_clipboard,
         undo_stack=push_undo_entry(
             state,
-            undo_entry_for_paste(action.summary, action.applied_changes),
+            undo_entry,
         ),
         notification=None,
         paste_conflict=None,
         delete_confirmation=None,
         name_conflict=None,
-        post_reload_notification=notification_for_paste_summary(action.summary),
+        post_reload_notification=notification_for_paste_summary(
+            action.summary,
+            request=state.pending_paste_request,
+            undo_entry=undo_entry,
+        ),
         pending_paste_request_id=None,
         pending_paste_request=None,
+        pending_paste_retry_requires_confirmation=False,
         ui_mode="BROWSING",
     )
     if origin == "transfer" and next_state.layout_mode == "transfer":
@@ -306,6 +320,7 @@ def _handle_clipboard_paste_failed(state, action, reduce_state):
             name_conflict=None,
             pending_paste_request_id=None,
             pending_paste_request=None,
+            pending_paste_retry_requires_confirmation=False,
             ui_mode="BROWSING",
         )
     )

@@ -257,7 +257,7 @@ def _handle_begin_command_palette(
     reduce_state: ReducerFn,
 ) -> ReduceResult:
     del reduce_state
-    return finalize(enter_palette(state))
+    return finalize(enter_palette(state, preserve_notification=True))
 
 
 def _handle_begin_file_search(
@@ -377,7 +377,17 @@ def _handle_cancel_command_palette(
     reduce_state: ReducerFn,
 ) -> ReduceResult:
     del action
-    next_state = restore_browsing_from_palette(state, clear_name_conflict=True)
+    preserve_notification = (
+        state.command_palette is not None
+        and state.command_palette.source == "commands"
+        and state.notification is not None
+        and state.notification.action is not None
+    )
+    next_state = restore_browsing_from_palette(
+        state,
+        clear_name_conflict=True,
+        preserve_notification=preserve_notification,
+    )
     if state.command_palette is not None and state.command_palette.source in {
         "file_search",
         "grep_search",
@@ -431,6 +441,7 @@ def _handle_dismiss_attribute_dialog(
             state,
             ui_mode="BROWSING",
             notification=None,
+            notification_details=None,
             attribute_inspection=None,
             pending_attribute_inspection_request_id=None,
         )

@@ -66,6 +66,7 @@ from .selectors_ui import (
     select_help_bar_state,
     select_input_bar_state,
     select_input_dialog_state,
+    select_notification_details_dialog_state,
     select_shell_command_dialog_state,
     select_status_bar_state,
 )
@@ -92,6 +93,7 @@ __all__ = [
     "select_help_bar_state",
     "select_input_bar_state",
     "select_input_dialog_state",
+    "select_notification_details_dialog_state",
     "select_parent_entries",
     "select_path_bar_state",
     "select_shell_command_dialog_state",
@@ -172,6 +174,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         status=select_status_bar_state(state),
         conflict_dialog=select_conflict_dialog_state(state),
         attribute_dialog=select_attribute_dialog_state(state),
+        notification_details_dialog=select_notification_details_dialog_state(state),
         config_dialog=select_config_dialog_state(state),
         shell_command_dialog=select_shell_command_dialog_state(state),
         input_dialog=select_input_dialog_state(state),

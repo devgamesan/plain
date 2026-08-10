@@ -9,6 +9,10 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 
 クエリが空の場合は、`Navigate`、`File`、`Search`、`View`、`System`、`Custom actions` の固定カテゴリを表示します。カテゴリ順とコマンド順位は決定的で、利用履歴やテレメトリは使用しません。
 
+最新の操作に次アクションがある場合、通常の `commands` パレットの先頭に条件付きで `Suggested` を1件だけ表示します。表示優先順位は `Undo`、`Open destination`、安全な `Retry`、`Details` です。StatusBar と条件付き `Suggested` は同じ stable action ID と reducer 経路を共有し、既存キーボード経路は現在の意味を維持します。新しいグローバルキーは追加せず、既存の `Enter` / `r` の意味も変更しません。表示開始から5秒で自動消去するのは最終成功通知だけで、処理中・warning/error・partial success は自動消去しません。
+
+`Retry` は、成功・skip・overwrite がなく、元の `PasteRequest` の conflict resolution が未指定である貼り付け失敗、成功・適用済み変更がない Duplicate 失敗、archive/zip 準備失敗に限定します。Retry は毎回 fresh preparation/preflight を行い、競合や対象変更があれば既存の競合確認・再確認経路へ戻ります。`Details` は失敗件数、対象パス、理由を表示し、`Enter` または `Esc` で閉じます。
+
 コマンド一覧全体はマウスホイールでスクロールできます。キーボードのカーソル移動（`↑` / `↓` または `Ctrl+j` / `Ctrl+k`）では、選択行が自動的に表示範囲へ追従します。
 
 検索ではコマンドの keywords と一般的な別名にも一致します。ラベル完全一致、ラベル前方一致、単語前方一致、部分一致、決定的な fuzzy 一致の順で順位付けします。無効なコマンドも検索対象に残り、具体的な理由を表示します。無効項目で Enter を押すと実行せず同じ理由を warning で通知します。カスタムアクションは設定済みの context 条件を維持し、名前で検索できます。
@@ -28,7 +32,7 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 | `Reload directory` | 常に表示 | 現在ディレクトリを再読み込みします。 |
 | `Toggle transfer mode` / `Close transfer mode` | 常に表示 | 通常の 3 ペインブラウザと 2 ペイン転送レイアウトを切り替えます。 |
 | `Show preview or contents` / `Back to file list` | 80 列未満の通常ブラウズでフォーカス対象があるとき | 狭い端末で表示するビューを current のファイル一覧と詳細ペイン（プレビュー／検索結果）の間で切り替えます。ラベルは現在のビューに応じて変わり、直接キーは `Tab` です。Search Workspace の `Tab` は入力欄移動を維持します。 |
-| `Undo last file operation` | Undo 履歴があるとき | 直前の Undo 対象リネーム、貼り付け、ゴミ箱移動を取り消します。 |
+| `Undo last file operation` | Undo 履歴があるとき | 直前の Undo 対象リネーム、貼り付け、複製、ゴミ箱移動を取り消します。 |
 | `Select all` | 現在ディレクトリに表示中の項目が 1 件以上あるとき | 現在ディレクトリで表示中の項目をすべて選択します。 |
 | `Save results` | grep 検索結果を表示中 | 現在の grep 結果を現在のディレクトリの `grep_results.txt` へ保存します。設定済みの grep プレビュー context 行を含み、既存ファイルは変更しません。 |
 | `Replace text` | 常に表示 | Scope を選べる単一の置換パレットを開きます。初期 Scope は選択状態に応じて Selected files、Current file、Current directory になります。Current file、Selected files、Current directory、Found files、Grep result files を選択でき、利用できない Scope は理由を表示します。Find/Replace は常に表示し、再帰検索する Scope では filename と拡張子フィルターも表示します。右ペインに diff をプレビューしてから確認・適用します。 |

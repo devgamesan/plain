@@ -17,7 +17,7 @@ from zivo.state.actions import (
     TransferMoveToOppositePane,
     UndoLastOperation,
 )
-from zivo.state.models import NotificationState
+from zivo.state.models import NotificationAction, NotificationState
 
 
 def test_transfer_mode_tab_switches_pane_focus() -> None:
@@ -177,6 +177,27 @@ def test_transfer_mode_colon_begins_command_palette() -> None:
 
     assert dispatch_key_input(state, key=":", character=":") == (
         SetNotification(None),
+        BeginCommandPalette(),
+    )
+
+
+def test_transfer_mode_colon_preserves_actionable_notification() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+    state = _reduce_state(
+        state,
+        SetNotification(
+            NotificationState(
+                level="error",
+                message="Paste failed",
+                action=NotificationAction(
+                    action_id="notification.retry",
+                    label="Retry",
+                ),
+            )
+        ),
+    )
+
+    assert dispatch_key_input(state, key=":", character=":") == (
         BeginCommandPalette(),
     )
 

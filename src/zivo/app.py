@@ -120,6 +120,7 @@ from zivo.ui import (
     HelpBar,
     InputDialog,
     MainPane,
+    NotificationDetailsDialog,
     ShellCommandDialog,
     SidePane,
     StatusBar,
@@ -298,6 +299,14 @@ class zivoApp(App[None]):
         yield Container(
             AttributeDialog(shell.attribute_dialog, id="attribute-dialog"),
             id="attribute-dialog-layer",
+            classes="overlay-layer dialog-layer",
+        )
+        yield Container(
+            NotificationDetailsDialog(
+                shell.notification_details_dialog,
+                id="notification-details-dialog",
+            ),
+            id="notification-details-dialog-layer",
             classes="overlay-layer dialog-layer",
         )
         yield Container(
@@ -529,6 +538,22 @@ class zivoApp(App[None]):
         """Run a center-pane empty-state action through the reducer."""
 
         await self._dispatch_pane_action(message.action_id)
+
+    async def on_status_bar_action_clicked(self, message: StatusBar.ActionClicked) -> None:
+        """Run the status-bar action through the shared notification reducer path."""
+
+        from zivo.state.actions import ActivateNotificationAction
+
+        await self.dispatch_actions(
+            (ActivateNotificationAction(message.action_id, message.revision),)
+        )
+
+    async def on_status_bar_auto_dismiss(self, message: StatusBar.AutoDismiss) -> None:
+        """Request revision-checked auto-dismissal from the status timer."""
+
+        from zivo.state.actions import DismissNotification
+
+        await self.dispatch_actions((DismissNotification(message.revision),))
 
     async def action_dispatch_bound_key(self, key: str) -> None:
         """Handle priority key bindings through the central dispatcher."""

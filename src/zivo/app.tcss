@@ -328,6 +328,40 @@ Screen {
     text-style: bold;
 }
 
+#notification-details-dialog {
+    display: none;
+    height: auto;
+    min-height: 8;
+    max-height: 1fr;
+    margin: 0 2;
+    padding: 1 2;
+    border: round $warning;
+    background: $surface;
+}
+
+#notification-details-title {
+    text-style: bold;
+    color: $warning;
+}
+
+#notification-details-lines {
+    width: 100%;
+}
+
+#notification-details-lines-scroll {
+    height: auto;
+    max-height: 1fr;
+    min-height: 3;
+    margin: 0 0 1 0;
+}
+
+#notification-details-options {
+    padding: 0 1;
+    background: $boost;
+    color: $warning;
+    text-style: bold;
+}
+
 #config-dialog {
     display: none;
     height: 1fr;

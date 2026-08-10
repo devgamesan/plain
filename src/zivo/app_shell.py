@@ -19,6 +19,7 @@ from zivo.ui import (
     HelpBar,
     InputDialog,
     MainPane,
+    NotificationDetailsDialog,
     ShellCommandDialog,
     SidePane,
     StatusBar,
@@ -142,11 +143,19 @@ async def refresh_shell(
         command_palette_layer = app.query_one("#command-palette-layer", Container)
         conflict_dialog_layer = app.query_one("#conflict-dialog-layer", Container)
         attribute_dialog_layer = app.query_one("#attribute-dialog-layer", Container)
+        notification_details_dialog_layer = app.query_one(
+            "#notification-details-dialog-layer",
+            Container,
+        )
         config_dialog_layer = app.query_one("#config-dialog-layer", Container)
         shell_command_dialog_layer = app.query_one("#shell-command-dialog-layer", Container)
         input_dialog_layer = app.query_one("#input-dialog-layer", Container)
         conflict_dialog = app.query_one("#conflict-dialog", ConflictDialog)
         attribute_dialog = app.query_one("#attribute-dialog", AttributeDialog)
+        notification_details_dialog = app.query_one(
+            "#notification-details-dialog",
+            NotificationDetailsDialog,
+        )
         config_dialog = app.query_one("#config-dialog", ConfigDialog)
         shell_command_dialog = app.query_one("#shell-command-dialog", ShellCommandDialog)
         input_dialog = app.query_one("#input-dialog", InputDialog)
@@ -165,6 +174,8 @@ async def refresh_shell(
             "#conflict-dialog-layer",
             "#attribute-dialog",
             "#attribute-dialog-layer",
+            "#notification-details-dialog",
+            "#notification-details-dialog-layer",
             "#config-dialog",
             "#config-dialog-layer",
             "#shell-command-dialog",
@@ -206,6 +217,16 @@ async def refresh_shell(
             Container(
                 AttributeDialog(shell.attribute_dialog, id="attribute-dialog"),
                 id="attribute-dialog-layer",
+                classes="overlay-layer dialog-layer",
+            )
+        )
+        await app.mount(
+            Container(
+                NotificationDetailsDialog(
+                    shell.notification_details_dialog,
+                    id="notification-details-dialog",
+                ),
+                id="notification-details-dialog-layer",
                 classes="overlay-layer dialog-layer",
             )
         )
@@ -351,6 +372,10 @@ async def refresh_shell(
     conflict_dialog.set_state(shell.conflict_dialog)
     attribute_dialog_layer.display = shell.attribute_dialog is not None
     attribute_dialog.set_state(shell.attribute_dialog)
+    notification_details_dialog_layer.display = (
+        shell.notification_details_dialog is not None
+    )
+    notification_details_dialog.set_state(shell.notification_details_dialog)
     config_dialog_layer.display = shell.config_dialog is not None
     config_dialog.set_state(shell.config_dialog)
     shell_command_dialog_layer.display = shell.shell_command_dialog is not None

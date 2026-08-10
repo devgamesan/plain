@@ -23,6 +23,7 @@ from .actions import (
 from .models import (
     ArchiveExtractConfirmationState,
     ArchiveExtractProgressState,
+    NotificationAction,
     NotificationState,
     ZipCompressConfirmationState,
     ZipCompressProgressState,
@@ -110,6 +111,7 @@ def _handle_archive_preparation_completed(state, action, reduce_state):
                 state,
                 notification=None,
                 pending_archive_prepare_request_id=None,
+                pending_archive_prepare_request=None,
                 archive_extract_progress=None,
                 archive_extract_confirmation=ArchiveExtractConfirmationState(
                     request=action.request,
@@ -126,6 +128,7 @@ def _handle_archive_preparation_completed(state, action, reduce_state):
             state,
             notification=None,
             pending_archive_prepare_request_id=None,
+            pending_archive_prepare_request=None,
             archive_extract_confirmation=None,
             archive_extract_progress=None,
             zip_compress_confirmation=None,
@@ -138,11 +141,25 @@ def _handle_archive_preparation_completed(state, action, reduce_state):
 def _handle_archive_preparation_failed(state, action, reduce_state):
     if action.request_id != state.pending_archive_prepare_request_id:
         return finalize(state)
+    request = state.pending_archive_prepare_request
     return finalize(
         replace(
             state,
-            notification=NotificationState(level="error", message=action.message),
+            notification=NotificationState(
+                level="error",
+                message=action.message,
+                action=(
+                    NotificationAction(
+                        action_id="notification.retry",
+                        label="Retry",
+                        payload=request,
+                    )
+                    if request is not None
+                    else None
+                ),
+            ),
             pending_archive_prepare_request_id=None,
+            pending_archive_prepare_request=None,
             archive_extract_confirmation=None,
             archive_extract_progress=None,
             zip_compress_confirmation=None,
@@ -183,12 +200,24 @@ def _handle_archive_extract_completed(state, action, reduce_state):
         archive_extract_confirmation=None,
         archive_extract_progress=None,
         pending_archive_prepare_request_id=None,
+        pending_archive_prepare_request=None,
         pending_archive_extract_request_id=None,
         zip_compress_confirmation=None,
         zip_compress_progress=None,
         post_reload_notification=NotificationState(
             level=action.result.level,
             message=action.result.message,
+            action=(
+                NotificationAction(
+                    action_id="notification.open_destination",
+                    label="Open destination",
+                    payload=action.result.destination_path,
+                )
+                if action.result.level == "info"
+                else None
+            ),
+            auto_dismiss=action.result.level == "info",
+            destination_path=action.result.destination_path,
         ),
         ui_mode="BROWSING",
     )
@@ -233,6 +262,7 @@ def _handle_zip_compress_preparation_completed(state, action, reduce_state):
                 state,
                 notification=None,
                 pending_zip_compress_prepare_request_id=None,
+                pending_zip_compress_prepare_request=None,
                 zip_compress_progress=None,
                 zip_compress_confirmation=ZipCompressConfirmationState(
                     request=action.request,
@@ -247,6 +277,7 @@ def _handle_zip_compress_preparation_completed(state, action, reduce_state):
             state,
             notification=None,
             pending_zip_compress_prepare_request_id=None,
+            pending_zip_compress_prepare_request=None,
             zip_compress_confirmation=None,
             zip_compress_progress=None,
         ),
@@ -257,11 +288,25 @@ def _handle_zip_compress_preparation_completed(state, action, reduce_state):
 def _handle_zip_compress_preparation_failed(state, action, reduce_state):
     if action.request_id != state.pending_zip_compress_prepare_request_id:
         return finalize(state)
+    request = state.pending_zip_compress_prepare_request
     return finalize(
         replace(
             state,
-            notification=NotificationState(level="error", message=action.message),
+            notification=NotificationState(
+                level="error",
+                message=action.message,
+                action=(
+                    NotificationAction(
+                        action_id="notification.retry",
+                        label="Retry",
+                        payload=request,
+                    )
+                    if request is not None
+                    else None
+                ),
+            ),
             pending_zip_compress_prepare_request_id=None,
+            pending_zip_compress_prepare_request=None,
             zip_compress_confirmation=None,
             zip_compress_progress=None,
             ui_mode=restore_ui_mode_after_pending_input(state),
@@ -300,10 +345,22 @@ def _handle_zip_compress_completed(state, action, reduce_state):
         zip_compress_confirmation=None,
         zip_compress_progress=None,
         pending_zip_compress_prepare_request_id=None,
+        pending_zip_compress_prepare_request=None,
         pending_zip_compress_request_id=None,
         post_reload_notification=NotificationState(
             level=action.result.level,
             message=action.result.message,
+            action=(
+                NotificationAction(
+                    action_id="notification.open_destination",
+                    label="Open destination",
+                    payload=str(Path(action.result.destination_path).parent),
+                )
+                if action.result.level == "info"
+                else None
+            ),
+            auto_dismiss=action.result.level == "info",
+            destination_path=str(Path(action.result.destination_path).parent),
         ),
         ui_mode="BROWSING",
     )

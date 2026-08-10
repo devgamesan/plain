@@ -8,9 +8,38 @@ from zivo.models import DuplicateRequest
 from .actions import DuplicateCompleted, DuplicateFailed, DuplicateProgress, DuplicateTargets
 from .effects import ReduceResult, RunDuplicateEffect
 from .models import AppState, NotificationState
-from .reducer_common import ReducerFn, finalize, request_snapshot_refresh
+from .reducer_common import (
+    ReducerFn,
+    finalize,
+    notification_for_duplicate_summary,
+    request_snapshot_refresh,
+)
 from .reducer_mutations_common import push_undo_entry, undo_entry_for_duplicate
 from .selectors import select_target_paths
+
+
+def run_duplicate_request(
+    state: AppState,
+    request: DuplicateRequest,
+) -> ReduceResult:
+    """Start duplicate execution with a fresh service-side name preflight."""
+
+    request_id = state.next_request_id
+    return ReduceResult(
+        state=replace(
+            state,
+            command_palette=None,
+            notification=NotificationState(
+                level="info",
+                message=f"Duplicating {len(request.source_paths)} item(s)...",
+            ),
+            pending_duplicate_request_id=request_id,
+            pending_duplicate_request=request,
+            ui_mode="BUSY",
+            next_request_id=request_id + 1,
+        ),
+        effects=(RunDuplicateEffect(request_id=request_id, request=request),),
+    )
 
 
 def _handle_duplicate_targets(state: AppState, action, reduce_state: ReducerFn) -> ReduceResult:
@@ -26,24 +55,12 @@ def _handle_duplicate_targets(state: AppState, action, reduce_state: ReducerFn) 
                 ),
             )
         )
-    request_id = state.next_request_id
-    request = DuplicateRequest(
-        source_paths=target_paths,
-        destination_dir=state.current_pane.directory_path,
-    )
-    return ReduceResult(
-        state=replace(
-            state,
-            command_palette=None,
-            notification=NotificationState(
-                level="info",
-                message=f"Duplicating {len(target_paths)} item(s)...",
-            ),
-            pending_duplicate_request_id=request_id,
-            ui_mode="BUSY",
-            next_request_id=request_id + 1,
+    return run_duplicate_request(
+        state,
+        DuplicateRequest(
+            source_paths=target_paths,
+            destination_dir=state.current_pane.directory_path,
         ),
-        effects=(RunDuplicateEffect(request_id=request_id, request=request),),
     )
 
 
@@ -71,24 +88,19 @@ def _handle_duplicate_completed(state: AppState, action, reduce_state: ReducerFn
     if action.request_id != state.pending_duplicate_request_id:
         return finalize(state)
     summary = action.summary
-    if summary.success_count == 0 and summary.failure_count:
-        message = f"Duplicate failed for {summary.failure_count} item(s)"
-        level = "error"
-    elif summary.failure_count:
-        message = (
-            f"Duplicated {summary.success_count}/{summary.total_count} item(s); "
-            f"{summary.failure_count} failed"
-        )
-        level = "warning"
-    else:
-        message = f"Duplicated {summary.success_count} item(s)"
-        level = "info"
+    notification = notification_for_duplicate_summary(
+        summary,
+        request=state.pending_duplicate_request,
+        undo_entry=undo_entry_for_duplicate(action.applied_changes),
+        applied_changes_count=len(action.applied_changes),
+    )
     next_state = replace(
         state,
         command_palette=None,
         notification=None,
-        post_reload_notification=NotificationState(level=level, message=message),
+        post_reload_notification=notification,
         pending_duplicate_request_id=None,
+        pending_duplicate_request=None,
         undo_stack=push_undo_entry(
             state,
             undo_entry_for_duplicate(action.applied_changes),
@@ -107,6 +119,7 @@ def _handle_duplicate_failed(state: AppState, action, reduce_state: ReducerFn) -
             state,
             notification=NotificationState(level="error", message=action.message),
             pending_duplicate_request_id=None,
+            pending_duplicate_request=None,
             ui_mode="BROWSING",
         )
     )

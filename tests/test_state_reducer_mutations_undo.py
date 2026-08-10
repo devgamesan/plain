@@ -240,6 +240,7 @@ def test_undo_completed_pops_stack_and_requests_reload() -> None:
     assert result.state.post_reload_notification == NotificationState(
         level="info",
         message="Undid copied item",
+        auto_dismiss=True,
     )
     assert result.effects == (
         LoadBrowserSnapshotEffect(

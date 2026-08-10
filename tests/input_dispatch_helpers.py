@@ -12,6 +12,7 @@ from zivo.state import (
     GrepSearchResultState,
     HistoryAndNavigationPaletteState,
     NameConflictState,
+    NotificationAction,
     NotificationState,
     PendingInputState,
     PendingKeySequenceState,

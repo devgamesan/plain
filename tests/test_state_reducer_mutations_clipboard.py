@@ -384,6 +384,7 @@ def test_clipboard_paste_completed_skips_undo_for_overwrite() -> None:
     assert next_state.post_reload_notification == NotificationState(
         level="info",
         message="Copied 1 item(s), undo unavailable for overwritten items",
+        auto_dismiss=True,
     )
 
 

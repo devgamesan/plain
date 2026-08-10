@@ -294,7 +294,9 @@ from .actions_runtime import (
     ZipCompressProgress,
 )
 from .actions_ui import (
+    ActivateNotificationAction,
     ClearPendingKeySequence,
+    DismissNotification,
     InitializeState,
     SetNotification,
     SetPendingKeySequence,
@@ -310,6 +312,8 @@ Action = (
     | SetPendingKeySequence
     | ClearPendingKeySequence
     | SetNotification
+    | ActivateNotificationAction
+    | DismissNotification
     | SetTerminalHeight
     | SetTerminalWidth
     | ToggleNarrowPaneView

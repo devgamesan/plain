@@ -35,6 +35,7 @@ By default, it keeps a stable, mode-specific set of standard shortcuts visible i
 - **Transfer mode**: copy and move files between two directories side by side
 - **Search and grep**: find files, grep recursively, and open files from results
 - **Replace with preview**: choose a scope, review diffs, then apply a batch replacement
+- **Actionable operation notifications**: successful undoable operations offer `Undo`, archive/zip results offer destination navigation, and allowlisted failures offer `Retry` or `Details`
 
 ---
 
@@ -134,6 +135,8 @@ Search accepts common aliases and keywords such as `duplicate` or `clone` for Du
 
 See [Commands](docs/commands.md) for the full command list.
 
+Operation notifications show at most one next action. The priority is `Undo`, destination `Open`, safe `Retry`, then `Details`. Only final success notifications auto-dismiss after five seconds; processing, warning/error, and partial-success notifications stay visible without an auto-dismiss timer until a newer notification or its associated action advances the flow. The status bar and the command palette's conditional `Suggested` entry use the same action ID and reducer path, while existing keyboard meanings remain unchanged.
+
 ---
 
 ## Features
@@ -212,6 +215,7 @@ zivo includes safety mechanisms to prevent data loss during file operations.
 - **Permanent delete**: `D` / `Shift+Delete` always asks for confirmation; multiple targets or directories require `Enter` followed by an explicit uppercase `D`
 - **Undo**: `z` reverses the last rename, bulk rename, paste, or trash operation
 - **Paste conflict resolution**: choose overwrite, skip, or rename on name collision
+- **Actionable results**: retry is limited to fresh-preflight paste failures without conflicts, duplicate failures with no applied changes, and archive/zip preparation failures. Partial results expose failed paths and reasons in `Details`.
 - **Replace preview**: review diffs before applying batch replacements
 - **More details**: see [Safety](docs/safety.md)
 

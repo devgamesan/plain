@@ -1494,6 +1494,7 @@ def test_external_launch_completed_sets_copy_notification() -> None:
     assert next_state.notification == NotificationState(
         level="info",
         message="Copied 2 paths to system clipboard",
+        auto_dismiss=True,
     )
 
 def test_dismiss_name_conflict_restores_rename_mode_and_keeps_input() -> None:

@@ -273,7 +273,12 @@ class ChildPane(Vertical):
                 widget = self._preview_widget()
                 render_width = max(0, widget.size.width - self.PREVIEW_HORIZONTAL_PADDING)
                 if render_width <= 0:
-                    return False
+                    if self._state.status is None:
+                        return False
+                    widget.update(self._render_preview(self._state, 0))
+                    self._last_render_width = render_width
+                    self._last_render_signature = render_signature
+                    return True
                 if (
                     not force
                     and render_width == self._last_render_width

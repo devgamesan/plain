@@ -14,6 +14,7 @@ from zivo.models import (
     HelpBarState,
     MetadataItemViewState,
     PaneEntry,
+    PaneStatusViewState,
 )
 from zivo.ui.help_bar import HelpBar
 from zivo.ui.pane_rendering import _FileEntryLabelCache
@@ -969,6 +970,26 @@ def test_child_pane_refresh_rendered_content_skips_duplicate_preview_render(
     assert pane._refresh_rendered_content() is True
     assert pane._refresh_rendered_content() is True
     assert preview_widget.update.call_count == 1
+
+
+def test_child_pane_renders_status_before_preview_width_is_available() -> None:
+    pane = ChildPane(
+        ChildPaneViewState(
+            title="Child Directory",
+            status=PaneStatusViewState(kind="loading", title="Loading directory…"),
+            view_kind="loading",
+        ),
+        id="child-pane",
+    )
+    preview_widget = Mock()
+    preview_widget.size = SimpleNamespace(width=0)
+    pane._preview_widget = lambda: preview_widget  # type: ignore[method-assign]
+
+    assert pane._refresh_rendered_content(force=True) is True
+
+    rendered = preview_widget.update.call_args.args[0]
+    assert isinstance(rendered, Text)
+    assert rendered.plain == "Loading directory…"
 
 
 @pytest.mark.asyncio

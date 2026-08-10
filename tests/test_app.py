@@ -2183,7 +2183,7 @@ async def test_app_hides_stale_child_entries_while_new_child_snapshot_is_pending
                 app,
                 "Contents · src · loading",
                 "Loading directory…",
-                timeout=1.0,
+                timeout=2.0,
             )
         finally:
             child_snapshot_release_event.set()

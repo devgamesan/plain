@@ -3,6 +3,7 @@
 import re
 from pathlib import Path as FsPath
 
+from rich.cells import cell_len
 from rich.color import Color
 from rich.style import Style
 from rich.syntax import Syntax
@@ -15,7 +16,7 @@ from textual.message import Message
 from textual.timer import Timer
 from textual.widgets import Label, Static
 
-from zivo.models.shell_data import ChildPaneViewState
+from zivo.models.shell_data import ChildPaneViewState, MetadataItemViewState
 from zivo.services.previews.core import ChafaImagePreviewLoader, ImagePreviewLoader
 
 from .pane_rendering import (
@@ -24,6 +25,7 @@ from .pane_rendering import (
     _guess_preview_lexer,
     _render_file_entries,
     _resolve_component_styles,
+    truncate_middle,
 )
 from .pane_status import render_pane_status
 from .side_pane import SidePane
@@ -103,8 +105,8 @@ class ChildPane(Vertical):
         return f"{self.id}-preview-help" if self.id else None
 
     @property
-    def permissions_id(self) -> str | None:
-        return f"{self.id}-permissions" if self.id else None
+    def metadata_bar_id(self) -> str | None:
+        return f"{self.id}-metadata-bar" if self.id else None
 
     def compose(self) -> ComposeResult:
         yield Label(self._state.display_title, classes="pane-title")
@@ -144,19 +146,21 @@ class ChildPane(Vertical):
         yield list_content
         yield preview_scroll
         yield preview_help
-        permissions = Static(
-            self._state.permissions_label,
-            id=self.permissions_id,
-            classes="pane-permissions",
+        metadata_bar = Static(
+            self._render_metadata_bar(self._state.metadata_bar, 0),
+            id=self.metadata_bar_id,
+            classes="pane-metadata-bar",
         )
-        permissions.can_focus = False
-        yield permissions
+        metadata_bar.can_focus = False
+        yield metadata_bar
 
     def on_mount(self) -> None:
         self._ft_styles = _resolve_component_styles(self)
+        self.call_after_refresh(self._refresh_metadata_bar)
         self.call_after_refresh(self._refresh_rendered_content)
 
     def on_resize(self, _event: events.Resize) -> None:
+        self._refresh_metadata_bar()
         self._refresh_rendered_content()
 
     def on_click(self, event: events.Click) -> None:
@@ -238,8 +242,11 @@ class ChildPane(Vertical):
         ):
             preview_help.update(state.preview_scroll_hint or "")
             preview_help.display = state.preview_scroll_hint is not None
-        if state.permissions_label != previous_state.permissions_label:
-            self._permissions_widget().update(state.permissions_label)
+        if state.metadata_bar != previous_state.metadata_bar:
+            try:
+                self._refresh_metadata_bar(force=True)
+            except NoMatches:
+                pass
         if render_signature_changed or mode_changed:
             rendered = self._refresh_rendered_content(force=True)
             if not rendered:
@@ -364,8 +371,48 @@ class ChildPane(Vertical):
     def _preview_help_widget(self) -> Label:
         return self.query_one(f"#{self.preview_help_id}", Label)
 
-    def _permissions_widget(self) -> Static:
-        return self.query_one(f"#{self.permissions_id}", Static)
+    def _metadata_bar_widget(self) -> Static:
+        return self.query_one(f"#{self.metadata_bar_id}", Static)
+
+    def _refresh_metadata_bar(self, *, force: bool = False) -> bool:
+        try:
+            widget = self._metadata_bar_widget()
+        except NoMatches:
+            return False
+        render_width = max(0, widget.size.width - 2)
+        if render_width <= 0:
+            return False
+        rendered = self._render_metadata_bar(self._state.metadata_bar, render_width)
+        if force or str(widget.renderable) != rendered:
+            widget.update(rendered)
+        return True
+
+    @staticmethod
+    def _render_metadata_bar(
+        items: tuple[MetadataItemViewState, ...],
+        max_width: int,
+    ) -> str:
+        """Render one-line attributes, dropping lower-priority items first."""
+
+        if max_width <= 0 or not items:
+            return ""
+        separator = " · "
+        values = [item.value for item in items]
+        visible: list[str] = []
+        for value in values:
+            candidate = separator.join((*visible, value))
+            if cell_len(candidate) > max_width:
+                break
+            visible.append(value)
+        if not visible:
+            return truncate_middle(values[0], max_width)
+        rendered = separator.join(visible)
+        if len(visible) < len(values):
+            ellipsis = " …"
+            if cell_len(rendered + ellipsis) <= max_width:
+                return rendered + ellipsis
+            return truncate_middle(rendered, max_width)
+        return rendered
 
     def preview_render_width(self) -> int:
         """Return the currently available preview width in terminal cells."""

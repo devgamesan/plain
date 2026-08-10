@@ -12,6 +12,7 @@ from zivo.models import (
     CurrentPaneSizeUpdate,
     CurrentSummaryState,
     HelpBarState,
+    MetadataItemViewState,
     PaneEntry,
 )
 from zivo.ui.help_bar import HelpBar
@@ -81,6 +82,20 @@ def test_truncate_middle_preserves_file_extension_when_possible() -> None:
 def test_truncate_middle_handles_extremely_narrow_widths() -> None:
     assert truncate_middle("README.md", 1) == "~"
     assert truncate_middle("README.md", 2) == "~d"
+
+
+def test_child_metadata_bar_keeps_priority_order_at_narrow_widths() -> None:
+    items = (
+        MetadataItemViewState("Size", "2.1MiB"),
+        MetadataItemViewState("Permissions", "-rw-r--r-- (644)"),
+        MetadataItemViewState("Owner/group", "alice staff"),
+    )
+
+    assert ChildPane._render_metadata_bar(items, 80) == (
+        "2.1MiB · -rw-r--r-- (644) · alice staff"
+    )
+    assert ChildPane._render_metadata_bar(items, 28) == "2.1MiB · -rw-r--r-- (644) …"
+    assert ChildPane._render_metadata_bar(items, 8) == "2.1MiB …"
 
 
 def test_build_entry_label_truncates_full_name_detail_string() -> None:

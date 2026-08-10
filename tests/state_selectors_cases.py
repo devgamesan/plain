@@ -1120,6 +1120,88 @@ def test_select_shell_data_exposes_semantic_pane_headers() -> None:
     assert shell.child_pane.display_title.startswith("Contents · ")
 
 
+def test_child_preview_moves_size_into_metadata_bar() -> None:
+    initial_state = build_initial_app_state()
+    path = "/home/tadashi/develop/zivo/README.md"
+    state = replace(
+        initial_state,
+        current_pane=replace(initial_state.current_pane, cursor_path=path),
+        child_pane=PaneState(
+            directory_path=initial_state.current_path,
+            entries=(),
+            mode="preview",
+            preview_path=path,
+            preview_content="# Preview\n",
+        ),
+    )
+
+    child = select_shell_data(state).child_pane
+
+    assert child.display_title == "Preview · README.md"
+    assert [(item.label, item.value) for item in child.metadata_bar] == [
+        ("Size", "2.1KiB"),
+    ]
+
+
+def test_child_directory_uses_cached_size_and_permissions_in_metadata_bar() -> None:
+    initial_state = build_initial_app_state()
+    path = "/home/tadashi/develop/zivo/docs"
+    directory = DirectoryEntryState(
+        path,
+        "docs",
+        "dir",
+        modified_at=initial_state.current_pane.entries[0].modified_at,
+        permissions_mode=0o40755,
+    )
+    state = replace(
+        initial_state,
+        current_pane=replace(initial_state.current_pane, entries=(directory,), cursor_path=path),
+        child_pane=PaneState(
+            directory_path=initial_state.current_path,
+            entries=(),
+            mode="entries",
+        ),
+        directory_size_cache=(DirectorySizeCacheEntry(path, "ready", size_bytes=4096),),
+    )
+
+    child = select_shell_data(state).child_pane
+
+    assert child.display_title == "Contents · docs · 0 items"
+    assert [(item.label, item.value) for item in child.metadata_bar] == [
+        ("Size", "4.0KiB"),
+        ("Permissions", "drwxr-xr-x (755)"),
+    ]
+
+
+def test_preview_fallback_does_not_duplicate_attribute_bar() -> None:
+    initial_state = build_initial_app_state()
+    path = f"{initial_state.current_path}/data.bin"
+    state = replace(
+        initial_state,
+        current_pane=replace(
+            initial_state.current_pane,
+            entries=(DirectoryEntryState(path, "data.bin", "file", size_bytes=2048),),
+            cursor_path=path,
+        ),
+        child_pane=PaneState(
+            directory_path=initial_state.current_path,
+            entries=(),
+            mode="preview",
+            preview_path=path,
+            preview_reason="unsupported",
+            preview_metadata=PreviewMetadataState(
+                display_name="data.bin",
+                type_label="BIN",
+                size_bytes=2048,
+            ),
+        ),
+    )
+
+    child = select_shell_data(state).child_pane
+
+    assert child.metadata_bar == ()
+
+
 def test_select_shell_data_hides_cursor_while_filtering() -> None:
     state = _reduce_state(build_initial_app_state(), BeginFilterInput())
 

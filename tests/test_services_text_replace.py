@@ -113,3 +113,30 @@ def test_live_text_replace_service_apply_reuses_matcher_without_diff_generation(
     assert result.total_match_count == 2
     assert first.read_text(encoding="utf-8") == "done one\n"
     assert second.read_text(encoding="utf-8") == "done two\n"
+
+
+def test_text_replace_cancels_between_files_without_partial_temporary_files(tmp_path) -> None:
+    first = tmp_path / "first.txt"
+    second = tmp_path / "second.txt"
+    first.write_text("todo one\n", encoding="utf-8")
+    second.write_text("todo two\n", encoding="utf-8")
+    progress_events: list[tuple[int, int | None, str | None]] = []
+
+    result = LiveTextReplaceService().apply(
+        TextReplaceRequest(
+            paths=(str(first), str(second)),
+            find_text="todo",
+            replace_text="done",
+        ),
+        progress_callback=lambda completed, total, current: progress_events.append(
+            (completed, total, current)
+        ),
+        cancel_callback=lambda: len(progress_events) >= 1,
+    )
+
+    assert result.cancelled is True
+    assert result.changed_paths == (str(first),)
+    assert result.unprocessed_paths == (str(second),)
+    assert first.read_text(encoding="utf-8") == "done one\n"
+    assert second.read_text(encoding="utf-8") == "todo two\n"
+    assert list(tmp_path.glob(".*.zivo-*")) == []

@@ -136,6 +136,8 @@ zivo-cd
 
 操作通知に表示する次アクションは最大1つです。優先順位は `Undo`、移動先の `Open`、安全な `Retry`、`Details` です。5秒後に自動消去するのは最終成功通知だけで、処理中・warning/error・partial success は自動消去タイマーを持たず、新しい通知または関連する次アクションで状態が進むまで表示されます。StatusBar とコマンドパレットの条件付き `Suggested` は同じ stable action ID と reducer 経路を使い、既存キーボードの意味は変更しません。
 
+時間のかかる Copy・Move・Compress・Extract・Replace は、StatusBarに操作名、進捗、現在対象を表示します。安全に停止できる操作だけ `Cancel` と `Esc` を表示し、キャンセル要求後は現在の対象を完了してから停止します。部分完了時は成功・skip・failure・未処理件数を示し、対象パスとUndo可能範囲は `Details` で確認できます。
+
 ---
 
 ## サポート機能一覧
@@ -214,6 +216,7 @@ zivo はファイル操作の事故を防ぐための安全機構を備えてい
 - **Undo**: `z` で直前のリネーム・貼り付け・ゴミ箱移動を取り消し
 - **貼り付け競合解決**: 上書き / スキップ / リネームを選択可能
 - **置換プレビュー**: diff preview で確認してから一括置換を実行
+- **長時間操作の安全性**: Compressは一時アーカイブを作成して成功時だけ原子的に公開し、ExtractとReplaceも一時ファイル経由で置換します。キャンセルでworkerを強制停止せず、正式なdestinationに途中結果を残しません。
 - **結果通知の次アクション**: Retry は、fresh preflight を行う競合なしの貼り付け失敗、適用済み変更がない Duplicate 失敗、archive/zip の準備失敗に限定します。partial result は失敗対象のパスと理由を `Details` に表示します。
 - **その他の詳細**: [Safety](docs/safety.ja.md) を参照
 

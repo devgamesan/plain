@@ -65,6 +65,9 @@ from .file_operations import (
     FileMutationRequest,
     FileMutationResult,
     MutationResultLevel,
+    OperationCancelCallback,
+    OperationKind,
+    OperationProgressCallback,
     PasteAppliedChange,
     PasteConflict,
     PasteConflictPrompt,
@@ -88,6 +91,7 @@ from .file_operations import (
     UndoRestoreTrashStep,
     UndoResult,
     UndoStep,
+    emit_operation_progress,
 )
 from .shell_command import ShellCommandResult
 from .shell_data import (
@@ -198,6 +202,10 @@ __all__ = [
     "InputDialogState",
     "LoggingConfig",
     "MutationResultLevel",
+    "OperationCancelCallback",
+    "OperationKind",
+    "OperationProgressCallback",
+    "emit_operation_progress",
     "PaneEntry",
     "PaneHeadingState",
     "PaneActionViewState",

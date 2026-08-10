@@ -24,6 +24,7 @@ from .models import (
     ArchiveExtractConfirmationState,
     ArchiveExtractProgressState,
     NotificationAction,
+    NotificationDetails,
     NotificationState,
     ZipCompressConfirmationState,
     ZipCompressProgressState,
@@ -193,9 +194,42 @@ def _handle_archive_extract_completed(state, action, reduce_state):
     if action.request_id != state.pending_archive_extract_request_id:
         return finalize(state)
 
+    partial = action.result.cancelled or bool(action.result.unprocessed_paths)
+    result_notification = NotificationState(
+        level=action.result.level,
+        message=action.result.message,
+        action=(
+            NotificationAction(
+                action_id="notification.details",
+                label="Details",
+            )
+            if partial
+            else (
+                NotificationAction(
+                    action_id="notification.open_destination",
+                    label="Open destination",
+                    payload=action.result.destination_path,
+                )
+                if action.result.level == "info"
+                else None
+            )
+        ),
+        auto_dismiss=action.result.level == "info" and not partial,
+        destination_path=action.result.destination_path,
+        details=(
+            NotificationDetails(
+                failure_count=0,
+                unprocessed_count=len(action.result.unprocessed_paths),
+                unprocessed_paths=action.result.unprocessed_paths,
+            )
+            if partial
+            else None
+        ),
+    )
     next_state = replace(
         state,
         notification=None,
+        foreground_operation=None,
         pending_input=None,
         archive_extract_confirmation=None,
         archive_extract_progress=None,
@@ -204,21 +238,7 @@ def _handle_archive_extract_completed(state, action, reduce_state):
         pending_archive_extract_request_id=None,
         zip_compress_confirmation=None,
         zip_compress_progress=None,
-        post_reload_notification=NotificationState(
-            level=action.result.level,
-            message=action.result.message,
-            action=(
-                NotificationAction(
-                    action_id="notification.open_destination",
-                    label="Open destination",
-                    payload=action.result.destination_path,
-                )
-                if action.result.level == "info"
-                else None
-            ),
-            auto_dismiss=action.result.level == "info",
-            destination_path=action.result.destination_path,
-        ),
+        post_reload_notification=result_notification,
         ui_mode="BROWSING",
     )
     return reduce_state(
@@ -242,6 +262,7 @@ def _handle_archive_extract_failed(state, action, reduce_state):
         replace(
             state,
             notification=NotificationState(level="error", message=action.message),
+            foreground_operation=None,
             pending_archive_extract_request_id=None,
             archive_extract_progress=None,
             archive_extract_confirmation=None,
@@ -338,30 +359,47 @@ def _handle_zip_compress_completed(state, action, reduce_state):
     if action.request_id != state.pending_zip_compress_request_id:
         return finalize(state)
 
+    partial = action.result.cancelled or bool(action.result.unprocessed_paths)
+    destination_parent = str(Path(action.result.destination_path).parent)
+    result_notification = NotificationState(
+        level=action.result.level,
+        message=action.result.message,
+        action=(
+            NotificationAction(action_id="notification.details", label="Details")
+            if partial
+            else (
+                NotificationAction(
+                    action_id="notification.open_destination",
+                    label="Open destination",
+                    payload=destination_parent,
+                )
+                if action.result.level == "info"
+                else None
+            )
+        ),
+        auto_dismiss=action.result.level == "info" and not partial,
+        destination_path=destination_parent,
+        details=(
+            NotificationDetails(
+                failure_count=0,
+                unprocessed_count=len(action.result.unprocessed_paths),
+                unprocessed_paths=action.result.unprocessed_paths,
+            )
+            if partial
+            else None
+        ),
+    )
     next_state = replace(
         state,
         notification=None,
+        foreground_operation=None,
         pending_input=None,
         zip_compress_confirmation=None,
         zip_compress_progress=None,
         pending_zip_compress_prepare_request_id=None,
         pending_zip_compress_prepare_request=None,
         pending_zip_compress_request_id=None,
-        post_reload_notification=NotificationState(
-            level=action.result.level,
-            message=action.result.message,
-            action=(
-                NotificationAction(
-                    action_id="notification.open_destination",
-                    label="Open destination",
-                    payload=str(Path(action.result.destination_path).parent),
-                )
-                if action.result.level == "info"
-                else None
-            ),
-            auto_dismiss=action.result.level == "info",
-            destination_path=str(Path(action.result.destination_path).parent),
-        ),
+        post_reload_notification=result_notification,
         ui_mode="BROWSING",
     )
     return reduce_state(
@@ -385,6 +423,7 @@ def _handle_zip_compress_failed(state, action, reduce_state):
         replace(
             state,
             notification=NotificationState(level="error", message=action.message),
+            foreground_operation=None,
             pending_zip_compress_request_id=None,
             zip_compress_progress=None,
             zip_compress_confirmation=None,

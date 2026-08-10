@@ -82,6 +82,11 @@ class CancelPasteConflict:
 
 
 @dataclass(frozen=True)
+class CancelForegroundOperation:
+    """Request cooperative cancellation of the active file operation."""
+
+
+@dataclass(frozen=True)
 class ConfirmDeleteTargets:
     """Confirm the pending delete request."""
 

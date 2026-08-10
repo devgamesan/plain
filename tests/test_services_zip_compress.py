@@ -60,3 +60,31 @@ def test_zip_compress_service_prepare_detects_existing_destination(tmp_path) -> 
 
     assert result.total_entries == 1
     assert result.destination_exists is True
+
+
+def test_zip_compress_cancel_preserves_existing_destination_and_cleans_temp(tmp_path) -> None:
+    root_dir = tmp_path / "project"
+    root_dir.mkdir()
+    first = root_dir / "one.txt"
+    second = root_dir / "two.txt"
+    first.write_text("one\n", encoding="utf-8")
+    second.write_text("two\n", encoding="utf-8")
+    destination_path = root_dir / "bundle.zip"
+    destination_path.write_text("existing archive\n", encoding="utf-8")
+    progress_events: list[tuple[int, int | None, str | None]] = []
+
+    result = LiveZipCompressService().execute(
+        CreateZipArchiveRequest(
+            source_paths=(str(first), str(second)),
+            destination_path=str(destination_path),
+            root_dir=str(root_dir),
+        ),
+        progress_callback=lambda completed, total, current: progress_events.append(
+            (completed, total, current)
+        ),
+        cancel_callback=lambda: len(progress_events) >= 1,
+    )
+
+    assert result.cancelled is True
+    assert destination_path.read_text(encoding="utf-8") == "existing archive\n"
+    assert list(root_dir.glob(".bundle.zip.zivo-*.zip")) == []

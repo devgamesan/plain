@@ -137,6 +137,8 @@ See [Commands](docs/commands.md) for the full command list.
 
 Operation notifications show at most one next action. The priority is `Undo`, destination `Open`, safe `Retry`, then `Details`. Only final success notifications auto-dismiss after five seconds; processing, warning/error, and partial-success notifications stay visible without an auto-dismiss timer until a newer notification or its associated action advances the flow. The status bar and the command palette's conditional `Suggested` entry use the same action ID and reducer path, while existing keyboard meanings remain unchanged.
 
+Long-running Copy, Move, Compress, Extract, and Replace operations show their operation name, progress, and current target in the status bar. Safe operations expose `Cancel` and `Esc`; cancellation finishes the current item before stopping. Partial results report succeeded, skipped, failed, and not-processed counts, with paths and Undo scope available from `Details`.
+
 ---
 
 ## Features
@@ -217,6 +219,7 @@ zivo includes safety mechanisms to prevent data loss during file operations.
 - **Paste conflict resolution**: choose overwrite, skip, or rename on name collision
 - **Actionable results**: retry is limited to fresh-preflight paste failures without conflicts, duplicate failures with no applied changes, and archive/zip preparation failures. Partial results expose failed paths and reasons in `Details`.
 - **Replace preview**: review diffs before applying batch replacements
+- **Safe long-running operations**: Compress writes to a temporary archive and atomically publishes it; Extract and Replace write temporary files before replacement. Cancellation never force-stops a worker or leaves a partial temporary output as the final destination.
 - **More details**: see [Safety](docs/safety.md)
 
 ---

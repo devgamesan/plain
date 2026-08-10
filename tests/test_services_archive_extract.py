@@ -141,3 +141,26 @@ def test_archive_extract_service_reports_progress(tmp_path) -> None:
         (1, 2, str(destination_path / "docs" / "readme.txt")),
         (2, 2, str(destination_path / "notes.txt")),
     ]
+
+
+def test_archive_extract_cancels_between_entries_without_temporary_files(tmp_path) -> None:
+    archive_path = tmp_path / "sample.zip"
+    _create_zip_archive(archive_path)
+    destination_path = tmp_path / "output"
+    progress_events: list[tuple[int, int | None, str | None]] = []
+
+    result = LiveArchiveExtractService().execute(
+        ExtractArchiveRequest(
+            source_path=str(archive_path),
+            destination_path=str(destination_path),
+        ),
+        progress_callback=lambda completed, total, current: progress_events.append(
+            (completed, total, current)
+        ),
+        cancel_callback=lambda: len(progress_events) >= 1,
+    )
+
+    assert result.cancelled is True
+    assert result.extracted_entries == 1
+    assert len(result.unprocessed_paths) == 1
+    assert list(destination_path.glob(".*.zivo-*")) == []

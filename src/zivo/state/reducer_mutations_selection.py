@@ -236,6 +236,7 @@ def _handle_clipboard_paste_needs_resolution(state, action, reduce_state):
                 notification=None,
                 pending_paste_request_id=None,
                 pending_paste_retry_requires_confirmation=False,
+                foreground_operation=None,
                 ui_mode="BROWSING",
             ),
             request,
@@ -253,6 +254,7 @@ def _handle_clipboard_paste_needs_resolution(state, action, reduce_state):
             pending_paste_request_id=None,
             pending_paste_request=None,
             pending_paste_retry_requires_confirmation=False,
+            foreground_operation=None,
             ui_mode="CONFIRM",
         )
     )
@@ -296,6 +298,7 @@ def _handle_clipboard_paste_completed(state, action, reduce_state):
         pending_paste_request_id=None,
         pending_paste_request=None,
         pending_paste_retry_requires_confirmation=False,
+        foreground_operation=None,
         ui_mode="BROWSING",
     )
     if origin == "transfer" and next_state.layout_mode == "transfer":
@@ -321,6 +324,7 @@ def _handle_clipboard_paste_failed(state, action, reduce_state):
             pending_paste_request_id=None,
             pending_paste_request=None,
             pending_paste_retry_requires_confirmation=False,
+            foreground_operation=None,
             ui_mode="BROWSING",
         )
     )

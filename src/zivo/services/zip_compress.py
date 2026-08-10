@@ -1,7 +1,9 @@
 """Zip compression service."""
 
+import os
+import stat
+import tempfile
 import zipfile
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -10,10 +12,13 @@ from zivo.models import (
     CreateZipArchivePreparationResult,
     CreateZipArchiveRequest,
     CreateZipArchiveResult,
+    OperationCancelCallback,
+    OperationProgressCallback,
+    emit_operation_progress,
 )
 from zivo.state.natural_sort import natural_sort_key
 
-ProgressCallback = Callable[[int, int, str | None], None]
+ProgressCallback = OperationProgressCallback
 
 
 class ZipCompressService(Protocol):
@@ -26,6 +31,7 @@ class ZipCompressService(Protocol):
         request: CreateZipArchiveRequest,
         *,
         progress_callback: ProgressCallback | None = None,
+        cancel_callback: OperationCancelCallback | None = None,
     ) -> CreateZipArchiveResult: ...
 
 
@@ -54,6 +60,7 @@ class LiveZipCompressService:
         request: CreateZipArchiveRequest,
         *,
         progress_callback: ProgressCallback | None = None,
+        cancel_callback: OperationCancelCallback | None = None,
     ) -> CreateZipArchiveResult:
         root_dir = _resolve_root_dir(request.root_dir)
         source_paths = _resolve_source_paths(request.source_paths, root_dir)
@@ -61,27 +68,62 @@ class LiveZipCompressService:
         _validate_destination(source_paths, destination_path)
         entries = _build_archive_entries(source_paths, root_dir)
         destination_path.parent.mkdir(parents=True, exist_ok=True)
-        if destination_path.exists():
-            destination_path.unlink()
-
-        with zipfile.ZipFile(
-            destination_path,
-            mode="w",
-            compression=zipfile.ZIP_DEFLATED,
-        ) as archive:
-            total_entries = len(entries)
-            for index, entry in enumerate(entries, start=1):
-                if entry.is_dir:
-                    archive.writestr(f"{entry.arcname}/", "")
-                else:
-                    archive.write(entry.source_path, arcname=entry.arcname)
-                _report_progress(progress_callback, index, total_entries, str(entry.source_path))
+        total_entries = len(entries)
+        file_descriptor, temporary_name = tempfile.mkstemp(
+            prefix=f".{destination_path.name}.zivo-",
+            suffix=".zip",
+            dir=str(destination_path.parent),
+        )
+        os.close(file_descriptor)
+        temporary_path = Path(temporary_name)
+        archived_entries = 0
+        unprocessed_paths: tuple[str, ...] = ()
+        try:
+            with zipfile.ZipFile(
+                temporary_path,
+                mode="w",
+                compression=zipfile.ZIP_DEFLATED,
+            ) as archive:
+                for index, entry in enumerate(entries, start=1):
+                    if cancel_callback is not None and cancel_callback():
+                        unprocessed_paths = tuple(
+                            str(remaining.source_path) for remaining in entries[index - 1 :]
+                        )
+                        break
+                    if entry.is_dir:
+                        archive.writestr(f"{entry.arcname}/", "")
+                    else:
+                        archive.write(entry.source_path, arcname=entry.arcname)
+                    archived_entries += 1
+                    _report_progress(
+                        progress_callback,
+                        archived_entries,
+                        total_entries,
+                        str(entry.source_path),
+                    )
+            if unprocessed_paths:
+                temporary_path.unlink(missing_ok=True)
+                return CreateZipArchiveResult(
+                    destination_path=str(destination_path),
+                    archived_entries=archived_entries,
+                    total_entries=total_entries,
+                    message=f"Compression cancelled after {archived_entries} entries",
+                    level="warning",
+                    cancelled=True,
+                    unprocessed_paths=unprocessed_paths,
+                )
+            if destination_path.exists() and not destination_path.is_symlink():
+                temporary_path.chmod(stat.S_IMODE(destination_path.stat().st_mode))
+            os.replace(temporary_path, destination_path)
+        except BaseException:
+            temporary_path.unlink(missing_ok=True)
+            raise
 
         noun = "entry" if len(entries) == 1 else "entries"
         return CreateZipArchiveResult(
             destination_path=str(destination_path),
-            archived_entries=len(entries),
-            total_entries=len(entries),
+            archived_entries=archived_entries,
+            total_entries=total_entries,
             message=f"Created {destination_path.name} with {len(entries)} {noun}",
         )
 
@@ -110,11 +152,22 @@ class FakeZipCompressService:
         request: CreateZipArchiveRequest,
         *,
         progress_callback: ProgressCallback | None = None,
+        cancel_callback: OperationCancelCallback | None = None,
     ) -> CreateZipArchiveResult:
         if self.execute_error is not None:
             raise OSError(self.execute_error)
+        if cancel_callback is not None and cancel_callback():
+            return CreateZipArchiveResult(
+                destination_path=request.destination_path,
+                archived_entries=0,
+                total_entries=len(request.source_paths),
+                message="Compression cancelled",
+                level="warning",
+                cancelled=True,
+                unprocessed_paths=request.source_paths,
+            )
         if progress_callback is not None:
-            progress_callback(0, len(request.source_paths), None)
+            emit_operation_progress(progress_callback, 0, len(request.source_paths), None)
         if self.execute_result is not None:
             return self.execute_result
         total_entries = len(request.source_paths)
@@ -197,4 +250,4 @@ def _report_progress(
 ) -> None:
     if progress_callback is None:
         return
-    progress_callback(completed_entries, total_entries, current_path)
+    emit_operation_progress(progress_callback, completed_entries, total_entries, current_path)

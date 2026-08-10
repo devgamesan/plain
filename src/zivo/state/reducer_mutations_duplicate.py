@@ -24,6 +24,19 @@ def run_duplicate_request(
 ) -> ReduceResult:
     """Start duplicate execution with a fresh service-side name preflight."""
 
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
+
     request_id = state.next_request_id
     return ReduceResult(
         state=replace(

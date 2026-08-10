@@ -18,6 +18,7 @@ from zivo.models import (
     GuiEditorConfig,
     PasteConflict,
     PasteRequest,
+    StatusBarActionState,
     UndoDeletePathStep,
     UndoEntry,
 )
@@ -33,6 +34,7 @@ from zivo.state import (
     DirectorySizeDeltaState,
     FileSearchPaletteState,
     FileSearchResultState,
+    ForegroundOperationState,
     GrepSearchPaletteState,
     GrepSearchResultState,
     GrfPaletteState,
@@ -1383,6 +1385,27 @@ def test_select_status_bar_exposes_notification_level() -> None:
 
     assert status.message == "load failed"
     assert status.message_level == "error"
+
+
+def test_select_status_bar_exposes_foreground_progress_and_cancel() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        foreground_operation=ForegroundOperationState(
+            operation_id=3,
+            kind="copy",
+            completed=2,
+            total=5,
+            current_path="/tmp/very-long-operation-target.txt",
+        ),
+    )
+
+    status = select_status_bar_state(state)
+    help_state = select_help_bar_state(state)
+
+    assert "Copy 2/5" in (status.message or "")
+    assert status.action == StatusBarActionState(action_id="operation.cancel", label="Cancel")
+    assert help_state.lines == ("Esc cancel",)
 
 
 def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:

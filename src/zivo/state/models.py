@@ -17,6 +17,7 @@ from zivo.models import (
     DeleteMode,
     DuplicateRequest,
     ExtractArchiveRequest,
+    OperationKind,
     PasteConflict,
     PasteConflictAction,
     PasteRequest,
@@ -248,6 +249,25 @@ class ArchiveExtractProgressState:
 
 
 @dataclass(frozen=True)
+class ForegroundOperationState:
+    """Transient progress and cancellation state for one file operation."""
+
+    operation_id: int
+    kind: OperationKind
+    phase: str = "processing"
+    completed: int = 0
+    total: int | None = None
+    current_path: str | None = None
+    cancelable: bool = True
+    cancel_requested: bool = False
+    succeeded: int = 0
+    skipped: int = 0
+    failed: int = 0
+    unprocessed: int = 0
+    message: str = "Processing..."
+
+
+@dataclass(frozen=True)
 class ZipCompressConfirmationState:
     """Pending confirmation dialog state for zip compression conflicts."""
 
@@ -348,6 +368,10 @@ class NotificationDetails:
 
     failure_count: int
     failures: tuple[NotificationFailureDetail, ...] = ()
+    skipped_count: int = 0
+    unprocessed_count: int = 0
+    unprocessed_paths: tuple[str, ...] = ()
+    skipped_paths: tuple[str, ...] = ()
 
 
 NotificationActionId = Literal[
@@ -703,6 +727,7 @@ class AppState:
     notification: NotificationState | None = None
     notification_revision: int = 0
     notification_details: NotificationDetails | None = None
+    foreground_operation: ForegroundOperationState | None = None
     pending_input: PendingInputState | None = None
     bulk_rename: BulkRenameEditorState | None = None
     pending_key_sequence: PendingKeySequenceState | None = None

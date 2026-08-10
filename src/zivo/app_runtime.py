@@ -6,7 +6,12 @@ from typing import Any
 from textual.worker import Worker, WorkerState
 
 from zivo.app_runtime_actions import complete_worker_actions, failed_worker_actions
-from zivo.app_runtime_core import TrackingConfig, clear_tracking_for_request
+from zivo.app_runtime_core import (
+    TrackingConfig,
+    clear_foreground_operation,
+    clear_tracking_for_request,
+    request_foreground_operation_cancel,
+)
 from zivo.app_runtime_execution import (
     report_archive_extract_progress,
     report_zip_compress_progress,
@@ -128,6 +133,20 @@ __all__ = [
 
 
 def sync_runtime_state(app: Any, previous_state: Any, next_state: Any) -> None:
+    previous_operation = previous_state.foreground_operation
+    next_operation = next_state.foreground_operation
+    if (
+        next_operation is not None
+        and next_operation.cancel_requested
+        and (
+            previous_operation is None
+            or not previous_operation.cancel_requested
+            or previous_operation.operation_id != next_operation.operation_id
+        )
+    ):
+        request_foreground_operation_cancel(app, next_operation.operation_id)
+    if next_operation is None and previous_operation is not None:
+        clear_foreground_operation(app, previous_operation.operation_id)
     if previous_state.pending_child_pane_request_id != next_state.pending_child_pane_request_id:
         cancel_pending_child_pane(app)
     if previous_state.pending_file_search_request_id != next_state.pending_file_search_request_id:
@@ -192,6 +211,16 @@ EFFECT_SCHEDULERS = (
 
 
 def clear_effect_tracking(app: Any, effect: Effect) -> None:
+    if isinstance(
+        effect,
+        (
+            RunClipboardPasteEffect,
+            RunArchiveExtractEffect,
+            RunZipCompressEffect,
+            RunTextReplaceApplyEffect,
+        ),
+    ):
+        clear_foreground_operation(app, effect.request_id)
     for tracking in TRACKING_CONFIGS:
         if isinstance(effect, tracking.effect_type):
             clear_tracking_for_request(app, tracking, effect.request_id)

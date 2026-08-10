@@ -256,6 +256,8 @@ class zivoApp(App[None]):
         self._custom_action_service = custom_action_service or LiveCustomActionService()
         self._undo_service = undo_service or LiveUndoService()
         self._pending_workers: dict[str, Effect] = {}
+        self._foreground_operation_cancel_event: threading.Event | None = None
+        self._foreground_operation_id: int | None = None
         self._child_pane_timer: Timer | None = None
         self._active_child_pane_cancel_event: threading.Event | None = None
         self._active_child_pane_request_id: int | None = None
@@ -542,7 +544,11 @@ class zivoApp(App[None]):
     async def on_status_bar_action_clicked(self, message: StatusBar.ActionClicked) -> None:
         """Run the status-bar action through the shared notification reducer path."""
 
-        from zivo.state.actions import ActivateNotificationAction
+        from zivo.state.actions import ActivateNotificationAction, CancelForegroundOperation
+
+        if message.action_id == "operation.cancel":
+            await self.dispatch_actions((CancelForegroundOperation(),))
+            return
 
         await self.dispatch_actions(
             (ActivateNotificationAction(message.action_id, message.revision),)

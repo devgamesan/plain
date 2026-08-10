@@ -183,6 +183,10 @@ sequenceDiagram
 
 `notification_revision` increments whenever the visible notification changes and rejects stale `DismissNotification` messages from the StatusBar's five-second timer. The action is consumed before its effect starts. Details uses the existing `DETAIL` mode Enter/Esc input path. Retry is allowlisted to paste, duplicate, and archive/zip preparation failures; paste and archive/zip retries re-run fresh preflight/preparation. Only final success sets `auto_dismiss`; processing, warning/error, and partial-success notifications remain visible.
 
+### Foreground file-operation progress
+
+Copy, Move, Compress, Extract, and Replace share one transient `ForegroundOperationState`. The runtime owns the operation ID and cooperative cancel event; services check the event only at safe item boundaries and report progress back as reducer actions. Stale progress is discarded by operation ID. StatusBar and HelpBar project the state without adding a task screen; `Cancel` and `Esc` are available only while cancellation is safe. Compression publishes a same-directory temporary archive atomically, while extraction and replacement publish temporary files atomically. Terminal partial results retain counts and paths for the existing Details flow.
+
 ### `src/zivo/state/reducer_navigation.py`
 
 - Handles directory movement, history back / forward, home navigation, reload, filter, sort, and hidden-files toggling

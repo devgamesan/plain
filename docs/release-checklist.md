@@ -91,6 +91,19 @@
 - [ ] 圧縮先の指定ができること
 - [ ] 圧縮先が既存の場合、確認ダイアログが表示されること
 
+#### 長時間ファイル操作の進捗とキャンセル
+- [ ] Copy / Move / Compress / Extract / Replace 実行中に操作名、件数、割合またはspinner、現在対象がStatusBarに表示されること
+- [ ] 総数が不明な操作で不正確なpercentageを表示せず、spinnerが表示されること
+- [ ] 安全にキャンセルできる操作だけ `Cancel` と `Esc cancel` が表示されること
+- [ ] Cancel要求後に `Cancel requested; finishing current item` が表示され、Cancelを重複実行できないこと
+- [ ] 現在の対象を完了してから停止し、workerの強制停止を行わないこと
+- [ ] 成功、skip、failure、未処理件数と対象pathが通知・Detailsで確認できること
+- [ ] Copy / Move の完了済み対象だけがUndo範囲として表示されること
+- [ ] Compressキャンセル時に既存destinationが維持され、一時アーカイブが残らないこと
+- [ ] Extract / Replaceキャンセル時に書き込み途中の一時ファイルが残らないこと
+- [ ] 処理中に別のファイル変更操作を開始できず、進行中の操作名が表示されること
+- [ ] 古いoperation IDのprogressが現在のStatusBarを上書きしないこと
+
 ### プレビュー機能
 
 #### テキストプレビュー

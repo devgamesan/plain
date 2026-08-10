@@ -51,6 +51,7 @@ from .actions_mutations import (
     CancelCustomActionConfirmation,
     CancelDeleteConfirmation,
     CancelExitConfirmation,
+    CancelForegroundOperation,
     CancelPasteConflict,
     CancelReplaceConfirmation,
     CancelSymlinkOverwriteConfirmation,
@@ -125,6 +126,7 @@ __all__ = [
     "CancelCustomActionConfirmation",
     "CancelDeleteConfirmation",
     "CancelExitConfirmation",
+    "CancelForegroundOperation",
     "CancelPasteConflict",
     "CancelReplaceConfirmation",
     "CancelSymlinkOverwriteConfirmation",
@@ -277,6 +279,7 @@ from .actions_runtime import (
     ExternalLaunchFailed,
     FileMutationCompleted,
     FileMutationFailed,
+    ForegroundOperationProgress,
     ParentChildSnapshotFailed,
     ParentChildSnapshotLoaded,
     RequestBrowserSnapshot,
@@ -462,6 +465,7 @@ Action = (
     | UndoLastOperation
     | ResolvePasteConflict
     | CancelPasteConflict
+    | CancelForegroundOperation
     | ConfirmDeleteTargets
     | CancelDeleteConfirmation
     | BeginExitCurrentPath
@@ -495,6 +499,7 @@ Action = (
     | ClipboardPasteNeedsResolution
     | ClipboardPasteCompleted
     | ClipboardPasteFailed
+    | ForegroundOperationProgress
     | DuplicateProgress
     | DuplicateCompleted
     | DuplicateFailed

@@ -183,6 +183,10 @@ sequenceDiagram
 
 `notification_revision` は通知が変わるたびに増え、StatusBar の5秒 timerから届く古い `DismissNotification` を拒否する。アクション開始時には通知を先に消費する。Details は `DETAIL` mode の既存 Enter/Esc 入力経路で閉じる。Retry は paste、duplicate、archive/zip preparation の allowlist に限定し、paste と archive/zip は fresh preflight/preparation を再実行する。最終成功だけを `auto_dismiss` 対象とし、処理中・warning/error・partial success は残す。
 
+### foreground file operation の進捗
+
+Copy・Move・Compress・Extract・Replace は、1つの一時的な `ForegroundOperationState` を共有する。runtime が operation ID と協調キャンセル用 event を管理し、service は安全な対象境界でだけ event を確認して progress を reducer action へ戻す。古い operation ID の progress は破棄する。StatusBar と HelpBar は専用タスク画面を追加せず state を投影し、キャンセル可能な間だけ `Cancel` と `Esc` を表示する。Compress は同一ディレクトリの一時アーカイブを原子的に公開し、Extract と Replace は一時ファイルを原子的に置換する。部分結果の件数とパスは既存 Details 経路で表示する。
+
 ### `src/zivo/state/reducer_navigation.py`
 
 - ディレクトリ移動、history 戻る / 進む、home 移動、reload、filter、sort、hidden files 切り替えを担当する

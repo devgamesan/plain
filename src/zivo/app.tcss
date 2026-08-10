@@ -276,12 +276,6 @@ Screen {
     padding-top: 1;
 }
 
-#bulk-rename-actions Button.bulk-rename-active {
-    background: $accent;
-    color: $text;
-    text-style: bold;
-}
-
 .dialog-layer {
     align: center middle;
 }

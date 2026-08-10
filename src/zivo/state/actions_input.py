@@ -43,13 +43,6 @@ class SetBulkRenameBaseName:
 
 
 @dataclass(frozen=True)
-class CycleBulkRenameField:
-    """Move focus between bulk rename fields and actions."""
-
-    delta: int
-
-
-@dataclass(frozen=True)
 class PasteIntoBulkRenameBaseName:
     """Append pasted text to the bulk rename base name."""
 

@@ -18,7 +18,6 @@ from .actions_input import (
     CancelPendingInput,
     CancelShellCommandInput,
     ConfirmFilterInput,
-    CycleBulkRenameField,
     CycleConfigEditorValue,
     CycleCreateKind,
     DeletePendingInputForward,
@@ -96,7 +95,6 @@ __all__ = [
     "CancelShellCommandInput",
     "ConfirmFilterInput",
     "CycleConfigEditorValue",
-    "CycleBulkRenameField",
     "DeletePendingInputForward",
     "DismissAboutDialog",
     "DismissAttributeDialog",
@@ -368,7 +366,6 @@ Action = (
     | BeginBulkRename
     | BeginRenameInput
     | SetBulkRenameBaseName
-    | CycleBulkRenameField
     | PasteIntoBulkRenameBaseName
     | ApplyBulkRename
     | CancelBulkRename

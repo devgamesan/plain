@@ -3,7 +3,6 @@
 from .actions import (
     ApplyBulkRename,
     CancelBulkRename,
-    CycleBulkRenameField,
     SetBulkRenameBaseName,
 )
 from .input_common import DispatchedActions, supported
@@ -24,16 +23,8 @@ def dispatch_bulk_rename_input(
 
     if key == "escape":
         return supported(CancelBulkRename())
-    if key == "tab":
-        return supported(CycleBulkRenameField(1))
-    if key == "shift+tab":
-        return supported(CycleBulkRenameField(-1))
     if key == "enter":
-        if editor.active_field == "apply":
-            return supported(ApplyBulkRename())
-        if editor.active_field == "cancel":
-            return supported(CancelBulkRename())
-        return ()
+        return supported(ApplyBulkRename())
     if editor.active_field != "base_name":
         return ()
     if key == "backspace":

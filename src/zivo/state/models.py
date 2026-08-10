@@ -363,8 +363,6 @@ class PendingInputState:
 
 BulkRenameField = Literal[
     "base_name",
-    "apply",
-    "cancel",
 ]
 
 

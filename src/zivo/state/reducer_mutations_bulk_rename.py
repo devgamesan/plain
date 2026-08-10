@@ -18,7 +18,6 @@ from .actions import (
     BulkRenameFailed,
     BulkRenameProgress,
     CancelBulkRename,
-    CycleBulkRenameField,
     PasteIntoBulkRenameBaseName,
     SetBulkRenameBaseName,
 )
@@ -28,8 +27,6 @@ from .reducer_common import ReducerFn, finalize, request_snapshot_refresh
 from .reducer_mutations_common import push_undo_entry
 from .reducer_transfer import request_all_transfer_pane_snapshots
 from .selectors import select_target_paths
-
-_FIELDS = ("base_name", "apply", "cancel")
 
 
 def _active_entries(state: AppState):
@@ -145,7 +142,7 @@ def _generated_name(base_name: str, old_name: str, index: int) -> str:
     if not base_name:
         return old_name
     suffix = "".join(Path(old_name).suffixes)
-    return f"{base_name} {index + 1}{suffix}"
+    return f"{base_name}_{index + 1}{suffix}"
 
 
 def _handle_set_bulk_rename_base_name(
@@ -181,18 +178,6 @@ def _handle_paste_into_bulk_rename_base_name(
         SetBulkRenameBaseName(editor.base_name + action.text),
         reduce_state,
     )
-
-
-def _handle_cycle_bulk_rename_field(
-    state, action: CycleBulkRenameField, reduce_state
-) -> ReduceResult:
-    del reduce_state
-    editor = state.bulk_rename
-    if editor is None:
-        return finalize(state)
-    current = _FIELDS.index(editor.active_field)
-    next_field = _FIELDS[(current + action.delta) % len(_FIELDS)]
-    return finalize(replace(state, bulk_rename=replace(editor, active_field=next_field)))
 
 
 def _handle_apply_bulk_rename(
@@ -402,7 +387,6 @@ BULK_RENAME_MUTATION_HANDLERS = {
     BeginBulkRename: _handle_begin_bulk_rename,
     SetBulkRenameBaseName: _handle_set_bulk_rename_base_name,
     PasteIntoBulkRenameBaseName: _handle_paste_into_bulk_rename_base_name,
-    CycleBulkRenameField: _handle_cycle_bulk_rename_field,
     ApplyBulkRename: _handle_apply_bulk_rename,
     BulkRenameProgress: _handle_bulk_rename_progress,
     BulkRenameCompleted: _handle_bulk_rename_completed,

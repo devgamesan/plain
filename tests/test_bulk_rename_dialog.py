@@ -8,7 +8,7 @@ def test_bulk_rename_rows_render_review_names_without_table_editing() -> None:
         rows=(
             BulkRenameRowViewState(
                 old_name="README.md",
-                new_name="project 1.md",
+                new_name="project_1.md",
                 status="ready",
             ),
         ),
@@ -20,7 +20,7 @@ def test_bulk_rename_rows_render_review_names_without_table_editing() -> None:
 
     rendered = BulkRenameDialog._render_rows(state)
 
-    assert "project 1.md" in rendered.plain
+    assert "project_1.md" in rendered.plain
     assert "Ready" in rendered.plain
 
 

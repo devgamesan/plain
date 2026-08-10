@@ -40,8 +40,8 @@ async def test_bulk_rename_uses_base_name_and_central_focus_cycle(tmp_path: Path
         assert app._app_state.bulk_rename is not None
         assert tuple(
             item.new_name for item in app._app_state.bulk_rename.items
-        ) == ("project 1.txt", "project 2.md")
+        ) == ("project_1.txt", "project_2.md")
 
         await pilot.press("tab")
         await pilot.pause()
-        assert app._app_state.bulk_rename.active_field == "apply"
+        assert app._app_state.bulk_rename.active_field == "base_name"

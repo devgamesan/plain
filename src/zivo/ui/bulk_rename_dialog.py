@@ -62,15 +62,10 @@ class BulkRenameDialog(Container):
                 self.query_one(selector, Static).update("")
             return
 
-        action_fields = {"bulk-rename-apply": "apply", "bulk-rename-cancel": "cancel"}
-        for button_id, field in action_fields.items():
-            button = self.query_one(f"#{button_id}", Button)
-            # Keyboard focus is managed by the reducer. Native Button focus
-            # would otherwise add a second, conflicting tab order.
-            button.can_focus = False
-            button.remove_class("bulk-rename-active")
-            if state.active_field == field:
-                button.add_class("bulk-rename-active")
+        for button_id in ("bulk-rename-apply", "bulk-rename-cancel"):
+            # Buttons remain mouse-clickable, but keyboard actions follow the
+            # same Enter/Escape convention as the other input dialogs.
+            self.query_one(f"#{button_id}", Button).can_focus = False
 
         self.query_one("#bulk-rename-title", Static).update(state.title)
         self.query_one("#bulk-rename-summary", Static).update(state.summary)

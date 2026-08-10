@@ -9,7 +9,6 @@ from zivo.state.actions import (
     ApplyBulkRename,
     BeginBulkRename,
     BulkRenameCompleted,
-    CycleBulkRenameField,
     SetBulkRenameBaseName,
 )
 from zivo.state.effects import LoadBrowserSnapshotEffect, RunBulkRenameEffect
@@ -65,7 +64,7 @@ def test_bulk_rename_reducer_emits_effect_and_maps_selection(tmp_path: Path) -> 
     assert isinstance(completed.effects[0], LoadBrowserSnapshotEffect)
 
 
-def test_bulk_rename_base_name_generates_numbered_names_and_tabs_to_apply(
+def test_bulk_rename_base_name_generates_underscore_names_and_enter_applies(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "a.txt").write_text("A")
@@ -84,13 +83,11 @@ def test_bulk_rename_base_name_generates_numbered_names_and_tabs_to_apply(
     state = reduce_state(state, SetBulkRenameBaseName("project"))
     assert state.bulk_rename is not None
     assert tuple(item.new_name for item in state.bulk_rename.items) == (
-        "project 1.txt",
-        "project 2.md",
+        "project_1.txt",
+        "project_2.md",
     )
 
-    actions = dispatch_key_input(state, key="tab")
+    assert dispatch_key_input(state, key="tab") == ()
 
-    assert actions[-1] == CycleBulkRenameField(1)
-    state = reduce_state(state, actions[-1])
-    assert state.bulk_rename is not None
-    assert state.bulk_rename.active_field == "apply"
+    actions = dispatch_key_input(state, key="enter")
+    assert actions[-1] == ApplyBulkRename()

@@ -848,6 +848,9 @@ class FakeBrowserSnapshotLoader:
     default_delay_seconds: float = 0.0
     per_path_delay_seconds: Mapping[str, float] = field(default_factory=dict)
     child_delay_seconds: Mapping[tuple[str, str | None], float] = field(default_factory=dict)
+    child_snapshot_release_events: Mapping[
+        tuple[str, str | None], threading.Event
+    ] = field(default_factory=dict)
     archive_list: ArchiveListService = field(default_factory=LiveArchiveListService)
     executed_child_pane_requests: list[tuple[str, str | None]] = field(default_factory=list)
     executed_grep_preview_requests: list[tuple[str, str, int]] = field(default_factory=list)
@@ -903,9 +906,13 @@ class FakeBrowserSnapshotLoader:
     ) -> PaneState:
         key = (current_path, cursor_path)
         self.executed_child_pane_requests.append(key)
-        delay = self.child_delay_seconds.get(key, self.default_delay_seconds)
-        if delay > 0:
-            sleep(delay)
+        release_event = self.child_snapshot_release_events.get(key)
+        if release_event is not None:
+            release_event.wait()
+        else:
+            delay = self.child_delay_seconds.get(key, self.default_delay_seconds)
+            if delay > 0:
+                sleep(delay)
 
         if key in self.child_failure_messages:
             raise OSError(self.child_failure_messages[key])

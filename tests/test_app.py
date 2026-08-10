@@ -2086,6 +2086,7 @@ async def test_app_child_pane_updates_immediately_on_rapid_cursor_moves() -> Non
 @pytest.mark.asyncio
 async def test_app_hides_stale_child_entries_while_new_child_snapshot_is_pending() -> None:
     path = str(Path("/tmp/zivo-child-pane-pending").resolve())
+    child_snapshot_release_event = threading.Event()
     current_entries = (
         DirectoryEntryState(f"{path}/docs", "docs", "dir"),
         DirectoryEntryState(f"{path}/src", "src", "dir"),
@@ -2105,8 +2106,8 @@ async def test_app_hides_stale_child_entries_while_new_child_snapshot_is_pending
                 entries=(DirectoryEntryState(f"{path}/src/main.py", "main.py", "file"),),
             ),
         },
-        child_delay_seconds={
-            (path, f"{path}/src"): 0.2,
+        child_snapshot_release_events={
+            (path, f"{path}/src"): child_snapshot_release_event,
         },
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
@@ -2118,13 +2119,25 @@ async def test_app_hides_stale_child_entries_while_new_child_snapshot_is_pending
 
         await pilot.press("down")
         await _wait_for_cursor_path(app, f"{path}/src")
-        await _wait_for_child_pane_request_count(loader, 1, timeout=1.0)
-        await _wait_for_child_preview(
-            app,
-            "Contents · src · loading",
-            "Loading directory…",
-            timeout=2.0,
-        )
+        try:
+            await _wait_for_child_pane_request_count(loader, 1, timeout=1.0)
+            await pilot.pause()
+
+            loading_child_pane = select_shell_data(app.app_state).child_pane
+            assert loading_child_pane.header_title == "Contents · src · loading"
+            assert loading_child_pane.entries == ()
+            assert loading_child_pane.status is not None
+            assert loading_child_pane.status.kind == "loading"
+            assert loading_child_pane.status.title == "Loading directory…"
+
+            await _wait_for_child_preview(
+                app,
+                "Contents · src · loading",
+                "Loading directory…",
+                timeout=1.0,
+            )
+        finally:
+            child_snapshot_release_event.set()
         await _wait_for_child_entries(app, ["main.py"], timeout=1.0)
         await _wait_for_child_pane_runtime_idle(app, timeout=1.0)
 

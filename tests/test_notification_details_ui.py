@@ -36,6 +36,8 @@ async def test_details_overlay_renders_failures_and_closes_with_existing_detail_
     )
 
     async with app.run_test() as pilot:
+        # Finish the app's initial snapshot before injecting notification state.
+        await pilot.pause()
         await app.dispatch_actions((SetNotification(notification),))
         await app.dispatch_actions(
             (
@@ -57,7 +59,12 @@ async def test_details_overlay_renders_failures_and_closes_with_existing_detail_
             dialog.query_one("#notification-details-lines").renderable
         )
 
+        app.set_focus(
+            dialog.query_one("#notification-details-lines-scroll", VerticalScroll)
+        )
+        await pilot.pause()
         await pilot.press("escape")
+        await pilot.pause()
 
     assert app.app_state.notification_details is None
     assert app.app_state.ui_mode == "BROWSING"

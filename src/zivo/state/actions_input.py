@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from zivo.models import CreateKind
+from zivo.models import BulkRenameTarget, CreateKind
 
 
 @dataclass(frozen=True)
@@ -25,6 +25,38 @@ class BeginRenameInput:
     """Enter rename input mode for a single path."""
 
     path: str
+
+
+@dataclass(frozen=True)
+class BeginBulkRename:
+    """Open the bulk rename editor for selected targets."""
+
+    parent_dir: str
+    targets: tuple[BulkRenameTarget, ...]
+
+
+@dataclass(frozen=True)
+class SetBulkRenameBaseName:
+    """Set the base name used to generate all New Name values."""
+
+    value: str
+
+
+@dataclass(frozen=True)
+class PasteIntoBulkRenameBaseName:
+    """Append pasted text to the bulk rename base name."""
+
+    text: str
+
+
+@dataclass(frozen=True)
+class ApplyBulkRename:
+    """Apply the validated bulk rename plan."""
+
+
+@dataclass(frozen=True)
+class CancelBulkRename:
+    """Close the bulk rename editor without applying it."""
 
 
 @dataclass(frozen=True)

@@ -29,6 +29,7 @@ from zivo.state.actions import (
     AddBookmark,
     AdvancePermanentDeleteConfirmation,
     BeginBookmarkSearch,
+    BeginBulkRename,
     BeginCommandPalette,
     BeginCreateInput,
     BeginDeleteTargets,

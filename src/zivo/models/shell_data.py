@@ -363,6 +363,31 @@ class InputDialogState:
 
 
 @dataclass(frozen=True)
+class BulkRenameRowViewState:
+    """Display data for one read-only bulk rename review row."""
+
+    old_name: str
+    new_name: str
+    status: str
+    message: str | None = None
+
+
+@dataclass(frozen=True)
+class BulkRenameDialogState:
+    """Display data for the bulk rename editor/result overlay."""
+
+    title: str
+    rows: tuple[BulkRenameRowViewState, ...]
+    base_name: str
+    active_field: str
+    summary: str
+    error_message: str | None = None
+    result_message: str | None = None
+    apply_enabled: bool = False
+    progress: str | None = None
+
+
+@dataclass(frozen=True)
 class ResponsivePaneLayoutState:
     """Responsive browser visibility derived from terminal width and state."""
 
@@ -397,6 +422,7 @@ class ThreePaneShellData:
     config_dialog: ConfigDialogState | None = None
     shell_command_dialog: ShellCommandDialogState | None = None
     input_dialog: InputDialogState | None = None
+    bulk_rename_dialog: BulkRenameDialogState | None = None
     responsive_layout: ResponsivePaneLayoutState = ResponsivePaneLayoutState(
         width_class="wide",
         show_parent=True,

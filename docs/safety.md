@@ -30,6 +30,13 @@ zivo includes several safety mechanisms to prevent accidents during file operati
 - `Undo last file operation` is hidden from the command palette when the undo history is empty.
 - Only reversible file operations are recorded in the undo history.
 
+## Bulk Rename
+
+- Selecting two or more items and invoking `r` or `Rename selected items` opens a review overlay with a Base name input, Old Name / New Name / Status rows, and a count summary before any filesystem change.
+- The Base name generates numbered destinations while preserving each original extension. Unchanged rows are skipped. Any collision, invalid name, missing target, or parent-directory permission failure disables the apply action.
+- Execution stages entries under temporary names in the same directory before applying final names, so cycles such as `a→b` and `b→a` are safe. Failures trigger best-effort rollback and remain visible per row.
+- A single Undo entry is recorded only after every changed row succeeds. Undo also stages through temporary names and does not create history for a partial result.
+
 ---
 
 ## Paste Conflict Resolution

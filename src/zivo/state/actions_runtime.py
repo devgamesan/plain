@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from zivo.models import (
     AppConfig,
+    BulkRenameExecutionResult,
     CreateZipArchiveRequest,
     CreateZipArchiveResult,
     CustomActionExecutionRequest,
@@ -226,6 +227,32 @@ class DuplicateCompleted:
 @dataclass(frozen=True)
 class DuplicateFailed:
     """Apply a terminal duplicate failure."""
+
+    request_id: int
+    message: str
+
+
+@dataclass(frozen=True)
+class BulkRenameProgress:
+    """Apply progress from a bulk rename worker."""
+
+    request_id: int
+    completed_entries: int
+    total_entries: int
+    current_path: str | None = None
+
+
+@dataclass(frozen=True)
+class BulkRenameCompleted:
+    """Apply the completed bulk rename result."""
+
+    request_id: int
+    result: BulkRenameExecutionResult
+
+
+@dataclass(frozen=True)
+class BulkRenameFailed:
+    """Apply a terminal bulk rename worker failure."""
 
     request_id: int
     message: str

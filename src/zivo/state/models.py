@@ -7,6 +7,8 @@ from typing import Literal
 
 from zivo.models import (
     AppConfig,
+    BulkRenamePlanItem,
+    BulkRenameTarget,
     ConflictResolution,
     CreateKind,
     CreateSymlinkRequest,
@@ -30,6 +32,7 @@ UiMode = Literal[
     "CHMOD",
     "CHOWN",
     "RENAME",
+    "BULK_RENAME",
     "CREATE",
     "EXTRACT",
     "ZIP",
@@ -358,6 +361,26 @@ class PendingInputState:
     symlink_overwrite: bool = False
 
 
+BulkRenameField = Literal[
+    "base_name",
+]
+
+
+@dataclass(frozen=True)
+class BulkRenameEditorState:
+    """Draft, validation, and result state for the bulk rename overlay."""
+
+    parent_dir: str
+    targets: tuple[BulkRenameTarget, ...]
+    items: tuple[BulkRenamePlanItem, ...]
+    base_name: str = ""
+    active_field: BulkRenameField = "base_name"
+    result_message: str | None = None
+    progress_completed: int = 0
+    progress_total: int = 0
+    progress_path: str | None = None
+
+
 @dataclass(frozen=True)
 class PendingKeySequenceState:
     """Transient multi-key prefix state used while browsing."""
@@ -641,6 +664,7 @@ class AppState:
     transfer_right: TransferPaneState | None = None
     notification: NotificationState | None = None
     pending_input: PendingInputState | None = None
+    bulk_rename: BulkRenameEditorState | None = None
     pending_key_sequence: PendingKeySequenceState | None = None
     command_palette: CommandPaletteState | None = None
     pending_go_palette: CommandPaletteState | None = None
@@ -667,6 +691,7 @@ class AppState:
     pending_paste_request_id: int | None = None
     pending_paste_request: PasteRequest | None = None
     pending_duplicate_request_id: int | None = None
+    pending_bulk_rename_request_id: int | None = None
     pending_file_mutation_request_id: int | None = None
     pending_delete_prepare_request_id: int | None = None
     pending_archive_prepare_request_id: int | None = None

@@ -2,6 +2,7 @@ from tests.test_state_reducer import _reduce_state
 from zivo.state import build_initial_app_state, dispatch_key_input
 from zivo.state.actions import (
     ActivateTabByIndex,
+    BeginBulkRename,
     BeginCommandPalette,
     BeginDeleteTargets,
     BeginExitCurrentPath,
@@ -271,7 +272,7 @@ def test_transfer_lowercase_r_warns_for_no_target() -> None:
     assert result[0].notification.message == "Rename requires a single target"
 
 
-def test_transfer_lowercase_r_warns_for_multiple_targets() -> None:
+def test_transfer_lowercase_r_opens_bulk_rename_for_multiple_targets() -> None:
     from dataclasses import replace
 
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
@@ -287,6 +288,10 @@ def test_transfer_lowercase_r_warns_for_multiple_targets() -> None:
     state = replace(state, transfer_left=transfer_left)
 
     result = dispatch_key_input(state, key="r")
-    assert len(result) == 1
-    assert isinstance(result[0], SetNotification)
-    assert result[0].notification.message == "Rename requires a single target"
+    assert result[0] == SetNotification(None)
+    assert isinstance(result[1], BeginBulkRename)
+    assert result[1].parent_dir == state.transfer_left.current_path
+    assert tuple(target.source_path for target in result[1].targets) == (
+        state.transfer_left.pane.cursor_path,
+        "/tmp/zivo-test-src/docs2",
+    )

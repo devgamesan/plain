@@ -1,9 +1,11 @@
 """Command execution helpers for the command palette reducer."""
 
 from dataclasses import replace
+from pathlib import Path
 
 from zivo.archive_utils import is_supported_archive_path
 from zivo.models import (
+    BulkRenameTarget,
     CustomActionContext,
     CustomActionExpansionError,
     expand_custom_action,
@@ -14,6 +16,7 @@ from .actions import (
     ActivatePreviousTab,
     AddBookmark,
     BeginBookmarkSearch,
+    BeginBulkRename,
     BeginChmodInput,
     BeginChownInput,
     BeginCreateInput,
@@ -246,14 +249,30 @@ def _run_rename_command(
     next_state: AppState,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
-    target_path = (
-        _transfer_single_target_path(state)
+    target_paths = (
+        _transfer_target_paths(state)
         if state.layout_mode == "transfer"
-        else single_target_path(state)
+        else select_target_paths(state)
     )
-    if target_path is None:
+    if not target_paths:
         return notify(next_state, level="warning", message="Rename requires a single target")
-    return reduce_state(next_state, BeginRenameInput(path=target_path))
+    if len(target_paths) >= 2:
+        active_transfer = _active_transfer_pane(state)
+        parent_dir = (
+            active_transfer.current_path
+            if state.layout_mode == "transfer" and active_transfer is not None
+            else state.current_pane.directory_path
+        )
+        return reduce_state(
+            next_state,
+            BeginBulkRename(
+                parent_dir=parent_dir,
+                targets=tuple(
+                    BulkRenameTarget(path, Path(path).name) for path in target_paths
+                ),
+            ),
+        )
+    return reduce_state(next_state, BeginRenameInput(path=target_paths[0]))
 
 
 def _run_change_permissions_command(

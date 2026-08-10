@@ -10,6 +10,7 @@ from zivo.models import PathBarState, ThreePaneShellData
 from zivo.state.models import AppState
 from zivo.ui import (
     AttributeDialog,
+    BulkRenameDialog,
     ChildPane,
     CommandPalette,
     ConfigDialog,
@@ -149,6 +150,8 @@ async def refresh_shell(
         config_dialog = app.query_one("#config-dialog", ConfigDialog)
         shell_command_dialog = app.query_one("#shell-command-dialog", ShellCommandDialog)
         input_dialog = app.query_one("#input-dialog", InputDialog)
+        bulk_rename_dialog_layer = app.query_one("#bulk-rename-dialog-layer", Container)
+        bulk_rename_dialog = app.query_one("#bulk-rename-dialog", BulkRenameDialog)
     except NoMatches:
         selectors = (
             "#current-path-bar",
@@ -168,6 +171,8 @@ async def refresh_shell(
             "#shell-command-dialog-layer",
             "#input-dialog",
             "#input-dialog-layer",
+            "#bulk-rename-dialog",
+            "#bulk-rename-dialog-layer",
         )
         for selector in selectors:
             try:
@@ -222,6 +227,13 @@ async def refresh_shell(
             Container(
                 InputDialog(shell.input_dialog, id="input-dialog"),
                 id="input-dialog-layer",
+                classes="overlay-layer dialog-layer",
+            )
+        )
+        await app.mount(
+            Container(
+                BulkRenameDialog(shell.bulk_rename_dialog, id="bulk-rename-dialog"),
+                id="bulk-rename-dialog-layer",
                 classes="overlay-layer dialog-layer",
             )
         )
@@ -345,6 +357,8 @@ async def refresh_shell(
     shell_command_dialog.set_state(shell.shell_command_dialog)
     input_dialog_layer.display = shell.input_dialog is not None
     input_dialog.set_state(shell.input_dialog)
+    bulk_rename_dialog_layer.display = shell.bulk_rename_dialog is not None
+    bulk_rename_dialog.set_state(shell.bulk_rename_dialog)
 
     if app_state.ui_mode == "BROWSING":
         if app_state.layout_mode == "transfer" and app_state.active_transfer_pane == "right":

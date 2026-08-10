@@ -5,6 +5,8 @@ from pathlib import Path
 
 from zivo.models import (
     AttributeDialogState,
+    BulkRenameDialogState,
+    BulkRenameRowViewState,
     CommandPaletteItemViewState,
     CommandPaletteViewState,
     ConfigDialogState,
@@ -315,6 +317,66 @@ def select_input_dialog_state(state: AppState) -> InputDialogState | None:
             else "enter apply | esc cancel"
         ),
         details=details,
+    )
+
+
+def select_bulk_rename_dialog_state(state: AppState) -> BulkRenameDialogState | None:
+    """Project reducer bulk rename state into the overlay view model."""
+
+    editor = state.bulk_rename
+    if editor is None:
+        return None
+    unchanged = sum(item.status == "unchanged" for item in editor.items)
+    errors = sum(
+        item.status in {"error", "failed", "recovery_failed"}
+        for item in editor.items
+    )
+    changed = sum(
+        item.status in {"ready", "renamed", "restored"}
+        for item in editor.items
+    )
+    rows = tuple(
+        BulkRenameRowViewState(
+            old_name=item.old_name,
+            new_name=item.new_name,
+            status=item.status,
+            message=item.message,
+        )
+        for item in editor.items
+    )
+    summary = f"{changed} changes · {unchanged} unchanged · {errors} errors"
+    progress = None
+    if editor.progress_total:
+        progress = (
+            f"Renaming {editor.progress_completed}/{editor.progress_total}"
+            + (f": {editor.progress_path}" if editor.progress_path else "")
+        )
+    return BulkRenameDialogState(
+        title=(
+            f"Rename {len(editor.items)} selected items"
+            if editor.result_message is None
+            else "Bulk rename result"
+        ),
+        rows=rows,
+        base_name=editor.base_name,
+        active_field=editor.active_field,
+        summary=summary,
+        error_message=(
+            "; ".join(
+                item.message
+                for item in editor.items
+                if item.status == "error" and item.message
+            )
+            or None
+        ),
+        result_message=editor.result_message,
+        apply_enabled=(
+            state.ui_mode == "BULK_RENAME"
+            and editor.result_message is None
+            and changed > 0
+            and errors == 0
+        ),
+        progress=progress,
     )
 
 

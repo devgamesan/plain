@@ -37,6 +37,7 @@ from zivo.services import (
     ArchiveExtractService,
     AttributeInspectionService,
     BrowserSnapshotLoader,
+    BulkRenameService,
     ClipboardOperationService,
     ConfigSaveService,
     CustomActionService,
@@ -50,6 +51,7 @@ from zivo.services import (
     LiveArchiveExtractService,
     LiveAttributeInspectionService,
     LiveBrowserSnapshotLoader,
+    LiveBulkRenameService,
     LiveClipboardOperationService,
     LiveConfigSaveService,
     LiveCustomActionService,
@@ -109,6 +111,7 @@ from zivo.state.actions import (
 )
 from zivo.ui import (
     AttributeDialog,
+    BulkRenameDialog,
     ChildPane,
     CommandPalette,
     ConfigDialog,
@@ -191,6 +194,7 @@ class zivoApp(App[None]):
         config_save_service: ConfigSaveService | None = None,
         directory_size_service: DirectorySizeService | None = None,
         duplicate_service: DuplicateOperationService | None = None,
+        bulk_rename_service: BulkRenameService | None = None,
         file_mutation_service: FileMutationService | None = None,
         archive_extract_service: ArchiveExtractService | None = None,
         zip_compress_service: ZipCompressService | None = None,
@@ -235,6 +239,7 @@ class zivoApp(App[None]):
         self._config_save_service = config_save_service or LiveConfigSaveService()
         self._directory_size_service = directory_size_service or LiveDirectorySizeService()
         self._duplicate_service = duplicate_service or LiveDuplicateOperationService()
+        self._bulk_rename_service = bulk_rename_service or LiveBulkRenameService()
         self._file_mutation_service = file_mutation_service or LiveFileMutationService()
         self._archive_extract_service = archive_extract_service or LiveArchiveExtractService()
         self._zip_compress_service = zip_compress_service or LiveZipCompressService()
@@ -310,6 +315,11 @@ class zivoApp(App[None]):
             id="input-dialog-layer",
             classes="overlay-layer dialog-layer",
         )
+        yield Container(
+            BulkRenameDialog(shell.bulk_rename_dialog, id="bulk-rename-dialog"),
+            id="bulk-rename-dialog-layer",
+            classes="overlay-layer dialog-layer",
+        )
         yield HelpBar(shell.help, id="help-bar")
         yield StatusBar(shell.status, id="status-bar")
 
@@ -329,7 +339,15 @@ class zivoApp(App[None]):
         if (
             event.key == "ctrl+v"
             and self._app_state.ui_mode
-            in {"CHMOD", "CHOWN", "RENAME", "CREATE", "EXTRACT", "ZIP", "SYMLINK"}
+            in {
+                "CHMOD",
+                "CHOWN",
+                "RENAME",
+                "CREATE",
+                "EXTRACT",
+                "ZIP",
+                "SYMLINK",
+            }
             and self._app_state.pending_input is not None
         ):
             text = self._external_launch_service.get_from_clipboard()
@@ -337,6 +355,20 @@ class zivoApp(App[None]):
                 from zivo.state.actions import PasteIntoPendingInput
 
                 await self.dispatch_actions((PasteIntoPendingInput(text=text),))
+            event.stop()
+            event.prevent_default()
+            return
+
+        if (
+            event.key == "ctrl+v"
+            and self._app_state.ui_mode == "BULK_RENAME"
+            and self._app_state.bulk_rename is not None
+        ):
+            from zivo.state.actions import PasteIntoBulkRenameBaseName
+
+            text = self._external_launch_service.get_from_clipboard()
+            if text:
+                await self.dispatch_actions((PasteIntoBulkRenameBaseName(text=text),))
             event.stop()
             event.prevent_default()
             return
@@ -399,6 +431,14 @@ class zivoApp(App[None]):
             await self.dispatch_actions(
                 (PasteIntoShellCommand(text=event.text),)
             )
+            event.stop()
+            event.prevent_default()
+            return
+
+        if self._app_state.ui_mode == "BULK_RENAME" and self._app_state.bulk_rename is not None:
+            from zivo.state.actions import PasteIntoBulkRenameBaseName
+
+            await self.dispatch_actions((PasteIntoBulkRenameBaseName(text=event.text),))
             event.stop()
             event.prevent_default()
 

@@ -344,7 +344,7 @@ stateDiagram-v2
 - 選択トグル、選択解除、copy / cut / paste
 - 2ペイン転送モードでの Tab ペインフォーカス、左右間 Copy / Move、方向と件数を示す転送ヘッダー
 - 貼り付け時の競合検出と overwrite / skip / rename の解決
-- 単一対象の rename
+- 単一対象の rename と、同一ディレクトリ内で一時名を経由する安全な bulk rename
 - 新規ファイル / 新規ディレクトリ作成
 - ゴミ箱への削除と確認ダイアログ
 - ファイルの既定アプリ起動

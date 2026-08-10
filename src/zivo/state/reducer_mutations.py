@@ -6,6 +6,7 @@ from .models import AppState
 from .reducer_common import ReducerFn
 from .reducer_custom_actions import CUSTOM_ACTION_HANDLERS
 from .reducer_mutations_archive import ARCHIVE_MUTATION_HANDLERS
+from .reducer_mutations_bulk_rename import BULK_RENAME_MUTATION_HANDLERS
 from .reducer_mutations_common import MutationHandler
 from .reducer_mutations_delete import DELETE_MUTATION_HANDLERS
 from .reducer_mutations_duplicate import DUPLICATE_MUTATION_HANDLERS
@@ -20,6 +21,7 @@ _MUTATION_HANDLERS: dict[type[Action], MutationHandler] = {
     **DELETE_MUTATION_HANDLERS,
     **DUPLICATE_MUTATION_HANDLERS,
     **ARCHIVE_MUTATION_HANDLERS,
+    **BULK_RENAME_MUTATION_HANDLERS,
     **REPLACE_MUTATION_HANDLERS,
     **UNDO_MUTATION_HANDLERS,
     **CUSTOM_ACTION_HANDLERS,

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from zivo.models import (
     AppConfig,
+    BulkRenameRequest,
     ChmodRequest,
     ChownRequest,
     CreatePathRequest,
@@ -124,6 +125,14 @@ class RunDuplicateEffect:
 
     request_id: int
     request: DuplicateRequest
+
+
+@dataclass(frozen=True)
+class RunBulkRenameEffect:
+    """Execute a validated same-directory bulk rename outside the reducer."""
+
+    request_id: int
+    request: BulkRenameRequest
 
 
 @dataclass(frozen=True)
@@ -292,6 +301,7 @@ Effect = (
     | RunAttributeInspectionEffect
     | RunClipboardPasteEffect
     | RunDuplicateEffect
+    | RunBulkRenameEffect
     | RunFileMutationEffect
     | RunDeletePreparationEffect
     | RunUndoEffect

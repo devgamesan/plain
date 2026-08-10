@@ -565,7 +565,7 @@ def test_browsing_lowercase_r_begins_rename_for_single_target() -> None:
     )
 
 
-def test_browsing_lowercase_r_warns_for_multiple_targets() -> None:
+def test_browsing_lowercase_r_opens_bulk_rename_for_multiple_targets() -> None:
     state = build_initial_app_state()
     state = replace(
         state,
@@ -582,10 +582,12 @@ def test_browsing_lowercase_r_warns_for_multiple_targets() -> None:
 
     actions = dispatch_key_input(state, key="r")
 
-    assert actions == (
-        SetNotification(
-            NotificationState(level="warning", message="Rename requires a single target")
-        ),
+    assert actions[0] == SetNotification(None)
+    assert isinstance(actions[1], BeginBulkRename)
+    assert actions[1].parent_dir == "/home/tadashi/develop/zivo"
+    assert tuple(target.source_path for target in actions[1].targets) == (
+        "/home/tadashi/develop/zivo/docs",
+        "/home/tadashi/develop/zivo/src",
     )
 
 

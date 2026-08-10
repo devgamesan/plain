@@ -1,6 +1,8 @@
 """Reducer actions for app state transitions."""
 
 from .actions_input import (
+    ApplyBulkRename,
+    BeginBulkRename,
     BeginChmodInput,
     BeginChownInput,
     BeginConfigEditor,
@@ -11,6 +13,7 @@ from .actions_input import (
     BeginShellCommandInput,
     BeginSymlinkInput,
     BeginZipCompressInput,
+    CancelBulkRename,
     CancelFilterInput,
     CancelPendingInput,
     CancelShellCommandInput,
@@ -25,9 +28,11 @@ from .actions_input import (
     MoveConfigEditorCursor,
     MovePendingInputCursor,
     MoveShellCommandCursor,
+    PasteIntoBulkRenameBaseName,
     PasteIntoPendingInput,
     PasteIntoShellCommand,
     SaveConfigEditor,
+    SetBulkRenameBaseName,
     SetFilterQuery,
     SetPendingInputCursor,
     SetPendingInputValue,
@@ -79,6 +84,9 @@ __all__ = [
     "BeginExtractArchiveInput",
     "BeginFilterInput",
     "BeginRenameInput",
+    "BeginBulkRename",
+    "ApplyBulkRename",
+    "CancelBulkRename",
     "BeginShellCommandInput",
     "BeginSymlinkInput",
     "BeginZipCompressInput",
@@ -96,9 +104,11 @@ __all__ = [
     "MovePendingInputCursor",
     "MoveShellCommandCursor",
     "PasteIntoPendingInput",
+    "PasteIntoBulkRenameBaseName",
     "PasteIntoShellCommand",
     "SaveConfigEditor",
     "SetFilterQuery",
+    "SetBulkRenameBaseName",
     "SetPendingInputCursor",
     "SetPendingInputValue",
     "TogglePendingInputRecursive",
@@ -243,6 +253,9 @@ from .actions_runtime import (
     AttributeInspectionLoaded,
     BrowserSnapshotFailed,
     BrowserSnapshotLoaded,
+    BulkRenameCompleted,
+    BulkRenameFailed,
+    BulkRenameProgress,
     ChildPaneSnapshotFailed,
     ChildPaneSnapshotLoaded,
     ClipboardPasteCompleted,
@@ -350,7 +363,12 @@ Action = (
     | CancelFilterInput
     | BeginChmodInput
     | BeginChownInput
+    | BeginBulkRename
     | BeginRenameInput
+    | SetBulkRenameBaseName
+    | PasteIntoBulkRenameBaseName
+    | ApplyBulkRename
+    | CancelBulkRename
     | BeginCreateInput
     | CycleCreateKind
     | BeginConfigEditor
@@ -476,6 +494,9 @@ Action = (
     | DuplicateProgress
     | DuplicateCompleted
     | DuplicateFailed
+    | BulkRenameProgress
+    | BulkRenameCompleted
+    | BulkRenameFailed
     | ArchivePreparationCompleted
     | ArchivePreparationFailed
     | ArchiveExtractProgress

@@ -238,6 +238,40 @@ Screen {
     align-horizontal: center;
 }
 
+#bulk-rename-dialog {
+    width: 1fr;
+    max-width: 110;
+    height: auto;
+    max-height: 1fr;
+    margin: 1 2;
+    padding: 1 2;
+    border: round $accent;
+    background: $surface;
+}
+
+#bulk-rename-title {
+    color: $accent;
+    text-style: bold;
+}
+
+#bulk-rename-summary,
+#bulk-rename-status,
+#bulk-rename-hint {
+    color: $text-muted;
+}
+
+#bulk-rename-table {
+    height: auto;
+    max-height: 1fr;
+    padding: 1 0;
+    overflow: hidden;
+}
+
+#bulk-rename-base-name {
+    height: 1;
+    padding: 0 1;
+}
+
 .dialog-layer {
     align: center middle;
 }

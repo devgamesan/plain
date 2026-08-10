@@ -180,6 +180,19 @@ When the `Replace text` preview is open in the right pane, `Shift+↑` / `Shift+
 | --- | ------ |
 | Text input / `Backspace` / `Enter` / `Esc` | Edit, confirm, or cancel rename/create input |
 
+## Bulk Rename Mode
+
+Bulk rename opens with `Base name` active. Entering a base name fills the review table with numbered names while preserving each original extension (`project_1.txt`, `project_2.md`). Press `r` or choose `Rename N items` with multiple selections.
+
+| Key | Behavior |
+| --- | --- |
+| Text input / `Backspace` | Edit the Base name and regenerate all New Name values |
+| `Enter` | Run `Rename items` |
+| `Ctrl+V` | Paste clipboard text into the Base name |
+| `Esc` | Close the overlay and discard the draft |
+
+There is only one keyboard input field in this mode, so `Tab` / `Shift+Tab` do not move focus to another control.
+
 ---
 
 ## Confirmation Dialog Mode

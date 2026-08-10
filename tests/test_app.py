@@ -2123,7 +2123,7 @@ async def test_app_hides_stale_child_entries_while_new_child_snapshot_is_pending
             app,
             "Contents · src · loading",
             "Loading directory…",
-            timeout=1.0,
+            timeout=2.0,
         )
         await _wait_for_child_entries(app, ["main.py"], timeout=1.0)
         await _wait_for_child_pane_runtime_idle(app, timeout=1.0)

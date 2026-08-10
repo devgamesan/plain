@@ -16,6 +16,7 @@ CONFIG_EDITOR_MANAGED_SETTINGS: tuple[tuple[str, str], ...] = (
     ("gui_editor", "fallback_command"),
     ("display", "show_hidden_files"),
     ("display", "theme"),
+    ("display", "preview_syntax_theme"),
     ("display", "enable_text_preview"),
     ("display", "enable_image_preview"),
     ("display", "enable_pdf_preview"),
@@ -67,6 +68,9 @@ def update_config_editor_settings(contents: str, config: AppConfig) -> str:
         ),
         ("display", "show_hidden_files"): _render_bool(config.display.show_hidden_files),
         ("display", "theme"): render_toml_string(config.display.theme),
+        ("display", "preview_syntax_theme"): render_toml_string(
+            config.display.preview_syntax_theme
+        ),
         ("display", "enable_text_preview"): _render_bool(
             config.display.enable_text_preview
         ),

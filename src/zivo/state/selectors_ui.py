@@ -341,11 +341,8 @@ def select_bulk_rename_dialog_state(state: AppState) -> BulkRenameDialogState | 
             new_name=item.new_name,
             status=item.status,
             message=item.message,
-            selected=index == editor.cursor_index,
-            editing=index == editor.cursor_index and editor.editing,
-            cursor_pos=editor.text_cursor_pos if index == editor.cursor_index else 0,
         )
-        for index, item in enumerate(editor.items)
+        for item in editor.items
     )
     summary = f"{changed} changes · {unchanged} unchanged · {errors} errors"
     progress = None
@@ -361,8 +358,7 @@ def select_bulk_rename_dialog_state(state: AppState) -> BulkRenameDialogState | 
             else "Bulk rename result"
         ),
         rows=rows,
-        find_text=editor.find_text,
-        replace_text=editor.replace_text,
+        base_name=editor.base_name,
         active_field=editor.active_field,
         summary=summary,
         error_message=(

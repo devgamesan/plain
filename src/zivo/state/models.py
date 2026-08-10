@@ -362,10 +362,7 @@ class PendingInputState:
 
 
 BulkRenameField = Literal[
-    "table",
-    "find",
-    "replace",
-    "replace_action",
+    "base_name",
     "apply",
     "cancel",
 ]
@@ -378,15 +375,8 @@ class BulkRenameEditorState:
     parent_dir: str
     targets: tuple[BulkRenameTarget, ...]
     items: tuple[BulkRenamePlanItem, ...]
-    find_text: str = ""
-    replace_text: str = ""
-    cursor_index: int = 0
-    # Find/Replace is the primary bulk operation. Start there so a
-    # multi-selection can be renamed without first tabbing through the row
-    # editor; Shift+Tab still provides access to direct row editing.
-    active_field: BulkRenameField = "find"
-    editing: bool = False
-    text_cursor_pos: int = 0
+    base_name: str = ""
+    active_field: BulkRenameField = "base_name"
     result_message: str | None = None
     progress_completed: int = 0
     progress_total: int = 0

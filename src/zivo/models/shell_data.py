@@ -364,15 +364,12 @@ class InputDialogState:
 
 @dataclass(frozen=True)
 class BulkRenameRowViewState:
-    """Display data for one bulk rename row."""
+    """Display data for one read-only bulk rename review row."""
 
     old_name: str
     new_name: str
     status: str
     message: str | None = None
-    selected: bool = False
-    editing: bool = False
-    cursor_pos: int = 0
 
 
 @dataclass(frozen=True)
@@ -381,8 +378,7 @@ class BulkRenameDialogState:
 
     title: str
     rows: tuple[BulkRenameRowViewState, ...]
-    find_text: str
-    replace_text: str
+    base_name: str
     active_field: str
     summary: str
     error_message: str | None = None

@@ -89,7 +89,6 @@ from zivo.state.actions import (
     Action,
     ActivateTabByIndex,
     ApplyBulkRename,
-    ApplyBulkRenameFindReplace,
     BeginConfigEditor,
     BeginCreateInput,
     CancelBulkRename,
@@ -367,11 +366,11 @@ class zivoApp(App[None]):
             and self._app_state.ui_mode == "BULK_RENAME"
             and self._app_state.bulk_rename is not None
         ):
-            from zivo.state.actions import PasteIntoBulkRename
+            from zivo.state.actions import PasteIntoBulkRenameBaseName
 
             text = self._external_launch_service.get_from_clipboard()
             if text:
-                await self.dispatch_actions((PasteIntoBulkRename(text=text),))
+                await self.dispatch_actions((PasteIntoBulkRenameBaseName(text=text),))
             event.stop()
             event.prevent_default()
             return
@@ -439,9 +438,9 @@ class zivoApp(App[None]):
             return
 
         if self._app_state.ui_mode == "BULK_RENAME" and self._app_state.bulk_rename is not None:
-            from zivo.state.actions import PasteIntoBulkRename
+            from zivo.state.actions import PasteIntoBulkRenameBaseName
 
-            await self.dispatch_actions((PasteIntoBulkRename(text=event.text),))
+            await self.dispatch_actions((PasteIntoBulkRenameBaseName(text=event.text),))
             event.stop()
             event.prevent_default()
 
@@ -503,7 +502,6 @@ class zivoApp(App[None]):
         """Dispatch mouse actions from the bulk rename dialog."""
 
         actions = {
-            "bulk-rename-replace-action": ApplyBulkRenameFindReplace(),
             "bulk-rename-apply": ApplyBulkRename(),
             "bulk-rename-cancel": CancelBulkRename(),
         }

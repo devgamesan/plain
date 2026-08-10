@@ -148,7 +148,7 @@ See [Commands](docs/commands.md) for the full command list.
 
 ### File operations
 - **Copy / Cut / Paste / Duplicate**: within a pane (normal mode only); Duplicate keeps the original and creates a safe same-directory copy
-- **Rename**: inline single-item rename, or a reviewable `Rename N items` editor for two or more selected items (literal Find/Replace, validation, progress, and same-directory staging)
+- **Rename**: inline single-item rename, or a reviewable `Rename N items` editor for two or more selected items (base-name numbering, extension preservation, validation, progress, and same-directory staging)
 - **Permissions and ownership**: change selected targets' octal mode or owner/group from the command palette on POSIX-style filesystems
 - **Delete**: move to trash (`d`) or permanently delete (`D`); permanent delete shows target count, total size, representative names, and an irreversible-operation warning
 - **Undo**: revert rename, paste, duplicate, or trash operations

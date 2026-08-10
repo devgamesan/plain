@@ -13,22 +13,14 @@ from zivo.models import (
 
 from .actions import (
     ApplyBulkRename,
-    ApplyBulkRenameFindReplace,
     BeginBulkRename,
     BulkRenameCompleted,
     BulkRenameFailed,
     BulkRenameProgress,
     CancelBulkRename,
     CycleBulkRenameField,
-    DeleteBulkRenameTextBackward,
-    DeleteBulkRenameTextForward,
-    MoveBulkRenameCursor,
-    MoveBulkRenameTextCursor,
-    PasteIntoBulkRename,
-    SetBulkRenameEditing,
-    SetBulkRenameFindReplace,
-    SetBulkRenameName,
-    SetBulkRenameTextCursor,
+    PasteIntoBulkRenameBaseName,
+    SetBulkRenameBaseName,
 )
 from .effects import ReduceResult, RunBulkRenameEffect
 from .models import AppState, BulkRenameEditorState, NotificationState
@@ -37,7 +29,7 @@ from .reducer_mutations_common import push_undo_entry
 from .reducer_transfer import request_all_transfer_pane_snapshots
 from .selectors import select_target_paths
 
-_FIELDS = ("table", "find", "replace", "replace_action", "apply", "cancel")
+_FIELDS = ("base_name", "apply", "cancel")
 
 
 def _active_entries(state: AppState):
@@ -131,8 +123,7 @@ def _handle_begin_bulk_rename(
             parent_dir=action.parent_dir,
             targets=action.targets,
             items=_initial_items(state, action.targets),
-            active_field="find",
-            text_cursor_pos=len(action.targets[0].new_name) if action.targets else 0,
+            active_field="base_name",
         )
     )
     return finalize(
@@ -148,174 +139,47 @@ def _handle_begin_bulk_rename(
     )
 
 
-def _handle_set_bulk_rename_name(
-    state, action: SetBulkRenameName, reduce_state
+def _generated_name(base_name: str, old_name: str, index: int) -> str:
+    """Build a numbered destination name while preserving the full suffix."""
+
+    if not base_name:
+        return old_name
+    suffix = "".join(Path(old_name).suffixes)
+    return f"{base_name} {index + 1}{suffix}"
+
+
+def _handle_set_bulk_rename_base_name(
+    state, action: SetBulkRenameBaseName, reduce_state
 ) -> ReduceResult:
     del reduce_state
     editor = state.bulk_rename
-    if editor is None or not 0 <= action.row_index < len(editor.items):
-        return finalize(state)
-    items = list(editor.items)
-    item = items[action.row_index]
-    items[action.row_index] = replace(item, new_name=action.value, status="ready", message=None)
-    next_editor = _refresh_validation(
-        replace(
-            editor,
-            items=tuple(items),
-            cursor_index=action.row_index,
-            result_message=None,
-        )
-    )
-    return finalize(replace(state, bulk_rename=next_editor, notification=None))
-
-
-def _handle_set_bulk_rename_editing(
-    state, action: SetBulkRenameEditing, reduce_state
-) -> ReduceResult:
-    del reduce_state
-    editor = state.bulk_rename
-    if editor is None or not editor.items:
-        return finalize(state)
-    item = editor.items[editor.cursor_index]
-    return finalize(
-        replace(
-            state,
-            bulk_rename=replace(
-                editor,
-                editing=action.editing,
-                text_cursor_pos=min(editor.text_cursor_pos, len(item.new_name)),
-            ),
-        )
-    )
-
-
-def _handle_move_bulk_rename_text_cursor(
-    state, action: MoveBulkRenameTextCursor, reduce_state
-) -> ReduceResult:
-    del reduce_state
-    editor = state.bulk_rename
-    if editor is None or not editor.items:
-        return finalize(state)
-    item = editor.items[editor.cursor_index]
-    position = max(0, min(len(item.new_name), editor.text_cursor_pos + action.delta))
-    return finalize(replace(state, bulk_rename=replace(editor, text_cursor_pos=position)))
-
-
-def _handle_set_bulk_rename_text_cursor(
-    state, action: SetBulkRenameTextCursor, reduce_state
-) -> ReduceResult:
-    del reduce_state
-    editor = state.bulk_rename
-    if editor is None or not editor.items:
-        return finalize(state)
-    item = editor.items[editor.cursor_index]
-    position = max(0, min(len(item.new_name), action.cursor_pos))
-    return finalize(replace(state, bulk_rename=replace(editor, text_cursor_pos=position)))
-
-
-def _handle_delete_bulk_rename_text(
-    state, action, *, forward: bool
-) -> ReduceResult:
-    del action
-    editor = state.bulk_rename
-    if editor is None or not editor.items:
-        return finalize(state)
-    item = editor.items[editor.cursor_index]
-    position = editor.text_cursor_pos
-    if forward:
-        if position >= len(item.new_name):
-            return finalize(state)
-        new_value = item.new_name[:position] + item.new_name[position + 1 :]
-    else:
-        if position <= 0:
-            return finalize(state)
-        new_value = item.new_name[: position - 1] + item.new_name[position:]
-        position -= 1
-    items = list(editor.items)
-    items[editor.cursor_index] = replace(
-        items[editor.cursor_index], new_name=new_value, status="ready"
-    )
-    next_editor = _refresh_validation(
-        replace(editor, items=tuple(items), text_cursor_pos=position)
-    )
-    return finalize(replace(state, bulk_rename=next_editor))
-
-
-def _handle_paste_into_bulk_rename(
-    state, action: PasteIntoBulkRename, reduce_state
-) -> ReduceResult:
-    del reduce_state
-    editor = state.bulk_rename
-    if editor is None or not editor.items:
-        return finalize(state)
-    item = editor.items[editor.cursor_index]
-    position = editor.text_cursor_pos
-    new_value = item.new_name[:position] + action.text + item.new_name[position:]
-    items = list(editor.items)
-    items[editor.cursor_index] = replace(
-        items[editor.cursor_index], new_name=new_value, status="ready"
-    )
-    next_editor = _refresh_validation(
-        replace(editor, items=tuple(items), text_cursor_pos=position + len(action.text))
-    )
-    return finalize(replace(state, bulk_rename=next_editor))
-
-
-def _handle_set_bulk_rename_find_replace(
-    state, action: SetBulkRenameFindReplace, reduce_state
-) -> ReduceResult:
-    del reduce_state
-    if state.bulk_rename is None:
-        return finalize(state)
-    return finalize(
-        replace(
-            state,
-            bulk_rename=replace(
-                state.bulk_rename,
-                find_text=action.find_text,
-                replace_text=action.replace_text,
-                result_message=None,
-            ),
-        )
-    )
-
-
-def _handle_apply_bulk_rename_find_replace(state, action, reduce_state) -> ReduceResult:
-    del action, reduce_state
-    editor = state.bulk_rename
-    if editor is None or not editor.find_text:
+    if editor is None:
         return finalize(state)
     items = tuple(
         replace(
             item,
-            new_name=item.new_name.replace(editor.find_text, editor.replace_text),
+            new_name=_generated_name(action.value, item.old_name, index),
             status="ready",
             message=None,
         )
-        for item in editor.items
+        for index, item in enumerate(editor.items)
     )
-    return finalize(replace(state, bulk_rename=_refresh_validation(replace(editor, items=items))))
+    next_editor = _refresh_validation(
+        replace(editor, base_name=action.value, items=items, result_message=None)
+    )
+    return finalize(replace(state, bulk_rename=next_editor, notification=None))
 
 
-def _handle_move_bulk_rename_cursor(
-    state, action: MoveBulkRenameCursor, reduce_state
+def _handle_paste_into_bulk_rename_base_name(
+    state, action: PasteIntoBulkRenameBaseName, reduce_state
 ) -> ReduceResult:
-    del reduce_state
     editor = state.bulk_rename
-    if editor is None or not editor.items:
+    if editor is None:
         return finalize(state)
-    index = max(0, min(len(editor.items) - 1, editor.cursor_index + action.delta))
-    item = editor.items[index]
-    return finalize(
-        replace(
-            state,
-            bulk_rename=replace(
-                editor,
-                cursor_index=index,
-                editing=False,
-                text_cursor_pos=len(item.new_name),
-            ),
-        )
+    return _handle_set_bulk_rename_base_name(
+        state,
+        SetBulkRenameBaseName(editor.base_name + action.text),
+        reduce_state,
     )
 
 
@@ -536,20 +400,8 @@ def _handle_cancel_bulk_rename(state, action, reduce_state) -> ReduceResult:
 
 BULK_RENAME_MUTATION_HANDLERS = {
     BeginBulkRename: _handle_begin_bulk_rename,
-    SetBulkRenameName: _handle_set_bulk_rename_name,
-    SetBulkRenameEditing: _handle_set_bulk_rename_editing,
-    MoveBulkRenameTextCursor: _handle_move_bulk_rename_text_cursor,
-    SetBulkRenameTextCursor: _handle_set_bulk_rename_text_cursor,
-    DeleteBulkRenameTextBackward: lambda state, action, _reduce: _handle_delete_bulk_rename_text(
-        state, action, forward=False
-    ),
-    DeleteBulkRenameTextForward: lambda state, action, _reduce: _handle_delete_bulk_rename_text(
-        state, action, forward=True
-    ),
-    PasteIntoBulkRename: _handle_paste_into_bulk_rename,
-    SetBulkRenameFindReplace: _handle_set_bulk_rename_find_replace,
-    ApplyBulkRenameFindReplace: _handle_apply_bulk_rename_find_replace,
-    MoveBulkRenameCursor: _handle_move_bulk_rename_cursor,
+    SetBulkRenameBaseName: _handle_set_bulk_rename_base_name,
+    PasteIntoBulkRenameBaseName: _handle_paste_into_bulk_rename_base_name,
     CycleBulkRenameField: _handle_cycle_bulk_rename_field,
     ApplyBulkRename: _handle_apply_bulk_rename,
     BulkRenameProgress: _handle_bulk_rename_progress,

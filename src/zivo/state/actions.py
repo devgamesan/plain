@@ -2,7 +2,6 @@
 
 from .actions_input import (
     ApplyBulkRename,
-    ApplyBulkRenameFindReplace,
     BeginBulkRename,
     BeginChmodInput,
     BeginChownInput,
@@ -22,26 +21,19 @@ from .actions_input import (
     CycleBulkRenameField,
     CycleConfigEditorValue,
     CycleCreateKind,
-    DeleteBulkRenameTextBackward,
-    DeleteBulkRenameTextForward,
     DeletePendingInputForward,
     DismissAboutDialog,
     DismissAttributeDialog,
     DismissConfigEditor,
     DismissNameConflict,
-    MoveBulkRenameCursor,
-    MoveBulkRenameTextCursor,
     MoveConfigEditorCursor,
     MovePendingInputCursor,
     MoveShellCommandCursor,
-    PasteIntoBulkRename,
+    PasteIntoBulkRenameBaseName,
     PasteIntoPendingInput,
     PasteIntoShellCommand,
     SaveConfigEditor,
-    SetBulkRenameEditing,
-    SetBulkRenameFindReplace,
-    SetBulkRenameName,
-    SetBulkRenameTextCursor,
+    SetBulkRenameBaseName,
     SetFilterQuery,
     SetPendingInputCursor,
     SetPendingInputValue,
@@ -95,7 +87,6 @@ __all__ = [
     "BeginRenameInput",
     "BeginBulkRename",
     "ApplyBulkRename",
-    "ApplyBulkRenameFindReplace",
     "CancelBulkRename",
     "BeginShellCommandInput",
     "BeginSymlinkInput",
@@ -106,27 +97,20 @@ __all__ = [
     "ConfirmFilterInput",
     "CycleConfigEditorValue",
     "CycleBulkRenameField",
-    "DeleteBulkRenameTextBackward",
-    "DeleteBulkRenameTextForward",
     "DeletePendingInputForward",
     "DismissAboutDialog",
     "DismissAttributeDialog",
     "DismissConfigEditor",
     "DismissNameConflict",
     "MoveConfigEditorCursor",
-    "MoveBulkRenameCursor",
-    "MoveBulkRenameTextCursor",
     "MovePendingInputCursor",
     "MoveShellCommandCursor",
     "PasteIntoPendingInput",
-    "PasteIntoBulkRename",
+    "PasteIntoBulkRenameBaseName",
     "PasteIntoShellCommand",
     "SaveConfigEditor",
     "SetFilterQuery",
-    "SetBulkRenameEditing",
-    "SetBulkRenameFindReplace",
-    "SetBulkRenameName",
-    "SetBulkRenameTextCursor",
+    "SetBulkRenameBaseName",
     "SetPendingInputCursor",
     "SetPendingInputValue",
     "TogglePendingInputRecursive",
@@ -383,17 +367,9 @@ Action = (
     | BeginChownInput
     | BeginBulkRename
     | BeginRenameInput
-    | SetBulkRenameName
-    | SetBulkRenameFindReplace
-    | SetBulkRenameEditing
-    | SetBulkRenameTextCursor
-    | MoveBulkRenameCursor
-    | MoveBulkRenameTextCursor
+    | SetBulkRenameBaseName
     | CycleBulkRenameField
-    | DeleteBulkRenameTextBackward
-    | DeleteBulkRenameTextForward
-    | PasteIntoBulkRename
-    | ApplyBulkRenameFindReplace
+    | PasteIntoBulkRenameBaseName
     | ApplyBulkRename
     | CancelBulkRename
     | BeginCreateInput

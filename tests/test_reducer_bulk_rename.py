@@ -10,6 +10,7 @@ from zivo.state.actions import (
     BeginBulkRename,
     BulkRenameCompleted,
     CycleBulkRenameField,
+    SetBulkRenameBaseName,
 )
 from zivo.state.effects import LoadBrowserSnapshotEffect, RunBulkRenameEffect
 
@@ -43,7 +44,7 @@ def test_bulk_rename_reducer_emits_effect_and_maps_selection(tmp_path: Path) -> 
     )
     assert state.bulk_rename is not None
     assert state.ui_mode == "BULK_RENAME"
-    assert state.bulk_rename.active_field == "find"
+    assert state.bulk_rename.active_field == "base_name"
     state = replace(state, bulk_rename=replace(state.bulk_rename, active_field="apply"))
     applied = reduce_app_state(state, ApplyBulkRename())
     assert isinstance(applied.effects[0], RunBulkRenameEffect)
@@ -64,11 +65,15 @@ def test_bulk_rename_reducer_emits_effect_and_maps_selection(tmp_path: Path) -> 
     assert isinstance(completed.effects[0], LoadBrowserSnapshotEffect)
 
 
-def test_bulk_rename_starts_at_find_and_tabs_to_replace(tmp_path: Path) -> None:
+def test_bulk_rename_base_name_generates_numbered_names_and_tabs_to_apply(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "a.txt").write_text("A")
+    (tmp_path / "b.md").write_text("B")
     state = _state_for_directory(tmp_path)
     targets = tuple(
         BulkRenameTarget(str(tmp_path / old), old)
-        for old in ("a.txt", "b.txt")
+        for old in ("a.txt", "b.md")
     )
 
     state = reduce_state(
@@ -76,9 +81,16 @@ def test_bulk_rename_starts_at_find_and_tabs_to_replace(tmp_path: Path) -> None:
         BeginBulkRename(parent_dir=str(tmp_path), targets=targets),
     )
 
+    state = reduce_state(state, SetBulkRenameBaseName("project"))
+    assert state.bulk_rename is not None
+    assert tuple(item.new_name for item in state.bulk_rename.items) == (
+        "project 1.txt",
+        "project 2.md",
+    )
+
     actions = dispatch_key_input(state, key="tab")
 
     assert actions[-1] == CycleBulkRenameField(1)
     state = reduce_state(state, actions[-1])
     assert state.bulk_rename is not None
-    assert state.bulk_rename.active_field == "replace"
+    assert state.bulk_rename.active_field == "apply"

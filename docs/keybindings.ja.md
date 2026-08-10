@@ -181,15 +181,14 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 
 ## 一括リネームモード
 
-一括リネームを開くと `Find` が最初からアクティブです。複数選択時は `r` または `Rename N items` でこのモードを開きます。個別の新しい名前を編集する場合は `Shift+Tab` で表へ戻ります。
+一括リネームを開くと `Base name` がアクティブです。ベース名を入力すると、元の拡張子を保った連番名（`project 1.txt`、`project 2.md` など）が確認用テーブルへ自動反映されます。複数選択時は `r` または `Rename N items` でこのモードを開きます。
 
 | キー | 動作 |
 | --- | ------ |
-| `↑` / `↓` / `j` / `k` | New Name の行を移動 |
-| `Enter` | 行の編集を開始／終了、Find/Replace の下書き適用、`Rename items`、`Cancel` を実行 |
-| `Tab` / `Shift+Tab` | 表、Find、Replace、Replace in draft、Rename items、Cancel のフォーカスを移動 |
-| 文字入力 / `←` / `→` / `Home` / `End` / `Backspace` / `Delete` | 選択行の New Name を編集 |
-| `Ctrl+V` | クリップボードを選択行へ貼り付け |
+| 文字入力 / `Backspace` | Base name を編集し、全行の New Name を再生成 |
+| `Enter` | `Rename items` または `Cancel` を実行 |
+| `Tab` / `Shift+Tab` | Base name、Rename items、Cancel のフォーカスを移動 |
+| `Ctrl+V` | クリップボードを Base name へ貼り付け |
 | `Esc` | オーバーレイを閉じ、変更を破棄 |
 
 ---

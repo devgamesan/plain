@@ -36,26 +36,10 @@ class BeginBulkRename:
 
 
 @dataclass(frozen=True)
-class SetBulkRenameName:
-    """Replace one bulk rename row's draft name."""
+class SetBulkRenameBaseName:
+    """Set the base name used to generate all New Name values."""
 
-    row_index: int
     value: str
-
-
-@dataclass(frozen=True)
-class SetBulkRenameFindReplace:
-    """Update the bulk rename literal find/replace drafts."""
-
-    find_text: str
-    replace_text: str
-
-
-@dataclass(frozen=True)
-class MoveBulkRenameCursor:
-    """Move the selected bulk rename row."""
-
-    delta: int
 
 
 @dataclass(frozen=True)
@@ -66,46 +50,10 @@ class CycleBulkRenameField:
 
 
 @dataclass(frozen=True)
-class SetBulkRenameEditing:
-    """Toggle editing mode for the selected New Name row."""
-
-    editing: bool
-
-
-@dataclass(frozen=True)
-class MoveBulkRenameTextCursor:
-    """Move the selected New Name text cursor."""
-
-    delta: int
-
-
-@dataclass(frozen=True)
-class SetBulkRenameTextCursor:
-    """Set the selected New Name text cursor."""
-
-    cursor_pos: int
-
-
-@dataclass(frozen=True)
-class DeleteBulkRenameTextBackward:
-    """Delete the character before the selected New Name cursor."""
-
-
-@dataclass(frozen=True)
-class DeleteBulkRenameTextForward:
-    """Delete the character at the selected New Name cursor."""
-
-
-@dataclass(frozen=True)
-class PasteIntoBulkRename:
-    """Paste text into the selected New Name draft."""
+class PasteIntoBulkRenameBaseName:
+    """Append pasted text to the bulk rename base name."""
 
     text: str
-
-
-@dataclass(frozen=True)
-class ApplyBulkRenameFindReplace:
-    """Apply the current literal find/replace drafts to New Name values."""
 
 
 @dataclass(frozen=True)

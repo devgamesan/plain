@@ -182,15 +182,14 @@ When the `Replace text` preview is open in the right pane, `Shift+↑` / `Shift+
 
 ## Bulk Rename Mode
 
-Bulk rename opens with `Find` active so a multi-selection is ready for a literal Find/Replace operation. Press `r` or choose `Rename N items` with multiple selections; use `Shift+Tab` to move back to the table for direct per-row editing.
+Bulk rename opens with `Base name` active. Entering a base name fills the review table with numbered names while preserving each original extension (`project 1.txt`, `project 2.md`). Press `r` or choose `Rename N items` with multiple selections.
 
 | Key | Behavior |
 | --- | --- |
-| `↑` / `↓` / `j` / `k` | Move between New Name rows |
-| `Enter` | Start/finish row editing, apply Find/Replace draft, run `Rename items`, or cancel |
-| `Tab` / `Shift+Tab` | Cycle table, Find, Replace, Replace in draft, Rename items, and Cancel |
-| Text input / `←` / `→` / `Home` / `End` / `Backspace` / `Delete` | Edit the selected row's New Name |
-| `Ctrl+V` | Paste clipboard text into the selected row |
+| Text input / `Backspace` | Edit the Base name and regenerate all New Name values |
+| `Enter` | Run `Rename items` or cancel |
+| `Tab` / `Shift+Tab` | Cycle Base name, Rename items, and Cancel |
+| `Ctrl+V` | Paste clipboard text into the Base name |
 | `Esc` | Close the overlay and discard the draft |
 
 ---

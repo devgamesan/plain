@@ -1,6 +1,8 @@
 """Shared models for filesystem mutations."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from inspect import signature
 from typing import Literal
 
 ClipboardOperationMode = Literal["copy", "cut"]
@@ -9,6 +11,28 @@ ConflictResolution = Literal["overwrite", "skip", "rename"]
 CreateKind = Literal["file", "dir"]
 DeleteMode = Literal["trash", "permanent"]
 MutationResultLevel = Literal["info", "warning", "error"]
+OperationProgressCallback = Callable[..., None]
+OperationCancelCallback = Callable[[], bool]
+OperationKind = Literal["copy", "move", "compress", "extract", "replace"]
+
+
+def emit_operation_progress(
+    callback: OperationProgressCallback | None,
+    completed: int,
+    total: int | None,
+    current_path: str | None,
+    phase: str = "processing",
+) -> None:
+    """Call both legacy three-argument and common four-argument callbacks."""
+
+    if callback is None:
+        return
+    try:
+        signature(callback).bind(completed, total, current_path, phase)
+    except (TypeError, ValueError):
+        callback(completed, total, current_path)
+    else:
+        callback(completed, total, current_path, phase)
 ArchiveFormat = Literal["zip", "tar", "tar.gz", "tar.bz2", "gz", "bz2"]
 FileMutationOperation = Literal["rename", "create", "delete", "symlink", "chmod", "chown"]
 UndoOperationKind = Literal[
@@ -85,12 +109,21 @@ class PasteSummary:
     failures: tuple[PasteFailure, ...] = ()
     conflict_resolution: ConflictResolution | None = None
     overwrote_count: int = 0
+    cancelled: bool = False
+    unprocessed_paths: tuple[str, ...] = ()
+    skipped_paths: tuple[str, ...] = ()
 
     @property
     def failure_count(self) -> int:
         """Return the number of failed items."""
 
         return len(self.failures)
+
+    @property
+    def unprocessed_count(self) -> int:
+        """Return the number of targets that were not started."""
+
+        return len(self.unprocessed_paths)
 
 
 @dataclass(frozen=True)
@@ -374,6 +407,8 @@ class TextReplaceResult:
     message: str
     level: MutationResultLevel = "info"
     skipped_paths: tuple[str, ...] = ()
+    cancelled: bool = False
+    unprocessed_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -411,6 +446,8 @@ class ExtractArchiveResult:
     total_entries: int
     message: str
     level: MutationResultLevel = "info"
+    cancelled: bool = False
+    unprocessed_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -440,6 +477,8 @@ class CreateZipArchiveResult:
     total_entries: int
     message: str
     level: MutationResultLevel = "info"
+    cancelled: bool = False
+    unprocessed_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -10,7 +10,7 @@ from zivo.models import (
     UndoRestoreTrashStep,
 )
 
-from .actions import Action
+from .actions import Action, CancelForegroundOperation, ForegroundOperationProgress
 from .effects import ReduceResult
 from .models import AppState
 from .reducer_common import ReducerFn
@@ -18,6 +18,78 @@ from .reducer_common import ReducerFn
 MutationHandler = Callable[[AppState, Action, ReducerFn], ReduceResult | None]
 
 _UNDO_STACK_LIMIT = 20
+
+
+def handle_cancel_foreground_operation(
+    state: AppState,
+    _action: CancelForegroundOperation,
+    _reduce_state: ReducerFn,
+) -> ReduceResult:
+    """Mark the active operation for cooperative cancellation."""
+
+    operation = state.foreground_operation
+    if operation is None or operation.cancel_requested or not operation.cancelable:
+        from .reducer_common import finalize
+
+        return finalize(state)
+
+    from dataclasses import replace
+
+    from .reducer_common import finalize
+
+    return finalize(
+        replace(
+            state,
+            foreground_operation=replace(
+                operation,
+                cancel_requested=True,
+                cancelable=False,
+                phase="cancelling",
+                message="Cancel requested; finishing current item",
+            ),
+        )
+    )
+
+
+def handle_foreground_operation_progress(
+    state: AppState,
+    action: ForegroundOperationProgress,
+    _reduce_state: ReducerFn,
+) -> ReduceResult:
+    """Apply progress only while the matching operation is active."""
+
+    operation = state.foreground_operation
+    if operation is None or operation.operation_id != action.request_id:
+        from .reducer_common import finalize
+
+        return finalize(state)
+
+    from dataclasses import replace
+
+    from .reducer_common import finalize
+
+    total = action.total
+    completed = max(0, action.completed)
+    if total is not None:
+        total = max(0, total)
+        completed = min(completed, total)
+    return finalize(
+        replace(
+            state,
+            foreground_operation=replace(
+                operation,
+                phase=("cancelling" if operation.cancel_requested else action.phase),
+                completed=completed,
+                total=total,
+                current_path=action.current_path,
+                message=(
+                    f"{operation.kind.title()} {completed}/{total}"
+                    if total is not None
+                    else f"{operation.kind.title()} {completed}"
+                ),
+            ),
+        )
+    )
 
 
 def push_undo_entry(state: AppState, entry: UndoEntry | None) -> tuple[UndoEntry, ...]:

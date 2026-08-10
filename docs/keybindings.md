@@ -204,3 +204,7 @@ There is only one keyboard input field in this mode, so `Tab` / `Shift+Tab` do n
 | `o` / `s` / `r` / `Esc` | Resolve a paste conflict with overwrite / skip / rename / cancel |
 
 The direct keys `i`, `C`, `B`, `G`, `M`, `O`, `T`, `H`, and `R` are intentionally unbound. Their attribute, path-copy, bookmark, navigation, external-launch, history, and reload commands remain available from the command palette.
+
+## Long-running Operation Mode
+
+While Copy, Move, Compress, Extract, or Replace is running, normal browsing remains modal. When the active service supports safe cancellation, press `Esc` or click `Cancel` in the status bar. The current item finishes before the operation stops; after a cancel request, repeated cancellation is ignored.

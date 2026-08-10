@@ -11,7 +11,7 @@ from typing import Any
 
 from textual.app import SuspendNotSupported
 
-from zivo.app_runtime_core import WorkerSpec, run_worker
+from zivo.app_runtime_core import WorkerSpec, run_worker, start_foreground_operation
 from zivo.models import CustomActionResult
 from zivo.state import (
     ExitCurrentPathEffect,
@@ -40,15 +40,22 @@ from zivo.state.actions import (
     DuplicateProgress,
     ExternalLaunchCompleted,
     ExternalLaunchFailed,
+    ForegroundOperationProgress,
     ZipCompressProgress,
 )
 
 
 def schedule_clipboard_paste(app: Any, effect: RunClipboardPasteEffect) -> None:
+    cancel_event = start_foreground_operation(app, effect.request_id)
     run_worker(
         app,
         effect,
-        partial(app._clipboard_service.execute_paste, effect.request),
+        partial(
+            app._clipboard_service.execute_paste,
+            effect.request,
+            progress_callback=partial(report_foreground_operation_progress, app, effect.request_id),
+            cancel_callback=cancel_event.is_set,
+        ),
         WorkerSpec(
             name=f"clipboard-paste:{effect.request_id}",
             group="clipboard-paste",
@@ -306,6 +313,7 @@ def schedule_archive_preparation(app: Any, effect: RunArchivePreparationEffect) 
 
 
 def schedule_archive_extract(app: Any, effect: RunArchiveExtractEffect) -> None:
+    cancel_event = start_foreground_operation(app, effect.request_id)
     run_worker(
         app,
         effect,
@@ -313,6 +321,7 @@ def schedule_archive_extract(app: Any, effect: RunArchiveExtractEffect) -> None:
             app._archive_extract_service.execute,
             effect.request,
             progress_callback=partial(report_archive_extract_progress, app, effect.request_id),
+            cancel_callback=cancel_event.is_set,
         ),
         WorkerSpec(
             name=f"archive-extract:{effect.request_id}",
@@ -338,6 +347,7 @@ def schedule_zip_compress_preparation(app: Any, effect: RunZipCompressPreparatio
 
 
 def schedule_zip_compress(app: Any, effect: RunZipCompressEffect) -> None:
+    cancel_event = start_foreground_operation(app, effect.request_id)
     run_worker(
         app,
         effect,
@@ -345,6 +355,7 @@ def schedule_zip_compress(app: Any, effect: RunZipCompressEffect) -> None:
             app._zip_compress_service.execute,
             effect.request,
             progress_callback=partial(report_zip_compress_progress, app, effect.request_id),
+            cancel_callback=cancel_event.is_set,
         ),
         WorkerSpec(
             name=f"zip-compress:{effect.request_id}",
@@ -490,8 +501,16 @@ def report_archive_extract_progress(
     completed_entries: int,
     total_entries: int,
     current_path: str | None,
+    phase: str = "processing",
 ) -> None:
     actions = (
+        ForegroundOperationProgress(
+            request_id=request_id,
+            completed=completed_entries,
+            total=total_entries,
+            current_path=current_path,
+            phase=phase,
+        ),
         ArchiveExtractProgress(
             request_id=request_id,
             completed_entries=completed_entries,
@@ -514,13 +533,49 @@ def report_zip_compress_progress(
     completed_entries: int,
     total_entries: int,
     current_path: str | None,
+    phase: str = "processing",
 ) -> None:
     actions = (
+        ForegroundOperationProgress(
+            request_id=request_id,
+            completed=completed_entries,
+            total=total_entries,
+            current_path=current_path,
+            phase=phase,
+        ),
         ZipCompressProgress(
             request_id=request_id,
             completed_entries=completed_entries,
             total_entries=total_entries,
             current_path=current_path,
+        ),
+    )
+    try:
+        if app._thread_id == threading.get_ident():
+            app.call_next(app.dispatch_actions, actions)
+            return
+        app.call_from_thread(app.call_next, app.dispatch_actions, actions)
+    except (RuntimeError, FutureCancelledError):
+        return
+
+
+def report_foreground_operation_progress(
+    app: Any,
+    request_id: int,
+    completed: int,
+    total: int | None,
+    current_path: str | None,
+    phase: str = "processing",
+) -> None:
+    """Forward generic progress from copy/move/replace services."""
+
+    actions = (
+        ForegroundOperationProgress(
+            request_id=request_id,
+            completed=completed,
+            total=total,
+            current_path=current_path,
+            phase=phase,
         ),
     )
     try:

@@ -192,6 +192,18 @@ def _handle_apply_bulk_rename(
     editor = state.bulk_rename
     if editor is None:
         return finalize(state)
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     editor = _refresh_validation(editor)
     request = _request_from_editor(editor)
     from zivo.services.bulk_rename import LiveBulkRenameService

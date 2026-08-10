@@ -14,6 +14,7 @@ from zivo.models import (
 from zivo.state import (
     DeleteConfirmationState,
     DirectoryEntryState,
+    ForegroundOperationState,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
     NameConflictState,
@@ -26,6 +27,7 @@ from zivo.state import (
     reduce_app_state,
 )
 from zivo.state.actions import (
+    CancelForegroundOperation,
     CancelPasteConflict,
     ClipboardPasteCompleted,
     ClipboardPasteFailed,
@@ -114,6 +116,8 @@ def test_paste_clipboard_emits_paste_effect_and_sets_busy() -> None:
     result = reduce_app_state(state, PasteClipboard())
 
     assert result.state.ui_mode == "BUSY"
+    assert result.state.foreground_operation is not None
+    assert result.state.foreground_operation.kind == "copy"
     assert result.state.pending_paste_request_id == 1
     assert result.effects == (
         RunClipboardPasteEffect(
@@ -122,6 +126,29 @@ def test_paste_clipboard_emits_paste_effect_and_sets_busy() -> None:
         ),
     )
     assert result.effects[0].request.destination_dir == "/home/tadashi/develop/zivo"
+
+
+def test_cancel_foreground_operation_marks_active_operation_once() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        foreground_operation=ForegroundOperationState(
+            operation_id=7,
+            kind="copy",
+            total=3,
+        ),
+    )
+
+    result = reduce_app_state(state, CancelForegroundOperation())
+
+    assert result.state.foreground_operation is not None
+    assert result.state.foreground_operation.cancel_requested is True
+    assert result.state.foreground_operation.cancelable is False
+    assert result.state.foreground_operation.message == (
+        "Cancel requested; finishing current item"
+    )
+    repeated = reduce_app_state(result.state, CancelForegroundOperation())
+    assert repeated.state == result.state
 
 
 def test_paste_clipboard_warns_when_empty() -> None:

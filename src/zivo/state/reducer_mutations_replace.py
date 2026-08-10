@@ -11,10 +11,11 @@ from .effects import (
 )
 from .models import (
     AppState,
+    ForegroundOperationState,
     NotificationState,
     ReplaceConfirmationState,
 )
-from .reducer_common import browser_snapshot_invalidation_paths, finalize
+from .reducer_common import finalize
 
 
 def _handle_begin_replace_confirmation(
@@ -52,6 +53,18 @@ def _handle_confirm_replace_targets(
         return finalize(state)
 
     confirmation = state.replace_confirmation
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     request_id = state.next_request_id
     request = TextReplaceRequest(
         paths=confirmation.target_paths,
@@ -59,32 +72,21 @@ def _handle_confirm_replace_targets(
         replace_text=confirmation.replacement_text,
     )
 
-    # First, request browser snapshot to restore browsing state
-    from .actions import RequestBrowserSnapshot
-
-    snapshot_result = reduce_state(
+    return finalize(
         replace(
             state,
-            ui_mode="BROWSING",
+            ui_mode="BUSY",
             replace_confirmation=None,
             command_palette=None,
             pending_replace_apply_request_id=request_id,
             next_request_id=request_id + 1,
             notification=NotificationState(level="info", message="Applying replacement..."),
-        ),
-        RequestBrowserSnapshot(
-            path=state.current_path,
-            cursor_path=state.current_pane.cursor_path,
-            blocking=True,
-            invalidate_paths=browser_snapshot_invalidation_paths(state.current_path),
-        ),
-    )
-
-    # Then, add the replace effect to the result
-    return finalize(
-        replace(
-            snapshot_result.state,
-            pending_replace_apply_request_id=request_id,
+            foreground_operation=ForegroundOperationState(
+                operation_id=request_id,
+                kind="replace",
+                total=len(request.paths),
+                message="Applying replacement",
+            ),
         ),
         RunTextReplaceApplyEffect(request_id=request_id, request=request),
     )

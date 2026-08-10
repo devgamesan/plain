@@ -45,6 +45,7 @@ from .effects import (
     RunZipCompressPreparationEffect,
 )
 from .models import (
+    ForegroundOperationState,
     HistoryState,
     NotificationAction,
     NotificationDetails,
@@ -78,6 +79,18 @@ def run_paste_request(
     *,
     force_conflict_prompt: bool = False,
 ) -> ReduceResult:
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     request_id = state.next_request_id
     next_state = replace(
         state,
@@ -89,6 +102,12 @@ def run_paste_request(
         pending_paste_retry_requires_confirmation=force_conflict_prompt,
         next_request_id=request_id + 1,
         ui_mode="BUSY",
+        foreground_operation=ForegroundOperationState(
+            operation_id=request_id,
+            kind="copy" if request.mode == "copy" else "move",
+            total=len(request.source_paths),
+            message=("Copying" if request.mode == "copy" else "Moving"),
+        ),
     )
     return ReduceResult(
         state=next_state,
@@ -115,6 +134,18 @@ def run_file_mutation_request(
     state,
     request: FileMutationRequest,
 ) -> ReduceResult:
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     request_id = state.next_request_id
     next_state = replace(
         state,
@@ -131,6 +162,18 @@ def run_file_mutation_request(
 
 
 def run_delete_prepare_request(state, request: DeleteRequest) -> ReduceResult:
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     request_id = state.next_request_id
     next_state = replace(
         state,
@@ -147,6 +190,18 @@ def run_delete_prepare_request(state, request: DeleteRequest) -> ReduceResult:
 
 
 def run_undo_request(state, entry: UndoEntry) -> ReduceResult:
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     request_id = state.next_request_id
     next_state = replace(
         state,
@@ -188,6 +243,18 @@ def run_archive_extract_request(
     state,
     request: ExtractArchiveRequest,
 ) -> ReduceResult:
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     request_id = state.next_request_id
     next_state = replace(
         state,
@@ -198,6 +265,11 @@ def run_archive_extract_request(
         pending_archive_extract_request_id=request_id,
         next_request_id=request_id + 1,
         ui_mode="BUSY",
+        foreground_operation=ForegroundOperationState(
+            operation_id=request_id,
+            kind="extract",
+            message="Extracting archive",
+        ),
     )
     return ReduceResult(
         state=next_state,
@@ -233,6 +305,18 @@ def run_zip_compress_request(
     state,
     request: CreateZipArchiveRequest,
 ) -> ReduceResult:
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     request_id = state.next_request_id
     next_state = replace(
         state,
@@ -243,6 +327,11 @@ def run_zip_compress_request(
         pending_zip_compress_request_id=request_id,
         next_request_id=request_id + 1,
         ui_mode="BUSY",
+        foreground_operation=ForegroundOperationState(
+            operation_id=request_id,
+            kind="compress",
+            message="Compressing as zip",
+        ),
     )
     return ReduceResult(
         state=next_state,
@@ -405,7 +494,13 @@ def notification_for_external_launch(
     )
 
 
-def _notification_details(failures) -> NotificationDetails:
+def _notification_details(
+    failures,
+    *,
+    skipped_count: int = 0,
+    skipped_paths: tuple[str, ...] = (),
+    unprocessed_paths: tuple[str, ...] = (),
+) -> NotificationDetails:
     return NotificationDetails(
         failure_count=len(failures),
         failures=tuple(
@@ -415,6 +510,10 @@ def _notification_details(failures) -> NotificationDetails:
             )
             for failure in failures
         ),
+        skipped_count=skipped_count,
+        skipped_paths=skipped_paths,
+        unprocessed_count=len(unprocessed_paths),
+        unprocessed_paths=unprocessed_paths,
     )
 
 
@@ -425,6 +524,36 @@ def notification_for_paste_summary(
     undo_entry: UndoEntry | None = None,
 ) -> NotificationState:
     verb = "Copied" if summary.mode == "copy" else "Moved"
+    if summary.cancelled or summary.unprocessed_count or summary.skipped_paths:
+        message = f"{verb} {summary.success_count}/{summary.total_count} items"
+        if summary.skipped_count:
+            message += f", skipped {summary.skipped_count}"
+        if summary.failure_count:
+            message += f", failed {summary.failure_count}"
+        if summary.cancelled or summary.unprocessed_count:
+            message += f", {summary.unprocessed_count} not processed"
+        return NotificationState(
+            level="warning",
+            message=message,
+            action=(
+                NotificationAction(
+                    action_id="notification.details",
+                    label="Details",
+                )
+                if summary.failure_count or summary.unprocessed_count or summary.skipped_paths
+                else None
+            ),
+            details=(
+                _notification_details(
+                    summary.failures,
+                    skipped_count=summary.skipped_count,
+                    skipped_paths=summary.skipped_paths,
+                    unprocessed_paths=summary.unprocessed_paths,
+                )
+                if summary.failure_count or summary.unprocessed_count or summary.skipped_paths
+                else None
+            ),
+        )
     if summary.failure_count and summary.success_count:
         details = _notification_details(summary.failures)
         return NotificationState(

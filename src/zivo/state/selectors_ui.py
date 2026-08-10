@@ -72,6 +72,32 @@ def _format_attribute_permissions_label(state: AppState) -> str:
 def select_status_bar_state(state: AppState) -> StatusBarState:
     """Return a status bar model derived from app state."""
 
+    operation = state.foreground_operation
+    if operation is not None:
+        message = operation.message
+        if operation.cancel_requested:
+            pass
+        elif operation.total is None:
+            if not message.endswith("…"):
+                message = f"{message} …"
+        elif message == "Processing..." or "/" in message:
+            message = f"{operation.kind.title()} {operation.completed}/{operation.total}"
+        else:
+            message = f"{message} {operation.completed}/{operation.total}"
+        if operation.current_path is not None:
+            message = f"{message}: {_format_operation_path(operation.current_path)}"
+        return StatusBarState(
+            message=message,
+            message_level="info",
+            action=(
+                StatusBarActionState(action_id="operation.cancel", label="Cancel")
+                if operation.cancelable and not operation.cancel_requested
+                else None
+            ),
+            notification_revision=state.notification_revision,
+            auto_dismiss=False,
+        )
+
     notification = state.notification
     return StatusBarState(
         message=notification.message if notification else None,
@@ -89,6 +115,25 @@ def select_status_bar_state(state: AppState) -> StatusBarState:
     )
 
 
+def _format_operation_path(path: str) -> str:
+    """Keep operation paths useful without exposing an overly wide status line."""
+
+    try:
+        resolved = Path(path).expanduser()
+        home = Path.home()
+        if resolved == home:
+            display = "~"
+        elif resolved.is_relative_to(home):
+            display = "~/" + str(resolved.relative_to(home))
+        else:
+            display = str(resolved)
+    except (OSError, RuntimeError):
+        display = path
+    if len(display) <= 56:
+        return display
+    return f"{display[:24]}…{display[-28:]}"
+
+
 def select_notification_details_dialog_state(
     state: AppState,
 ) -> NotificationDetailsDialogState | None:
@@ -98,9 +143,17 @@ def select_notification_details_dialog_state(
     if details is None:
         return None
     lines = [f"Failures: {details.failure_count}"]
+    if details.skipped_count:
+        lines.append(f"Skipped: {details.skipped_count}")
+    if details.unprocessed_count:
+        lines.append(f"Not processed: {details.unprocessed_count}")
     for failure in details.failures:
         lines.append(f"Path: {failure.path}")
         lines.append(f"Reason: {failure.reason}")
+    for path in details.skipped_paths:
+        lines.append(f"Skipped path: {path}")
+    for path in details.unprocessed_paths:
+        lines.append(f"Not processed path: {path}")
     return NotificationDetailsDialogState(
         title="Notification details",
         lines=tuple(lines),
@@ -194,6 +247,12 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             )
         return HelpBarState(("type command | ↑↓ or Ctrl+j/k select | enter run | esc cancel",))
     if state.ui_mode == "BUSY":
+        operation = state.foreground_operation
+        if operation is not None:
+            if operation.cancel_requested:
+                return HelpBarState(("finishing current item",))
+            if operation.cancelable:
+                return HelpBarState(("Esc cancel",))
         return HelpBarState(("processing...",))
     if state.layout_mode == "transfer":
         from .input_transfer import TRANSFER_HELP_LINES

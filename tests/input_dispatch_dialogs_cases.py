@@ -533,3 +533,17 @@ def test_busy_key_shows_warning_message() -> None:
             NotificationState(level="warning", message="Input ignored while processing")
         ),
     )
+
+
+def test_busy_escape_requests_foreground_operation_cancel() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        foreground_operation=ForegroundOperationState(
+            operation_id=4,
+            kind="extract",
+            cancelable=True,
+        ),
+    )
+
+    assert dispatch_key_input(state, key="escape") == (CancelForegroundOperation(),)

@@ -67,6 +67,13 @@ zivo includes several safety mechanisms to prevent accidents during file operati
 - If the destination already exists, a confirmation dialog is shown before extraction.
 - The status bar shows entry-count progress while the extraction runs.
 
+## Long-Running File Operations
+
+- Copy, Move, Compress, Extract, and Replace show the operation name, progress, and current target while the UI remains modal.
+- `Cancel` and `Esc` request cooperative cancellation only at safe item boundaries; the current item is allowed to finish and workers are never force-stopped.
+- Partial results explicitly report succeeded, skipped, failed, and not-processed targets. Only completed Copy/Move targets are included in Undo.
+- Compress writes to a same-directory temporary archive and atomically publishes it on success. Extract and Replace write temporary files and atomically replace their destinations, cleaning temporary files on cancellation or failure.
+
 ---
 
 ## Shell Command Execution

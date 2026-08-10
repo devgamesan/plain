@@ -203,3 +203,7 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 | `o` / `s` / `r` / `Esc` | 貼り付け競合を overwrite / skip / rename / cancel |
 
 `i`、`C`、`B`、`G`、`M`、`O`、`T`、`H`、`R` の直接キーは割り当てません。対応する属性表示、パスコピー、ブックマーク変更、パス移動、外部アプリ起動、履歴検索、再読み込みはコマンドパレットから利用できます。
+
+## 長時間操作モード
+
+Copy・Move・Compress・Extract・Replaceの実行中は通常ブラウズをモーダルに停止します。サービスが安全なキャンセルを提供する場合は、`Esc` またはStatusBarの `Cancel` を使用できます。現在の対象を完了してから停止し、Cancel要求後の重複要求は無視します。

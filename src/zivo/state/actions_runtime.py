@@ -206,6 +206,17 @@ class ClipboardPasteFailed:
 
 
 @dataclass(frozen=True)
+class ForegroundOperationProgress:
+    """Apply common progress from one active file operation."""
+
+    request_id: int
+    completed: int
+    total: int | None
+    current_path: str | None = None
+    phase: str = "processing"
+
+
+@dataclass(frozen=True)
 class DuplicateProgress:
     """Apply progress from a duplicate worker."""
 

@@ -74,6 +74,15 @@ def dispatch_key_input(
     if state.ui_mode == "CONFIG":
         return dispatch_config_input(state, key=key, character=character)
     if state.ui_mode == "BUSY":
+        if (
+            key in {"escape", "esc"}
+            and state.foreground_operation is not None
+            and state.foreground_operation.cancelable
+            and not state.foreground_operation.cancel_requested
+        ):
+            from .actions_mutations import CancelForegroundOperation
+
+            return (CancelForegroundOperation(),)
         return warn("Input ignored while processing")
     if state.ui_mode == "PALETTE":
         return dispatch_command_palette_input(state, key=key, character=character)

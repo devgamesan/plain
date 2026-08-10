@@ -191,7 +191,7 @@ Bulk rename opens with `Base name` active. Entering a base name fills the review
 | `Ctrl+V` | Paste clipboard text into the Base name |
 | `Esc` | Close the overlay and discard the draft |
 
-There is only one keyboard input field in this mode, so `Tab` / `Shift+Tab` do not move focus to the action buttons. The buttons remain available for mouse users.
+There is only one keyboard input field in this mode, so `Tab` / `Shift+Tab` do not move focus to another control.
 
 ---
 

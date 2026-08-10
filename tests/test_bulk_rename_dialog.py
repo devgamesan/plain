@@ -28,9 +28,3 @@ def test_bulk_rename_focus_marker_is_visible_for_base_name() -> None:
     rendered = BulkRenameDialog._render_field("Base name", "project", True)
 
     assert rendered.plain == "> Base name: project_"
-
-
-def test_bulk_rename_action_buttons_do_not_join_native_focus_order() -> None:
-    button = BulkRenameDialog._action_button("Rename items", "bulk-rename-apply")
-
-    assert button.can_focus is False

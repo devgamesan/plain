@@ -5,7 +5,7 @@ from zivo.models import BulkRenameTarget
 from zivo.state.actions import BeginBulkRename
 
 
-async def test_bulk_rename_uses_base_name_and_central_focus_cycle(tmp_path: Path) -> None:
+async def test_bulk_rename_uses_base_name_and_shows_input_hint(tmp_path: Path) -> None:
     (tmp_path / "a.txt").write_text("a")
     (tmp_path / "b.md").write_text("b")
 
@@ -29,6 +29,10 @@ async def test_bulk_rename_uses_base_name_and_central_focus_cycle(tmp_path: Path
         assert not dialog.query("#bulk-rename-find")
         assert not dialog.query("#bulk-rename-replace")
         assert not dialog.query("#bulk-rename-replace-action")
+        assert not dialog.query("#bulk-rename-actions")
+        assert str(app.query_one("#bulk-rename-hint").renderable) == (
+            "  enter apply | esc cancel"
+        )
         assert app._app_state.bulk_rename is not None
         assert app._app_state.bulk_rename.active_field == "base_name"
         assert "> Base name: _" in app.query_one(

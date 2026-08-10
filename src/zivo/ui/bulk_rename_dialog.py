@@ -1,22 +1,14 @@
 """Overlay for reviewing a generated bulk rename plan."""
 
 from rich.text import Text
-from textual.containers import Container, Horizontal
-from textual.message import Message
-from textual.widgets import Button, Static
+from textual.containers import Container
+from textual.widgets import Static
 
 from zivo.models import BulkRenameDialogState
 
 
 class BulkRenameDialog(Container):
     """Render the old/new name table and its validation summary."""
-
-    class ActionPressed(Message):
-        """Notify the app that a dialog action was clicked."""
-
-        def __init__(self, action_id: str) -> None:
-            super().__init__()
-            self.action_id = action_id
 
     def __init__(
         self,
@@ -34,19 +26,10 @@ class BulkRenameDialog(Container):
         yield Static("", id="bulk-rename-table")
         yield Static("", id="bulk-rename-base-name")
         yield Static("", id="bulk-rename-status")
-        yield Horizontal(
-            self._action_button("Rename items", "bulk-rename-apply"),
-            self._action_button("Cancel", "bulk-rename-cancel"),
-            id="bulk-rename-actions",
-        )
+        yield Static("", id="bulk-rename-hint")
 
     def on_mount(self) -> None:
         self.set_state(self.state)
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        event.stop()
-        if event.button.id is not None:
-            self.post_message(self.ActionPressed(event.button.id))
 
     def set_state(self, state: BulkRenameDialogState | None) -> None:
         self.state = state
@@ -58,14 +41,10 @@ class BulkRenameDialog(Container):
                 "#bulk-rename-table",
                 "#bulk-rename-base-name",
                 "#bulk-rename-status",
+                "#bulk-rename-hint",
             ):
                 self.query_one(selector, Static).update("")
             return
-
-        for button_id in ("bulk-rename-apply", "bulk-rename-cancel"):
-            # Buttons remain mouse-clickable, but keyboard actions follow the
-            # same Enter/Escape convention as the other input dialogs.
-            self.query_one(f"#{button_id}", Button).can_focus = False
 
         self.query_one("#bulk-rename-title", Static).update(state.title)
         self.query_one("#bulk-rename-summary", Static).update(state.summary)
@@ -79,15 +58,7 @@ class BulkRenameDialog(Container):
         )
         status = state.progress or state.result_message or state.error_message or ""
         self.query_one("#bulk-rename-status", Static).update(status)
-        self.query_one("#bulk-rename-apply", Button).disabled = not state.apply_enabled
-
-    @staticmethod
-    def _action_button(label: str, button_id: str) -> Button:
-        button = Button(label, id=button_id)
-        # Tab/Enter are dispatched centrally, so these buttons must not
-        # participate in Textual's independent DOM focus traversal.
-        button.can_focus = False
-        return button
+        self.query_one("#bulk-rename-hint", Static).update("  enter apply | esc cancel")
 
     @staticmethod
     def _render_rows(state: BulkRenameDialogState) -> Text:

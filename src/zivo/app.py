@@ -88,10 +88,8 @@ from zivo.state import (
 from zivo.state.actions import (
     Action,
     ActivateTabByIndex,
-    ApplyBulkRename,
     BeginConfigEditor,
     BeginCreateInput,
-    CancelBulkRename,
     CancelFilterInput,
     CloseTabByIndex,
     EnterCursorDirectory,
@@ -495,19 +493,6 @@ class zivoApp(App[None]):
                 )
                 if entry is not None and entry.kind == "dir":
                     await self._open_or_enter_path(entry_path)
-
-    async def on_bulk_rename_dialog_action_pressed(
-        self, message: BulkRenameDialog.ActionPressed
-    ) -> None:
-        """Dispatch mouse actions from the bulk rename dialog."""
-
-        actions = {
-            "bulk-rename-apply": ApplyBulkRename(),
-            "bulk-rename-cancel": CancelBulkRename(),
-        }
-        action = actions.get(message.action_id)
-        if action is not None:
-            await self.dispatch_actions((action,))
 
     async def on_main_pane_entry_clicked(self, message: MainPane.EntryClicked) -> None:
         """Handle bubbled click messages from the center / transfer panes."""

@@ -1,6 +1,9 @@
 """Undo execution service for reversible file operations."""
 
+import os
+import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 from time import sleep
 from typing import Mapping, Protocol
 
@@ -36,6 +39,8 @@ class LiveUndoService:
             return self._undo_move(entry, message_prefix="Undid move")
         if entry.kind == "trash_delete":
             return self._undo_trash(entry)
+        if entry.kind == "bulk_rename":
+            return self._undo_bulk_rename(entry)
         return self._undo_move(entry, message_prefix="Undid rename")
 
     def _undo_copy(self, entry: UndoEntry) -> UndoResult:
@@ -103,6 +108,91 @@ class LiveUndoService:
             failures=failures,
         )
 
+    def _undo_bulk_rename(self, entry: UndoEntry) -> UndoResult:
+        """Undo all rename steps through temporary names so swaps are safe."""
+
+        steps = tuple(step for step in entry.steps if isinstance(step, UndoMovePathStep))
+        staged: dict[int, str] = {}
+        reserved = {
+            _path_key(step.source_path) for step in steps
+        } | {
+            _path_key(step.destination_path) for step in steps
+        }
+        failures: list[str] = []
+        for index, step in enumerate(steps):
+            temporary = _bulk_undo_temp_path(Path(step.source_path).parent, reserved)
+            try:
+                self.adapter.move_path(step.source_path, temporary)
+            except OSError as error:
+                failures.append(str(error) or f"Failed to stage {step.source_path}")
+                break
+            staged[index] = temporary
+
+        if failures:
+            for index in reversed(tuple(staged)):
+                try:
+                    self.adapter.move_path(staged[index], steps[index].source_path)
+                except OSError as error:
+                    failures.append(str(error) or f"Failed to restore {steps[index].source_path}")
+            return _result_from_changes(
+                success_count=0,
+                total_count=len(steps),
+                singular_message="Undid rename",
+                plural_message="Undid renames",
+                path=None,
+                failures=failures,
+            )
+
+        restored_paths: list[str] = []
+        finalized: list[int] = []
+        for index, step in enumerate(steps):
+            try:
+                self.adapter.move_path(staged[index], step.destination_path)
+            except OSError as error:
+                failures.append(str(error) or f"Failed to restore {step.destination_path}")
+                for finalized_index in reversed(finalized):
+                    finalized_step = steps[finalized_index]
+                    try:
+                        self.adapter.move_path(
+                            finalized_step.destination_path,
+                            staged[finalized_index],
+                        )
+                    except OSError as rollback_error:
+                        failures.append(
+                            str(rollback_error)
+                            or f"Failed to roll back {finalized_step.destination_path}"
+                        )
+                for staged_index in reversed(tuple(staged)):
+                    try:
+                        self.adapter.move_path(
+                            staged[staged_index],
+                            steps[staged_index].source_path,
+                        )
+                    except OSError as rollback_error:
+                        failures.append(
+                            str(rollback_error)
+                            or f"Failed to restore {steps[staged_index].source_path}"
+                        )
+                return _result_from_changes(
+                    success_count=0,
+                    total_count=len(steps),
+                    singular_message="Undid rename",
+                    plural_message="Undid renames",
+                    path=None,
+                    failures=failures,
+                )
+            else:
+                restored_paths.append(step.destination_path)
+                finalized.append(index)
+        return _result_from_changes(
+            success_count=len(restored_paths),
+            total_count=len(steps),
+            singular_message="Undid rename",
+            plural_message="Undid renames",
+            path=restored_paths[0] if restored_paths else None,
+            failures=failures,
+        )
+
 
 @dataclass(frozen=True)
 class FakeUndoService:
@@ -153,3 +243,17 @@ def _result_from_changes(
         message=noun if success_count == 1 else f"{noun} ({success_count} items)",
         removed_paths=removed_paths,
     )
+
+
+def _path_key(path: str) -> str:
+    return os.path.normcase(os.path.abspath(path)).casefold()
+
+
+def _bulk_undo_temp_path(parent: Path, reserved: set[str]) -> str:
+    for _ in range(100):
+        candidate = str(parent / f".zivo-undo-rename-{uuid.uuid4().hex}")
+        key = _path_key(candidate)
+        if key not in reserved and not os.path.lexists(candidate):
+            reserved.add(key)
+            return candidate
+    raise OSError("Could not allocate a temporary undo path")

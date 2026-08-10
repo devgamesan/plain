@@ -27,6 +27,7 @@ from zivo.state import (
     RunAttributeInspectionEffect,
     RunConfigSaveEffect,
     RunCustomActionEffect,
+    RunDuplicateEffect,
     RunExternalLaunchEffect,
     TransferPaneState,
     build_initial_app_state,
@@ -37,8 +38,10 @@ from zivo.state.actions import (
     AttributeInspectionLoaded,
     BeginBookmarkSearch,
     BeginCommandPalette,
+    BeginGo,
     BeginGoToPath,
     BeginHistorySearch,
+    BrowserSnapshotFailed,
     CancelCommandPalette,
     ConfirmCustomAction,
     DismissAttributeDialog,
@@ -50,6 +53,8 @@ from zivo.state.actions import (
     SubmitCommandPalette,
     ToggleTransferMode,
 )
+from zivo.state.command_palette import parse_go_query, select_go_candidates
+from zivo.state.natural_sort import natural_sort_key
 from zivo.windows_paths import WINDOWS_DRIVES_ROOT
 
 
@@ -94,6 +99,25 @@ def test_begin_command_palette_keeps_current_cursor_path() -> None:
 
     assert next_state.current_pane.cursor_path == "/home/tadashi/develop/zivo/tests"
 
+
+def test_submit_command_palette_toggles_narrow_details_view() -> None:
+    state = _reduce_state(
+        replace(build_initial_app_state(), terminal_width=72),
+        BeginCommandPalette(),
+    )
+    assert state.command_palette is not None
+    items = command_palette_module.get_command_palette_items(state)
+    item_index = next(
+        index for index, item in enumerate(items) if item.id == "toggle_narrow_pane_view"
+    )
+    state = replace(state, command_palette=replace(state.command_palette, cursor_index=item_index))
+
+    next_state = _reduce_state(state, SubmitCommandPalette())
+
+    assert next_state.ui_mode == "BROWSING"
+    assert next_state.command_palette is None
+    assert next_state.narrow_pane_view == "details"
+
 def test_move_command_palette_cursor_clamps_to_visible_commands() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
 
@@ -112,19 +136,32 @@ def test_set_command_palette_query_resets_cursor() -> None:
     assert next_state.command_palette.query == "dir"
     assert next_state.command_palette.cursor_index == 0
 
-def test_submit_command_palette_runs_create_file_flow() -> None:
+def test_submit_command_palette_runs_unified_create_flow() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("create file"))
+    state = _reduce_state(state, SetCommandPaletteQuery("create"))
 
     next_state = _reduce_state(state, SubmitCommandPalette())
 
     assert next_state.ui_mode == "CREATE"
     assert next_state.command_palette is None
     assert next_state.pending_input == PendingInputState(
-        prompt="New file: ",
+        prompt="Name or path: ",
         value="",
         create_kind="file",
     )
+
+
+def test_submit_duplicate_command_starts_duplicate_effect() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("duplicate"))
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+    next_state = result.state
+
+    assert next_state.ui_mode == "BUSY"
+    assert next_state.command_palette is None
+    assert next_state.pending_duplicate_request_id == 1
+    assert isinstance(result.effects[0], RunDuplicateEffect)
 
 
 def test_custom_action_single_file_appears_in_command_palette() -> None:
@@ -328,11 +365,13 @@ def test_begin_history_search_with_empty_history() -> None:
     assert next_state.command_palette.source == "history"
     assert next_state.command_palette.history_and_navigation.history_results == ()
 
-def test_begin_bookmark_search_enters_bookmarks_mode() -> None:
+def test_begin_bookmark_search_enters_bookmarks_filtered_go_mode() -> None:
     next_state = _reduce_state(build_initial_app_state(), BeginBookmarkSearch())
 
     assert next_state.ui_mode == "PALETTE"
-    assert next_state.command_palette == CommandPaletteState(source="bookmarks")
+    assert next_state.command_palette is not None
+    assert next_state.command_palette.source == "go"
+    assert next_state.command_palette.history_and_navigation.go_source_filter == "bookmarks"
 
 def test_begin_go_to_path_enters_palette_mode() -> None:
     next_state = _reduce_state(build_initial_app_state(), BeginGoToPath())
@@ -451,8 +490,8 @@ def test_submit_command_palette_opens_new_tab_in_transfer_mode() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="commands",
-            query="",
-            cursor_index=7,  # new_tab
+            query="new tab",
+            cursor_index=0,
         ),
     )
 
@@ -488,8 +527,8 @@ def test_submit_command_palette_closes_current_tab_in_transfer_mode() -> None:
         ui_mode="PALETTE",
         command_palette=CommandPaletteState(
             source="commands",
-            query="",
-            cursor_index=10,  # close_current_tab
+            query="close current tab",
+            cursor_index=0,
         ),
     )
 
@@ -663,7 +702,7 @@ def test_set_command_palette_query_shows_root_directory_candidates_for_slash() -
                 for child in Path("/").iterdir()
                 if child.is_dir()
             ),
-            key=lambda path: (Path(path).name.casefold(), path),
+            key=lambda path: (natural_sort_key(Path(path).name), path),
         )
     )
 
@@ -796,7 +835,7 @@ def test_set_command_palette_query_updates_windows_drive_candidates(monkeypatch)
 
 def test_submit_command_palette_runs_copy_path_flow() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("copy"))
+    state = _reduce_state(state, SetCommandPaletteQuery("copy path"))
 
     result = reduce_app_state(state, SubmitCommandPalette())
 
@@ -936,17 +975,17 @@ def test_submit_command_palette_opens_current_directory_with_terminal() -> None:
         ),
     )
 
-def test_submit_command_palette_begins_history_search() -> None:
+def test_submit_command_palette_begins_go_search() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("history search"))
+    state = _reduce_state(state, SetCommandPaletteQuery("go"))
 
     result = reduce_app_state(state, SubmitCommandPalette())
 
     assert result.state.ui_mode == "PALETTE"
     assert result.state.command_palette is not None
-    assert result.state.command_palette.source == "history"
+    assert result.state.command_palette.source == "go"
 
-def test_submit_command_palette_begins_bookmark_search() -> None:
+def test_submit_command_palette_does_not_expose_legacy_bookmark_search() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
     state = _reduce_state(state, SetCommandPaletteQuery("show bookmarks"))
 
@@ -954,7 +993,133 @@ def test_submit_command_palette_begins_bookmark_search() -> None:
 
     assert result.state.ui_mode == "PALETTE"
     assert result.state.command_palette is not None
-    assert result.state.command_palette.source == "bookmarks"
+    assert result.state.notification is not None
+    assert result.state.notification.level == "warning"
+
+
+def test_command_palette_exposes_one_unified_go_command() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+
+    item_ids = {item.id for item in command_palette_module.get_command_palette_items(state)}
+
+    assert "go" in item_ids
+    assert not item_ids.intersection({"history_search", "bookmark_search", "go_to_path"})
+
+
+def test_go_candidates_merge_bookmark_and_recent_sources(tmp_path) -> None:
+    bookmarked = tmp_path / "bookmarked"
+    recent = tmp_path / "recent"
+    bookmarked.mkdir()
+    recent.mkdir()
+    state = replace(
+        build_initial_app_state(
+            config=AppConfig(bookmarks=BookmarkConfig(paths=(str(bookmarked),)))
+        ),
+        history=HistoryState(visited_all=(str(recent), str(bookmarked))),
+    )
+
+    candidates = select_go_candidates(state)
+
+    merged = next(candidate for candidate in candidates if candidate.path == str(bookmarked))
+    assert merged.sources == ("bookmark", "recent")
+    assert next(candidate.path for candidate in candidates if candidate.path == str(recent)) == str(
+        recent
+    )
+
+
+def test_go_query_promotes_existing_direct_path(tmp_path) -> None:
+    destination = tmp_path / "destination"
+    destination.mkdir()
+    state = _reduce_state(build_initial_app_state(), BeginGo())
+    state = _reduce_state(state, SetCommandPaletteQuery(str(destination)))
+
+    items = command_palette_module.get_command_palette_items(state)
+
+    assert items
+    assert items[0].id == "go_direct"
+    assert items[0].path == str(destination.resolve())
+
+
+def test_go_view_announces_source_filters() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginGo())
+
+    view = select_command_palette_state(state)
+
+    assert view is not None
+    assert view.footer_message is not None
+    assert "@bookmark" in view.footer_message
+    assert "@history" in view.footer_message
+
+
+def test_bookmark_go_view_updates_filter_announcement_from_query() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginBookmarkSearch())
+    state = _reduce_state(state, SetCommandPaletteQuery("@history"))
+
+    view = select_command_palette_state(state)
+
+    assert view is not None
+    assert view.title == "Go — Recent"
+    assert view.footer_message == "Recent filter active | type to search, Enter go"
+
+
+def test_bookmark_go_query_activates_open_tab_after_filter_override() -> None:
+    from zivo.state.models import browser_tab_from_app_state
+
+    state = build_initial_app_state()
+    active_tab = replace(browser_tab_from_app_state(state), current_path="/tmp/current")
+    other_tab = replace(browser_tab_from_app_state(state), current_path="/tmp/other")
+    state = replace(state, current_path="/tmp/current", browser_tabs=(active_tab, other_tab))
+    state = _reduce_state(state, BeginBookmarkSearch())
+    state = _reduce_state(state, SetCommandPaletteQuery("@tab"))
+    state = _reduce_state(state, MoveCommandPaletteCursor(1))
+
+    result = _reduce_state(state, SubmitCommandPalette())
+
+    assert result.active_tab_index == 1
+    assert result.current_path == "/tmp/other"
+
+
+def test_go_query_supports_source_filters(tmp_path) -> None:
+    bookmarked = tmp_path / "bookmarked"
+    recent = tmp_path / "recent"
+    bookmarked.mkdir()
+    recent.mkdir()
+    state = replace(
+        build_initial_app_state(
+            config=AppConfig(bookmarks=BookmarkConfig(paths=(str(bookmarked),)))
+        ),
+        history=HistoryState(visited_all=(str(recent),)),
+    )
+
+    assert parse_go_query("@history") == ("recent", "")
+    assert parse_go_query("@bookmark book") == ("bookmarks", "book")
+    recent_candidates = select_go_candidates(state, query="@history")
+    bookmark_candidates = select_go_candidates(state, query="@bookmark")
+    assert tuple(candidate.path for candidate in recent_candidates) == (str(recent),)
+    assert tuple(candidate.path for candidate in bookmark_candidates) == (str(bookmarked),)
+
+
+def test_go_navigation_error_keeps_the_go_palette_open(tmp_path) -> None:
+    destination = tmp_path / "destination"
+    destination.mkdir()
+    state = _reduce_state(build_initial_app_state(), BeginGo())
+    state = _reduce_state(state, SetCommandPaletteQuery(str(destination)))
+    submitted = _reduce_state(state, SubmitCommandPalette())
+
+    assert submitted.ui_mode == "BUSY"
+    assert submitted.command_palette is None
+    assert submitted.pending_go_palette is not None
+
+    failed = _reduce_state(
+        submitted,
+        BrowserSnapshotFailed(request_id=1, message="Permission denied", blocking=True),
+    )
+
+    assert failed.ui_mode == "PALETTE"
+    assert failed.command_palette is not None
+    assert failed.command_palette.source == "go"
+    assert failed.notification is not None
+    assert failed.notification.message == "Permission denied"
 
 def test_submit_command_palette_adds_current_directory_bookmark() -> None:
     state = _reduce_state(
@@ -1132,7 +1297,7 @@ def test_submit_command_palette_go_forward_is_unavailable_without_history() -> N
     assert result.state.command_palette is not None
     assert result.state.notification == NotificationState(
         level="warning",
-        message="Go forward is not available yet",
+        message="No directory history in this direction",
     )
 
 def test_submit_command_palette_reloads_directory() -> None:
@@ -1276,7 +1441,7 @@ def test_submit_command_palette_uses_selected_paths_for_copy_path() -> None:
         ),
     )
     state = _reduce_state(state, BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("copy"))
+    state = _reduce_state(state, SetCommandPaletteQuery("copy path"))
 
     result = reduce_app_state(state, SubmitCommandPalette())
 

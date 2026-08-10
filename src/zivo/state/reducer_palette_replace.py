@@ -25,6 +25,8 @@ from .effects import (
 from .models import (
     AppState,
     GrepSearchResultState,
+    NotificationAction,
+    NotificationDetails,
     NotificationState,
     PaneState,
     ReplacePreviewResultState,
@@ -1107,13 +1109,33 @@ def handle_text_replace_applied(
 ) -> ReduceResult:
     if action.request_id != state.pending_replace_apply_request_id:
         return finalize(state)
+    partial = action.result.cancelled or bool(action.result.unprocessed_paths) or bool(
+        action.result.skipped_paths
+    )
+    details = NotificationDetails(
+        failure_count=0,
+        skipped_count=len(action.result.skipped_paths),
+        skipped_paths=action.result.skipped_paths,
+        unprocessed_count=len(action.result.unprocessed_paths),
+        unprocessed_paths=action.result.unprocessed_paths,
+    ) if partial else None
+    result_message = action.result.message
+    if partial and "Undo unavailable" not in result_message:
+        result_message = f"{result_message}; Undo unavailable"
+    result_notification = NotificationState(
+        level=action.result.level,
+        message=result_message,
+        action=NotificationAction(action_id="notification.details", label="Details")
+        if partial
+        else None,
+        auto_dismiss=action.result.level == "info" and not partial,
+        details=details,
+    )
     next_state = replace(
         state,
         pending_replace_apply_request_id=None,
-        post_reload_notification=NotificationState(
-            level=action.result.level,
-            message=action.result.message,
-        ),
+        foreground_operation=None,
+        post_reload_notification=result_notification,
         notification=None,
     )
     from .actions import RequestBrowserSnapshot
@@ -1142,6 +1164,7 @@ def handle_text_replace_apply_failed(
         replace(
             state,
             pending_replace_apply_request_id=None,
+            foreground_operation=None,
             notification=NotificationState(level="error", message=action.message),
         )
     )

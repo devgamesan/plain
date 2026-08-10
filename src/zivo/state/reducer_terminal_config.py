@@ -9,6 +9,7 @@ from zivo.models import BookmarkConfig, ExternalLaunchRequest
 from .actions import (
     Action,
     AddBookmark,
+    BeginConfigEditor,
     BeginShellCommandInput,
     CancelShellCommandInput,
     ConfigSaveCompleted,
@@ -30,16 +31,18 @@ from .actions import (
     SetShellCommandCursor,
     SetShellCommandValue,
     SetTerminalHeight,
+    SetTerminalWidth,
     ShellCommandCompleted,
     ShellCommandFailed,
     SubmitShellCommand,
+    ToggleNarrowPaneView,
 )
 from .effects import (
     ReduceResult,
     RunConfigSaveEffect,
     RunShellCommandEffect,
 )
-from .models import AppState, NotificationState, ShellCommandState
+from .models import AppState, ConfigEditorState, NotificationState, ShellCommandState
 from .reducer_common import (
     ReducerFn,
     apply_config_to_runtime_state,
@@ -63,6 +66,25 @@ def handle_terminal_config_action(
     if handler is not None:
         return handler(state, action, reduce_state)  # type: ignore[arg-type]
     return None
+
+
+def _handle_begin_config_editor(
+    state: AppState,
+    action: BeginConfigEditor,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    return finalize(
+        replace(
+            state,
+            ui_mode="CONFIG",
+            notification=None,
+            command_palette=None,
+            pending_file_search_request_id=None,
+            pending_grep_search_request_id=None,
+            attribute_inspection=None,
+            config_editor=ConfigEditorState(path=state.config_path, draft=state.config),
+        )
+    )
 
 
 def _notification_for_shell_command(result) -> tuple[str, str]:
@@ -582,6 +604,7 @@ def _handle_config_save_completed(
             notification=NotificationState(
                 level="info",
                 message=f"Config saved: {action.path}",
+                auto_dismiss=True,
             ),
         ),
         action.config,
@@ -618,6 +641,38 @@ def _handle_set_terminal_height(
     return finalize(replace(state, terminal_height=action.height))
 
 
+def _handle_set_terminal_width(
+    state: AppState,
+    action: SetTerminalWidth,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del reduce_state
+    width = max(0, action.width)
+    if width == state.terminal_width:
+        return finalize(state)
+    next_view = state.narrow_pane_view
+    if (state.terminal_width < 80) != (width < 80):
+        next_view = "current"
+    return finalize(replace(state, terminal_width=width, narrow_pane_view=next_view))
+
+
+def _handle_toggle_narrow_pane_view(
+    state: AppState,
+    action: ToggleNarrowPaneView,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del action, reduce_state
+    if (
+        state.layout_mode != "browser"
+        or state.ui_mode != "BROWSING"
+        or state.terminal_width >= 80
+        or state.current_pane.cursor_path is None
+    ):
+        return finalize(state)
+    next_view = "details" if state.narrow_pane_view == "current" else "current"
+    return finalize(replace(state, narrow_pane_view=next_view, notification=None))
+
+
 # ---------------------------------------------------------------------------
 # Dispatch table
 # ---------------------------------------------------------------------------
@@ -625,6 +680,7 @@ def _handle_set_terminal_height(
 _TerminalConfigHandler = Callable[[AppState, Action, ReducerFn], ReduceResult]
 
 _TERMINAL_CONFIG_HANDLERS: dict[type[Action], _TerminalConfigHandler] = {
+    BeginConfigEditor: _handle_begin_config_editor,
     BeginShellCommandInput: _handle_begin_shell_command_input,
     DismissConfigEditor: _handle_dismiss_config_editor,
     CancelShellCommandInput: _handle_cancel_shell_command_input,
@@ -650,4 +706,6 @@ _TERMINAL_CONFIG_HANDLERS: dict[type[Action], _TerminalConfigHandler] = {
     ConfigSaveCompleted: _handle_config_save_completed,
     ConfigSaveFailed: _handle_config_save_failed,
     SetTerminalHeight: _handle_set_terminal_height,
+    SetTerminalWidth: _handle_set_terminal_width,
+    ToggleNarrowPaneView: _handle_toggle_narrow_pane_view,
 }

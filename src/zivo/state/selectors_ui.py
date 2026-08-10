@@ -5,6 +5,8 @@ from pathlib import Path
 
 from zivo.models import (
     AttributeDialogState,
+    BulkRenameDialogState,
+    BulkRenameRowViewState,
     CommandPaletteItemViewState,
     CommandPaletteViewState,
     ConfigDialogState,
@@ -12,12 +14,15 @@ from zivo.models import (
     HelpBarState,
     InputBarState,
     InputDialogState,
+    NotificationDetailsDialogState,
     ShellCommandDialogState,
+    StatusBarActionState,
     StatusBarState,
 )
 from zivo.platform_support import is_split_terminal_supported
 from zivo.windows_paths import is_search_workspace_path
 
+from .command_palette import parse_go_query
 from .models import AppState
 from .reducer_config import (
     CONFIG_EDITOR_CATEGORIES,
@@ -26,6 +31,7 @@ from .reducer_config import (
     config_editor_labels,
     format_config_field_value,
 )
+from .reducer_pending_input import pending_input_parent_and_target
 from .selectors_shared import (
     _build_command_palette_items_view,
     _build_file_search_input_fields,
@@ -39,7 +45,6 @@ from .selectors_shared import (
     _format_modified_label_from_timestamp,
     _format_permissions_label,
     _format_size_label,
-    _select_command_palette_window,
     _select_file_search_window,
     _select_find_replace_preview_window,
     _select_grep_search_window,
@@ -67,9 +72,91 @@ def _format_attribute_permissions_label(state: AppState) -> str:
 def select_status_bar_state(state: AppState) -> StatusBarState:
     """Return a status bar model derived from app state."""
 
+    operation = state.foreground_operation
+    if operation is not None:
+        message = operation.message
+        if operation.cancel_requested:
+            pass
+        elif operation.total is None:
+            if not message.endswith("…"):
+                message = f"{message} …"
+        elif message == "Processing..." or "/" in message:
+            message = f"{operation.kind.title()} {operation.completed}/{operation.total}"
+        else:
+            message = f"{message} {operation.completed}/{operation.total}"
+        if operation.current_path is not None:
+            message = f"{message}: {_format_operation_path(operation.current_path)}"
+        return StatusBarState(
+            message=message,
+            message_level="info",
+            action=(
+                StatusBarActionState(action_id="operation.cancel", label="Cancel")
+                if operation.cancelable and not operation.cancel_requested
+                else None
+            ),
+            notification_revision=state.notification_revision,
+            auto_dismiss=False,
+        )
+
+    notification = state.notification
     return StatusBarState(
-        message=state.notification.message if state.notification else None,
-        message_level=state.notification.level if state.notification else None,
+        message=notification.message if notification else None,
+        message_level=notification.level if notification else None,
+        action=(
+            StatusBarActionState(
+                action_id=notification.action.action_id,
+                label=notification.action.label,
+            )
+            if notification is not None and notification.action is not None
+            else None
+        ),
+        notification_revision=state.notification_revision,
+        auto_dismiss=notification.auto_dismiss if notification else False,
+    )
+
+
+def _format_operation_path(path: str) -> str:
+    """Keep operation paths useful without exposing an overly wide status line."""
+
+    try:
+        resolved = Path(path).expanduser()
+        home = Path.home()
+        if resolved == home:
+            display = "~"
+        elif resolved.is_relative_to(home):
+            display = "~/" + str(resolved.relative_to(home))
+        else:
+            display = str(resolved)
+    except (OSError, RuntimeError):
+        display = path
+    if len(display) <= 56:
+        return display
+    return f"{display[:24]}…{display[-28:]}"
+
+
+def select_notification_details_dialog_state(
+    state: AppState,
+) -> NotificationDetailsDialogState | None:
+    """Return the failure details overlay for the active notification."""
+
+    details = state.notification_details
+    if details is None:
+        return None
+    lines = [f"Failures: {details.failure_count}"]
+    if details.skipped_count:
+        lines.append(f"Skipped: {details.skipped_count}")
+    if details.unprocessed_count:
+        lines.append(f"Not processed: {details.unprocessed_count}")
+    for failure in details.failures:
+        lines.append(f"Path: {failure.path}")
+        lines.append(f"Reason: {failure.reason}")
+    for path in details.skipped_paths:
+        lines.append(f"Skipped path: {path}")
+    for path in details.unprocessed_paths:
+        lines.append(f"Not processed path: {path}")
+    return NotificationDetailsDialogState(
+        title="Notification details",
+        lines=tuple(lines),
     )
 
 
@@ -160,29 +247,41 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             )
         return HelpBarState(("type command | ↑↓ or Ctrl+j/k select | enter run | esc cancel",))
     if state.ui_mode == "BUSY":
+        operation = state.foreground_operation
+        if operation is not None:
+            if operation.cancel_requested:
+                return HelpBarState(("finishing current item",))
+            if operation.cancelable:
+                return HelpBarState(("Esc cancel",))
         return HelpBarState(("processing...",))
     if state.layout_mode == "transfer":
         from .input_transfer import TRANSFER_HELP_LINES
 
         return HelpBarState(tuple(_format_help_line(line) for line in TRANSFER_HELP_LINES))
     if is_search_workspace_path(state.current_path):
+        from .input_browsing import SEARCH_WORKSPACE_HELP_LINES
+
         return HelpBarState(
-            (
-                "enter open | e edit | / filter | s sort | . hidden | "
-                "[ ] bk/fwd | q quit",
-                "space select | c copy | z undo | ctrl+j/k prv",
-                ": palette",
-            )
+            tuple(_format_help_line(line) for line in SEARCH_WORKSPACE_HELP_LINES)
         )
     split_terminal_hint = " | t term" if is_split_terminal_supported() else ""
     from .input_browsing import BROWSING_HELP_LINES
 
+    browsing_lines = BROWSING_HELP_LINES
+    if state.terminal_width < 80 and state.current_pane.cursor_path is not None:
+        view_hint = "file-list" if state.narrow_pane_view == "details" else "details"
+        browsing_lines = (
+            BROWSING_HELP_LINES[0],
+            BROWSING_HELP_LINES[1],
+            (*BROWSING_HELP_LINES[2], ("tab", view_hint)),
+        )
+
     return HelpBarState(
         (
-            _format_help_line(BROWSING_HELP_LINES[0]),
-            f"{_format_help_line(BROWSING_HELP_LINES[1])} | ctrl+j/k prv",
-            f"{_format_help_line(BROWSING_HELP_LINES[2][:-1])}{split_terminal_hint} | "
-            f"{_format_help_line(BROWSING_HELP_LINES[2][-1:])}",
+            _format_help_line(browsing_lines[0]),
+            _format_help_line(browsing_lines[1]),
+            f"{_format_help_line(browsing_lines[2][:-1])}{split_terminal_hint} | "
+            f"{_format_help_line(browsing_lines[2][-1:])}",
         )
     )
 
@@ -238,10 +337,8 @@ def select_input_dialog_state(state: AppState) -> InputDialogState | None:
         title = "Compress"
     elif state.ui_mode == "SYMLINK":
         title = "Create Symlink"
-    elif state.pending_input.create_kind == "file":
-        title = "New File"
     else:
-        title = "New Directory"
+        title = "Create"
     details: tuple[str, ...] = ()
     if state.ui_mode in {"CHMOD", "CHOWN"}:
         target_paths = (
@@ -286,6 +383,14 @@ def select_input_dialog_state(state: AppState) -> InputDialogState | None:
             f"Recursive: {'Yes' if recursive else 'No'}",
             "Symlinks are skipped and never followed.",
         )
+    elif state.ui_mode == "CREATE":
+        parent_path, target_path = pending_input_parent_and_target(state)
+        kind = "File" if state.pending_input.create_kind == "file" else "Directory"
+        details = (
+            f"Type: {kind} (Tab to switch)",
+            f"Parent directory: {parent_path or 'Unavailable'}",
+            f"Target: {target_path or 'Enter a relative path'}",
+        )
     return InputDialogState(
         title=title,
         prompt=state.pending_input.prompt,
@@ -297,9 +402,71 @@ def select_input_dialog_state(state: AppState) -> InputDialogState | None:
             else
             "tab complete | enter apply | esc cancel"
             if state.ui_mode == "SYMLINK"
+            else "tab switch type | enter apply | esc cancel"
+            if state.ui_mode == "CREATE"
             else "enter apply | esc cancel"
         ),
         details=details,
+    )
+
+
+def select_bulk_rename_dialog_state(state: AppState) -> BulkRenameDialogState | None:
+    """Project reducer bulk rename state into the overlay view model."""
+
+    editor = state.bulk_rename
+    if editor is None:
+        return None
+    unchanged = sum(item.status == "unchanged" for item in editor.items)
+    errors = sum(
+        item.status in {"error", "failed", "recovery_failed"}
+        for item in editor.items
+    )
+    changed = sum(
+        item.status in {"ready", "renamed", "restored"}
+        for item in editor.items
+    )
+    rows = tuple(
+        BulkRenameRowViewState(
+            old_name=item.old_name,
+            new_name=item.new_name,
+            status=item.status,
+            message=item.message,
+        )
+        for item in editor.items
+    )
+    summary = f"{changed} changes · {unchanged} unchanged · {errors} errors"
+    progress = None
+    if editor.progress_total:
+        progress = (
+            f"Renaming {editor.progress_completed}/{editor.progress_total}"
+            + (f": {editor.progress_path}" if editor.progress_path else "")
+        )
+    return BulkRenameDialogState(
+        title=(
+            f"Rename {len(editor.items)} selected items"
+            if editor.result_message is None
+            else "Bulk rename result"
+        ),
+        rows=rows,
+        base_name=editor.base_name,
+        active_field=editor.active_field,
+        summary=summary,
+        error_message=(
+            "; ".join(
+                item.message
+                for item in editor.items
+                if item.status == "error" and item.message
+            )
+            or None
+        ),
+        result_message=editor.result_message,
+        apply_enabled=(
+            state.ui_mode == "BULK_RENAME"
+            and editor.result_message is None
+            and changed > 0
+            and errors == 0
+        ),
+        progress=progress,
     )
 
 
@@ -462,6 +629,35 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             empty_message="No directory history",
         )
 
+    if state.command_palette.source == "go":
+        source_filter = state.command_palette.history_and_navigation.go_source_filter
+        source_filter, _ = parse_go_query(state.command_palette.query, source_filter)
+        filter_title = {
+            "bookmarks": "Bookmarks",
+            "recent": "Recent",
+            "open_tabs": "Open tabs",
+            "home": "Home",
+        }.get(source_filter)
+        title = f"Go — {filter_title}" if filter_title else "Go"
+        footer_message = {
+            "all": "Filters: @bookmark @history @tab @home | arrows select, Enter go",
+            "bookmarks": "Bookmarks filter active | type to search, Enter go",
+            "recent": "Recent filter active | type to search, Enter go",
+            "open_tabs": "Open tabs filter active | type to search, Enter go",
+            "home": "Home filter active | type to search, Enter go",
+        }[source_filter]
+        return _build_command_palette_items_view(
+            state,
+            cursor_index,
+            title=title,
+            empty_message=(
+                "No bookmarks"
+                if source_filter == "bookmarks"
+                else "Type a path or destination"
+            ),
+            footer_message=footer_message,
+        )
+
     if state.command_palette.source == "bookmarks":
         return _build_command_palette_items_view(
             state,
@@ -486,12 +682,17 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
         )
 
     items = get_command_palette_items(state)
+    # Keep the complete command list in the view model so the widget can scroll
+    # to commands below the fold. Search-result palettes retain their bounded
+    # windows because those sources can contain thousands of filesystem rows.
     visible_window = compute_search_visible_window(state.terminal_height)
-    visible_items, title = _select_command_palette_window(
-        items,
-        cursor_index,
-        visible_window=visible_window,
-    )
+    visible_items = tuple(enumerate(items))
+    title = "Command Palette"
+    selected_item = items[cursor_index] if items else None
+    rendered_line_count = len(items)
+    if not state.command_palette.query.strip():
+        section_count = len({item.category for item in items})
+        rendered_line_count += section_count + max(0, section_count - 1)
     return CommandPaletteViewState(
         title=title,
         query=state.command_palette.query,
@@ -501,11 +702,19 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
                 shortcut=item.shortcut,
                 enabled=item.enabled,
                 selected=index == cursor_index,
+                command_id=item.id,
+                category=item.category,
+                disabled_reason=item.disabled_reason,
             )
             for index, item in visible_items
         ),
         empty_message="No matching commands",
-        has_more_items=len(items) > len(visible_items),
+        has_more_items=rendered_line_count > visible_window,
+        footer_message=(
+            selected_item.disabled_reason
+            if selected_item is not None and not selected_item.enabled
+            else None
+        ),
     )
 
 

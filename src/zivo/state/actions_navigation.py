@@ -34,6 +34,13 @@ class CloseCurrentTab:
 
 
 @dataclass(frozen=True)
+class CloseTabByIndex:
+    """Close a browser tab by its zero-based index."""
+
+    index: int
+
+
+@dataclass(frozen=True)
 class MoveCursor:
     """Move the cursor within a caller-provided visible path list."""
 

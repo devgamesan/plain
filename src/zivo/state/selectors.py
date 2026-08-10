@@ -2,16 +2,32 @@
 
 from dataclasses import replace
 
-from zivo.models import CurrentSummaryState, ThreePaneShellData, TransferPaneViewState
+from zivo.models import (
+    CurrentSummaryState,
+    PaneActionViewState,
+    PaneStatusViewState,
+    PathBarState,
+    ResponsivePaneLayoutState,
+    ThreePaneShellData,
+    TransferHeaderState,
+    TransferPaneViewState,
+)
 
-from .entry_state_helpers import select_visible_entry_states
-from .models import AppState, PaneState, TransferPaneId
+from .entry_state_helpers import (
+    select_transfer_target_count,
+    select_transfer_target_paths,
+    select_visible_entry_states,
+)
+from .models import AppState, PaneState, TransferPaneId, TransferPaneState
 from .selectors_panes import (
     CurrentPaneProjection as _CurrentPaneProjection,
 )
 from .selectors_panes import (
+    _format_pane_target_name,
     _project_current_pane_entries,
     _select_current_pane_entries,
+    build_pane_heading,
+    pane_accepts_navigation_input,
     select_child_entries,
     select_current_entries,
     select_current_summary_state,
@@ -43,12 +59,14 @@ from .selectors_shared import (
 )
 from .selectors_ui import (
     select_attribute_dialog_state,
+    select_bulk_rename_dialog_state,
     select_command_palette_state,
     select_config_dialog_state,
     select_conflict_dialog_state,
     select_help_bar_state,
     select_input_bar_state,
     select_input_dialog_state,
+    select_notification_details_dialog_state,
     select_shell_command_dialog_state,
     select_status_bar_state,
 )
@@ -63,6 +81,7 @@ __all__ = [
     "get_command_palette_items",
     "normalize_command_palette_cursor",
     "select_attribute_dialog_state",
+    "select_bulk_rename_dialog_state",
     "select_child_entries",
     "select_command_palette_state",
     "select_config_dialog_state",
@@ -74,14 +93,20 @@ __all__ = [
     "select_help_bar_state",
     "select_input_bar_state",
     "select_input_dialog_state",
+    "select_notification_details_dialog_state",
     "select_parent_entries",
+    "select_path_bar_state",
     "select_shell_command_dialog_state",
     "select_shell_data",
+    "select_responsive_pane_layout",
     "select_single_target_entry",
     "select_status_bar_state",
     "select_tab_bar_state",
     "select_target_file_paths",
     "select_target_paths",
+    "select_transfer_header_state",
+    "select_transfer_target_count",
+    "select_transfer_target_paths",
     "select_visible_current_entry_states",
 ]
 
@@ -106,9 +131,12 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         state.directory_size_delta.changed_paths,
         state.directory_size_delta.revision,
     )
+    responsive_layout = select_responsive_pane_layout(state)
+    current_status_label = _current_cursor_status_label(current_pane)
     shell = ThreePaneShellData(
         tab_bar=select_tab_bar_state(state),
         current_path=state.current_pane.directory_path,
+        path_bar=select_path_bar_state(state),
         parent_entries=select_parent_entries(state),
         current_entries=(
             _select_current_pane_entries(
@@ -126,15 +154,31 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         current_cursor_visible=state.ui_mode != "FILTER",
         current_pane_update=current_pane_update,
         current_summary=current_pane.summary,
+        current_heading=build_pane_heading(
+            "Current",
+            state.current_pane.directory_path,
+            current_pane.summary,
+            active=state.layout_mode != "transfer" and pane_accepts_navigation_input(state),
+            status_label=current_status_label,
+        ),
+        responsive_layout=responsive_layout,
+        parent_heading=_format_directory_heading(
+            "Parent",
+            state.parent_pane.directory_path,
+            len(select_parent_entries(state)),
+        ),
         current_context_input=select_input_bar_state(state),
+        current_pane_status=_select_current_pane_status(state, current_pane.visible_entries),
         help=select_help_bar_state(state),
         command_palette=select_command_palette_state(state),
         status=select_status_bar_state(state),
         conflict_dialog=select_conflict_dialog_state(state),
         attribute_dialog=select_attribute_dialog_state(state),
+        notification_details_dialog=select_notification_details_dialog_state(state),
         config_dialog=select_config_dialog_state(state),
         shell_command_dialog=select_shell_command_dialog_state(state),
         input_dialog=select_input_dialog_state(state),
+        bulk_rename_dialog=select_bulk_rename_dialog_state(state),
     )
     if state.layout_mode != "transfer":
         return shell
@@ -152,9 +196,118 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         shell,
         layout_mode="transfer",
         current_path=transfer_current_path,
+        path_bar=PathBarState(
+            path=transfer_current_path,
+            show_history_controls=False,
+        ),
+        transfer_header=select_transfer_header_state(state),
         transfer_left=_select_transfer_pane(state, "left"),
         transfer_right=_select_transfer_pane(state, "right"),
     )
+
+
+def select_path_bar_state(state: AppState) -> PathBarState:
+    """Build the path bar state without exposing reducer details to the UI."""
+
+    return PathBarState(
+        path=state.current_pane.directory_path,
+        can_go_back=bool(state.history.back),
+        can_go_forward=bool(state.history.forward),
+        show_history_controls=state.layout_mode != "transfer",
+    )
+
+
+def select_responsive_pane_layout(state: AppState) -> ResponsivePaneLayoutState:
+    """Return pane visibility from terminal width without changing browser state."""
+
+    if state.layout_mode == "transfer":
+        return ResponsivePaneLayoutState(
+            width_class=_pane_width_class(state.terminal_width),
+            show_parent=False,
+            show_current=True,
+            show_child=False,
+        )
+
+    width_class = _pane_width_class(state.terminal_width)
+    if width_class == "wide":
+        return ResponsivePaneLayoutState(
+            width_class=width_class,
+            show_parent=True,
+            show_current=True,
+            show_child=True,
+        )
+    if width_class == "medium":
+        return ResponsivePaneLayoutState(
+            width_class=width_class,
+            show_parent=False,
+            show_current=True,
+            show_child=True,
+        )
+
+    show_details = (
+        state.narrow_pane_view == "details"
+        and state.ui_mode != "FILTER"
+        and state.current_pane.cursor_path is not None
+    )
+    return ResponsivePaneLayoutState(
+        width_class=width_class,
+        show_parent=False,
+        show_current=not show_details,
+        show_child=show_details,
+        narrow_view="details" if show_details else "current",
+    )
+
+
+def _pane_width_class(width: int) -> str:
+    if width >= 120:
+        return "wide"
+    if width >= 80:
+        return "medium"
+    return "narrow"
+
+
+def _current_cursor_status_label(projection: _CurrentPaneProjection) -> str | None:
+    if projection.cursor_entry is None:
+        return None
+    try:
+        index = projection.visible_entries.index(projection.cursor_entry)
+    except ValueError:
+        return None
+    return f"{index + 1}/{len(projection.visible_entries)}"
+
+
+def _format_directory_heading(role: str, path: str, item_count: int) -> str:
+    return f"{role} · {_format_pane_target_name(path)} · {item_count} items"
+
+
+def _select_current_pane_status(
+    state: AppState,
+    visible_entries,
+) -> PaneStatusViewState | None:
+    if (
+        state.pending_browser_snapshot_request_id is not None
+        and not state.current_pane.entries
+    ):
+        return PaneStatusViewState(kind="loading", title="Loading directory…")
+    if visible_entries:
+        return None
+    if state.filter.query:
+        return PaneStatusViewState(
+            kind="filtered_empty",
+            title=f'No matches for "{state.filter.query}"',
+            actions=(PaneActionViewState("clear_filter", "Clear filter", "Esc"),),
+        )
+    if not state.current_pane.entries:
+        return PaneStatusViewState(
+            kind="empty",
+            title="Empty directory",
+            detail="Create a file or directory to get started",
+            actions=(
+                PaneActionViewState("create_file", "New file", "n"),
+                PaneActionViewState("create_dir", "New directory", "N"),
+            ),
+        )
+    return PaneStatusViewState(kind="empty", title="No visible items")
 
 
 def _select_transfer_pane(
@@ -166,6 +319,14 @@ def _select_transfer_pane(
         return None
     visible_entries = _select_visible_transfer_entry_states(state, transfer.pane)
     cursor_index = _find_current_cursor_index(visible_entries, transfer.pane.cursor_path)
+    summary = CurrentSummaryState(
+        item_count=len(visible_entries),
+        selected_count=len(transfer.pane.selected_paths),
+        sort_label=_format_sort_label(state.sort),
+        sort_field=state.sort.field,
+        sort_descending=state.sort.descending,
+        directories_first=state.sort.directories_first,
+    )
     return TransferPaneViewState(
         title="Left Directory" if pane_id == "left" else "Right Directory",
         path=transfer.current_path,
@@ -176,14 +337,22 @@ def _select_transfer_pane(
             transfer.pane.selected_paths,
             frozenset() if state.clipboard.mode != "cut" else frozenset(state.clipboard.paths),
         ),
-        summary=CurrentSummaryState(
-            item_count=len(visible_entries),
-            selected_count=len(transfer.pane.selected_paths),
-            sort_label=_format_sort_label(state.sort),
-        ),
+        summary=summary,
         cursor_index=cursor_index,
         cursor_visible=state.ui_mode != "FILTER",
-        active=state.active_transfer_pane == pane_id,
+        active=state.active_transfer_pane == pane_id and pane_accepts_navigation_input(state),
+        heading=build_pane_heading(
+            "Left" if pane_id == "left" else "Right",
+            transfer.current_path,
+            summary,
+            active=state.active_transfer_pane == pane_id
+            and pane_accepts_navigation_input(state),
+            status_label=(
+                f"{cursor_index + 1}/{len(visible_entries)}"
+                if cursor_index is not None
+                else None
+            ),
+        ),
     )
 
 
@@ -198,6 +367,38 @@ def _select_visible_transfer_entry_states(
         "",
         False,
         state.sort,
+    )
+
+
+def _select_active_transfer_pane(state: AppState) -> TransferPaneState | None:
+    return state.transfer_left if state.active_transfer_pane == "left" else state.transfer_right
+
+
+def _opposite_transfer_pane_id(pane_id: TransferPaneId) -> TransferPaneId:
+    return "right" if pane_id == "left" else "left"
+
+
+def select_transfer_header_state(state: AppState) -> TransferHeaderState | None:
+    """Build the transfer direction/source/destination/count summary."""
+
+    if state.layout_mode != "transfer":
+        return None
+    active = _select_active_transfer_pane(state)
+    opposite = (
+        state.transfer_right
+        if state.active_transfer_pane == "left"
+        else state.transfer_left
+    )
+    if active is None or opposite is None:
+        return None
+    target_count = select_transfer_target_count(state)
+    return TransferHeaderState(
+        source_side=state.active_transfer_pane,
+        source_path=active.current_path,
+        destination_path=opposite.current_path,
+        selected_count=len(active.pane.selected_paths),
+        target_count=target_count,
+        has_target=target_count > 0,
     )
 
 

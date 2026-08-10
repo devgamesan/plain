@@ -35,6 +35,34 @@ class SearchRuntimeConfig:
     tracking: TrackingConfig
 
 
+def start_foreground_operation(app: Any, operation_id: int) -> threading.Event:
+    """Create the cooperative cancel event for the active foreground operation."""
+
+    event = threading.Event()
+    app._foreground_operation_cancel_event = event
+    app._foreground_operation_id = operation_id
+    return event
+
+
+def request_foreground_operation_cancel(app: Any, operation_id: int) -> None:
+    """Set the cancel flag when it still belongs to the requested operation."""
+
+    if getattr(app, "_foreground_operation_id", None) != operation_id:
+        return
+    event = getattr(app, "_foreground_operation_cancel_event", None)
+    if event is not None:
+        event.set()
+
+
+def clear_foreground_operation(app: Any, operation_id: int) -> None:
+    """Release foreground operation tracking after a terminal result."""
+
+    if getattr(app, "_foreground_operation_id", None) != operation_id:
+        return
+    app._foreground_operation_cancel_event = None
+    app._foreground_operation_id = None
+
+
 CompleteActionHandler = Callable[[Effect, object], tuple[Any, ...]]
 FailureActionHandler = Callable[[Effect, BaseException | None, str], tuple[Any, ...]]
 

@@ -1,16 +1,22 @@
 """Preview and apply text replacement across selected files."""
 
 import difflib
+import os
 import re
+import stat
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
 from zivo.models import (
+    OperationCancelCallback,
+    OperationProgressCallback,
     TextReplacePreviewEntry,
     TextReplacePreviewResult,
     TextReplaceRequest,
     TextReplaceResult,
+    emit_operation_progress,
 )
 
 _REGEX_QUERY_PREFIX = "re:"
@@ -21,7 +27,13 @@ class TextReplaceService(Protocol):
 
     def preview(self, request: TextReplaceRequest) -> TextReplacePreviewResult: ...
 
-    def apply(self, request: TextReplaceRequest) -> TextReplaceResult: ...
+    def apply(
+        self,
+        request: TextReplaceRequest,
+        *,
+        progress_callback: OperationProgressCallback | None = None,
+        cancel_callback: OperationCancelCallback | None = None,
+    ) -> TextReplaceResult: ...
 
 
 class InvalidTextReplaceQueryError(ValueError):
@@ -45,9 +57,21 @@ class LiveTextReplaceService:
             skipped_paths=result.skipped_paths,
         )
 
-    def apply(self, request: TextReplaceRequest) -> TextReplaceResult:
+    def apply(
+        self,
+        request: TextReplaceRequest,
+        *,
+        progress_callback: OperationProgressCallback | None = None,
+        cancel_callback: OperationCancelCallback | None = None,
+    ) -> TextReplaceResult:
         matcher = _compile_pattern(request.find_text)
-        result = _apply_replacements(request, matcher, self.encoding)
+        result = _apply_replacements(
+            request,
+            matcher,
+            self.encoding,
+            progress_callback=progress_callback,
+            cancel_callback=cancel_callback,
+        )
 
         file_count = len(result.changed_paths)
         skipped_count = len(result.skipped_paths)
@@ -56,6 +80,13 @@ class LiveTextReplaceService:
         if skipped_count:
             level = "warning"
             message += f"; skipped {skipped_count} unreadable file(s)"
+        message += "; Undo unavailable"
+        if result.cancelled:
+            level = "warning"
+            message = (
+                f"Replacement cancelled after {file_count} file(s); "
+                f"{len(result.unprocessed_paths)} not processed; Undo unavailable"
+            )
         return TextReplaceResult(
             request=request,
             changed_paths=result.changed_paths,
@@ -63,6 +94,8 @@ class LiveTextReplaceService:
             message=message,
             level=level,
             skipped_paths=result.skipped_paths,
+            cancelled=result.cancelled,
+            unprocessed_paths=result.unprocessed_paths,
         )
 
 
@@ -79,6 +112,8 @@ class _ApplyReplacementResult:
     changed_paths: tuple[str, ...]
     total_match_count: int
     skipped_paths: tuple[str, ...]
+    cancelled: bool = False
+    unprocessed_paths: tuple[str, ...] = ()
 
 
 def _preview_replacements(
@@ -125,28 +160,48 @@ def _apply_replacements(
     request: TextReplaceRequest,
     matcher: "_PatternMatcher",
     encoding: str,
+    *,
+    progress_callback: OperationProgressCallback | None = None,
+    cancel_callback: OperationCancelCallback | None = None,
 ) -> _ApplyReplacementResult:
     changed_paths: list[str] = []
     skipped_paths: list[str] = []
     total_match_count = 0
+    processed_count = 0
 
-    for raw_path in request.paths:
+    for index, raw_path in enumerate(request.paths):
+        if cancel_callback is not None and cancel_callback():
+            return _ApplyReplacementResult(
+                changed_paths=tuple(changed_paths),
+                total_match_count=total_match_count,
+                skipped_paths=tuple(skipped_paths),
+                cancelled=True,
+                unprocessed_paths=tuple(request.paths[index:]),
+            )
         path = Path(raw_path)
         try:
             original = path.read_text(encoding=encoding)
         except (OSError, UnicodeDecodeError):
             skipped_paths.append(str(path))
+            processed_count += 1
+            _report_progress(progress_callback, processed_count, len(request.paths), str(path))
             continue
 
         replaced, match_count = matcher.replace(original, request.replace_text)
         if match_count <= 0:
+            processed_count += 1
+            _report_progress(progress_callback, processed_count, len(request.paths), str(path))
             continue
         if _find_first_changed_line(original, replaced) is None:
             skipped_paths.append(str(path))
+            processed_count += 1
+            _report_progress(progress_callback, processed_count, len(request.paths), str(path))
             continue
-        path.write_text(replaced, encoding=encoding)
+        _write_text_atomically(path, replaced, encoding)
         changed_paths.append(str(path))
         total_match_count += match_count
+        processed_count += 1
+        _report_progress(progress_callback, processed_count, len(request.paths), str(path))
 
     changed_paths.sort(key=str.casefold)
     return _ApplyReplacementResult(
@@ -183,10 +238,26 @@ class FakeTextReplaceService:
             ),
         )
 
-    def apply(self, request: TextReplaceRequest) -> TextReplaceResult:
+    def apply(
+        self,
+        request: TextReplaceRequest,
+        *,
+        progress_callback: OperationProgressCallback | None = None,
+        cancel_callback: OperationCancelCallback | None = None,
+    ) -> TextReplaceResult:
         self.apply_requests.append(request)
         if request in self.apply_failures:
             raise OSError(self.apply_failures[request])
+        if cancel_callback is not None and cancel_callback() and request.paths:
+            return TextReplaceResult(
+                request=request,
+                changed_paths=(),
+                total_match_count=0,
+                message="Replacement cancelled",
+                level="warning",
+                cancelled=True,
+                unprocessed_paths=request.paths,
+            )
         return self.apply_results.get(
             request,
             TextReplaceResult(
@@ -271,3 +342,33 @@ def _build_unified_diff(
             lineterm="\n",
         )
     )
+
+
+def _write_text_atomically(path: Path, text: str, encoding: str) -> None:
+    """Write replacement content beside the target, then replace atomically."""
+
+    target_path = path.resolve() if path.is_symlink() else path
+    file_descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{target_path.name}.zivo-",
+        dir=str(target_path.parent),
+    )
+    os.close(file_descriptor)
+    temporary_path = Path(temporary_name)
+    try:
+        temporary_path.write_text(text, encoding=encoding)
+        if target_path.exists() and not target_path.is_symlink():
+            temporary_path.chmod(stat.S_IMODE(target_path.stat().st_mode))
+        os.replace(temporary_path, target_path)
+    except BaseException:
+        temporary_path.unlink(missing_ok=True)
+        raise
+
+
+def _report_progress(
+    callback: OperationProgressCallback | None,
+    completed: int,
+    total: int,
+    current_path: str | None,
+) -> None:
+    if callback is not None:
+        emit_operation_progress(callback, completed, total, current_path)

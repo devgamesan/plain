@@ -15,7 +15,7 @@ Screen {
 .pane {
     height: 1fr;
     min-width: 20;
-    border: round $surface;
+    border: round $panel;
     background: $boost;
 }
 
@@ -26,6 +26,7 @@ Screen {
 .main-pane {
     width: 2.2fr;
     min-width: 44;
+    layers: content status;
 }
 
 .transfer-pane {
@@ -36,15 +37,37 @@ Screen {
     border: heavy $accent;
 }
 
+.active-pane {
+    border: heavy $accent;
+}
+
+.browser-active-pane {
+    border: round $accent;
+}
+
 #child-pane {
     width: 2.2fr;
 }
 
 .pane-title {
     height: 1;
+    width: 1fr;
     padding: 0 1;
     background: $surface;
     color: $text-muted;
+    text-style: bold;
+    overflow: hidden;
+}
+
+.active-pane .pane-title {
+    background: $accent;
+    color: $text;
+    text-style: bold;
+}
+
+.browser-active-pane .pane-title {
+    background: $surface;
+    color: $accent;
     text-style: bold;
 }
 
@@ -56,6 +79,12 @@ Screen {
 
 .pane-table {
     scrollbar-size: 0 0;
+    layer: content;
+}
+
+.pane-content {
+    height: 1fr;
+    layers: content status;
 }
 
 .pane-preview {
@@ -67,15 +96,42 @@ Screen {
     scrollbar-size: 1 1;
 }
 
+.pane-preview-help {
+    height: 1;
+    padding: 0 1;
+    background: $surface;
+    color: $text-muted;
+}
+
+.pane-metadata-bar {
+    height: 1;
+    width: 1fr;
+    padding: 0 1;
+    background: $surface;
+    color: $text-muted;
+    overflow: hidden;
+}
+
+.pane-status {
+    layer: status;
+    height: 1fr;
+    width: 1fr;
+    padding: 1 2;
+    background: $boost;
+    color: $text;
+}
+
 .pane-entry {
     padding: 0 1;
 }
 
 .pane-summary {
     height: 1;
+    width: 1fr;
     padding: 0 1;
     background: $surface;
     color: $text;
+    overflow: hidden;
 }
 
 #tab-bar,
@@ -103,6 +159,14 @@ Screen {
 #current-path-bar {
     background: $boost;
     color: $text;
+    text-style: bold;
+}
+
+#transfer-header {
+    height: 1;
+    padding: 0 1;
+    background: $surface;
+    color: $accent;
     text-style: bold;
 }
 
@@ -135,13 +199,18 @@ Screen {
     margin: 0 0 1 0;
 }
 
-#command-palette-items {
+#command-palette-items-scroll {
     height: auto;
     max-height: 1fr;
+    scrollbar-size-vertical: 1;
 }
 
-#command-palette.-expanded #command-palette-items {
+#command-palette.-expanded #command-palette-items-scroll {
     height: 1fr;
+}
+
+#command-palette-items {
+    height: auto;
 }
 
 #status-bar {
@@ -176,6 +245,40 @@ Screen {
 
 #input-dialog-layer {
     align-horizontal: center;
+}
+
+#bulk-rename-dialog {
+    width: 1fr;
+    max-width: 110;
+    height: auto;
+    max-height: 1fr;
+    margin: 1 2;
+    padding: 1 2;
+    border: round $accent;
+    background: $surface;
+}
+
+#bulk-rename-title {
+    color: $accent;
+    text-style: bold;
+}
+
+#bulk-rename-summary,
+#bulk-rename-status,
+#bulk-rename-hint {
+    color: $text-muted;
+}
+
+#bulk-rename-table {
+    height: auto;
+    max-height: 1fr;
+    padding: 1 0;
+    overflow: hidden;
+}
+
+#bulk-rename-base-name {
+    height: 1;
+    padding: 0 1;
 }
 
 .dialog-layer {
@@ -231,6 +334,40 @@ Screen {
     padding: 0 1;
     background: $boost;
     color: $accent;
+    text-style: bold;
+}
+
+#notification-details-dialog {
+    display: none;
+    height: auto;
+    min-height: 8;
+    max-height: 1fr;
+    margin: 0 2;
+    padding: 1 2;
+    border: round $warning;
+    background: $surface;
+}
+
+#notification-details-title {
+    text-style: bold;
+    color: $warning;
+}
+
+#notification-details-lines {
+    width: 100%;
+}
+
+#notification-details-lines-scroll {
+    height: auto;
+    max-height: 1fr;
+    min-height: 3;
+    margin: 0 0 1 0;
+}
+
+#notification-details-options {
+    padding: 0 1;
+    background: $boost;
+    color: $warning;
     text-style: bold;
 }
 

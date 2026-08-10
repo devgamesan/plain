@@ -1,14 +1,15 @@
 """Browsing-mode key bindings and dispatcher."""
 
+from pathlib import Path
+
+from zivo.models import BulkRenameTarget
 from zivo.windows_paths import is_search_workspace_path
 
 from .actions import (
     Action,
-    ActivateNextTab,
-    ActivatePreviousTab,
-    ActivateTabByIndex,
     AddBookmark,
     BeginBookmarkSearch,
+    BeginBulkRename,
     BeginCommandPalette,
     BeginCreateInput,
     BeginDeleteTargets,
@@ -51,6 +52,7 @@ from .actions import (
     SetSort,
     ShowAttributes,
     ToggleHiddenFiles,
+    ToggleNarrowPaneView,
     ToggleSelectionAndAdvance,
     ToggleTransferMode,
     UndoLastOperation,
@@ -60,7 +62,9 @@ from .input_common import (
     BrowsingHandler,
     DispatchedActions,
     current_entry,
+    dispatch_direct_tab_input,
     supported,
+    supported_preserving_notification,
     visible_paths,
     warn,
 )
@@ -114,8 +118,7 @@ BROWSING_KEYMAP = {
     "pagedown": "cursor_pagedown",
     "o": "open_new_tab",
     "w": "close_current_tab",
-    "tab": "activate_next_tab",
-    "shift+tab": "activate_previous_tab",
+    "tab": "toggle_narrow_pane_view",
 }
 
 # Help content is intentionally defined next to the authoritative key map so
@@ -148,6 +151,24 @@ BROWSING_HELP_LINES = (
     ),
 )
 
+SEARCH_WORKSPACE_HELP_LINES = (
+    (
+        ("enter", "open"),
+        ("e", "edit"),
+        ("/", "filter"),
+        ("s", "sort"),
+        (".", "hidden"),
+        ("[ ]", "bk/fwd"),
+        ("q", "quit"),
+    ),
+    (
+        ("space", "select"),
+        ("c", "copy"),
+        ("z", "undo"),
+    ),
+    ((":", "palette"),),
+)
+
 SEARCH_WORKSPACE_BLOCKED_COMMANDS = frozenset(
     {
         "begin_file_search",
@@ -162,6 +183,7 @@ SEARCH_WORKSPACE_BLOCKED_COMMANDS = frozenset(
         "open_terminal_window",
         "open_file_manager",
         "cut_targets",
+        "duplicate_targets",
         "paste_clipboard",
         "toggle_bookmark",
         "create_file",
@@ -203,6 +225,11 @@ def dispatch_browsing_input(
             and command in SEARCH_WORKSPACE_BLOCKED_COMMANDS
         ):
             return warn("Unavailable in search workspace")
+        if (
+            is_search_workspace_path(state.current_path)
+            and command == "toggle_narrow_pane_view"
+        ):
+            return ()
         handler = BROWSING_COMMAND_DISPATCH.get(command)
         if handler is not None:
             return handler(state, ctx)
@@ -224,22 +251,17 @@ def noop_browsing_handler(_state: AppState, _ctx: BrowsingCtx) -> DispatchedActi
     return ()
 
 
-def dispatch_direct_tab_input(state: AppState, *, key: str) -> DispatchedActions:
-    if len(key) != 1 or not key.isdigit():
-        return ()
-
-    tab_number = 10 if key == "0" else int(key)
-    tab_count = len(state.browser_tabs) if state.browser_tabs else 1
-    if tab_number > tab_count:
-        return warn(f"Tab {tab_number} is not open")
-    return supported(ActivateTabByIndex(tab_number - 1))
-
-
 def simple(action_cls: type[Action]) -> BrowsingHandler:
     def handler(_state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
         return supported(action_cls())
 
     return handler
+
+
+def handle_begin_command_palette(state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
+    if state.notification is not None and state.notification.action is not None:
+        return supported_preserving_notification(BeginCommandPalette())
+    return supported(BeginCommandPalette())
 
 
 def matching_multi_key_sequences(
@@ -442,8 +464,15 @@ def handle_toggle_bookmark(state: AppState, _ctx: BrowsingCtx) -> DispatchedActi
 def handle_begin_rename(_state: AppState, ctx: BrowsingCtx) -> DispatchedActions:
     if not ctx.target_paths:
         return warn("Nothing to rename")
-    if len(ctx.target_paths) != 1:
-        return warn("Rename requires a single target")
+    if len(ctx.target_paths) >= 2:
+        return supported(
+            BeginBulkRename(
+                parent_dir=_state.current_pane.directory_path,
+                targets=tuple(
+                    BulkRenameTarget(path, Path(path).name) for path in ctx.target_paths
+                ),
+            )
+        )
     return supported(BeginRenameInput(ctx.target_paths[0]))
 
 
@@ -481,6 +510,14 @@ def handle_enter_directory(_state: AppState, ctx: BrowsingCtx) -> DispatchedActi
     return ()
 
 
+def handle_toggle_narrow_pane_view(state: AppState, ctx: BrowsingCtx) -> DispatchedActions:
+    if state.terminal_width >= 80:
+        return ()
+    if ctx.cursor_entry is None:
+        return warn("Details view requires a focused item")
+    return supported(ToggleNarrowPaneView())
+
+
 BROWSING_SIMPLE_DISPATCH: dict[str, type[Action]] = {
     "begin_filter": BeginFilterInput,
     "begin_bookmark_search": BeginBookmarkSearch,
@@ -501,8 +538,6 @@ BROWSING_SIMPLE_DISPATCH: dict[str, type[Action]] = {
     "undo_last_operation": UndoLastOperation,
     "open_new_tab": OpenNewTab,
     "close_current_tab": CloseCurrentTab,
-    "activate_next_tab": ActivateNextTab,
-    "activate_previous_tab": ActivatePreviousTab,
     "begin_exit_current_path": BeginExitCurrentPath,
     "exit_current_path": ExitCurrentPath,
     "show_attributes": ShowAttributes,
@@ -539,10 +574,12 @@ BROWSING_COMPLEX_DISPATCH: dict[str, BrowsingHandler] = {
     "open_in_editor": handle_open_in_editor,
     "open_in_gui_editor": handle_open_in_gui_editor,
     "enter_directory": handle_enter_directory,
+    "toggle_narrow_pane_view": handle_toggle_narrow_pane_view,
 }
 
 BROWSING_COMMAND_DISPATCH: dict[str, BrowsingHandler] = {
     **{name: simple(cls) for name, cls in BROWSING_SIMPLE_DISPATCH.items()},
     **BROWSING_PARAM_DISPATCH,
     **BROWSING_COMPLEX_DISPATCH,
+    "begin_command_palette": handle_begin_command_palette,
 }

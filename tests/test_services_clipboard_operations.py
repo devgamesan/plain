@@ -103,6 +103,7 @@ def test_clipboard_service_skip_avoids_conflicting_write(tmp_path) -> None:
     )
 
     assert result.summary.skipped_count == 1
+    assert result.summary.skipped_paths == (str(source),)
     assert existing.read_text(encoding="utf-8") == "old\n"
 
 
@@ -129,6 +130,40 @@ def test_clipboard_service_overwrite_replaces_existing_file(tmp_path) -> None:
 
     assert result.summary.success_count == 1
     assert existing.read_text(encoding="utf-8") == "new\n"
+
+
+def test_clipboard_service_cancels_between_targets_and_reports_unprocessed(tmp_path) -> None:
+    source_dir = tmp_path / "source"
+    destination = tmp_path / "destination"
+    source_dir.mkdir()
+    destination.mkdir()
+    sources = tuple(
+        str(source_dir / name)
+        for name in ("one.txt", "two.txt", "three.txt")
+    )
+    for path in sources:
+        os_path = path
+        with open(os_path, "w", encoding="utf-8") as file:
+            file.write(path)
+
+    progress_events: list[tuple[int, int | None, str | None]] = []
+    result = LiveClipboardOperationService().execute_paste(
+        PasteRequest(
+            mode="copy",
+            source_paths=sources,
+            destination_dir=str(destination),
+        ),
+        progress_callback=lambda completed, total, current: progress_events.append(
+            (completed, total, current)
+        ),
+        cancel_callback=lambda: len(progress_events) >= 1,
+    )
+
+    assert result.summary.cancelled is True
+    assert result.summary.success_count == 1
+    assert result.summary.unprocessed_paths == sources[1:]
+    assert (destination / "one.txt").exists()
+    assert not (destination / "two.txt").exists()
 
 
 @skip_if_windows_symlink_privilege_required

@@ -31,6 +31,12 @@ from .browser_snapshot import (
     LiveBrowserSnapshotLoader,
     snapshot_from_app_state,
 )
+from .bulk_rename import (
+    BulkRenameProgressCallback,
+    BulkRenameService,
+    FakeBulkRenameService,
+    LiveBulkRenameService,
+)
 from .clipboard_operations import (
     ClipboardOperationService,
     FakeClipboardOperationService,
@@ -53,6 +59,11 @@ from .directory_size import (
     DirectorySizeService,
     FakeDirectorySizeService,
     LiveDirectorySizeService,
+)
+from .duplicate_operations import (
+    DuplicateOperationService,
+    FakeDuplicateOperationService,
+    LiveDuplicateOperationService,
 )
 from .external_launcher import (
     ExternalLaunchService,
@@ -121,11 +132,14 @@ __all__ = [
     "ArchiveListService",
     "AttributeInspectionService",
     "BrowserSnapshotLoader",
+    "BulkRenameProgressCallback",
+    "BulkRenameService",
     "ClipboardOperationService",
     "ConfigSaveService",
     "CustomActionService",
     "default_zip_destination",
     "DirectorySizeService",
+    "DuplicateOperationService",
     "ExternalLaunchService",
     "FakeZipCompressService",
     "FakeGrepExportService",
@@ -140,9 +154,11 @@ __all__ = [
     "FakeGrepSearchService",
     "FakeShellCommandService",
     "FakeDirectorySizeService",
+    "FakeDuplicateOperationService",
     "InvalidFileSearchQueryError",
     "InvalidGrepSearchQueryError",
     "FakeBrowserSnapshotLoader",
+    "FakeBulkRenameService",
     "FakeClipboardOperationService",
     "FakeCustomActionService",
     "FakeExternalLaunchService",
@@ -157,9 +173,11 @@ __all__ = [
     "LiveGrepSearchService",
     "LiveFileMutationService",
     "LiveDirectorySizeService",
+    "LiveDuplicateOperationService",
     "LiveClipboardOperationService",
     "LiveCustomActionService",
     "LiveBrowserSnapshotLoader",
+    "LiveBulkRenameService",
     "PREVIEW_PERMISSION_DENIED_MESSAGE",
     "LiveConfigSaveService",
     "LiveShellCommandService",

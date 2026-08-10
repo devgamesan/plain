@@ -6,10 +6,11 @@ from textual.containers import Container, Horizontal, Vertical
 from textual.css.query import NoMatches
 from textual.widgets import DataTable
 
-from zivo.models import ThreePaneShellData
+from zivo.models import PathBarState, ThreePaneShellData
 from zivo.state.models import AppState
 from zivo.ui import (
     AttributeDialog,
+    BulkRenameDialog,
     ChildPane,
     CommandPalette,
     ConfigDialog,
@@ -18,10 +19,12 @@ from zivo.ui import (
     HelpBar,
     InputDialog,
     MainPane,
+    NotificationDetailsDialog,
     ShellCommandDialog,
     SidePane,
     StatusBar,
     TabBar,
+    TransferHeaderBar,
 )
 
 
@@ -42,9 +45,11 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
                 _format_transfer_title(shell.transfer_left),
                 shell.transfer_left.entries,
                 summary=shell.transfer_left.summary,
+                heading=shell.transfer_left.heading,
                 cursor_index=shell.transfer_left.cursor_index,
                 cursor_visible=shell.transfer_left.cursor_visible,
                 context_input=None,
+                status=None,
                 id="current-pane",
                 classes=_transfer_pane_classes(shell.transfer_left.active),
             ),
@@ -52,9 +57,11 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
                 _format_transfer_title(shell.transfer_right),
                 shell.transfer_right.entries,
                 summary=shell.transfer_right.summary,
+                heading=shell.transfer_right.heading,
                 cursor_index=shell.transfer_right.cursor_index,
                 cursor_visible=shell.transfer_right.cursor_visible,
                 context_input=None,
+                status=None,
                 id="transfer-right-pane",
                 classes=_transfer_pane_classes(shell.transfer_right.active),
             ),
@@ -63,7 +70,7 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
     else:
         browser_row_children = [
             SidePane(
-                "Parent Directory",
+                shell.parent_heading,
                 shell.parent_entries,
                 id="parent-pane",
                 classes="pane side-pane",
@@ -75,8 +82,12 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
                 cursor_index=shell.current_cursor_index,
                 cursor_visible=shell.current_cursor_visible,
                 context_input=shell.current_context_input,
+                status=shell.current_pane_status,
                 id="current-pane",
-                classes="pane main-pane",
+                classes=_browser_pane_classes(
+                    shell.current_heading is not None and shell.current_heading.active,
+                ),
+                heading=shell.current_heading,
             ),
             ChildPane(
                 shell.child_pane,
@@ -84,9 +95,13 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
                 classes="pane side-pane",
             ),
         ]
-    body_children: list[Any] = [
-        Horizontal(*browser_row_children, id="browser-row"),
-    ]
+        browser_row_children[0].display = shell.responsive_layout.show_parent
+        browser_row_children[1].display = shell.responsive_layout.show_current
+        browser_row_children[2].display = shell.responsive_layout.show_child
+    body_children: list[Any] = []
+    if shell.layout_mode == "transfer" and shell.transfer_left and shell.transfer_right:
+        body_children.append(TransferHeaderBar(shell.transfer_header, id="transfer-header"))
+    body_children.append(Horizontal(*browser_row_children, id="browser-row"))
     return Vertical(*body_children, id="body")
 
 
@@ -97,8 +112,16 @@ def _format_transfer_title(pane: Any) -> str:
 
 def _transfer_pane_classes(active: bool) -> str:
     if active:
-        return "pane main-pane transfer-pane active-transfer-pane"
+        return "pane main-pane transfer-pane active-pane active-transfer-pane"
     return "pane main-pane transfer-pane"
+
+
+def _browser_pane_classes(active: bool) -> str:
+    """Return normal-browser classes, with a lighter active treatment."""
+
+    if active:
+        return "pane main-pane active-pane browser-active-pane"
+    return "pane main-pane"
 
 
 async def refresh_shell(
@@ -120,14 +143,24 @@ async def refresh_shell(
         command_palette_layer = app.query_one("#command-palette-layer", Container)
         conflict_dialog_layer = app.query_one("#conflict-dialog-layer", Container)
         attribute_dialog_layer = app.query_one("#attribute-dialog-layer", Container)
+        notification_details_dialog_layer = app.query_one(
+            "#notification-details-dialog-layer",
+            Container,
+        )
         config_dialog_layer = app.query_one("#config-dialog-layer", Container)
         shell_command_dialog_layer = app.query_one("#shell-command-dialog-layer", Container)
         input_dialog_layer = app.query_one("#input-dialog-layer", Container)
         conflict_dialog = app.query_one("#conflict-dialog", ConflictDialog)
         attribute_dialog = app.query_one("#attribute-dialog", AttributeDialog)
+        notification_details_dialog = app.query_one(
+            "#notification-details-dialog",
+            NotificationDetailsDialog,
+        )
         config_dialog = app.query_one("#config-dialog", ConfigDialog)
         shell_command_dialog = app.query_one("#shell-command-dialog", ShellCommandDialog)
         input_dialog = app.query_one("#input-dialog", InputDialog)
+        bulk_rename_dialog_layer = app.query_one("#bulk-rename-dialog-layer", Container)
+        bulk_rename_dialog = app.query_one("#bulk-rename-dialog", BulkRenameDialog)
     except NoMatches:
         selectors = (
             "#current-path-bar",
@@ -141,12 +174,16 @@ async def refresh_shell(
             "#conflict-dialog-layer",
             "#attribute-dialog",
             "#attribute-dialog-layer",
+            "#notification-details-dialog",
+            "#notification-details-dialog-layer",
             "#config-dialog",
             "#config-dialog-layer",
             "#shell-command-dialog",
             "#shell-command-dialog-layer",
             "#input-dialog",
             "#input-dialog-layer",
+            "#bulk-rename-dialog",
+            "#bulk-rename-dialog-layer",
         )
         for selector in selectors:
             try:
@@ -154,7 +191,13 @@ async def refresh_shell(
             except NoMatches:
                 pass
         await app.mount(TabBar(shell.tab_bar, id="tab-bar"))
-        await app.mount(CurrentPathBar(shell.current_path, id="current-path-bar"))
+        await app.mount(
+            CurrentPathBar(
+                shell.current_path,
+                state=shell.path_bar or PathBarState(path=shell.current_path),
+                id="current-path-bar",
+            )
+        )
         await app.mount(build_body(shell))
         await app.mount(
             Container(
@@ -179,6 +222,16 @@ async def refresh_shell(
         )
         await app.mount(
             Container(
+                NotificationDetailsDialog(
+                    shell.notification_details_dialog,
+                    id="notification-details-dialog",
+                ),
+                id="notification-details-dialog-layer",
+                classes="overlay-layer dialog-layer",
+            )
+        )
+        await app.mount(
+            Container(
                 ConfigDialog(shell.config_dialog, id="config-dialog"),
                 id="config-dialog-layer",
                 classes="overlay-layer dialog-layer",
@@ -195,6 +248,13 @@ async def refresh_shell(
             Container(
                 InputDialog(shell.input_dialog, id="input-dialog"),
                 id="input-dialog-layer",
+                classes="overlay-layer dialog-layer",
+            )
+        )
+        await app.mount(
+            Container(
+                BulkRenameDialog(shell.bulk_rename_dialog, id="bulk-rename-dialog"),
+                id="bulk-rename-dialog-layer",
                 classes="overlay-layer dialog-layer",
             )
         )
@@ -218,8 +278,15 @@ async def refresh_shell(
         return
 
     tab_bar.set_state(shell.tab_bar)
-    current_path_bar.set_path(shell.current_path)
+    current_path_bar.set_state(
+        shell.path_bar or PathBarState(path=shell.current_path)
+    )
     if shell.layout_mode == "transfer" and shell.transfer_left and shell.transfer_right:
+        try:
+            transfer_header = app.query_one("#transfer-header", TransferHeaderBar)
+            transfer_header.set_state(shell.transfer_header)
+        except NoMatches:
+            pass
         current_pane.set_entries(shell.transfer_left.entries, shell.transfer_left.cursor_index)
         current_pane.set_cursor_state(
             shell.transfer_left.cursor_index,
@@ -227,9 +294,11 @@ async def refresh_shell(
             force_sync=True,
         )
         current_pane.set_summary(shell.transfer_left.summary)
+        current_pane.set_heading(shell.transfer_left.heading)
         current_pane.set_context_input(None)
+        current_pane.set_status(None)
+        current_pane.set_class(shell.transfer_left.active, "active-pane")
         current_pane.set_class(shell.transfer_left.active, "active-transfer-pane")
-        current_pane.query_one("Label").update(_format_transfer_title(shell.transfer_left))
         try:
             transfer_right_pane = app.query_one("#transfer-right-pane", MainPane)
             transfer_right_pane.set_entries(
@@ -242,13 +311,12 @@ async def refresh_shell(
                 force_sync=True,
             )
             transfer_right_pane.set_summary(shell.transfer_right.summary)
+            transfer_right_pane.set_heading(shell.transfer_right.heading)
             transfer_right_pane.set_context_input(None)
+            transfer_right_pane.set_class(shell.transfer_right.active, "active-pane")
             transfer_right_pane.set_class(
                 shell.transfer_right.active,
                 "active-transfer-pane",
-            )
-            transfer_right_pane.query_one("Label").update(
-                _format_transfer_title(shell.transfer_right)
             )
         except NoMatches:
             pass
@@ -264,12 +332,27 @@ async def refresh_shell(
             shell.current_cursor_visible,
         )
         current_pane.set_summary(shell.current_summary)
+        current_pane.set_heading(shell.current_heading)
+        current_pane.set_class(
+            shell.current_heading is not None and shell.current_heading.active,
+            "active-pane",
+        )
+        current_pane.set_class(
+            shell.current_heading is not None and shell.current_heading.active,
+            "browser-active-pane",
+        )
         current_pane.set_context_input(shell.current_context_input)
+        current_pane.set_status(shell.current_pane_status)
     await parent_pane.set_entries(shell.parent_entries)
+    parent_pane.set_title(shell.parent_heading)
     await child_pane.set_state(shell.child_pane)
     if app_state.layout_mode == "transfer":
         parent_pane.display = False
         child_pane.display = False
+    else:
+        parent_pane.display = shell.responsive_layout.show_parent
+        current_pane.display = shell.responsive_layout.show_current
+        child_pane.display = shell.responsive_layout.show_child
     if theme_changed:
         def _refresh_themed_panes() -> None:
             parent_pane.refresh_styles()
@@ -289,12 +372,18 @@ async def refresh_shell(
     conflict_dialog.set_state(shell.conflict_dialog)
     attribute_dialog_layer.display = shell.attribute_dialog is not None
     attribute_dialog.set_state(shell.attribute_dialog)
+    notification_details_dialog_layer.display = (
+        shell.notification_details_dialog is not None
+    )
+    notification_details_dialog.set_state(shell.notification_details_dialog)
     config_dialog_layer.display = shell.config_dialog is not None
     config_dialog.set_state(shell.config_dialog)
     shell_command_dialog_layer.display = shell.shell_command_dialog is not None
     shell_command_dialog.set_state(shell.shell_command_dialog)
     input_dialog_layer.display = shell.input_dialog is not None
     input_dialog.set_state(shell.input_dialog)
+    bulk_rename_dialog_layer.display = shell.bulk_rename_dialog is not None
+    bulk_rename_dialog.set_state(shell.bulk_rename_dialog)
 
     if app_state.ui_mode == "BROWSING":
         if app_state.layout_mode == "transfer" and app_state.active_transfer_pane == "right":

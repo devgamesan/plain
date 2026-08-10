@@ -3,8 +3,8 @@ from tests import state_selectors_cases as cases
 test_build_placeholder_app_state_keeps_parent_pane_empty_at_root = (
     cases.test_build_placeholder_app_state_keeps_parent_pane_empty_at_root
 )
-test_command_palette_includes_tab_commands_with_lowercase_shortcuts = (
-    cases.test_command_palette_includes_tab_commands_with_lowercase_shortcuts
+test_command_palette_tab_commands_have_no_direct_shortcut = (
+    cases.test_command_palette_tab_commands_have_no_direct_shortcut
 )
 test_directory_size_target_paths_only_uses_current_pane_directories = (
     cases.test_directory_size_target_paths_only_uses_current_pane_directories
@@ -100,6 +100,12 @@ test_select_shell_data_emits_size_delta_updates_for_directory_size_changes = (
 test_select_shell_data_exposes_visible_cursor_index = (
     cases.test_select_shell_data_exposes_visible_cursor_index
 )
+test_select_responsive_pane_layout_uses_width_breakpoints_and_narrow_view = (
+    cases.test_select_responsive_pane_layout_uses_width_breakpoints_and_narrow_view
+)
+test_select_shell_data_exposes_semantic_pane_headers = (
+    cases.test_select_shell_data_exposes_semantic_pane_headers
+)
 test_select_shell_data_hides_cursor_while_filtering = (
     cases.test_select_shell_data_hides_cursor_while_filtering
 )
@@ -190,4 +196,10 @@ test_detect_preview_disabled_message_for_all_previews_disabled = (
 )
 test_detect_preview_disabled_message_returns_none_when_enabled = (
     cases.test_detect_preview_disabled_message_returns_none_when_enabled
+)
+test_select_shell_data_distinguishes_empty_and_filtered_empty_directory = (
+    cases.test_select_shell_data_distinguishes_empty_and_filtered_empty_directory
+)
+test_select_shell_data_builds_typed_metadata_fallback = (
+    cases.test_select_shell_data_builds_typed_metadata_fallback
 )

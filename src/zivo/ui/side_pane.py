@@ -75,6 +75,14 @@ class SidePane(Vertical):
         content.can_focus = False
         yield content
 
+    def set_title(self, title: str) -> None:
+        """Update the selector-owned pane title without remounting rows."""
+
+        if title == self._title:
+            return
+        self._title = title
+        self.query_one(".pane-title", Label).update(title)
+
     def on_mount(self) -> None:
         self._ft_styles = _resolve_component_styles(self)
         self.call_after_refresh(self._refresh_rendered_labels)

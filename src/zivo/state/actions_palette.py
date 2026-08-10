@@ -7,6 +7,7 @@ from zivo.models import TextReplacePreviewResult, TextReplaceResult
 from .models import (
     FileSearchResultState,
     FindReplaceFieldId,
+    GoSourceFilter,
     GrepReplaceFieldId,
     GrepReplaceSelectedFieldId,
     GrepSearchFieldId,
@@ -43,6 +44,13 @@ class BeginBookmarkSearch:
 @dataclass(frozen=True)
 class BeginGoToPath:
     """Open the command palette in go-to-path mode."""
+
+
+@dataclass(frozen=True)
+class BeginGo:
+    """Open the unified destination picker."""
+
+    source_filter: GoSourceFilter = "all"
 
 
 @dataclass(frozen=True)

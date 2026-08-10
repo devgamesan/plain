@@ -1,6 +1,6 @@
 """Pane-oriented selector implementations."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
 
@@ -11,7 +11,11 @@ from zivo.models import (
     CurrentPaneSizeUpdate,
     CurrentPaneUpdateHint,
     CurrentSummaryState,
+    MetadataItemViewState,
+    PaneActionViewState,
     PaneEntry,
+    PaneHeadingState,
+    PaneStatusViewState,
     TabBarState,
     TabItemState,
 )
@@ -30,8 +34,9 @@ from .selectors_shared import (
     _format_child_preview_title,
     _format_current_entry_name_detail,
     _format_entry_size_label_from_cache,
-    _format_permissions_detail_label,
+    _format_permissions_label,
     _format_side_pane_name_detail_from_cache,
+    _format_size_label,
     _format_sort_label,
     _format_tab_label,
     _select_active_app_theme,
@@ -50,6 +55,9 @@ IMAGE_PREVIEW_EXTENSIONS = frozenset(
 )
 PDF_PREVIEW_EXTENSIONS = frozenset({".pdf"})
 OFFICE_PREVIEW_EXTENSIONS = frozenset({".docx", ".xlsx", ".pptx"})
+
+_BROWSING_PREVIEW_SCROLL_HINT = "Ctrl+J/K scroll preview"
+_REPLACE_PREVIEW_SCROLL_HINT = "Shift+↑/↓ scroll preview"
 
 
 @dataclass(frozen=True)
@@ -117,6 +125,50 @@ def select_current_summary_state(state: AppState) -> CurrentSummaryState:
     return select_current_pane_projection(state).summary
 
 
+def build_pane_heading(
+    role: str,
+    target_path: str,
+    summary: CurrentSummaryState,
+    *,
+    active: bool,
+    status_label: str | None = None,
+) -> PaneHeadingState:
+    """Build a pane heading from the selector-owned summary values."""
+
+    return PaneHeadingState(
+        role=role,
+        target_name=_format_pane_target_name(target_path),
+        item_count=summary.item_count,
+        selected_count=summary.selected_count,
+        sort_label=summary.sort_label,
+        active=active,
+        status_label=status_label,
+    )
+
+
+def pane_accepts_navigation_input(state: AppState) -> bool:
+    """Return whether a directory pane is the current keyboard context.
+
+    Overlay modes keep the directory visible in the background, but keyboard
+    input belongs to the palette or dialog. Keeping this decision in the
+    selector prevents a stale active border from suggesting that the pane is
+    still receiving input.
+    """
+
+    return state.ui_mode in {"BROWSING", "FILTER"}
+
+
+def _format_pane_target_name(path: str) -> str:
+    """Return a compact target name while preserving filesystem roots."""
+
+    if path in {"/", "\\"}:
+        return path
+    normalized = path.rstrip("/\\")
+    if not normalized:
+        return path
+    return normalized.replace("\\", "/").rsplit("/", 1)[-1] or normalized
+
+
 def select_current_pane_projection(state: AppState) -> CurrentPaneProjection:
     visible_entries = select_visible_current_entry_states(state)
     global_cursor_index = _find_current_cursor_index(
@@ -142,7 +194,7 @@ def select_current_pane_projection(state: AppState) -> CurrentPaneProjection:
     )
 
 
-def select_child_pane_for_cursor(
+def _select_child_pane_for_cursor_base(
     state: AppState,
     cursor_entry: DirectoryEntryState | None,
 ) -> ChildPaneViewState:
@@ -150,34 +202,35 @@ def select_child_pane_for_cursor(
         _select_active_app_theme(state),
         _select_active_preview_syntax_theme(state),
     )
-    permissions_label = (
-        _format_permissions_detail_label(cursor_entry)
-        if cursor_entry
-        else ""
-    )
     palette_preview = _select_command_palette_preview_pane(state, syntax_theme)
     if palette_preview is not None:
         return palette_preview
 
+    metadata_bar = _select_child_metadata_bar(state, cursor_entry)
     if cursor_entry is None:
-        return _build_child_entries_view((), syntax_theme, permissions_label)
+        return _build_child_entries_view((), syntax_theme, metadata_bar)
+
+    if (
+        state.pending_child_pane_request_id is not None
+        or state.pending_browser_snapshot_request_id is not None
+    ):
+        return _build_child_status_view(
+            "loading",
+            "Loading preview…" if cursor_entry.kind == "file" else "Loading directory…",
+            syntax_theme,
+            metadata_bar=metadata_bar,
+        )
 
     is_archive = cursor_entry.kind == "file" and is_supported_archive_path(cursor_entry.path)
     if cursor_entry.kind == "dir" or is_archive:
-        if (
-            state.child_pane.mode == "preview"
-            and state.child_pane.preview_message is not None
-        ):
+        if state.child_pane.mode == "preview" and state.child_pane.preview_message is not None:
             pass
         elif (
             state.child_pane.mode != "entries"
             or cursor_entry.path != state.child_pane.directory_path
         ):
-            return _build_child_entries_view((), syntax_theme, permissions_label)
-    elif (
-        state.child_pane.mode != "preview"
-        or cursor_entry.path != state.child_pane.preview_path
-    ):
+            return _build_child_entries_view((), syntax_theme, metadata_bar)
+    elif state.child_pane.mode != "preview" or cursor_entry.path != state.child_pane.preview_path:
         preview_disabled_message = _detect_preview_disabled_message(
             cursor_entry,
             state.config.display.enable_text_preview,
@@ -185,11 +238,28 @@ def select_child_pane_for_cursor(
             state.config.display.enable_pdf_preview,
             state.config.display.enable_office_preview,
         )
+        if preview_disabled_message is not None:
+            metadata = [MetadataItemViewState("Name", cursor_entry.name)]
+            metadata.append(
+                MetadataItemViewState(
+                    "Type", Path(cursor_entry.path).suffix.lstrip(".").upper() or "File"
+                )
+            )
+            if cursor_entry.size_bytes is not None:
+                metadata.append(
+                    MetadataItemViewState("Size", _format_size_label(cursor_entry.size_bytes))
+                )
+            return _build_child_status_view(
+                "disabled",
+                "Preview disabled in settings",
+                syntax_theme,
+                actions=(PaneActionViewState("edit_config", "Edit config", ":"),),
+                metadata=tuple(metadata),
+            )
         return _build_child_entries_view(
             (),
             syntax_theme,
-            permissions_label,
-            preview_disabled_message,
+            metadata_bar,
         )
 
     if state.child_pane.mode == "preview" and state.child_pane.preview_content is not None:
@@ -204,37 +274,147 @@ def select_child_pane_for_cursor(
             state.child_pane.preview_start_line,
             state.child_pane.preview_highlight_line,
             syntax_theme,
-            permissions_label,
+            metadata_bar,
             state.config.display.preview_word_wrap,
+            preview_scroll_hint=_browsing_preview_scroll_hint(state),
         )
     if state.child_pane.mode == "preview" and state.child_pane.preview_message is not None:
         preview_path = state.child_pane.preview_path or cursor_entry.path
-        return _build_child_preview_view(
-            state.child_pane.preview_title,
+        reason = state.child_pane.preview_reason or "error"
+        return _build_preview_fallback_view(
+            reason,
             preview_path,
-            state.child_pane.preview_content,
-            state.child_pane.preview_kind,
             state.child_pane.preview_message,
-            state.child_pane.preview_truncated,
-            state.child_pane.preview_start_line,
-            state.child_pane.preview_highlight_line,
+            state.child_pane.preview_metadata,
             syntax_theme,
-            permissions_label,
-            state.config.display.preview_word_wrap,
+        )
+
+    if state.child_pane.mode == "preview" and state.child_pane.preview_reason is not None:
+        return _build_preview_fallback_view(
+            state.child_pane.preview_reason,
+            state.child_pane.preview_path or cursor_entry.path,
+            None,
+            state.child_pane.preview_metadata,
+            syntax_theme,
         )
 
     visible_entries = _select_side_pane_entry_states(state.child_pane.entries, state.show_hidden)
-    return _build_child_entries_view(
-        _select_side_pane_entries(
-            visible_entries,
-            state.directory_size_cache,
-            display_directory_sizes=False,
-            selected_path=None,
-            cut_paths=_select_visible_cut_paths(visible_entries, _select_cut_paths(state)),
-        ),
-        syntax_theme,
-        permissions_label,
+    entries = _select_side_pane_entries(
+        visible_entries,
+        state.directory_size_cache,
+        display_directory_sizes=False,
+        selected_path=None,
+        cut_paths=_select_visible_cut_paths(visible_entries, _select_cut_paths(state)),
     )
+    if not entries:
+        return _build_child_status_view(
+            "empty",
+            "Empty directory",
+            syntax_theme,
+            metadata_bar=metadata_bar,
+        )
+    return _build_child_entries_view(
+        entries,
+        syntax_theme,
+        metadata_bar,
+    )
+
+
+def _select_child_metadata_bar(
+    state: AppState,
+    cursor_entry: DirectoryEntryState | None,
+) -> tuple[MetadataItemViewState, ...]:
+    """Return lightweight attributes for the selected child-pane target.
+
+    The bar intentionally uses metadata already present in browser state.
+    Owner/group resolution remains an optional value and is never triggered
+    by rendering; detailed inspection keeps its existing lazy path.
+    """
+
+    if cursor_entry is None:
+        return ()
+
+    size_bytes = cursor_entry.size_bytes
+    if cursor_entry.kind == "dir":
+        cached_size = _directory_size_cache_by_path(state.directory_size_cache).get(
+            cursor_entry.path
+        )
+        if cached_size is not None and cached_size.status == "ready":
+            size_bytes = cached_size.size_bytes
+        else:
+            size_bytes = None
+
+    items: list[MetadataItemViewState] = []
+    if size_bytes is not None:
+        items.append(MetadataItemViewState("Size", _format_size_label(size_bytes)))
+    if cursor_entry.permissions_mode is not None:
+        items.append(
+            MetadataItemViewState(
+                "Permissions", _format_permissions_label(cursor_entry.permissions_mode)
+            )
+        )
+    owner_group = " ".join(
+        value for value in (cursor_entry.owner, cursor_entry.group) if value
+    )
+    if owner_group:
+        items.append(MetadataItemViewState("Owner/group", owner_group))
+    return tuple(items)
+
+
+def select_child_pane_for_cursor(
+    state: AppState,
+    cursor_entry: DirectoryEntryState | None,
+) -> ChildPaneViewState:
+    """Return child content with a selector-owned semantic header title."""
+
+    view = _select_child_pane_for_cursor_base(state, cursor_entry)
+    return _with_child_header(view, _format_child_semantic_title(state, view, cursor_entry))
+
+
+@lru_cache(maxsize=4096)
+def _with_child_header(view: ChildPaneViewState, title: str) -> ChildPaneViewState:
+    if view.header_title == title:
+        return view
+    return replace(view, header_title=title)
+
+
+def _format_child_semantic_title(
+    state: AppState,
+    view: ChildPaneViewState,
+    cursor_entry: DirectoryEntryState | None,
+) -> str:
+    if state.ui_mode == "PALETTE" and state.command_palette is not None:
+        palette = state.command_palette
+        if palette.source == "file_search":
+            target = palette.file_search.target
+            target_label = {
+                "files": "files",
+                "directories": "directories",
+                "all": "files and directories",
+            }.get(target, "results")
+            query = palette.query.strip() or "*"
+            return (
+                f'Results · {target_label} "{query}" · '
+                f"{len(palette.file_search.results)} results"
+            )
+        if palette.source == "grep_search":
+            query = palette.grep_search.keyword.strip() or palette.query.strip() or "*"
+            return f'Results · grep "{query}" · {len(palette.grep_search.results)} matches'
+        return view.title
+
+    if cursor_entry is None:
+        if view.status is not None and view.status.kind == "loading":
+            return "Contents · loading"
+        return "Contents · empty"
+
+    target_name = _format_pane_target_name(cursor_entry.path)
+    if view.status is not None and view.status.kind == "loading":
+        role = "Preview" if cursor_entry.kind == "file" else "Contents"
+        return f"{role} · {target_name} · loading"
+    if view.is_preview or cursor_entry.kind == "file":
+        return f"Preview · {target_name}"
+
+    return f"Contents · {target_name} · {len(view.entries)} items"
 
 
 def _select_command_palette_preview_pane(
@@ -262,6 +442,8 @@ def _select_file_search_preview_pane(
     syntax_theme: str,
 ) -> ChildPaneViewState:
     results = state.command_palette.file_search.results
+    if state.pending_file_search_request_id is not None:
+        return _build_child_status_view("loading", "Searching…", syntax_theme)
     if not results:
         return _build_child_entries_view((), syntax_theme)
 
@@ -283,9 +465,7 @@ def _select_file_search_preview_pane(
                     state.directory_size_cache,
                     display_directory_sizes=False,
                     selected_path=None,
-                    cut_paths=_select_visible_cut_paths(
-                        visible_entries, _select_cut_paths(state)
-                    ),
+                    cut_paths=_select_visible_cut_paths(visible_entries, _select_cut_paths(state)),
                 ),
                 syntax_theme,
             )
@@ -325,6 +505,8 @@ def _select_grep_preview_pane(
     state: AppState,
     syntax_theme: str,
 ) -> ChildPaneViewState:
+    if state.pending_grep_search_request_id is not None:
+        return _build_child_status_view("loading", "Searching…", syntax_theme)
     if not state.config.display.enable_text_preview:
         return _build_child_entries_view((), syntax_theme)
 
@@ -427,6 +609,11 @@ def _select_replace_preview_pane(
         state.child_pane.preview_highlight_line,
         syntax_theme,
         preview_word_wrap=state.config.display.preview_word_wrap,
+        preview_scroll_hint=(
+            _REPLACE_PREVIEW_SCROLL_HINT
+            if state.child_pane.preview_content is not None
+            else None
+        ),
     )
 
 
@@ -558,8 +745,8 @@ def _select_side_pane_entry_states(
     entries: tuple[DirectoryEntryState, ...],
     show_hidden: bool,
 ) -> tuple[DirectoryEntryState, ...]:
-    visible_entries = entries if show_hidden else tuple(
-        entry for entry in entries if not entry.hidden
+    visible_entries = (
+        entries if show_hidden else tuple(entry for entry in entries if not entry.hidden)
     )
     return _sort_entries(visible_entries, SIDE_PANE_SORT)
 
@@ -617,14 +804,14 @@ def _select_side_pane_entries(
 def _build_child_entries_view(
     entries: tuple[PaneEntry, ...],
     syntax_theme: str,
-    permissions_label: str = "",
-    preview_disabled_message: str | None = None,
+    metadata_bar: tuple[MetadataItemViewState, ...] = (),
 ) -> ChildPaneViewState:
     return ChildPaneViewState(
-        title=preview_disabled_message or "Child Directory",
+        title="Child Directory",
         entries=entries,
         syntax_theme=syntax_theme,
-        permissions_label=permissions_label,
+        metadata_bar=metadata_bar,
+        view_kind="entries",
     )
 
 
@@ -639,8 +826,9 @@ def _build_child_preview_view(
     preview_start_line: int | None,
     preview_highlight_line: int | None,
     syntax_theme: str,
-    permissions_label: str = "",
+    metadata_bar: tuple[MetadataItemViewState, ...] = (),
     preview_word_wrap: bool = False,
+    preview_scroll_hint: str | None = None,
 ) -> ChildPaneViewState:
     return ChildPaneViewState(
         title=preview_title or _format_child_preview_title(preview_path, preview_truncated),
@@ -653,8 +841,98 @@ def _build_child_preview_view(
         preview_start_line=preview_start_line,
         preview_highlight_line=preview_highlight_line,
         syntax_theme=syntax_theme,
-        permissions_label=permissions_label,
+        metadata_bar=metadata_bar,
         preview_word_wrap=preview_word_wrap,
+        preview_scroll_hint=preview_scroll_hint,
+        view_kind="preview",
+    )
+
+
+def _build_child_status_view(
+    kind: str,
+    title: str,
+    syntax_theme: str,
+    *,
+    detail: str | None = None,
+    actions: tuple[PaneActionViewState, ...] = (),
+    metadata: tuple[MetadataItemViewState, ...] = (),
+    metadata_bar: tuple[MetadataItemViewState, ...] = (),
+) -> ChildPaneViewState:
+    return ChildPaneViewState(
+        title="Preview" if kind not in {"empty", "loading"} else "Child Directory",
+        syntax_theme=syntax_theme,
+        metadata_bar=metadata_bar,
+        view_kind=kind,
+        status=PaneStatusViewState(kind=kind, title=title, detail=detail, actions=actions),
+        metadata=metadata,
+    )
+
+
+def _build_preview_fallback_view(
+    reason: str,
+    preview_path: str,
+    message: str | None,
+    metadata_state,
+    syntax_theme: str,
+) -> ChildPaneViewState:
+    titles = {
+        "unsupported": "Preview unavailable for this file type",
+        "disabled": "Preview disabled in settings",
+        "dependency_missing": message or "Preview dependency unavailable",
+        "permission_denied": "Permission denied",
+        "error": message or "Preview unavailable",
+    }
+    details = {
+        "permission_denied": "Attributes may still be available",
+        "dependency_missing": "Use attributes or open the file externally",
+    }
+    action_id = "edit_config" if reason == "disabled" else "show_attributes"
+    action_label = "Edit config" if reason == "disabled" else "Show attributes"
+    metadata: list[MetadataItemViewState] = []
+    if metadata_state is not None:
+        metadata.append(MetadataItemViewState("Name", metadata_state.display_name))
+        metadata.append(MetadataItemViewState("Type", metadata_state.type_label))
+        if metadata_state.size_bytes is not None:
+            metadata.append(
+                MetadataItemViewState("Size", _format_size_label(metadata_state.size_bytes))
+            )
+        if metadata_state.modified_at is not None:
+            metadata.append(
+                MetadataItemViewState(
+                    "Modified", metadata_state.modified_at.strftime("%Y-%m-%d %H:%M")
+                )
+            )
+        if metadata_state.permissions_mode is not None:
+            metadata.append(
+                MetadataItemViewState("Mode", oct(metadata_state.permissions_mode & 0o7777))
+            )
+        owner_group = "/".join(
+            value for value in (metadata_state.owner, metadata_state.group) if value
+        )
+        if owner_group:
+            metadata.append(MetadataItemViewState("Owner/group", owner_group))
+        if metadata_state.symlink_target:
+            metadata.append(MetadataItemViewState("Symlink", metadata_state.symlink_target))
+        if metadata_state.archive_entry_count is not None:
+            metadata.append(
+                MetadataItemViewState("Archive entries", str(metadata_state.archive_entry_count))
+            )
+    return ChildPaneViewState(
+        title=_format_child_preview_title(preview_path, False),
+        preview_path=preview_path,
+        preview_message=message,
+        syntax_theme=syntax_theme,
+        view_kind=reason,
+        status=PaneStatusViewState(
+            kind=reason,
+            title=titles.get(reason, message or "Preview unavailable"),
+            detail=details.get(reason),
+            # ``:`` is the canonical keyboard route to this command.  The
+            # inline action remains clickable as a convenience, but should
+            # not imply that a mouse is required for the fallback state.
+            actions=(PaneActionViewState(action_id, action_label, ":"),),
+        ),
+        metadata=tuple(metadata),
     )
 
 
@@ -664,6 +942,20 @@ def _select_visible_cut_paths(
     cut_paths: frozenset[str],
 ) -> frozenset[str]:
     return frozenset(entry.path for entry in visible_entries if entry.path in cut_paths)
+
+
+def _browsing_preview_scroll_hint(state: AppState) -> str | None:
+    """Return the scroll hint for a normal right-pane preview."""
+
+    if state.layout_mode == "transfer":
+        return None
+    if (
+        state.ui_mode == "BROWSING"
+        and state.child_pane.mode == "preview"
+        and state.child_pane.preview_content is not None
+    ):
+        return _BROWSING_PREVIEW_SCROLL_HINT
+    return None
 
 
 @lru_cache(maxsize=256)
@@ -676,6 +968,9 @@ def _build_current_summary(
         item_count=item_count,
         selected_count=selected_count,
         sort_label=_format_sort_label(sort),
+        sort_field=sort.field,
+        sort_descending=sort.descending,
+        directories_first=sort.directories_first,
     )
 
 

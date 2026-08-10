@@ -8,6 +8,8 @@ from zivo.models.shell_command import ShellCommandResult
 EntryKind = Literal["dir", "file"]
 NotificationLevel = Literal["info", "warning", "error"]
 PreviewKind = Literal["text", "image"]
+PaneWidthClass = Literal["wide", "medium", "narrow"]
+ResponsivePaneView = Literal["current", "details"]
 
 
 @dataclass(frozen=True)
@@ -38,6 +40,34 @@ class PaneEntry:
         """Return the marker shown for selected rows in the center table."""
 
         return "*" if self.selected else " "
+
+    def state_marker(self, *, cursor: bool = False, max_width: int | None = None) -> str:
+        """Return color-independent ASCII markers for interaction state.
+
+        The first slot identifies the cursor and the second slot identifies
+        the pending action. Cut takes precedence over selection because a
+        cut row is necessarily part of the current selection and must remain
+        distinguishable in the narrow state column.
+        """
+
+        markers: list[str] = []
+        if cursor:
+            markers.append(">")
+        if self.cut:
+            markers.append("x")
+        elif self.selected:
+            markers.append("*")
+        marker = "".join(markers) or " "
+        if max_width is not None and len(marker) > max_width:
+            return marker[:max_width]
+        return marker
+
+    @property
+    def type_marker(self) -> str:
+        """Return familiar ASCII suffixes for non-interaction file types."""
+
+        executable_marker = self.executable and self.kind == "file"
+        return ("@" if self.symlink else "") + ("*" if executable_marker else "")
 
 
 @dataclass(frozen=True)
@@ -75,6 +105,32 @@ class CurrentSummaryState:
     item_count: int
     selected_count: int
     sort_label: str
+    sort_field: Literal["name", "modified", "size"] = "name"
+    sort_descending: bool = False
+    directories_first: bool = True
+
+
+@dataclass(frozen=True)
+class PathBarState:
+    """Display state for the current path bar and its navigation affordances."""
+
+    path: str
+    can_go_back: bool = False
+    can_go_forward: bool = False
+    show_history_controls: bool = True
+
+
+@dataclass(frozen=True)
+class PaneHeadingState:
+    """Semantic heading values for a directory pane."""
+
+    role: str
+    target_name: str
+    item_count: int
+    selected_count: int
+    sort_label: str
+    active: bool = False
+    status_label: str | None = None
 
 
 @dataclass(frozen=True)
@@ -88,6 +144,46 @@ class TransferPaneViewState:
     cursor_index: int | None
     cursor_visible: bool = True
     active: bool = False
+    heading: PaneHeadingState | None = None
+
+
+@dataclass(frozen=True)
+class TransferHeaderState:
+    """Direction and source/destination summary shown above the transfer panes."""
+
+    source_side: Literal["left", "right"]
+    source_path: str
+    destination_path: str
+    selected_count: int
+    target_count: int
+    has_target: bool
+
+
+@dataclass(frozen=True)
+class PaneActionViewState:
+    """One executable action shown inside an empty or fallback pane."""
+
+    action_id: str
+    label: str
+    shortcut: str | None = None
+
+
+@dataclass(frozen=True)
+class PaneStatusViewState:
+    """Explicit non-content state rendered inside a pane."""
+
+    kind: str
+    title: str
+    detail: str | None = None
+    actions: tuple[PaneActionViewState, ...] = ()
+
+
+@dataclass(frozen=True)
+class MetadataItemViewState:
+    """One labeled metadata item used by fallback and attribute-bar views."""
+
+    label: str
+    value: str
 
 
 @dataclass(frozen=True)
@@ -105,14 +201,29 @@ class ChildPaneViewState:
     preview_start_line: int | None = None
     preview_highlight_line: int | None = None
     syntax_theme: str = "monokai"
-    permissions_label: str = ""
+    metadata_bar: tuple[MetadataItemViewState, ...] = ()
     preview_word_wrap: bool = False
+    preview_scroll_hint: str | None = None
+    view_kind: str = "entries"
+    status: PaneStatusViewState | None = None
+    metadata: tuple[MetadataItemViewState, ...] = ()
+    header_title: str | None = None
 
     @property
     def is_preview(self) -> bool:
         """Return whether the pane should render a text preview."""
 
-        return self.preview_content is not None or self.preview_message is not None
+        return (
+            self.view_kind != "entries"
+            or self.preview_content is not None
+            or self.preview_message is not None
+        )
+
+    @property
+    def display_title(self) -> str:
+        """Return the semantic title rendered in the pane header."""
+
+        return self.header_title or self.title
 
 
 @dataclass(frozen=True)
@@ -121,6 +232,26 @@ class StatusBarState:
 
     message: str | None = None
     message_level: NotificationLevel | None = None
+    action: "StatusBarActionState | None" = None
+    notification_revision: int = 0
+    auto_dismiss: bool = False
+
+
+@dataclass(frozen=True)
+class StatusBarActionState:
+    """Clickable notification action projected for the status bar."""
+
+    action_id: str
+    label: str
+
+
+@dataclass(frozen=True)
+class NotificationDetailsDialogState:
+    """Display state for a notification failure-details overlay."""
+
+    title: str
+    lines: tuple[str, ...]
+    options: tuple[str, ...] = ("enter close", "esc close")
 
 
 @dataclass(frozen=True)
@@ -170,6 +301,9 @@ class CommandPaletteItemViewState:
     shortcut: str | None
     enabled: bool
     selected: bool = False
+    command_id: str | None = None
+    category: str = "System"
+    disabled_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -192,6 +326,7 @@ class CommandPaletteViewState:
     empty_message: str
     input_fields: tuple[CommandPaletteInputFieldViewState, ...] = ()
     has_more_items: bool = False
+    footer_message: str | None = None
 
 
 @dataclass(frozen=True)
@@ -248,6 +383,42 @@ class InputDialogState:
 
 
 @dataclass(frozen=True)
+class BulkRenameRowViewState:
+    """Display data for one read-only bulk rename review row."""
+
+    old_name: str
+    new_name: str
+    status: str
+    message: str | None = None
+
+
+@dataclass(frozen=True)
+class BulkRenameDialogState:
+    """Display data for the bulk rename editor/result overlay."""
+
+    title: str
+    rows: tuple[BulkRenameRowViewState, ...]
+    base_name: str
+    active_field: str
+    summary: str
+    error_message: str | None = None
+    result_message: str | None = None
+    apply_enabled: bool = False
+    progress: str | None = None
+
+
+@dataclass(frozen=True)
+class ResponsivePaneLayoutState:
+    """Responsive browser visibility derived from terminal width and state."""
+
+    width_class: PaneWidthClass
+    show_parent: bool
+    show_current: bool
+    show_child: bool
+    narrow_view: ResponsivePaneView = "current"
+
+
+@dataclass(frozen=True)
 class ThreePaneShellData:
     """Complete display state for the shell UI."""
 
@@ -260,16 +431,29 @@ class ThreePaneShellData:
     current_cursor_visible: bool
     current_pane_update: CurrentPaneUpdateHint
     current_summary: CurrentSummaryState
+    current_heading: PaneHeadingState
     current_context_input: InputBarState | None
+    current_pane_status: PaneStatusViewState | None
     help: HelpBarState
     command_palette: CommandPaletteViewState | None
     status: StatusBarState
     conflict_dialog: ConflictDialogState | None = None
     attribute_dialog: AttributeDialogState | None = None
+    notification_details_dialog: NotificationDetailsDialogState | None = None
     config_dialog: ConfigDialogState | None = None
     shell_command_dialog: ShellCommandDialogState | None = None
     input_dialog: InputDialogState | None = None
+    bulk_rename_dialog: BulkRenameDialogState | None = None
+    responsive_layout: ResponsivePaneLayoutState = ResponsivePaneLayoutState(
+        width_class="wide",
+        show_parent=True,
+        show_current=True,
+        show_child=True,
+    )
+    parent_heading: str = "Parent Directory"
     layout_mode: Literal["browser", "transfer"] = "browser"
+    path_bar: PathBarState | None = None
+    transfer_header: TransferHeaderState | None = None
     transfer_left: TransferPaneViewState | None = None
     transfer_right: TransferPaneViewState | None = None
 
@@ -318,6 +502,11 @@ def build_dummy_shell_data() -> ThreePaneShellData:
     return ThreePaneShellData(
         tab_bar=TabBarState((TabItemState("zivo", active=True),)),
         current_path="/home/tadashi/develop/zivo",
+        path_bar=PathBarState(
+            path="/home/tadashi/develop/zivo",
+            can_go_back=False,
+            can_go_forward=False,
+        ),
         parent_entries=(
             PaneEntry("develop", "dir"),
             PaneEntry("downloads", "dir"),
@@ -338,8 +527,20 @@ def build_dummy_shell_data() -> ThreePaneShellData:
             item_count=len(current_entries),
             selected_count=0,
             sort_label="name asc",
+            sort_field="name",
+            sort_descending=False,
+            directories_first=True,
+        ),
+        current_heading=PaneHeadingState(
+            role="Current",
+            target_name="zivo",
+            item_count=len(current_entries),
+            selected_count=0,
+            sort_label="name asc",
+            active=True,
         ),
         current_context_input=None,
+        current_pane_status=None,
         help=HelpBarState(
             (
                 "Enter open | e edit | / filter | : palette | ctrl+f find | ctrl+g grep | q quit",

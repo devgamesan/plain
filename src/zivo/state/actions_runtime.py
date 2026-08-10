@@ -4,11 +4,14 @@ from dataclasses import dataclass
 
 from zivo.models import (
     AppConfig,
+    BulkRenameExecutionResult,
     CreateZipArchiveRequest,
     CreateZipArchiveResult,
     CustomActionExecutionRequest,
     CustomActionResult,
     DeleteRequest,
+    DuplicateAppliedChange,
+    DuplicateSummary,
     ExternalLaunchRequest,
     ExtractArchiveRequest,
     ExtractArchiveResult,
@@ -197,6 +200,70 @@ class ClipboardPasteCompleted:
 @dataclass(frozen=True)
 class ClipboardPasteFailed:
     """Apply a terminal clipboard-operation failure."""
+
+    request_id: int
+    message: str
+
+
+@dataclass(frozen=True)
+class ForegroundOperationProgress:
+    """Apply common progress from one active file operation."""
+
+    request_id: int
+    completed: int
+    total: int | None
+    current_path: str | None = None
+    phase: str = "processing"
+
+
+@dataclass(frozen=True)
+class DuplicateProgress:
+    """Apply progress from a duplicate worker."""
+
+    request_id: int
+    completed_entries: int
+    total_entries: int
+    current_path: str | None = None
+
+
+@dataclass(frozen=True)
+class DuplicateCompleted:
+    """Apply the completed duplicate result."""
+
+    request_id: int
+    summary: DuplicateSummary
+    applied_changes: tuple[DuplicateAppliedChange, ...] = ()
+
+
+@dataclass(frozen=True)
+class DuplicateFailed:
+    """Apply a terminal duplicate failure."""
+
+    request_id: int
+    message: str
+
+
+@dataclass(frozen=True)
+class BulkRenameProgress:
+    """Apply progress from a bulk rename worker."""
+
+    request_id: int
+    completed_entries: int
+    total_entries: int
+    current_path: str | None = None
+
+
+@dataclass(frozen=True)
+class BulkRenameCompleted:
+    """Apply the completed bulk rename result."""
+
+    request_id: int
+    result: BulkRenameExecutionResult
+
+
+@dataclass(frozen=True)
+class BulkRenameFailed:
+    """Apply a terminal bulk rename worker failure."""
 
     request_id: int
     message: str

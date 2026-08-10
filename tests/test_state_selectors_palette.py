@@ -7,6 +7,9 @@ TestSelectSearchWindowWithDynamicSize = cases.TestSelectSearchWindowWithDynamicS
 test_command_palette_enables_undo_item_when_stack_is_present = (
     cases.test_command_palette_enables_undo_item_when_stack_is_present
 )
+test_command_palette_exposes_one_dynamic_narrow_view_command = (
+    cases.test_command_palette_exposes_one_dynamic_narrow_view_command
+)
 test_command_palette_includes_undo_item_and_disables_when_empty = (
     cases.test_command_palette_includes_undo_item_and_disables_when_empty
 )

@@ -3,7 +3,13 @@
 from dataclasses import replace
 from functools import lru_cache
 
-from .models import AppState, DirectoryEntryState, DirectorySizeCacheEntry, SortState
+from .models import (
+    AppState,
+    DirectoryEntryState,
+    DirectorySizeCacheEntry,
+    SortState,
+)
+from .natural_sort import natural_sort_key
 
 
 @lru_cache(maxsize=256)
@@ -41,6 +47,43 @@ def target_paths(state: AppState) -> tuple[str, ...]:
     if cursor_entry is None:
         return ()
     return (cursor_entry.path,)
+
+
+def select_transfer_target_paths(state: AppState) -> tuple[str, ...]:
+    """Return the active transfer pane's target paths (selected, else cursor)."""
+
+    transfer = (
+        state.transfer_left
+        if state.active_transfer_pane == "left"
+        else state.transfer_right
+    )
+    if transfer is None:
+        return ()
+    visible_entries = select_visible_entry_states(
+        transfer.pane.entries,
+        state.directory_size_cache,
+        state.show_hidden,
+        "",
+        False,
+        state.sort,
+    )
+    selected_paths = tuple(
+        entry.path for entry in visible_entries if entry.path in transfer.pane.selected_paths
+    )
+    if selected_paths:
+        return selected_paths
+    if transfer.pane.cursor_path is None:
+        return ()
+    for entry in visible_entries:
+        if entry.path == transfer.pane.cursor_path:
+            return (entry.path,)
+    return ()
+
+
+def select_transfer_target_count(state: AppState) -> int:
+    """Return the number of transfer targets in the active pane."""
+
+    return len(select_transfer_target_paths(state))
 
 
 def current_entry_for_path(
@@ -147,23 +190,23 @@ def _sort_key(field: str):
         return lambda entry: (
             entry.modified_at is None,
             entry.modified_at or 0,
-            entry.name.casefold(),
+            natural_sort_key(entry.name),
         )
     if field == "size":
         return lambda entry: (
             entry.size_bytes is None,
             entry.size_bytes or -1,
-            entry.name.casefold(),
+            natural_sort_key(entry.name),
         )
-    return lambda entry: entry.name.casefold()
+    return lambda entry: natural_sort_key(entry.name)
 
 
 def _sort_size_key(descending: bool):
-    def key(entry: DirectoryEntryState) -> tuple[int, int, str]:
+    def key(entry: DirectoryEntryState) -> tuple[int, int, tuple]:
         if entry.size_bytes is None:
-            return (1, 0, entry.name.casefold())
+            return (1, 0, natural_sort_key(entry.name))
         value = -entry.size_bytes if descending else entry.size_bytes
-        return (0, value, entry.name.casefold())
+        return (0, value, natural_sort_key(entry.name))
 
     return key
 

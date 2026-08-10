@@ -98,16 +98,19 @@ def test_archive_list_service_sorts_directories_first(tmp_path) -> None:
         archive.writestr("file1.txt", "content\n")
         archive.writestr("dir1/file.txt", "content\n")
         archive.writestr("file2.txt", "content\n")
+        archive.writestr("file10.txt", "content\n")
+        archive.writestr("file20.txt", "content\n")
 
     service = LiveArchiveListService()
     entries = service.list_archive_entries(str(archive_path))
 
-    assert entries[0].kind == "dir"
-    assert entries[0].name == "dir1"
-    assert entries[1].kind == "file"
-    assert entries[1].name == "file1.txt"
-    assert entries[2].kind == "file"
-    assert entries[2].name == "file2.txt"
+    assert [entry.name for entry in entries] == [
+        "dir1",
+        "file1.txt",
+        "file2.txt",
+        "file10.txt",
+        "file20.txt",
+    ]
 
 
 def test_archive_list_service_includes_file_size_for_files(tmp_path) -> None:

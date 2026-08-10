@@ -44,6 +44,7 @@ from zivo.state.actions import (
     ChildPaneSnapshotLoaded,
     ClearSelection,
     CloseCurrentTab,
+    CloseTabByIndex,
     ConfigSaveCompleted,
     ConfigSaveFailed,
     ConfirmFilterInput,
@@ -82,8 +83,10 @@ from zivo.state.actions import (
     SetPendingKeySequence,
     SetSort,
     SetTerminalHeight,
+    SetTerminalWidth,
     SetUiMode,
     ToggleHiddenFiles,
+    ToggleNarrowPaneView,
     ToggleSelection,
 )
 from zivo.windows_paths import WINDOWS_DRIVES_ROOT
@@ -810,6 +813,24 @@ def test_move_config_editor_cursor_clamps_to_visible_settings() -> None:
     assert next_state.config_editor is not None
     assert next_state.config_editor.cursor_index == 18
 
+
+def test_move_config_editor_cursor_reaches_preview_syntax_theme() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/zivo/config.toml",
+            draft=build_initial_app_state().config,
+            cursor_index=2,
+        ),
+    )
+
+    next_state = _reduce_state(state, MoveConfigEditorCursor(delta=1))
+
+    assert next_state.config_editor is not None
+    assert next_state.config_editor.cursor_index == 10
+
+
 def test_cycle_config_editor_editor_command_updates_draft_and_dirty_state() -> None:
     state = replace(
         build_initial_app_state(config_path="/tmp/zivo/config.toml"),
@@ -1473,6 +1494,7 @@ def test_external_launch_completed_sets_copy_notification() -> None:
     assert next_state.notification == NotificationState(
         level="info",
         message="Copied 2 paths to system clipboard",
+        auto_dismiss=True,
     )
 
 def test_dismiss_name_conflict_restores_rename_mode_and_keeps_input() -> None:
@@ -1498,7 +1520,7 @@ def test_dismiss_name_conflict_restores_create_mode_and_keeps_input() -> None:
         build_initial_app_state(),
         ui_mode="CONFIRM",
         pending_input=PendingInputState(
-            prompt="New file: ",
+            prompt="Name or path: ",
             value="docs",
             create_kind="file",
         ),
@@ -1995,6 +2017,34 @@ class TestSetTerminalHeight:
         next_state = _reduce_state(state, SetTerminalHeight(height=24))
 
         assert next_state is state
+
+
+class TestResponsivePaneState:
+    def test_updates_terminal_width_and_resets_narrow_view_at_breakpoint(self) -> None:
+        state = replace(
+            build_initial_app_state(),
+            terminal_width=72,
+            narrow_pane_view="details",
+        )
+
+        next_state = _reduce_state(state, SetTerminalWidth(width=80))
+
+        assert next_state.terminal_width == 80
+        assert next_state.narrow_pane_view == "current"
+
+    def test_toggle_narrow_view(self) -> None:
+        state = replace(build_initial_app_state(), terminal_width=72)
+
+        details = _reduce_state(state, ToggleNarrowPaneView())
+        current = _reduce_state(details, ToggleNarrowPaneView())
+
+        assert details.narrow_pane_view == "details"
+        assert current.narrow_pane_view == "current"
+
+    def test_toggle_narrow_view_is_ignored_outside_narrow_browser(self) -> None:
+        state = replace(build_initial_app_state(), terminal_width=80)
+
+        assert _reduce_state(state, ToggleNarrowPaneView()) is state
 
 def test_jump_cursor_start() -> None:
     state = build_initial_app_state()
@@ -2688,6 +2738,27 @@ def test_activate_tab_by_index_ignores_out_of_range_index() -> None:
 
 def test_close_current_tab_warns_when_only_one_tab_remains() -> None:
     next_state = _reduce_state(build_initial_app_state(), CloseCurrentTab())
+
+    assert next_state.notification == NotificationState(
+        level="warning",
+        message="Cannot close the last tab",
+    )
+
+
+def test_close_tab_by_index_preserves_active_tab_when_closing_another_tab() -> None:
+    state = _reduce_state(build_initial_app_state(), OpenNewTab())
+    state = _reduce_state(state, OpenNewTab())
+    active_path = state.current_path
+
+    next_state = _reduce_state(state, CloseTabByIndex(0))
+
+    assert next_state.active_tab_index == 1
+    assert next_state.current_path == active_path
+    assert len(select_browser_tabs(next_state)) == 2
+
+
+def test_close_tab_by_index_warns_when_only_one_tab_remains() -> None:
+    next_state = _reduce_state(build_initial_app_state(), CloseTabByIndex(0))
 
     assert next_state.notification == NotificationState(
         level="warning",

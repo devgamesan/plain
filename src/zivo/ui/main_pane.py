@@ -10,7 +10,7 @@ from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.css.query import NoMatches
 from textual.message import Message
-from textual.widgets import DataTable, Label
+from textual.widgets import DataTable, Label, Static
 
 from zivo.models.shell_data import (
     CurrentPaneRowUpdate,
@@ -18,6 +18,8 @@ from zivo.models.shell_data import (
     CurrentSummaryState,
     InputBarState,
     PaneEntry,
+    PaneHeadingState,
+    PaneStatusViewState,
 )
 
 from .input_bar import InputBar
@@ -29,6 +31,7 @@ from .pane_rendering import (
     build_entry_label,
     truncate_middle,
 )
+from .pane_status import render_pane_status
 from .summary_bar import SummaryBar
 
 
@@ -37,18 +40,33 @@ class _MainPaneDataTable(DataTable):
 
     async def _on_click(self, event: events.Click) -> None:
         meta = event.style.meta
-        await super()._on_click(event)
         row_index = meta.get("row")
         column_index = meta.get("column")
+        if row_index == -1 and isinstance(column_index, int):
+            event.stop()
+            owner = self._owner_pane()
+            handler = getattr(owner, "handle_table_header_clicked", None)
+            if handler is not None:
+                await handler(column_index)
+            return
+        await super()._on_click(event)
         if not isinstance(row_index, int) or not isinstance(column_index, int):
             return
         if row_index < 0 or column_index < 0:
             return
         event.stop()
-        handler = getattr(self.parent, "handle_table_row_clicked", None)
+        handler = getattr(self._owner_pane(), "handle_table_row_clicked", None)
         if handler is None:
             return
         await handler(row_index)
+
+    def _owner_pane(self) -> "MainPane | None":
+        """Return the containing MainPane through the table content wrapper."""
+
+        for ancestor in self.ancestors:
+            if isinstance(ancestor, MainPane):
+                return ancestor
+        return None
 
     def _on_mouse_move(self, event: events.MouseMove) -> None:
         super()._on_mouse_move(event)
@@ -58,17 +76,17 @@ class _MainPaneDataTable(DataTable):
 class MainPane(Vertical):
     """Center pane with detailed columns for the current directory."""
 
-    COLUMN_LABELS = ("Sel", "Name", "Size", "Modified")
+    COLUMN_LABELS = ("St", "Name", "Size", "Modified")
     COLUMN_KEYS = ("sel", "name", "size", "modified")
     COMPONENT_CLASSES = FILE_TYPE_COMPONENT_CLASSES
     NAME_MIN_WIDTH = 3
     FIXED_COLUMN_PREFERRED_WIDTHS = {
-        "sel": 1,
+        "sel": 2,
         "size": 9,
         "modified": 16,
     }
     FIXED_COLUMN_MIN_WIDTHS = {
-        "sel": 1,
+        "sel": 2,
         "size": 4,
         "modified": 5,
     }
@@ -90,6 +108,20 @@ class MainPane(Vertical):
             super().__init__()
             self.pane_id = pane_id
 
+    class ActionClicked(Message):
+        """Notify the app that an inline empty-state action was clicked."""
+
+        def __init__(self, action_id: str) -> None:
+            super().__init__()
+            self.action_id = action_id
+
+    class SortHeaderClicked(Message):
+        """Notify the app that a sortable column header was clicked."""
+
+        def __init__(self, field: str) -> None:
+            super().__init__()
+            self.field = field
+
     def __init__(
         self,
         title: str,
@@ -98,21 +130,26 @@ class MainPane(Vertical):
         cursor_index: int | None = None,
         cursor_visible: bool = True,
         context_input: InputBarState | None = None,
+        status: PaneStatusViewState | None = None,
+        heading: PaneHeadingState | None = None,
         *,
         id: str | None = None,
         classes: str | None = None,
     ) -> None:
         super().__init__(id=id, classes=classes)
         self._title = title
+        self._heading = heading
         self._entries = tuple(entries)
         self._path_row_index = self._build_path_row_index(self._entries)
         self._summary = summary
         self._cursor_index = cursor_index
         self._cursor_visible = cursor_visible
         self._context_input = context_input
+        self._status = status
         self._ft_styles: dict[str, Style] = {}
         self._last_table_width = 0
         self._last_clicked_path: str | None = None
+        self._visible_columns: tuple[str, ...] = self.COLUMN_KEYS
 
     @property
     def table_id(self) -> str | None:
@@ -132,10 +169,17 @@ class MainPane(Vertical):
         return f"{self.id}-summary-bar" if self.id else None
 
     def compose(self) -> ComposeResult:
-        yield Label(self._title, classes="pane-title")
+        yield Label(self._heading_text(), classes="pane-title")
         yield SummaryBar(self._summary, id=self.summary_id, classes="pane-summary")
         yield InputBar(self._context_input, id=self.context_input_id, classes="pane-context-input")
-        yield _MainPaneDataTable(id=self.table_id, classes="pane-table")
+        table = _MainPaneDataTable(id=self.table_id, classes="pane-table")
+        status = Static(
+            render_pane_status(self._status),
+            id=f"{self.id}-status" if self.id else None,
+            classes="pane-status",
+        )
+        status.display = self._status is not None
+        yield Vertical(table, status, classes="pane-content")
 
     def on_mount(self) -> None:
         """Populate the table after the widget is attached to an app."""
@@ -164,15 +208,51 @@ class MainPane(Vertical):
             return
         await handler(self.EntryClicked(self.id, path, double_click=double_click))
 
+    async def handle_table_header_clicked(self, column_index: int) -> None:
+        """Forward sortable header clicks as reducer-facing messages."""
+
+        table = self.query_one(DataTable)
+        if column_index < 0 or column_index >= len(table.ordered_columns):
+            return
+        column_key = table.ordered_columns[column_index].key
+        field = str(getattr(column_key, "value", column_key))
+        if field not in {"name", "size", "modified"}:
+            return
+        await self.on_sort_header_clicked(self.SortHeaderClicked(field))
+
+    async def on_sort_header_clicked(self, message: SortHeaderClicked) -> None:
+        """Forward the widget message to the app-level event handler."""
+
+        handler = getattr(self.app, "on_main_pane_sort_header_clicked", None)
+        if handler is not None:
+            await handler(message)
+
     async def on_click(self, event: events.Click) -> None:
         """In transfer mode, clicking on the pane switches focus to it."""
 
+        action_id = event.style.meta.get("pane_action_id")
+        if action_id is not None:
+            event.stop()
+            self.post_message(self.ActionClicked(str(action_id)))
+            return
         if "transfer-pane" not in self.classes:
             return
         handler = getattr(self.app, "on_main_pane_pane_clicked", None)
         if handler is None:
             return
         await handler(self.PaneClicked(self.id))
+
+    def set_status(self, status: PaneStatusViewState | None) -> None:
+        if status == self._status:
+            return
+        self._status = status
+        table = self.query_one(DataTable)
+        status_widget = self.query_one(".pane-status", Static)
+        status_widget.display = status is not None
+        status_widget.update(render_pane_status(status))
+        if status is None:
+            self._apply_cursor_state(table)
+            self.call_after_refresh(lambda: self._apply_cursor_state(table))
 
     def set_entries(
         self,
@@ -188,6 +268,7 @@ class MainPane(Vertical):
             return
 
         previous_entries = self._entries
+        previous_cursor_index = self._cursor_index
         self._entries = next_entries
         self._path_row_index = self._build_path_row_index(self._entries)
         self._cursor_index = cursor_index
@@ -198,6 +279,8 @@ class MainPane(Vertical):
             else:
                 self._update_changed_rows(table, previous_entries, next_entries)
             self._clear_hover_cursor(table)
+        if cursor_changed and not entries_changed:
+            self._update_cursor_markers(table, previous_cursor_index, self._cursor_index)
         if entries_changed or cursor_changed:
             self._apply_cursor_state(table)
 
@@ -215,10 +298,31 @@ class MainPane(Vertical):
         if not force_sync and not cursor_changed and not visibility_changed:
             return
 
+        previous_cursor_index = self._cursor_index
         self._cursor_index = cursor_index
         self._cursor_visible = cursor_visible
         table = self.query_one(DataTable)
+        if cursor_changed:
+            self._update_cursor_markers(table, previous_cursor_index, cursor_index)
         self._apply_cursor_state(table)
+
+    def set_heading(self, heading: PaneHeadingState | None) -> None:
+        """Update the semantic pane heading without remounting the pane."""
+
+        if heading == self._heading:
+            return
+        self._heading = heading
+        self.query_one(".pane-title", Label).update(self._heading_text())
+
+    def _heading_text(self) -> str:
+        if self._heading is None:
+            return self._title
+        marker = ">" if self._heading.active else " "
+        if self._heading.status_label is None:
+            return f"{marker} {self._heading.role} — {self._heading.target_name}"
+        title = f"{self._heading.role} · {self._heading.target_name}"
+        title += f" · {self._heading.status_label}"
+        return f"{marker} {title}"
 
     def _sync_cursor(self, table: DataTable) -> None:
         if not self._entries or self._cursor_index is None:
@@ -245,8 +349,17 @@ class MainPane(Vertical):
         if state == self._summary:
             return
 
+        sort_changed = (
+            state.sort_field != self._summary.sort_field
+            or state.sort_descending != self._summary.sort_descending
+            or state.directories_first != self._summary.directories_first
+        )
         self._summary = state
         self.query_one(SummaryBar).set_state(state)
+        if sort_changed:
+            table = self.query_one(DataTable)
+            self._rebuild_table(table)
+            self._apply_cursor_state(table)
 
     def apply_size_updates(self, updates: Sequence[CurrentPaneSizeUpdate]) -> None:
         """Update only the size cells for the supplied paths."""
@@ -317,11 +430,12 @@ class MainPane(Vertical):
         self._entries = tuple(next_entries)
         self._path_row_index = self._build_path_row_index(self._entries)
         table = self.query_one(DataTable)
-        column_widths = self._allocate_column_widths(table)
+        column_widths = self._allocate_column_widths(table, self._visible_columns)
         for row_key, entry in changed_rows:
-            next_cells = self._build_row_cells(entry, column_widths)
+            row_index = self._path_row_index.get(entry.path)
+            next_cells = self._build_row_cells(entry, column_widths, row_index=row_index)
             for column_key, next_cell in zip(
-                self.COLUMN_KEYS,
+                self._visible_columns,
                 next_cells,
                 strict=False,
             ):
@@ -358,45 +472,55 @@ class MainPane(Vertical):
         previous_entries: Sequence[PaneEntry],
         next_entries: Sequence[PaneEntry],
     ) -> None:
-        column_widths = self._allocate_column_widths(table)
+        self._visible_columns = self._select_visible_column_keys(table.size.width)
+        column_widths = self._allocate_column_widths(table, self._visible_columns)
         for index, (previous_entry, next_entry) in enumerate(
             zip(previous_entries, next_entries, strict=False)
         ):
             if previous_entry == next_entry:
                 continue
-            next_cells = self._build_row_cells(next_entry, column_widths)
+            next_cells = self._build_row_cells(next_entry, column_widths, row_index=index)
             row_key = self._slot_row_key(index)
             for column_key, next_cell in zip(
-                self.COLUMN_KEYS,
+                self._visible_columns,
                 next_cells,
                 strict=False,
             ):
                 table.update_cell(row_key, column_key, next_cell)
 
     def _rebuild_table(self, table: DataTable) -> None:
-        column_widths = self._allocate_column_widths(table)
+        self._visible_columns = self._select_visible_column_keys(table.size.width)
+        column_widths = self._allocate_column_widths(table, self._visible_columns)
         table.clear(columns=True)
-        table.add_column(
-            self.COLUMN_LABELS[0], width=column_widths["sel"], key=self.COLUMN_KEYS[0]
-        )
-        table.add_column(
-            self.COLUMN_LABELS[1], width=column_widths["name"], key=self.COLUMN_KEYS[1]
-        )
-        table.add_column(
-            self.COLUMN_LABELS[2], width=column_widths["size"], key=self.COLUMN_KEYS[2]
-        )
-        table.add_column(
-            self.COLUMN_LABELS[3],
-            width=column_widths["modified"],
-            key=self.COLUMN_KEYS[3],
-        )
+        labels = {
+            "sel": self.COLUMN_LABELS[0],
+            "name": self._header_label("name"),
+            "size": self._header_label("size"),
+            "modified": self._header_label("modified"),
+        }
+        for column_key in self._visible_columns:
+            table.add_column(
+                labels[column_key],
+                width=column_widths[column_key],
+                key=column_key,
+            )
         for index, entry in enumerate(self._entries):
             table.add_row(
-                *self._build_row_cells(entry, column_widths),
+                *self._build_row_cells(entry, column_widths, row_index=index),
                 key=self._slot_row_key(index),
             )
         self._last_table_width = table.size.width
         self._clear_hover_cursor(table)
+
+    def _header_label(self, field: str) -> str:
+        """Return a text label that exposes active sort and grouping state."""
+
+        label = field.capitalize()
+        if field == self._summary.sort_field:
+            label += " ↓" if self._summary.sort_descending else " ↑"
+        if field == "name":
+            label += " · folders first" if self._summary.directories_first else " · mixed"
+        return label
 
     @staticmethod
     def _clear_hover_cursor(table: DataTable) -> None:
@@ -430,30 +554,139 @@ class MainPane(Vertical):
         self,
         entry: PaneEntry,
         column_widths: dict[str, int],
-    ) -> tuple[Text, Text, Text, Text]:
-        return (
-            self._render_cell(entry.selection_marker, entry),
-            self._render_cell(
+        *,
+        row_index: int | None = None,
+    ) -> tuple[Text, ...]:
+        cells = {
+            "sel": self._render_cell(
+                entry.state_marker(cursor=row_index == self._cursor_index, max_width=2),
+                entry,
+            ),
+            "name": self._render_cell(
                 truncate_middle(build_entry_label(entry), column_widths["name"]),
                 entry,
             ),
-            self._render_cell(entry.size_label, entry),
-            self._render_cell(entry.modified_label, entry),
+            "size": self._render_cell(entry.size_label, entry),
+            "modified": self._render_cell(entry.modified_label, entry),
+        }
+        return tuple(cells[key] for key in self._visible_columns)
+
+    def _update_cursor_markers(
+        self,
+        table: DataTable,
+        previous_index: int | None,
+        next_index: int | None,
+    ) -> None:
+        """Refresh only state cells affected by a cursor move."""
+
+        for row_index in {previous_index, next_index}:
+            if row_index is None or not 0 <= row_index < len(self._entries):
+                continue
+            entry = self._entries[row_index]
+            try:
+                table.update_cell(
+                    self._slot_row_key(row_index),
+                    "sel",
+                    self._render_cell(
+                        entry.state_marker(cursor=row_index == next_index, max_width=2),
+                        entry,
+                    ),
+                )
+            except KeyError:
+                continue
+
+    @classmethod
+    def _allocate_column_widths_for_keys(
+        cls,
+        table: DataTable,
+        visible_columns: Sequence[str],
+    ) -> dict[str, int]:
+        column_count = len(visible_columns)
+        padding_width = column_count * table.cell_padding * 2
+        available_content_width = max(1, table.size.width - padding_width)
+        fixed_widths = {
+            key: value
+            for key, value in cls._shrink_fixed_columns(available_content_width).items()
+            if key in visible_columns
+        }
+        fixed_min_widths = {
+            "sel": cls.FIXED_COLUMN_MIN_WIDTHS["sel"],
+            "size": cls.FIXED_COLUMN_MIN_WIDTHS["size"],
+            "modified": cls.FIXED_COLUMN_MIN_WIDTHS["modified"],
+        }
+        name_min_width = max(cls.NAME_MIN_WIDTH, len(cls._header_label_for_state("name")))
+        fixed_budget = max(1, available_content_width - name_min_width)
+        if sum(fixed_widths.values()) > fixed_budget:
+            fixed_widths = cls._shrink_visible_fixed_columns(
+                fixed_widths,
+                fixed_min_widths,
+                fixed_budget,
+            )
+        name_width = max(1, available_content_width - sum(fixed_widths.values()))
+        return {
+            "sel": fixed_widths.get("sel", 0),
+            "name": name_width,
+            "size": fixed_widths.get("size", 0),
+            "modified": fixed_widths.get("modified", 0),
+        }
+
+    @classmethod
+    def _allocate_column_widths(
+        cls,
+        table: DataTable,
+        visible_columns: Sequence[str] | None = None,
+    ) -> dict[str, int]:
+        return cls._allocate_column_widths_for_keys(
+            table,
+            visible_columns or cls.COLUMN_KEYS,
         )
 
     @classmethod
-    def _allocate_column_widths(cls, table: DataTable) -> dict[str, int]:
-        column_count = len(cls.COLUMN_LABELS)
-        padding_width = column_count * table.cell_padding * 2
-        available_content_width = max(1, table.size.width - padding_width)
-        fixed_widths = cls._shrink_fixed_columns(available_content_width)
-        name_width = max(1, available_content_width - sum(fixed_widths.values()))
-        return {
-            "sel": fixed_widths["sel"],
-            "name": name_width,
-            "size": fixed_widths["size"],
-            "modified": fixed_widths["modified"],
-        }
+    def _select_visible_column_keys(cls, table_width: int) -> tuple[str, ...]:
+        if table_width <= 0:
+            return cls.COLUMN_KEYS
+        for columns in (
+            cls.COLUMN_KEYS,
+            ("sel", "name", "size"),
+            ("sel", "name"),
+        ):
+            padding = len(columns) * 2
+            minimum = sum(
+                cls._column_min_width(key) for key in columns
+            ) + padding
+            if table_width >= minimum:
+                return columns
+        return ("sel", "name")
+
+    @classmethod
+    def _column_min_width(cls, key: str) -> int:
+        if key == "name":
+            return max(cls.NAME_MIN_WIDTH, len(cls._header_label_for_state("name")))
+        return cls.FIXED_COLUMN_MIN_WIDTHS[key]
+
+    @classmethod
+    def _header_label_for_state(cls, field: str) -> str:
+        if field == "name":
+            return "Name ↑ · folders first"
+        return field.capitalize()
+
+    @classmethod
+    def _shrink_visible_fixed_columns(
+        cls,
+        fixed_widths: dict[str, int],
+        minimums: dict[str, int],
+        budget: int,
+    ) -> dict[str, int]:
+        fixed_widths = dict(fixed_widths)
+        overflow = sum(fixed_widths.values()) - budget
+        for key in cls.FIXED_COLUMN_SHRINK_ORDER:
+            if key not in fixed_widths or overflow <= 0:
+                continue
+            reducible = fixed_widths[key] - minimums[key]
+            shrink_by = min(max(0, reducible), overflow)
+            fixed_widths[key] -= shrink_by
+            overflow -= shrink_by
+        return fixed_widths
 
     @classmethod
     def _shrink_fixed_columns(cls, available_content_width: int) -> dict[str, int]:

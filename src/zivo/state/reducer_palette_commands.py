@@ -1,9 +1,11 @@
 """Command execution helpers for the command palette reducer."""
 
 from dataclasses import replace
+from pathlib import Path
 
 from zivo.archive_utils import is_supported_archive_path
 from zivo.models import (
+    BulkRenameTarget,
     CustomActionContext,
     CustomActionExpansionError,
     expand_custom_action,
@@ -11,9 +13,11 @@ from zivo.models import (
 
 from .actions import (
     ActivateNextTab,
+    ActivateNotificationAction,
     ActivatePreviousTab,
     AddBookmark,
     BeginBookmarkSearch,
+    BeginBulkRename,
     BeginChmodInput,
     BeginChownInput,
     BeginCreateInput,
@@ -22,6 +26,7 @@ from .actions import (
     BeginExitCurrentPath,
     BeginExtractArchiveInput,
     BeginFileSearch,
+    BeginGo,
     BeginGoToPath,
     BeginGrepSearch,
     BeginHistorySearch,
@@ -34,6 +39,7 @@ from .actions import (
     CopyPathsToClipboard,
     CopyTargets,
     CutTargets,
+    DuplicateTargets,
     GoBack,
     GoForward,
     GoToHomeDirectory,
@@ -52,12 +58,17 @@ from .actions import (
     ShowAbout,
     ShowAttributes,
     ToggleHiddenFiles,
+    ToggleNarrowPaneView,
     ToggleTransferMode,
     TransferCopyToOppositePane,
     TransferMoveToOppositePane,
     UndoLastOperation,
 )
-from .command_palette import get_command_palette_items, normalize_command_palette_cursor
+from .command_palette import (
+    NOTIFICATION_ACTION_IDS,
+    get_command_palette_items,
+    normalize_command_palette_cursor,
+)
 from .effects import ReduceResult, RunAttributeInspectionEffect
 from .models import AppState, AttributeInspectionState, ConfigEditorState
 from .reducer_common import (
@@ -73,7 +84,11 @@ from .reducer_palette_shared import (
     selected_current_file_paths,
 )
 from .reducer_transfer import request_transfer_pane_snapshot
-from .selectors import select_target_paths, select_visible_current_entry_states
+from .selectors import (
+    select_target_paths,
+    select_transfer_target_paths,
+    select_visible_current_entry_states,
+)
 
 
 def _active_transfer_pane(state: AppState):
@@ -97,18 +112,7 @@ def _transfer_visible_paths(state: AppState) -> tuple[str, ...]:
 
 
 def _transfer_target_paths(state: AppState) -> tuple[str, ...]:
-    transfer = _active_transfer_pane(state)
-    if transfer is None:
-        return ()
-    visible_paths = _transfer_visible_paths(state)
-    selected_paths = tuple(
-        path for path in visible_paths if path in transfer.pane.selected_paths
-    )
-    if selected_paths:
-        return selected_paths
-    if transfer.pane.cursor_path in visible_paths:
-        return (transfer.pane.cursor_path,)
-    return ()
+    return select_transfer_target_paths(state)
 
 
 def _transfer_single_target_path(state: AppState) -> str | None:
@@ -160,6 +164,10 @@ def _run_go_forward_command(state: AppState, reduce_state: ReducerFn) -> ReduceR
 
 def _run_go_to_path_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
     return reduce_state(state, BeginGoToPath())
+
+
+def _run_go_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
+    return reduce_state(state, BeginGo())
 
 
 def _run_go_to_home_directory_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
@@ -246,14 +254,30 @@ def _run_rename_command(
     next_state: AppState,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
-    target_path = (
-        _transfer_single_target_path(state)
+    target_paths = (
+        _transfer_target_paths(state)
         if state.layout_mode == "transfer"
-        else single_target_path(state)
+        else select_target_paths(state)
     )
-    if target_path is None:
+    if not target_paths:
         return notify(next_state, level="warning", message="Rename requires a single target")
-    return reduce_state(next_state, BeginRenameInput(path=target_path))
+    if len(target_paths) >= 2:
+        active_transfer = _active_transfer_pane(state)
+        parent_dir = (
+            active_transfer.current_path
+            if state.layout_mode == "transfer" and active_transfer is not None
+            else state.current_pane.directory_path
+        )
+        return reduce_state(
+            next_state,
+            BeginBulkRename(
+                parent_dir=parent_dir,
+                targets=tuple(
+                    BulkRenameTarget(path, Path(path).name) for path in target_paths
+                ),
+            ),
+        )
+    return reduce_state(next_state, BeginRenameInput(path=target_paths[0]))
 
 
 def _run_change_permissions_command(
@@ -422,6 +446,15 @@ def _run_cut_targets_command(
     return reduce_state(next_state, CutTargets(target_paths))
 
 
+def _run_duplicate_targets_command(
+    state: AppState,
+    next_state: AppState,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del state
+    return reduce_state(next_state, DuplicateTargets())
+
+
 def _run_paste_clipboard_command(
     state: AppState,
     reduce_state: ReducerFn,
@@ -474,12 +507,8 @@ def _run_edit_config_command(state: AppState) -> ReduceResult:
     )
 
 
-def _run_create_file_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
+def _run_create_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
     return reduce_state(state, BeginCreateInput("file"))
-
-
-def _run_create_dir_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
-    return reduce_state(state, BeginCreateInput("dir"))
 
 
 def _run_exit_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
@@ -553,6 +582,8 @@ def _run_palette_command_item(
         return _run_go_forward_command(next_state, reduce_state)
     if item_id == "go_to_path":
         return _run_go_to_path_command(next_state, reduce_state)
+    if item_id == "go":
+        return _run_go_command(next_state, reduce_state)
     if item_id == "go_to_home_directory":
         return _run_go_to_home_directory_command(next_state, reduce_state)
     if item_id == "reload_directory":
@@ -561,12 +592,16 @@ def _run_palette_command_item(
         return _run_exit_command(next_state, reduce_state)
     if item_id == "toggle_transfer_mode":
         return reduce_state(next_state, ToggleTransferMode())
+    if item_id == "toggle_narrow_pane_view":
+        return reduce_state(next_state, ToggleNarrowPaneView())
     if item_id == "undo_last_operation":
         return reduce_state(next_state, UndoLastOperation())
     if item_id == "copy_targets":
         return _run_copy_targets_command(state, next_state, reduce_state)
     if item_id == "cut_targets":
         return _run_cut_targets_command(state, next_state, reduce_state)
+    if item_id == "duplicate_targets":
+        return _run_duplicate_targets_command(state, next_state, reduce_state)
     if item_id == "paste_clipboard":
         return _run_paste_clipboard_command(next_state, reduce_state)
     if item_id == "transfer_copy_to_opposite_pane":
@@ -617,10 +652,8 @@ def _run_palette_command_item(
         return _run_toggle_hidden_command(next_state, reduce_state)
     if item_id == "edit_config":
         return _run_edit_config_command(state)
-    if item_id == "create_file":
-        return _run_create_file_command(next_state, reduce_state)
-    if item_id == "create_dir":
-        return _run_create_dir_command(next_state, reduce_state)
+    if item_id == "create":
+        return _run_create_command(next_state, reduce_state)
     return finalize(next_state)
 
 
@@ -635,7 +668,16 @@ def handle_submit_commands_palette(state: AppState, reduce_state: ReducerFn) -> 
         return notify(
             state,
             level="warning",
-            message=f"{selected_item.label} is not available yet",
+            message=selected_item.disabled_reason
+            or f"{selected_item.label} is not available in the current context",
+        )
+    if selected_item.id in NOTIFICATION_ACTION_IDS:
+        return reduce_state(
+            state,
+            ActivateNotificationAction(
+                action_id=selected_item.id,
+                revision=state.notification_revision,
+            ),
         )
     next_state = restore_browsing_from_palette(state)
     return _run_palette_command_item(state, next_state, selected_item.id, reduce_state)

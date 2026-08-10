@@ -15,6 +15,7 @@ from zivo.models import (
 )
 from zivo.theme_support import preview_syntax_theme_for_app_theme
 
+from .entry_state_helpers import _sort_key, _sort_size_key
 from .entry_state_helpers import (
     current_entry_for_path as shared_current_entry_for_path,
 )
@@ -219,32 +220,6 @@ def _sort_entries_by_size(
     return tuple(combined)
 
 
-def _sort_key(field: str):
-    if field == "modified":
-        return lambda entry: (
-            entry.modified_at is None,
-            entry.modified_at or 0,
-            entry.name.casefold(),
-        )
-    if field == "size":
-        return lambda entry: (
-            entry.size_bytes is None,
-            entry.size_bytes or -1,
-            entry.name.casefold(),
-        )
-    return lambda entry: entry.name.casefold()
-
-
-def _sort_size_key(descending: bool):
-    def key(entry: DirectoryEntryState) -> tuple[int, int, str]:
-        if entry.size_bytes is None:
-            return (1, 0, entry.name.casefold())
-        value = -entry.size_bytes if descending else entry.size_bytes
-        return (0, value, entry.name.casefold())
-
-    return key
-
-
 def _format_sort_label(sort: SortState) -> str:
     direction = "desc" if sort.descending else "asc"
     return f"{sort.field} {direction}"
@@ -272,6 +247,7 @@ def _build_command_palette_items_view(
     empty_message: str | None = None,
     *,
     selected_override: bool | None = None,
+    footer_message: str | None = None,
 ) -> CommandPaletteViewState:
     """コマンドパレットのアイテムビューを構築する共通関数。"""
     items = get_command_palette_items(state)
@@ -293,11 +269,15 @@ def _build_command_palette_items_view(
                         selected_override if selected_override is not None else True
                     ) and index == cursor_index
                 ),
+                command_id=item.id,
+                category=item.category,
+                disabled_reason=item.disabled_reason,
             )
             for index, item in visible_items
         ),
         empty_message=empty_message or "No items",
         has_more_items=len(items) > len(visible_items),
+        footer_message=footer_message,
     )
 
 

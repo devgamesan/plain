@@ -28,6 +28,7 @@ from zivo.state.actions import (
     TransferMoveToOppositePane,
     UndoCompleted,
 )
+from zivo.state.models import ClipboardState
 
 
 def test_toggle_transfer_mode_initializes_left_and_right_from_current_pane() -> None:
@@ -56,6 +57,7 @@ def test_transfer_copy_to_opposite_pane_uses_paste_effect() -> None:
                 mode="copy",
                 source_paths=("/home/tadashi/develop/zivo/docs",),
                 destination_dir="/home/tadashi/develop/zivo",
+                origin="transfer",
             ),
         ),
     )
@@ -73,6 +75,7 @@ def test_transfer_move_to_opposite_pane_uses_cut_paste_request() -> None:
                 mode="cut",
                 source_paths=("/home/tadashi/develop/zivo/docs",),
                 destination_dir="/home/tadashi/develop/zivo",
+                origin="transfer",
             ),
         ),
     )
@@ -107,7 +110,7 @@ def test_transfer_paste_completed_refreshes_both_transfer_panes() -> None:
             request_id=2,
             pane_id="left",
             path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            cursor_path="/home/tadashi/develop/zivo/src",
             invalidate_paths=(
                 str(Path("/home/tadashi/develop/zivo").resolve()),
                 str(Path("/home/tadashi/develop").resolve()),
@@ -233,3 +236,82 @@ def test_transfer_mode_is_scoped_to_browser_tab() -> None:
     assert previous_tab_state.layout_mode == "transfer"
     assert previous_tab_state.transfer_left is not None
     assert previous_tab_state.transfer_right is not None
+
+
+def test_clipboard_cut_not_cleared_by_direct_transfer_move() -> None:
+    """直接転送 Move が事前に仕掛けた clipboard cut を誤ってクリアしない（state-mixing 修正）。"""
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+    state = replace(
+        state,
+        clipboard=ClipboardState(mode="cut", paths=("/home/tadashi/armed",)),
+    )
+    state = _reduce_state(state, TransferMoveToOppositePane())
+
+    reduced = reduce_app_state(
+        state,
+        ClipboardPasteCompleted(
+            request_id=state.pending_paste_request_id,
+            summary=PasteSummary(
+                mode="cut",
+                destination_dir="/home/tadashi/develop/zivo",
+                total_count=1,
+                success_count=1,
+                skipped_count=0,
+            ),
+            applied_changes=(
+                PasteAppliedChange(
+                    source_path="/home/tadashi/develop/zivo/docs",
+                    destination_path="/home/tadashi/develop/zivo/docs",
+                ),
+            ),
+        ),
+    )
+
+    assert reduced.state.clipboard.mode == "cut"
+    assert reduced.state.clipboard.paths == ("/home/tadashi/armed",)
+
+
+def test_transfer_move_clears_successful_selection_keeps_others() -> None:
+    """成功した source の選択を解除し、未適用の対象は選択を保持する。"""
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+    armed_paths = (
+        "/home/tadashi/develop/zivo/docs",
+        "/home/tadashi/develop/zivo/src",
+    )
+    state = replace(
+        state,
+        transfer_left=replace(
+            state.transfer_left,
+            pane=replace(
+                state.transfer_left.pane,
+                selected_paths=frozenset(armed_paths),
+                cursor_path="/home/tadashi/develop/zivo/docs",
+            ),
+        ),
+    )
+    state = _reduce_state(state, TransferMoveToOppositePane())
+
+    reduced = reduce_app_state(
+        state,
+        ClipboardPasteCompleted(
+            request_id=state.pending_paste_request_id,
+            summary=PasteSummary(
+                mode="cut",
+                destination_dir="/home/tadashi/develop/zivo",
+                total_count=2,
+                success_count=1,
+                skipped_count=0,
+            ),
+            applied_changes=(
+                PasteAppliedChange(
+                    source_path="/home/tadashi/develop/zivo/docs",
+                    destination_path="/home/tadashi/develop/zivo/docs",
+                ),
+            ),
+        ),
+    )
+
+    left = reduced.state.transfer_left
+    assert left is not None
+    assert "/home/tadashi/develop/zivo/docs" not in left.pane.selected_paths
+    assert "/home/tadashi/develop/zivo/src" in left.pane.selected_paths

@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from zivo.models import CreateKind
+from zivo.models import BulkRenameTarget, CreateKind
 
 
 @dataclass(frozen=True)
@@ -28,6 +28,38 @@ class BeginRenameInput:
 
 
 @dataclass(frozen=True)
+class BeginBulkRename:
+    """Open the bulk rename editor for selected targets."""
+
+    parent_dir: str
+    targets: tuple[BulkRenameTarget, ...]
+
+
+@dataclass(frozen=True)
+class SetBulkRenameBaseName:
+    """Set the base name used to generate all New Name values."""
+
+    value: str
+
+
+@dataclass(frozen=True)
+class PasteIntoBulkRenameBaseName:
+    """Append pasted text to the bulk rename base name."""
+
+    text: str
+
+
+@dataclass(frozen=True)
+class ApplyBulkRename:
+    """Apply the validated bulk rename plan."""
+
+
+@dataclass(frozen=True)
+class CancelBulkRename:
+    """Close the bulk rename editor without applying it."""
+
+
+@dataclass(frozen=True)
 class BeginChmodInput:
     """Enter chmod input mode for one or more paths."""
 
@@ -46,6 +78,11 @@ class BeginCreateInput:
     """Enter create input mode for a new file or directory."""
 
     kind: CreateKind
+
+
+@dataclass(frozen=True)
+class CycleCreateKind:
+    """Toggle the file or directory type in the unified create flow."""
 
 
 @dataclass(frozen=True)
@@ -72,6 +109,11 @@ class BeginZipCompressInput:
 @dataclass(frozen=True)
 class BeginShellCommandInput:
     """Open the shell command input dialog."""
+
+
+@dataclass(frozen=True)
+class BeginConfigEditor:
+    """Open the startup configuration editor."""
 
 
 @dataclass(frozen=True)

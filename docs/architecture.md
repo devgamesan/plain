@@ -14,6 +14,7 @@
 - `selectors`: `AppState` から描画専用モデルを組み立てる
 - `services`: reducer 外で effect を実行するユースケース境界
 - `adapters`: OS / filesystem / clipboard など外部依存の実装
+- `actionable notifications`: 通知状態、stable action ID、revision付き timer、Details overlay の責務
 
 widget 側に操作分岐を持たせず、状態遷移は `state/` に寄せる構成です。  
 実際の UI 更新は `selectors` が作る view model と `app_shell.py` の組み立て処理に限定し、非同期処理の制御は `app_runtime.py` に分離しています。
@@ -52,6 +53,7 @@ flowchart LR
         Search["file_search.py / grep_search.py"]
         DirSize["directory_size.py"]
         Clipboard["clipboard_operations.py"]
+        Duplicate["duplicate_operations.py"]
         Mutations["file_mutations.py"]
         Archive["archive_extract.py"]
         Config["config.py"]
@@ -161,6 +163,7 @@ sequenceDiagram
 - 3 ペイン本体、dialog、split terminal を含む widget ツリーの mount / refresh を担当する
 - selector が返した view model を各 widget へ反映する
 - split terminal の focus 制御と terminal サイズ同期を行う
+- アクティブペインは入力を受け付ける `BROWSING` / `FILTER` のときだけ表示し、通常ブラウズは accent の丸枠と見出し色、Transfer は太い accent 枠と塗りつぶし見出しで強度を分ける。行状態は状態列の `>`（カーソル）、`*`（選択）、`x`（カット）と、名前末尾の `@`（symlink）、`*`（executable）で色以外にも示す。状態列はカーソルと操作状態の2スロットを保ち、カットを選択より優先する
 
 ### `src/zivo/state/input.py`
 
@@ -174,6 +177,16 @@ sequenceDiagram
 - `AppState` の唯一の公開更新点
 - 実処理は責務別ハンドラへ振り分ける薄いエントリポイントとして振る舞う
 
+### 操作通知のアクション経路
+
+`NotificationState` は最大1つの `NotificationAction` と、必要に応じて destination/details の payload を保持する。`reducer_notifications.py` が `ActivateNotificationAction` を revision と action ID で検証し、Undo・移動・Retry・Details を既存 reducer/effect 経路へ委譲する。StatusBar のクリックと command palette の条件付き `Suggested` は同じ action ID を dispatch するため、表示経路が違っても二重実行防止と状態検証を共有する。
+
+`notification_revision` は通知が変わるたびに増え、StatusBar の5秒 timerから届く古い `DismissNotification` を拒否する。アクション開始時には通知を先に消費する。Details は `DETAIL` mode の既存 Enter/Esc 入力経路で閉じる。Retry は paste、duplicate、archive/zip preparation の allowlist に限定し、paste と archive/zip は fresh preflight/preparation を再実行する。最終成功だけを `auto_dismiss` 対象とし、処理中・warning/error・partial success は残す。
+
+### foreground file operation の進捗
+
+Copy・Move・Compress・Extract・Replace は、1つの一時的な `ForegroundOperationState` を共有する。runtime が operation ID と協調キャンセル用 event を管理し、service は安全な対象境界でだけ event を確認して progress を reducer action へ戻す。古い operation ID の progress は破棄する。StatusBar と HelpBar は専用タスク画面を追加せず state を投影し、キャンセル可能な間だけ `Cancel` と `Esc` を表示する。Compress は同一ディレクトリの一時アーカイブを原子的に公開し、Extract と Replace は一時ファイルを原子的に置換する。部分結果の件数とパスは既存 Details 経路で表示する。
+
 ### `src/zivo/state/reducer_navigation.py`
 
 - ディレクトリ移動、history 戻る / 進む、home 移動、reload、filter、sort、hidden files 切り替えを担当する
@@ -181,8 +194,8 @@ sequenceDiagram
 
 ### `src/zivo/state/reducer_transfer.py`
 
-- 2ペイン転送モードの開閉、左右フォーカス、左右ペイン内の移動と選択を担当する
-- 反対側ペインへの copy / move は既存 `PasteRequest` と clipboard paste effect を再利用する
+- 2ペイン転送モードの開閉、Tab によるペインフォーカス、左右ペイン内の移動と選択を担当する
+- 反対側ペインへの Copy / Move は既存 `PasteRequest`（`origin="transfer"` を付与）と clipboard paste effect を再利用する
 - 転送ペインの directory snapshot 読み込みと、paste 後の左右ペイン再読み込みを担当する
 
 ### `src/zivo/state/reducer_mutations.py`
@@ -207,13 +220,18 @@ sequenceDiagram
 
 - `AppState` から `ThreePaneShellData` を組み立てる
 - 中央ペインにだけ filter / sort / directory size 表示を適用し、親・子ペインは固定順で表示する
+- 端末幅に応じた `ResponsivePaneLayoutState` を作り、120 列以上は Parent / Current / Child、80〜119 列は Current / Child、80 列未満は Current または Details の単一ビューを描画する。幅変更ではブラウザのカーソル・選択・フィルタを変更せず、狭いビューだけ `Tab` で切り替える
 - 転送モードでは左右2つの `MainPane` 用表示モデルを組み立て、Parent / Child / Preview を描画対象から外す
+- 中央・転送ペインの見出しは `PaneHeadingState` として役割、対象名、item count、selected count、sort label、active 状態を一元化し、Parent / Current / Contents / Preview / Results の意味を示す
 - help bar、status bar、input bar、command palette、conflict dialog、attribute dialog、config dialog、split terminal の表示文言を整形する
 - busy 状態、extract 進捗、検索エラー、通知メッセージを UI 向けに要約する
 
 ### `src/zivo/state/command_palette.py`
 
 - palette 候補の構築と query フィルタリングを担当する
+- 標準コマンドの安定 ID、カテゴリ、keywords、shortcut、context priority、無効理由を共有メタデータとして管理する
+- カテゴリ順と決定的な一致スコアで候補を安定ソートする
+- 無効候補も残し、selector と reducer が同じ disabled reason を表示・通知に利用する
 - 通常 palette には次の候補がある
   - `Find files`
   - `Grep search`
@@ -232,6 +250,7 @@ sequenceDiagram
   - `Edit with terminal editor`
   - `Edit with GUI editor`
   - `Copy path`
+  - `Duplicate`（選択またはフォーカス対象を同じ親ディレクトリへ非上書き複製）
   - `Move to trash`
   - `Open current directory with file manager`
   - `Open current directory with terminal`
@@ -251,6 +270,7 @@ sequenceDiagram
 - `grep_search.py`: `rg` を使った再帰内容検索を担当する
 - `directory_size.py`: 可視ディレクトリの再帰サイズ計算を担当する
 - `clipboard_operations.py`: copy / cut / paste 実処理、競合検出、undo 用結果記録を担当する
+- `duplicate_operations.py`: 同じ親ディレクトリへの非上書き複製、衝突名生成、symlink、対象別進捗・失敗を担当する
 - `file_mutations.py`: rename / create / delete、trash undo 用 metadata 採取、完全削除確認用の再帰サイズ調査を担当する
 - `undo_operations.py`: reversible file operations の undo 実行を担当する
 - `archive_extract.py`: archive 事前走査、競合検出、安全な展開、進捗通知を担当する
@@ -330,12 +350,12 @@ stateDiagram-v2
 - bookmark 一覧からのジャンプと、現在ディレクトリの bookmark 追加 / 削除
 - go-to-path 入力による任意パスへの移動
 - filter 入力と filter 適用後の一覧継続操作
-- 名前 / 更新日時 / サイズソートと directory-first 切り替え
+- 名前（自然順） / 更新日時 / サイズソートと directory-first 切り替え
 - 必要に応じた可視ディレクトリの再帰サイズ表示
 - 選択トグル、選択解除、copy / cut / paste
-- 2ペイン転送モードでの左右フォーカス、左右間 copy / move、既存 clipboard paste
+- 2ペイン転送モードでの Tab ペインフォーカス、左右間 Copy / Move、方向と件数を示す転送ヘッダー
 - 貼り付け時の競合検出と overwrite / skip / rename の解決
-- 単一対象の rename
+- 単一対象の rename と、同一ディレクトリ内で一時名を経由する安全な bulk rename
 - 新規ファイル / 新規ディレクトリ作成
 - ゴミ箱への削除と確認ダイアログ
 - ファイルの既定アプリ起動

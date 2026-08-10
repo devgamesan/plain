@@ -1,7 +1,7 @@
 """Pending input validation and request builders."""
 
 import os
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from zivo.archive_utils import resolve_zip_destination_input
 from zivo.models import (
@@ -15,6 +15,7 @@ from zivo.models import (
     RecursiveChownRequest,
     RenameRequest,
 )
+from zivo.path_validation import validate_path_segment
 from zivo.windows_paths import join_path, resolve_parent_directory_path
 
 from .reducer_path_helpers import (
@@ -95,6 +96,9 @@ def validate_pending_input(state, *, is_macos: bool) -> str | None:
             return f"An entry already exists at '{resolved_destination}'"
         return None
 
+    if state.ui_mode == "CREATE" and state.pending_input.create_kind is not None:
+        return validate_create_path_input(state, is_macos=is_macos)
+
     name = state.pending_input.value
     if not name:
         return "Name cannot be empty"
@@ -104,6 +108,9 @@ def validate_pending_input(state, *, is_macos: bool) -> str | None:
         return "Names cannot include path separators"
     if is_macos and ":" in name:
         return "Names cannot include colons"
+    name_error = validate_path_segment(name, is_macos=is_macos)
+    if name_error is not None:
+        return name_error
 
     parent_path, current_target_path = pending_input_parent_and_target(state)
     if parent_path is None:
@@ -123,9 +130,93 @@ def validate_pending_input(state, *, is_macos: bool) -> str | None:
     return None
 
 
+def _create_parent_dir(state) -> Path:
+    if state.layout_mode == "transfer":
+        active_pane = _active_transfer_pane(state)
+        if active_pane is not None:
+            return Path(os.path.abspath(os.path.expanduser(active_pane.current_path)))
+    return Path(os.path.abspath(os.path.expanduser(state.current_pane.directory_path)))
+
+
+def resolve_create_target_path(state) -> Path | None:
+    """Resolve a Create input relative to its active directory without escaping it."""
+
+    if state.pending_input is None:
+        return None
+    value = state.pending_input.value
+    if not value or Path(value).is_absolute() or PureWindowsPath(value).is_absolute():
+        return None
+    base_path = _create_parent_dir(state)
+    target_path = Path(os.path.abspath(base_path / Path(value)))
+    try:
+        target_path.relative_to(base_path)
+    except ValueError:
+        return None
+    try:
+        target_path.resolve(strict=False).relative_to(base_path.resolve(strict=False))
+    except ValueError:
+        return None
+    return target_path
+
+
+def validate_create_path_input(state, *, is_macos: bool) -> str | None:
+    """Validate a nested relative path before any filesystem mutation occurs."""
+
+    assert state.pending_input is not None
+    value = state.pending_input.value
+    if not value.strip():
+        return "Name or path cannot be empty"
+    if Path(value).is_absolute() or PureWindowsPath(value).is_absolute():
+        return "Name or path must be relative"
+    target_path = resolve_create_target_path(state)
+    if target_path is None:
+        return "Name or path must stay within the current directory"
+
+    for segment in Path(value).parts:
+        if segment in {"", ".", ".."}:
+            continue
+        error = _validate_create_path_segment(segment, is_macos=is_macos)
+        if error is not None:
+            return error
+    if os.path.lexists(target_path):
+        return f"An entry already exists at '{target_path}'"
+
+    existing_paths = _pending_input_existing_paths(state)
+    target_string = str(target_path)
+    if is_macos:
+        has_casefolded_match = any(
+            Path(path).name.casefold() == target_path.name.casefold()
+            for path in existing_paths
+        )
+        if has_casefolded_match:
+            return f"An entry already exists at '{target_path}'"
+    elif target_string in existing_paths:
+        return f"An entry already exists at '{target_path}'"
+
+    existing_parent = target_path.parent
+    while not existing_parent.exists() and existing_parent != existing_parent.parent:
+        existing_parent = existing_parent.parent
+    if not _create_parent_dir(state).exists():
+        # Reducer tests and remote snapshots can describe a directory not mounted locally.
+        # The mutation service remains the authoritative runtime permission boundary.
+        return None
+    if not existing_parent.is_dir():
+        return "Target parent is not a directory"
+    if not os.access(existing_parent, os.W_OK | os.X_OK):
+        return f"Permission denied for '{existing_parent}'"
+    return None
+
+
+def _validate_create_path_segment(segment: str, *, is_macos: bool) -> str | None:
+    return validate_path_segment(segment, is_macos=is_macos)
+
+
 def is_name_conflict_validation_error(state, message: str) -> bool:
-    return state.pending_input is not None and message == (
-        f"An entry named '{state.pending_input.value}' already exists"
+    if state.pending_input is None:
+        return False
+    target_path = resolve_create_target_path(state)
+    return message == f"An entry named '{state.pending_input.value}' already exists" or (
+        target_path is not None and message == f"An entry already exists at '{target_path}'"
     )
 
 
@@ -285,8 +376,12 @@ def pending_input_parent_and_target(state) -> tuple[str | None, str | None]:
         if state.layout_mode == "transfer":
             active_pane = _active_transfer_pane(state)
             if active_pane is not None:
-                return (active_pane.current_path, None)
-        return (state.current_pane.directory_path, None)
+                parent = active_pane.current_path
+                target = resolve_create_target_path(state)
+                return (parent, str(target) if target is not None else None)
+        parent = state.current_pane.directory_path
+        target = resolve_create_target_path(state)
+        return (parent, str(target) if target is not None else None)
     if state.ui_mode == "EXTRACT" and state.pending_input.extract_source_path is not None:
         _, parent_path = resolve_parent_directory_path(state.pending_input.extract_source_path)
         return (parent_path, None)

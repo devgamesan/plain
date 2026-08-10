@@ -1,16 +1,56 @@
 """Shared models for filesystem mutations."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from inspect import signature
 from typing import Literal
 
 ClipboardOperationMode = Literal["copy", "cut"]
+PasteOrigin = Literal["clipboard", "transfer"]
 ConflictResolution = Literal["overwrite", "skip", "rename"]
 CreateKind = Literal["file", "dir"]
 DeleteMode = Literal["trash", "permanent"]
 MutationResultLevel = Literal["info", "warning", "error"]
+OperationProgressCallback = Callable[..., None]
+OperationCancelCallback = Callable[[], bool]
+OperationKind = Literal["copy", "move", "compress", "extract", "replace"]
+
+
+def emit_operation_progress(
+    callback: OperationProgressCallback | None,
+    completed: int,
+    total: int | None,
+    current_path: str | None,
+    phase: str = "processing",
+) -> None:
+    """Call both legacy three-argument and common four-argument callbacks."""
+
+    if callback is None:
+        return
+    try:
+        signature(callback).bind(completed, total, current_path, phase)
+    except (TypeError, ValueError):
+        callback(completed, total, current_path)
+    else:
+        callback(completed, total, current_path, phase)
 ArchiveFormat = Literal["zip", "tar", "tar.gz", "tar.bz2", "gz", "bz2"]
 FileMutationOperation = Literal["rename", "create", "delete", "symlink", "chmod", "chown"]
-UndoOperationKind = Literal["rename", "paste_copy", "paste_cut", "trash_delete"]
+UndoOperationKind = Literal[
+    "rename",
+    "bulk_rename",
+    "paste_copy",
+    "paste_cut",
+    "trash_delete",
+]
+BulkRenameItemStatus = Literal[
+    "ready",
+    "unchanged",
+    "error",
+    "renamed",
+    "restored",
+    "failed",
+    "recovery_failed",
+]
 
 
 @dataclass(frozen=True)
@@ -21,6 +61,7 @@ class PasteRequest:
     source_paths: tuple[str, ...]
     destination_dir: str
     conflict_resolution: ConflictResolution | None = None
+    origin: PasteOrigin = "clipboard"
 
 
 @dataclass(frozen=True)
@@ -68,12 +109,21 @@ class PasteSummary:
     failures: tuple[PasteFailure, ...] = ()
     conflict_resolution: ConflictResolution | None = None
     overwrote_count: int = 0
+    cancelled: bool = False
+    unprocessed_paths: tuple[str, ...] = ()
+    skipped_paths: tuple[str, ...] = ()
 
     @property
     def failure_count(self) -> int:
         """Return the number of failed items."""
 
         return len(self.failures)
+
+    @property
+    def unprocessed_count(self) -> int:
+        """Return the number of targets that were not started."""
+
+        return len(self.unprocessed_paths)
 
 
 @dataclass(frozen=True)
@@ -82,6 +132,55 @@ class PasteExecutionResult:
 
     summary: PasteSummary
     applied_changes: tuple[PasteAppliedChange, ...] = ()
+
+
+@dataclass(frozen=True)
+class DuplicateRequest:
+    """Request to duplicate entries beside their current parent directory."""
+
+    source_paths: tuple[str, ...]
+    destination_dir: str
+
+
+@dataclass(frozen=True)
+class DuplicateFailure:
+    """A single source entry that could not be duplicated."""
+
+    source_path: str
+    destination_path: str | None
+    message: str
+
+
+@dataclass(frozen=True)
+class DuplicateAppliedChange:
+    """A single entry created by a duplicate operation."""
+
+    source_path: str
+    destination_path: str
+
+
+@dataclass(frozen=True)
+class DuplicateSummary:
+    """Terminal result counts for a duplicate operation."""
+
+    destination_dir: str
+    total_count: int
+    success_count: int
+    failures: tuple[DuplicateFailure, ...] = ()
+
+    @property
+    def failure_count(self) -> int:
+        """Return the number of failed entries."""
+
+        return len(self.failures)
+
+
+@dataclass(frozen=True)
+class DuplicateExecutionResult:
+    """Completed result returned by the duplicate service."""
+
+    summary: DuplicateSummary
+    applied_changes: tuple[DuplicateAppliedChange, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -99,6 +198,89 @@ class RenameRequest:
 
     source_path: str
     new_name: str
+
+
+@dataclass(frozen=True)
+class BulkRenameTarget:
+    """One requested same-directory bulk rename."""
+
+    source_path: str
+    new_name: str
+
+
+@dataclass(frozen=True)
+class BulkRenameRequest:
+    """Request to rename multiple entries within one directory."""
+
+    parent_dir: str
+    targets: tuple[BulkRenameTarget, ...]
+
+
+@dataclass(frozen=True)
+class BulkRenamePlanItem:
+    """Validation or execution state for one bulk rename row."""
+
+    source_path: str
+    old_name: str
+    new_name: str
+    status: BulkRenameItemStatus = "ready"
+    message: str | None = None
+    current_path: str | None = None
+
+
+@dataclass(frozen=True)
+class BulkRenameValidationResult:
+    """Preflight result used by the editor and execution service."""
+
+    items: tuple[BulkRenamePlanItem, ...]
+
+    @property
+    def changed_count(self) -> int:
+        return sum(
+            item.status in {"ready", "renamed", "restored"}
+            for item in self.items
+        )
+
+    @property
+    def unchanged_count(self) -> int:
+        return sum(item.status == "unchanged" for item in self.items)
+
+    @property
+    def error_count(self) -> int:
+        return sum(item.status == "error" for item in self.items)
+
+    @property
+    def executable(self) -> bool:
+        return self.changed_count > 0 and self.error_count == 0
+
+
+@dataclass(frozen=True)
+class BulkRenameAppliedChange:
+    """One successful rename recorded for bulk Undo."""
+
+    source_path: str
+    destination_path: str
+
+
+@dataclass(frozen=True)
+class BulkRenameExecutionResult:
+    """Terminal result returned from the bulk rename service."""
+
+    validation: BulkRenameValidationResult
+    applied_changes: tuple[BulkRenameAppliedChange, ...] = ()
+    rolled_back: bool = False
+    message: str = ""
+
+    @property
+    def success_count(self) -> int:
+        return sum(item.status == "renamed" for item in self.validation.items)
+
+    @property
+    def failure_count(self) -> int:
+        return sum(
+            item.status in {"error", "failed", "recovery_failed"}
+            for item in self.validation.items
+        )
 
 
 @dataclass(frozen=True)
@@ -225,6 +407,8 @@ class TextReplaceResult:
     message: str
     level: MutationResultLevel = "info"
     skipped_paths: tuple[str, ...] = ()
+    cancelled: bool = False
+    unprocessed_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -262,6 +446,8 @@ class ExtractArchiveResult:
     total_entries: int
     message: str
     level: MutationResultLevel = "info"
+    cancelled: bool = False
+    unprocessed_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -291,6 +477,8 @@ class CreateZipArchiveResult:
     total_entries: int
     message: str
     level: MutationResultLevel = "info"
+    cancelled: bool = False
+    unprocessed_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

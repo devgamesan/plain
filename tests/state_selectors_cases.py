@@ -18,6 +18,7 @@ from zivo.models import (
     GuiEditorConfig,
     PasteConflict,
     PasteRequest,
+    StatusBarActionState,
     UndoDeletePathStep,
     UndoEntry,
 )
@@ -33,6 +34,7 @@ from zivo.state import (
     DirectorySizeDeltaState,
     FileSearchPaletteState,
     FileSearchResultState,
+    ForegroundOperationState,
     GrepSearchPaletteState,
     GrepSearchResultState,
     GrfPaletteState,
@@ -45,6 +47,7 @@ from zivo.state import (
     PasteConflictState,
     PendingInputState,
     PendingKeySequenceState,
+    PreviewMetadataState,
     ReplacePreviewPaletteState,
     ReplacePreviewResultState,
     RffPaletteState,
@@ -61,6 +64,7 @@ from zivo.state import (
     select_help_bar_state,
     select_input_bar_state,
     select_parent_entries,
+    select_responsive_pane_layout,
     select_shell_data,
     select_status_bar_state,
     select_tab_bar_state,
@@ -129,6 +133,59 @@ def test_select_current_entries_applies_filter_and_sort() -> None:
     entries = select_current_entries(state)
 
     assert [entry.name for entry in entries] == ["tests", "pyproject.toml"]
+
+
+def test_select_current_entries_sorts_names_naturally() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(
+                entry("/home/tadashi/develop/zivo/file1", "file"),
+                entry("/home/tadashi/develop/zivo/file10", "file"),
+                entry("/home/tadashi/develop/zivo/file2", "file"),
+                entry("/home/tadashi/develop/zivo/file20", "file"),
+                entry("/home/tadashi/develop/zivo/dir1", "dir"),
+            ),
+        ),
+    )
+
+    entries = select_current_entries(state)
+
+    assert [item.name for item in entries] == [
+        "dir1",
+        "file1",
+        "file2",
+        "file10",
+        "file20",
+    ]
+
+
+def test_select_current_entries_sorts_names_naturally_descending() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(
+                entry("/home/tadashi/develop/zivo/file1", "file"),
+                entry("/home/tadashi/develop/zivo/file10", "file"),
+                entry("/home/tadashi/develop/zivo/file2", "file"),
+                entry("/home/tadashi/develop/zivo/dir1", "dir"),
+            ),
+        ),
+    )
+    state = _reduce_state(
+        state, SetSort(field="name", descending=True, directories_first=True)
+    )
+
+    entries = select_current_entries(state)
+
+    assert [item.name for item in entries] == [
+        "dir1",
+        "file10",
+        "file2",
+        "file1",
+    ]
 
 
 def test_select_current_entries_hides_hidden_by_default() -> None:
@@ -397,8 +454,10 @@ def test_select_shell_data_hides_stale_preview_while_request_is_pending() -> Non
 
     shell = select_shell_data(state)
 
-    assert shell.child_pane.is_preview is False
-    assert shell.child_pane.entries == ()
+    assert shell.child_pane.is_preview is True
+    assert shell.child_pane.view_kind == "loading"
+    assert shell.child_pane.status is not None
+    assert shell.child_pane.status.title == "Loading preview…"
 
 
 def test_select_pane_entries_show_directory_sizes_from_cache() -> None:
@@ -1026,6 +1085,123 @@ def test_select_shell_data_exposes_visible_cursor_index() -> None:
     assert shell.current_cursor_visible is True
 
 
+def test_select_responsive_pane_layout_uses_width_breakpoints_and_narrow_view() -> None:
+    state = build_initial_app_state()
+
+    wide = select_responsive_pane_layout(replace(state, terminal_width=120))
+    medium = select_responsive_pane_layout(replace(state, terminal_width=80))
+    narrow_current = select_responsive_pane_layout(replace(state, terminal_width=79))
+    narrow_details = select_responsive_pane_layout(
+        replace(state, terminal_width=79, narrow_pane_view="details")
+    )
+
+    assert (wide.width_class, wide.show_parent, wide.show_current, wide.show_child) == (
+        "wide",
+        True,
+        True,
+        True,
+    )
+    assert (medium.width_class, medium.show_parent, medium.show_current, medium.show_child) == (
+        "medium",
+        False,
+        True,
+        True,
+    )
+    assert (narrow_current.show_current, narrow_current.show_child) == (True, False)
+    assert (narrow_details.show_current, narrow_details.show_child) == (False, True)
+
+
+def test_select_shell_data_exposes_semantic_pane_headers() -> None:
+    state = build_initial_app_state()
+    shell = select_shell_data(state)
+
+    assert shell.parent_heading.startswith("Parent · ")
+    assert shell.current_heading.role == "Current"
+    assert shell.child_pane.display_title.startswith("Contents · ")
+
+
+def test_child_preview_moves_size_into_metadata_bar() -> None:
+    initial_state = build_initial_app_state()
+    path = "/home/tadashi/develop/zivo/README.md"
+    state = replace(
+        initial_state,
+        current_pane=replace(initial_state.current_pane, cursor_path=path),
+        child_pane=PaneState(
+            directory_path=initial_state.current_path,
+            entries=(),
+            mode="preview",
+            preview_path=path,
+            preview_content="# Preview\n",
+        ),
+    )
+
+    child = select_shell_data(state).child_pane
+
+    assert child.display_title == "Preview · README.md"
+    assert [(item.label, item.value) for item in child.metadata_bar] == [
+        ("Size", "2.1KiB"),
+    ]
+
+
+def test_child_directory_uses_cached_size_and_permissions_in_metadata_bar() -> None:
+    initial_state = build_initial_app_state()
+    path = "/home/tadashi/develop/zivo/docs"
+    directory = DirectoryEntryState(
+        path,
+        "docs",
+        "dir",
+        modified_at=initial_state.current_pane.entries[0].modified_at,
+        permissions_mode=0o40755,
+    )
+    state = replace(
+        initial_state,
+        current_pane=replace(initial_state.current_pane, entries=(directory,), cursor_path=path),
+        child_pane=PaneState(
+            directory_path=initial_state.current_path,
+            entries=(),
+            mode="entries",
+        ),
+        directory_size_cache=(DirectorySizeCacheEntry(path, "ready", size_bytes=4096),),
+    )
+
+    child = select_shell_data(state).child_pane
+
+    assert child.display_title == "Contents · docs · 0 items"
+    assert [(item.label, item.value) for item in child.metadata_bar] == [
+        ("Size", "4.0KiB"),
+        ("Permissions", "drwxr-xr-x (755)"),
+    ]
+
+
+def test_preview_fallback_does_not_duplicate_attribute_bar() -> None:
+    initial_state = build_initial_app_state()
+    path = f"{initial_state.current_path}/data.bin"
+    state = replace(
+        initial_state,
+        current_pane=replace(
+            initial_state.current_pane,
+            entries=(DirectoryEntryState(path, "data.bin", "file", size_bytes=2048),),
+            cursor_path=path,
+        ),
+        child_pane=PaneState(
+            directory_path=initial_state.current_path,
+            entries=(),
+            mode="preview",
+            preview_path=path,
+            preview_reason="unsupported",
+            preview_metadata=PreviewMetadataState(
+                display_name="data.bin",
+                type_label="BIN",
+                size_bytes=2048,
+            ),
+        ),
+    )
+
+    child = select_shell_data(state).child_pane
+
+    assert child.metadata_bar == ()
+
+
 def test_select_shell_data_hides_cursor_while_filtering() -> None:
     state = _reduce_state(build_initial_app_state(), BeginFilterInput())
 
@@ -1293,6 +1469,27 @@ def test_select_status_bar_exposes_notification_level() -> None:
     assert status.message_level == "error"
 
 
+def test_select_status_bar_exposes_foreground_progress_and_cancel() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        foreground_operation=ForegroundOperationState(
+            operation_id=3,
+            kind="copy",
+            completed=2,
+            total=5,
+            current_path="/tmp/very-long-operation-target.txt",
+        ),
+    )
+
+    status = select_status_bar_state(state)
+    help_state = select_help_bar_state(state)
+
+    assert "Copy 2/5" in (status.message or "")
+    assert status.action == StatusBarActionState(action_id="operation.cancel", label="Cancel")
+    assert help_state.lines == ("Esc cancel",)
+
+
 def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     state = build_initial_app_state()
 
@@ -1301,12 +1498,12 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
 
     assert help_state.lines == (
         "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit",
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv",
+        "space select | c copy | x cut | v paste | d delete | r rename | z undo",
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette",
     )
     assert help_state.text == (
         "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv\n"
+        "space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
 
@@ -1317,9 +1514,9 @@ def test_select_help_bar_for_search_workspace_shows_available_actions_only() -> 
     help_state = select_help_bar_state(state)
 
     assert help_state.lines == (
-        "enter open | e edit | O gui editor | i info | "
-        "/ filter | s sort | . hidden | [ ] bk/fwd | q quit",
-        "space select | c copy | z undo | ctrl+j/k prv",
+        "enter open | e edit | / filter | s sort | . hidden | "
+        "[ ] bk/fwd | q quit",
+        "space select | c copy | z undo",
         ": palette",
     )
     assert "x cut" not in help_state.text
@@ -1333,16 +1530,14 @@ def test_select_help_bar_for_transfer_mode_prioritizes_transfer_actions() -> Non
     help_state = select_help_bar_state(state)
 
     assert help_state.lines == (
-        "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit",
-        "Space select | c copy | x cut | v paste | d trash | D permanent | "
-        "r rename | z undo",
-        ". hidden | N new-dir | : palette",
+        "enter dir | . hidden | Tab switch-pane | p/Esc close | q quit",
+        "space select | c copy-to-pane | m move-to-pane | d delete | r rename | z undo",
+        "n new-file | N new-dir | : palette",
     )
     assert help_state.text == (
-        "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit\n"
-        "Space select | c copy | x cut | v paste | d trash | D permanent | "
-        "r rename | z undo\n"
-        ". hidden | N new-dir | : palette"
+        "enter dir | . hidden | Tab switch-pane | p/Esc close | q quit\n"
+        "space select | c copy-to-pane | m move-to-pane | d delete | r rename | z undo\n"
+        "n new-file | N new-dir | : palette"
     )
 
 
@@ -1377,9 +1572,10 @@ def test_select_command_palette_state_marks_selected_and_enabled_items() -> None
 
     assert palette_state is not None
     assert palette_state.title.startswith("Command Palette")
-    assert [item.label for item in palette_state.items[:2]] == [
-        "Find files",
-        "Search contents",
+    assert [item.category for item in palette_state.items[:3]] == [
+        "Navigate",
+        "Navigate",
+        "Navigate",
     ]
     assert palette_state.items[0].selected is True
     assert palette_state.items[0].enabled is True
@@ -1410,7 +1606,31 @@ def test_removed_direct_shortcuts_remain_available_without_palette_shortcuts() -
     assert all(items[label].shortcut is None for label in labels)
 
 
-def test_command_palette_items_for_search_workspace_are_limited_to_safe_actions() -> None:
+def test_command_palette_exposes_one_dynamic_narrow_view_command() -> None:
+    state = replace(
+        build_initial_app_state(),
+        terminal_width=72,
+        command_palette=CommandPaletteState(),
+    )
+
+    items = command_palette_module.get_command_palette_items(state)
+    narrow_items = [item for item in items if item.id == "toggle_narrow_pane_view"]
+
+    assert len(narrow_items) == 1
+    assert narrow_items[0].label == "Show preview or contents"
+    assert narrow_items[0].shortcut == "tab"
+    assert narrow_items[0].enabled is True
+
+    details = replace(state, narrow_pane_view="details")
+    details_item = next(
+        item
+        for item in command_palette_module.get_command_palette_items(details)
+        if item.id == "toggle_narrow_pane_view"
+    )
+    assert details_item.label == "Back to file list"
+
+
+def test_command_palette_items_for_search_workspace_explain_unavailable_actions() -> None:
     state = replace(
         build_search_workspace_state(),
         config=AppConfig(
@@ -1422,10 +1642,10 @@ def test_command_palette_items_for_search_workspace_are_limited_to_safe_actions(
         command_palette=CommandPaletteState(),
     )
 
-    labels = [
-        item.label
-        for item in command_palette_module.get_command_palette_items(state)
-    ]
+    items = {
+        item.label: item for item in command_palette_module.get_command_palette_items(state)
+    }
+    labels = list(items)
 
     assert "History search" in labels
     assert "Show bookmarks" in labels
@@ -1448,30 +1668,29 @@ def test_command_palette_items_for_search_workspace_are_limited_to_safe_actions(
     assert "About zivo" in labels
     assert "Edit config" in labels
 
-    assert "Find files" not in labels
-    assert "Grep search" not in labels
-    assert "Reload directory" not in labels
-    assert "Toggle transfer mode" not in labels
-    assert "Replace text in selected files" not in labels
-    assert "Replace text in found files" not in labels
-    assert "Replace text in grep results" not in labels
-    assert "Grep in selected files" not in labels
-    assert "Grep and replace in selected files" not in labels
-    assert "Format project" not in labels
-    assert "Rename" not in labels
-    assert "Change permissions" not in labels
-    assert "Change owner" not in labels
-    assert "Make symlink" not in labels
-    assert "Compress as zip" not in labels
-    assert "Extract archive" not in labels
-    assert "Move to trash" not in labels
-    assert "Open current directory with file manager" not in labels
-    assert "Open current directory with terminal" not in labels
-    assert "Run shell command" not in labels
-    assert "Remove bookmark" not in labels
-    assert "Bookmark this directory" not in labels
-    assert "Create file" not in labels
-    assert "Create directory" not in labels
+    assert "Find files" in labels
+    assert "Grep search" in labels
+    assert "Reload directory" in labels
+    assert "Toggle transfer mode" in labels
+    assert "Format project" in labels
+    assert items["Format project"].enabled is False
+    assert items["Format project"].disabled_reason == "Unavailable in Search Workspace"
+    for label in (
+        "Rename",
+        "Change permissions",
+        "Change owner",
+        "Make symlink",
+        "Compress as zip",
+        "Extract archive",
+        "Move to trash",
+        "Open current directory with file manager",
+        "Open current directory with terminal",
+        "Run shell command",
+        "Create file",
+        "Create directory",
+    ):
+        assert items[label].enabled is False
+        assert items[label].disabled_reason == "Unavailable in Search Workspace"
 
 
 def test_command_palette_distinguishes_file_and_current_directory_launchers() -> None:
@@ -1932,13 +2151,13 @@ def test_select_command_palette_state_filters_query() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
     state = replace(
         state,
-        command_palette=replace(state.command_palette, query="create dir"),
+            command_palette=replace(state.command_palette, query="create"),
     )
 
     palette_state = select_command_palette_state(state)
 
     assert palette_state is not None
-    assert [item.label for item in palette_state.items] == ["Create directory"]
+    assert [item.label for item in palette_state.items] == ["Create"]
 
 
 def test_select_command_palette_state_uses_hidden_toggle_label_from_state() -> None:
@@ -2250,6 +2469,7 @@ def test_select_config_dialog_state_formats_editor_lines() -> None:
     assert "> Theme: textual-dark" in dialog.lines
     assert "  Text preview: true" in dialog.lines
     assert "  Image preview: true" in dialog.lines
+    assert "  Preview syntax theme: auto" in dialog.lines
     assert "  ── Sorting ──" in dialog.lines
     assert "  Default sort field: name" in dialog.lines
     assert "  ── Selected Setting ──" in dialog.lines
@@ -2547,16 +2767,18 @@ def test_select_input_bar_state_for_create_mode() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCreateInput("file"))
     state = replace(
         state,
-        pending_input=PendingInputState(prompt="New file: ", value="notes.txt", create_kind="file"),
+        pending_input=PendingInputState(
+            prompt="Name or path: ", value="notes.txt", create_kind="file"
+        ),
     )
 
     input_dialog = select_input_dialog_state(state)
 
     assert input_dialog is not None
-    assert input_dialog.title == "New File"
-    assert input_dialog.prompt == "New file: "
+    assert input_dialog.title == "Create"
+    assert input_dialog.prompt == "Name or path: "
     assert input_dialog.value == "notes.txt"
-    assert input_dialog.hint == "enter apply | esc cancel"
+    assert input_dialog.hint == "tab switch type | enter apply | esc cancel"
 
 
 def test_select_input_dialog_state_shows_recursive_safety_details() -> None:
@@ -3153,8 +3375,8 @@ class TestCommandPaletteDynamicWindow:
         assert len(palette_state.items) == 25
         assert palette_state.has_more_items is False
 
-    def test_default_command_palette_uses_terminal_height_for_visible_window(self) -> None:
-        """通常のコマンド一覧も端末高に応じて表示件数が増えること."""
+    def test_default_command_palette_keeps_all_commands_scrollable(self) -> None:
+        """通常のコマンド一覧は末尾までスクロールできること."""
 
         state = replace(
             _reduce_state(build_initial_app_state(), BeginCommandPalette()),
@@ -3164,7 +3386,7 @@ class TestCommandPaletteDynamicWindow:
         palette_state = select_command_palette_state(state)
 
         assert palette_state is not None
-        assert len(palette_state.items) == 14
+        assert len(palette_state.items) > 14
         assert palette_state.has_more_items is True
 
 
@@ -3177,7 +3399,7 @@ def test_select_tab_bar_state_marks_active_tab() -> None:
     assert [tab.active for tab in tab_bar.tabs] == [False, True]
 
 
-def test_command_palette_includes_tab_commands_with_lowercase_shortcuts() -> None:
+def test_command_palette_tab_commands_have_no_direct_shortcut() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
 
     palette_state = select_command_palette_state(state)
@@ -3185,8 +3407,8 @@ def test_command_palette_includes_tab_commands_with_lowercase_shortcuts() -> Non
     assert palette_state is not None
     items = {item.label: item for item in palette_state.items}
     assert items["New tab"].shortcut == "o"
-    assert items["Next tab"].shortcut == "tab"
-    assert items["Previous tab"].shortcut == "shift+tab"
+    assert items["Next tab"].shortcut is None
+    assert items["Previous tab"].shortcut is None
     assert items["Close current tab"].shortcut == "w"
     assert items["Close current tab"].enabled is False
 
@@ -3194,12 +3416,12 @@ def test_command_palette_includes_tab_commands_with_lowercase_shortcuts() -> Non
 def test_command_palette_includes_undo_item_and_disables_when_empty() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
 
-    palette_state = select_command_palette_state(state)
-
-    assert palette_state is not None
-    items = {item.label: item for item in palette_state.items}
+    items = {
+        item.label: item for item in command_palette_module.get_command_palette_items(state)
+    }
     assert items["Undo last file operation"].shortcut == "z"
     assert items["Undo last file operation"].enabled is False
+    assert items["Undo last file operation"].disabled_reason == "No operation to undo"
 
 
 def test_command_palette_enables_undo_item_when_stack_is_present() -> None:
@@ -3208,10 +3430,9 @@ def test_command_palette_enables_undo_item_when_stack_is_present() -> None:
         undo_stack=(UndoEntry(kind="paste_copy", steps=(UndoDeletePathStep("/tmp/copied"),)),),
     )
 
-    palette_state = select_command_palette_state(state)
-
-    assert palette_state is not None
-    items = {item.label: item for item in palette_state.items}
+    items = {
+        item.label: item for item in command_palette_module.get_command_palette_items(state)
+    }
     assert items["Undo last file operation"].enabled is True
 
 
@@ -3612,3 +3833,73 @@ def test_select_command_palette_state_grs_preview_title_with_counts() -> None:
     palette_state = select_command_palette_state(state)
     assert palette_state is not None
     assert palette_state.title == "Replace in Selected Files (1 file(s), 2 match(es)) (1-1 / 1)"
+
+
+def test_select_shell_data_distinguishes_empty_and_filtered_empty_directory() -> None:
+    state = build_initial_app_state()
+    state = replace(
+        state,
+        current_pane=PaneState(directory_path=state.current_path, entries=()),
+    )
+
+    shell = select_shell_data(state)
+    assert shell.current_pane_status is not None
+    assert shell.current_pane_status.kind == "empty"
+    assert [action.action_id for action in shell.current_pane_status.actions] == [
+        "create_file",
+        "create_dir",
+    ]
+    assert [action.shortcut for action in shell.current_pane_status.actions] == ["n", "N"]
+
+    filtered = replace(
+        state,
+        current_pane=PaneState(
+            directory_path=state.current_path,
+            entries=(DirectoryEntryState(f"{state.current_path}/README.md", "README.md", "file"),),
+        ),
+        filter=replace(state.filter, query="[report]", active=True),
+    )
+    filtered_shell = select_shell_data(filtered)
+    assert filtered_shell.current_pane_status is not None
+    assert filtered_shell.current_pane_status.kind == "filtered_empty"
+    assert filtered_shell.current_pane_status.title == 'No matches for "[report]"'
+    assert filtered_shell.current_pane_status.actions[0].action_id == "clear_filter"
+    assert filtered_shell.current_pane_status.actions[0].shortcut == "Esc"
+
+
+def test_select_shell_data_builds_typed_metadata_fallback() -> None:
+    state = build_initial_app_state()
+    target = f"{state.current_path}/data.bin"
+    state = replace(
+        state,
+        current_pane=PaneState(
+            directory_path=state.current_path,
+            entries=(DirectoryEntryState(target, "data.bin", "file"),),
+            cursor_path=target,
+        ),
+        child_pane=PaneState(
+            directory_path=state.current_path,
+            entries=(),
+            mode="preview",
+            preview_path=target,
+            preview_reason="unsupported",
+            preview_metadata=PreviewMetadataState(
+                display_name="data.bin",
+                type_label="BIN",
+                size_bytes=2048,
+                owner="alice",
+                group="staff",
+            ),
+        ),
+    )
+
+    fallback = select_shell_data(state).child_pane
+    assert fallback.view_kind == "unsupported"
+    assert fallback.status is not None
+    assert fallback.status.actions[0].action_id == "show_attributes"
+    assert [(item.label, item.value) for item in fallback.metadata] == [
+        ("Name", "data.bin"),
+        ("Type", "BIN"),
+        ("Size", "2.0KiB"),
+        ("Owner/group", "alice/staff"),
+    ]

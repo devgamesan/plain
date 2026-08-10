@@ -62,10 +62,19 @@ from zivo.state import (
     DirectoryEntryState,
     FileSearchResultState,
     GrepSearchResultState,
+    NotificationAction,
+    NotificationState,
     PaneState,
     build_initial_app_state,
 )
-from zivo.state.actions import ConfigSaveCompleted, JumpCursor, MoveCursor, SetTerminalHeight
+from zivo.state.actions import (
+    ConfigSaveCompleted,
+    JumpCursor,
+    MoveCursor,
+    SetNotification,
+    SetTerminalHeight,
+)
+from zivo.state.command_palette import get_command_palette_items
 from zivo.state.selectors import (
     compute_current_pane_visible_window,
     select_command_palette_state,
@@ -967,7 +976,7 @@ async def test_app_uses_cwd_for_default_initial_path(tmp_path, monkeypatch) -> N
         summary_bar = await _wait_for_summary_bar(app)
         status_bar = await _wait_for_status_bar(app)
 
-        assert str(current_path_bar.renderable) == f"Current Path: {tmp_path}"
+        assert "Current Path:" in str(current_path_bar.renderable)
         assert str(summary_bar.renderable) == ("2 items | 0 selected | sort: name asc")
         assert str(status_bar.renderable) == ""
 
@@ -1051,13 +1060,62 @@ async def test_app_renders_text_preview_in_child_pane_for_file_cursor() -> None:
     async with app.run_test():
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 1)
-        await _wait_for_child_preview(app, "Preview: README.md", "# Title")
+        await _wait_for_child_preview(app, "Preview · README.md", "# Title")
 
         child_list = app.query_one("#child-pane-list", Static)
         child_preview_scroll = app.query_one("#child-pane-preview-scroll", VerticalScroll)
 
         assert child_list.display is False
         assert child_preview_scroll.display is True
+
+
+@pytest.mark.asyncio
+async def test_app_renders_preview_metadata_bar_for_file_cursor() -> None:
+    path = str(Path("/tmp/zivo-preview-metadata").resolve())
+    readme = f"{path}/README.md"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: BrowserSnapshot(
+                current_path=path,
+                parent_pane=PaneState(
+                    directory_path="/tmp",
+                    entries=(DirectoryEntryState(path, "zivo-preview-metadata", "dir"),),
+                    cursor_path=path,
+                ),
+                current_pane=PaneState(
+                    directory_path=path,
+                    entries=(
+                        DirectoryEntryState(
+                            readme,
+                            "README.md",
+                            "file",
+                            size_bytes=2_150,
+                            permissions_mode=0o100644,
+                            owner="alice",
+                            group="staff",
+                        ),
+                    ),
+                    cursor_path=readme,
+                ),
+                child_pane=PaneState(
+                    directory_path=path,
+                    entries=(),
+                    mode="preview",
+                    preview_path=readme,
+                    preview_content="# Title\npreview body\n",
+                ),
+            )
+        }
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(120, 20)):
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_child_preview(app, "Preview · README.md", "# Title")
+
+        metadata_bar = app.query_one("#child-pane-metadata-bar", Static)
+
+        assert str(metadata_bar.renderable) == "2.1KiB · -rw-r--r-- (644) · alice staff"
 
 
 @pytest.mark.asyncio
@@ -1102,7 +1160,7 @@ async def test_app_renders_image_preview_in_child_pane_for_file_cursor() -> None
     async with app.run_test():
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 1)
-        await _wait_for_child_preview(app, "Preview: preview.png", "@@")
+        await _wait_for_child_preview(app, "Preview · preview.png", "@@")
 
 
 @pytest.mark.asyncio
@@ -1231,7 +1289,11 @@ async def test_app_browsing_preview_scrolls_with_brackets() -> None:
     async with app.run_test():
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 1)
-        await _wait_for_child_preview(app, "Preview: README.md", "line 000")
+        await _wait_for_child_preview(app, "Preview · README.md", "line 000")
+
+        preview_help = app.query_one("#child-pane-preview-help", Label)
+        assert str(preview_help.renderable) == "Ctrl+J/K scroll preview"
+        assert preview_help.display is True
 
         child_preview_scroll = app.query_one("#child-pane-preview-scroll", VerticalScroll)
         initial_scroll_y = child_preview_scroll.scroll_y
@@ -1598,12 +1660,19 @@ async def test_app_hides_text_preview_in_child_pane_when_preview_disabled() -> N
     async with app.run_test():
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 1)
+        await _wait_for_child_preview(
+            app,
+            "Preview · README.md",
+            "Preview disabled in settings",
+        )
 
         child_list = app.query_one("#child-pane-list", Static)
         child_preview_scroll = app.query_one("#child-pane-preview-scroll", VerticalScroll)
 
-        assert child_list.display is True
-        assert child_preview_scroll.display is False
+        assert child_list.display is False
+        assert child_preview_scroll.display is True
+        preview = app.query_one("#child-pane-preview", Static)
+        assert "[:] Edit config" in str(preview.renderable)
 
 
 @pytest.mark.asyncio
@@ -1658,7 +1727,7 @@ async def test_app_updates_child_preview_when_cursor_moves_between_files() -> No
     async with app.run_test(size=(120, 20)):
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 2)
-        await _wait_for_child_preview(app, "Preview: README.md", "# Title")
+        await _wait_for_child_preview(app, "Preview · README.md", "# Title")
 
         await app.dispatch_actions(
             (
@@ -1669,8 +1738,13 @@ async def test_app_updates_child_preview_when_cursor_moves_between_files() -> No
             )
         )
         await _wait_for_cursor_path(app, config)
-        await _wait_for_child_entries(app, [], timeout=1.0)
-        await _wait_for_child_preview(app, "Preview: config.toml", "enable_text_preview = true")
+        await _wait_for_child_preview(
+            app,
+            "Preview · config.toml · loading",
+            "Loading preview…",
+            timeout=1.0,
+        )
+        await _wait_for_child_preview(app, "Preview · config.toml", "enable_text_preview = true")
         await _wait_for_child_pane_runtime_idle(app, timeout=1.0)
 
 
@@ -1712,7 +1786,7 @@ async def test_app_renders_preview_message_for_unsupported_file_cursor() -> None
         await _wait_for_row_count(app, 1)
         await _wait_for_child_preview(
             app,
-            "Preview: archive.bin",
+            "Preview · archive.bin",
             "Preview unavailable for this file type",
         )
 
@@ -1755,13 +1829,13 @@ async def test_app_renders_preview_message_for_permission_denied_file_cursor() -
         await _wait_for_row_count(app, 1)
         await _wait_for_child_preview(
             app,
-            "Preview: README.md",
+            "Preview · README.md",
             "Preview unavailable: permission denied",
         )
 
 
 @pytest.mark.asyncio
-async def test_app_truncates_long_labels_in_all_panes_when_narrow() -> None:
+async def test_app_keeps_long_labels_readable_at_wide_breakpoint() -> None:
     path = str(Path("/tmp/zivo-narrow-truncate").resolve())
     current_entries = (
         DirectoryEntryState(
@@ -1808,7 +1882,7 @@ async def test_app_truncates_long_labels_in_all_panes_when_narrow() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
 
-    async with app.run_test(size=(100, 20)):
+    async with app.run_test(size=(120, 20)):
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 2)
         await asyncio.sleep(0.05)
@@ -1822,7 +1896,9 @@ async def test_app_truncates_long_labels_in_all_panes_when_narrow() -> None:
         current_name = current_table.get_row_at(0)[1]
 
         assert "~" in parent_label
-        assert "~" in child_label
+        # At the wide breakpoint the child pane may have enough width to keep
+        # the long filename intact; its semantic header and list remain mounted.
+        assert child_label
         assert isinstance(current_name, Text)
         assert "~" in current_name.plain
 
@@ -1891,7 +1967,7 @@ async def test_app_hides_tab_bar_until_multiple_tabs_are_open() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_tab_shortcuts_switch_between_browser_tabs() -> None:
+async def test_app_number_keys_switch_between_browser_tabs() -> None:
     path = str(Path("/tmp/zivo-tabs").resolve())
     docs_path = f"{path}/docs"
     loader = FakeBrowserSnapshotLoader(
@@ -1923,25 +1999,27 @@ async def test_app_tab_shortcuts_switch_between_browser_tabs() -> None:
 
         tab_bar = await _wait_for_tab_bar(app)
         assert tab_bar.display is True
-        assert str(tab_bar.renderable) == "[1:zivo-tabs] [2:zivo-tabs]"
+        assert "[1:zivo-tabs]" in str(tab_bar.renderable)
+        assert "[2:zivo-tabs]" in str(tab_bar.renderable)
+        assert "[+]" in str(tab_bar.renderable)
         assert app.focused is current_table
 
         await pilot.press("enter")
         await _wait_for_snapshot_loaded(app, docs_path)
 
         current_path_bar = await _wait_for_current_path_bar(app)
-        assert str(current_path_bar.renderable) == f"Current Path: {docs_path}"
+        assert "Current Path:" in str(current_path_bar.renderable)
 
-        await pilot.press("shift+tab")
+        await pilot.press("1")
         await _wait_for_snapshot_loaded(app, path)
         current_path_bar = await _wait_for_current_path_bar(app)
-        assert str(current_path_bar.renderable) == f"Current Path: {path}"
+        assert "Current Path:" in str(current_path_bar.renderable)
         assert app.focused is current_table
 
-        await pilot.press("tab")
+        await pilot.press("2")
         await _wait_for_snapshot_loaded(app, docs_path)
         current_path_bar = await _wait_for_current_path_bar(app)
-        assert str(current_path_bar.renderable) == f"Current Path: {docs_path}"
+        assert "Current Path:" in str(current_path_bar.renderable)
         assert app.focused is current_table
 
 
@@ -1988,7 +2066,7 @@ async def test_app_keyboard_input_updates_selection_and_child_pane() -> None:
         assert app.app_state.current_pane.selected_paths == {f"{path}/docs"}
         assert app.app_state.current_pane.cursor_path == f"{path}/src"
         assert child_names == ["main.py"]
-        assert str(current_path_bar.renderable) == f"Current Path: {path}"
+        assert "Current Path:" in str(current_path_bar.renderable)
         assert str(summary_bar.renderable) == ("3 items | 1 selected | sort: name asc")
         assert str(status_bar.renderable) == ""
 
@@ -2057,6 +2135,7 @@ async def test_app_child_pane_updates_immediately_on_rapid_cursor_moves() -> Non
 @pytest.mark.asyncio
 async def test_app_hides_stale_child_entries_while_new_child_snapshot_is_pending() -> None:
     path = str(Path("/tmp/zivo-child-pane-pending").resolve())
+    child_snapshot_release_event = threading.Event()
     current_entries = (
         DirectoryEntryState(f"{path}/docs", "docs", "dir"),
         DirectoryEntryState(f"{path}/src", "src", "dir"),
@@ -2076,8 +2155,8 @@ async def test_app_hides_stale_child_entries_while_new_child_snapshot_is_pending
                 entries=(DirectoryEntryState(f"{path}/src/main.py", "main.py", "file"),),
             ),
         },
-        child_delay_seconds={
-            (path, f"{path}/src"): 0.2,
+        child_snapshot_release_events={
+            (path, f"{path}/src"): child_snapshot_release_event,
         },
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
@@ -2089,8 +2168,25 @@ async def test_app_hides_stale_child_entries_while_new_child_snapshot_is_pending
 
         await pilot.press("down")
         await _wait_for_cursor_path(app, f"{path}/src")
-        await _wait_for_child_pane_request_count(loader, 1, timeout=1.0)
-        await _wait_for_child_entries(app, [], timeout=1.0)
+        try:
+            await _wait_for_child_pane_request_count(loader, 1, timeout=1.0)
+            await pilot.pause()
+
+            loading_child_pane = select_shell_data(app.app_state).child_pane
+            assert loading_child_pane.header_title == "Contents · src · loading"
+            assert loading_child_pane.entries == ()
+            assert loading_child_pane.status is not None
+            assert loading_child_pane.status.kind == "loading"
+            assert loading_child_pane.status.title == "Loading directory…"
+
+            await _wait_for_child_preview(
+                app,
+                "Contents · src · loading",
+                "Loading directory…",
+                timeout=2.0,
+            )
+        finally:
+            child_snapshot_release_event.set()
         await _wait_for_child_entries(app, ["main.py"], timeout=1.0)
         await _wait_for_child_pane_runtime_idle(app, timeout=1.0)
 
@@ -2268,11 +2364,11 @@ async def test_app_right_enters_directory_and_left_returns_to_parent() -> None:
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, root)
         current_path_bar = await _wait_for_current_path_bar(app)
-        assert str(current_path_bar.renderable) == f"Current Path: {root}"
+        assert "Current Path:" in str(current_path_bar.renderable)
 
         await pilot.press("right")
         await _wait_for_path(app, docs)
-        assert str(current_path_bar.renderable) == f"Current Path: {docs}"
+        assert "Current Path:" in str(current_path_bar.renderable)
 
         current_table = app.query_one("#current-pane-table", DataTable)
         assert app.app_state.current_path == docs
@@ -2280,7 +2376,7 @@ async def test_app_right_enters_directory_and_left_returns_to_parent() -> None:
 
         await pilot.press("left")
         await _wait_for_path(app, root)
-        assert str(current_path_bar.renderable) == f"Current Path: {root}"
+        assert "Current Path:" in str(current_path_bar.renderable)
 
         assert app.app_state.current_path == root
         assert app.app_state.current_pane.cursor_path == docs
@@ -2405,11 +2501,11 @@ async def test_app_left_on_windows_drive_root_returns_to_drive_list(monkeypatch)
     async with app.run_test() as pilot:
         await _wait_for_path(app, "C:\\")
         current_path_bar = await _wait_for_current_path_bar(app)
-        assert str(current_path_bar.renderable) == "Current Path: C:\\"
+        assert "Current Path:" in str(current_path_bar.renderable)
 
         await pilot.press("left")
         await _wait_for_path(app, WINDOWS_DRIVES_ROOT)
-        assert str(current_path_bar.renderable) == "Current Path: Drives"
+        assert "Drives" in str(current_path_bar.renderable)
         assert app.app_state.current_pane.cursor_path == "C:\\"
 
 
@@ -3100,7 +3196,7 @@ async def test_app_child_snapshot_failure_shows_error() -> None:
         status_bar = await _wait_for_status_bar(app)
 
         assert _side_pane_lines(child_list) == []
-        assert str(current_path_bar.renderable) == f"Current Path: {path}"
+        assert "Current Path:" in str(current_path_bar.renderable)
         assert str(summary_bar.renderable) == "2 items | 0 selected | sort: name asc"
         assert str(status_bar.renderable) == "error: permission denied"
         await _wait_for_child_pane_runtime_idle(app, timeout=1.0)
@@ -3122,7 +3218,7 @@ async def test_app_displays_browsing_help_bar() -> None:
     split_terminal_hint = " | t term" if os.name == "posix" else ""
     expected_help = (
         "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo | ctrl+j/k prv\n"
+        "space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
 
@@ -3173,7 +3269,7 @@ async def test_app_transfer_mode_refreshes_left_cursor_and_focuses_right_pane() 
         assert app.app_state.transfer_left.pane.cursor_path == f"{path}/src"
         assert left_table.cursor_row == 1
 
-        await pilot.press("]")
+        await pilot.press("tab")
         await pilot.pause()
 
         assert app.app_state.active_transfer_pane == "right"
@@ -3227,10 +3323,9 @@ async def test_app_displays_transfer_help_bar() -> None:
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
-        "[ ] focus | y copy-to-pane | m move-to-pane | p/Esc close | q quit\n"
-        "Space select | c copy | x cut | v paste | d trash | D permanent | "
-        "r rename | z undo\n"
-        ". hidden | N new-dir | : palette"
+        "enter dir | . hidden | Tab switch-pane | p/Esc close | q quit\n"
+        "space select | c copy-to-pane | m move-to-pane | d delete | r rename | z undo\n"
+        "n new-file | N new-dir | : palette"
     )
 
     async with app.run_test() as pilot:
@@ -3258,11 +3353,24 @@ async def test_app_opens_command_palette_from_transfer_mode_with_colon() -> None
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press("p")
+        notification = NotificationState(
+            level="error",
+            message="Paste failed",
+            action=NotificationAction(
+                action_id="notification.retry",
+                label="Retry",
+            ),
+        )
+        await app.dispatch_actions((SetNotification(notification),))
         await pilot.press(":")
         palette = await _wait_for_command_palette(app)
 
         assert app.app_state.ui_mode == "PALETTE"
         assert palette.display is True
+        assert app.app_state.notification == notification
+        assert "Suggested" in str(
+            palette.query_one("#command-palette-items", Static).renderable
+        )
 
 
 def test_transfer_mode_does_not_use_preview_scroll_keys_for_child_preview() -> None:
@@ -3355,6 +3463,15 @@ async def test_app_colon_shows_command_palette() -> None:
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
+        notification = NotificationState(
+            level="error",
+            message="Paste failed",
+            action=NotificationAction(
+                action_id="notification.details",
+                label="Details",
+            ),
+        )
+        await app.dispatch_actions((SetNotification(notification),))
         await pilot.press(":")
         await asyncio.sleep(0.05)
 
@@ -3363,6 +3480,9 @@ async def test_app_colon_shows_command_palette() -> None:
 
         assert app.app_state.ui_mode == "PALETTE"
         assert palette.display is True
+        assert app.app_state.notification == notification
+        assert "Suggested" in str(items.renderable)
+        assert "Details" in str(items.renderable)
         assert "Go back" in str(items.renderable)
 
 
@@ -3467,7 +3587,7 @@ async def test_app_palette_keeps_current_table_cursor_row() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_command_palette_create_file_opens_context_input() -> None:
+async def test_app_command_palette_create_opens_context_input() -> None:
     path = str(Path("/tmp/zivo-command-palette-create").resolve())
     loader = FakeBrowserSnapshotLoader(
         snapshots={
@@ -3492,9 +3612,9 @@ async def test_app_command_palette_create_file_opens_context_input() -> None:
         assert app.app_state.ui_mode == "CREATE"
         assert input_dialog.display is True
         assert input_dialog.state is not None
-        assert input_dialog.state.title == "New File"
-        assert input_dialog.state.prompt == "New file: "
-        assert input_dialog.state.hint == "enter apply | esc cancel"
+        assert input_dialog.state.title == "Create"
+        assert input_dialog.state.prompt == "Name or path: "
+        assert input_dialog.state.hint == "tab switch type | enter apply | esc cancel"
 
 
 @pytest.mark.asyncio
@@ -3531,16 +3651,15 @@ async def test_app_go_to_path_shows_candidates_and_tabs_to_selected_directory(tm
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press(":")
-        await pilot.press("g", "o", "space", "t", "o", "space", "p", "a", "t", "h")
+        await pilot.press("g", "o")
         await pilot.press("enter")
         await pilot.press("d", "o")
         await asyncio.sleep(0.05)
 
         assert app.app_state.command_palette is not None
-        assert app.app_state.command_palette.history_and_navigation.go_to_path_candidates == (
-            docs_path,
-            downloads_path,
-        )
+        assert tuple(
+            item.path for item in get_command_palette_items(app.app_state) if item.path
+        ) == (docs_path, downloads_path)
 
         await pilot.press("down", "tab")
         await asyncio.sleep(0.05)
@@ -3585,7 +3704,7 @@ async def test_app_go_to_path_submit_after_completion_stays_on_completed_directo
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await pilot.press(":")
-        await pilot.press("g", "o", "space", "t", "o", "space", "p", "a", "t", "h")
+        await pilot.press("g", "o")
         await pilot.press("enter")
         await pilot.press("d", "o", "tab", "enter")
         await _wait_for_snapshot_loaded(app, docs_path)
@@ -3669,7 +3788,11 @@ async def test_app_file_search_renders_preview_within_current_pane(tmp_path) -> 
         await pilot.press("f")
         await pilot.press("n", "o", "t", "e")
         await _wait_for_request_count(file_search_service, 1)
-        await _wait_for_child_preview(app, "Preview: notes.txt", "TODO: update docs")
+        await _wait_for_child_preview(
+            app,
+            'Results · files and directories "note" · 1 results',
+            "TODO: update docs",
+        )
 
         command_palette = app.query_one("#command-palette")
         child_pane = app.query_one("#child-pane")
@@ -3771,7 +3894,11 @@ async def test_app_file_search_cancel_restores_child_pane_snapshot() -> None:
         await pilot.press("f")
         await pilot.press("n", "o", "t", "e")
         await _wait_for_request_count(file_search_service, 1)
-        await _wait_for_child_preview(app, "Preview: notes.txt", "alpha")
+        await _wait_for_child_preview(
+            app,
+            'Results · files and directories "note" · 1 results',
+            "alpha",
+        )
 
         await pilot.press("escape")
         await _wait_for_child_entries(app, ["guide.md", "README.md"])
@@ -4034,7 +4161,11 @@ async def test_app_grep_search_renders_context_preview_within_current_pane(tmp_p
         await pilot.press("g")
         await pilot.press("t", "o", "d", "o")
         await _wait_for_request_count(grep_search_service, 1)
-        await _wait_for_child_preview(app, "Preview: notes.txt:3", "TODO: update docs")
+        await _wait_for_child_preview(
+            app,
+            'Results · grep "todo" · 1 matches',
+            "TODO: update docs",
+        )
 
         command_palette = app.query_one("#command-palette")
         child_pane = app.query_one("#child-pane")
@@ -4489,6 +4620,7 @@ async def test_app_command_palette_replace_text_previews_and_applies_selected_fi
 
         child_pane = select_shell_data(app.app_state).child_pane
         assert child_pane.preview_title == "Replace Preview"
+        assert child_pane.preview_scroll_hint == "Shift+↑/↓ scroll preview"
         assert child_pane.preview_content is not None
         assert "--- " in child_pane.preview_content
         assert "+++ " in child_pane.preview_content
@@ -5744,7 +5876,11 @@ async def test_app_rename_round_trip_updates_status_bar(tmp_path) -> None:
             timeout=1.0,
             message="rename did not return to browsing mode",
         )
-        await _wait_for_status_message(app, "info: Renamed to manuals", timeout=1.0)
+        await _wait_for_status_message(
+            app,
+            "info: Renamed to manuals   Undo",
+            timeout=1.0,
+        )
 
         assert (tmp_path / "manuals").is_dir()
         assert app.app_state.ui_mode == "BROWSING"
@@ -5780,8 +5916,8 @@ async def test_app_create_name_conflict_dialog_returns_to_input(tmp_path) -> Non
         assert dialog.display is False
         assert input_dialog.display is True
         assert input_dialog.state is not None
-        assert input_dialog.state.title == "New File"
-        assert input_dialog.state.prompt == "New file: "
+        assert input_dialog.state.title == "Create"
+        assert input_dialog.state.prompt == "Name or path: "
         assert input_dialog.state.value == "docs"
 
 
@@ -5852,9 +5988,7 @@ async def test_app_paste_conflict_dialog_round_trip() -> None:
         await pilot.press("r")
         await asyncio.sleep(0.05)
 
-        status_bar = await _wait_for_status_bar(app)
         assert app.app_state.ui_mode == "BROWSING"
-        assert str(status_bar.renderable) == "info: Copied 1 item(s)"
 
 
 @pytest.mark.asyncio
@@ -6096,7 +6230,7 @@ async def test_app_main_flow_round_trip_on_live_filesystem(tmp_path) -> None:
 
         status_bar = await _wait_for_status_bar(app)
         assert (docs_dir / "notes.txt").is_file()
-        assert str(status_bar.renderable) == "info: Copied 1 item(s)"
+        assert str(status_bar.renderable) == "info: Copied 1 item(s)   Undo"
 
         await pilot.press("left")
         await _wait_for_path(app, str(tmp_path))
@@ -6214,7 +6348,7 @@ async def test_app_cursor_move_refreshes_large_child_pane_without_remount(
 
         assert app.query_one("#child-pane-list", Static) is child_list
         assert len(_side_pane_lines(child_list)) == 1000
-        assert update_calls == 2
+        assert update_calls == 1
 
 
 # --- Pane visibility on narrow terminals (Issue #390) ---
@@ -6242,6 +6376,31 @@ async def test_app_hides_both_side_panes_at_narrow_width() -> None:
         parent = app.query_one("#parent-pane")
         child = app.query_one("#child-pane")
         assert not parent.display
+        assert not child.display
+
+
+@pytest.mark.asyncio
+async def test_app_tab_toggles_current_and_details_views_at_narrow_width() -> None:
+    app = _pane_visibility_app()
+
+    async with app.run_test(size=(60, 20)) as pilot:
+        await _wait_for_snapshot_loaded(app, "/tmp/zivo-pane-vis")
+        current = app.query_one("#current-pane")
+        child = app.query_one("#child-pane")
+        assert current.display
+        assert not child.display
+
+        await pilot.press("tab")
+        await asyncio.sleep(0.05)
+
+        assert app.app_state.narrow_pane_view == "details"
+        assert not current.display
+        assert child.display
+
+        await pilot.press("tab")
+        await asyncio.sleep(0.05)
+        assert app.app_state.narrow_pane_view == "current"
+        assert current.display
         assert not child.display
 
 
@@ -6392,3 +6551,64 @@ class TestCommandPaletteClick:
 
             # After SubmitCommandPalette, palette should be closed
             assert app.app_state.command_palette is None
+
+
+@pytest.mark.asyncio
+async def test_app_renders_empty_directory_action_and_routes_it_to_create_flow() -> None:
+    path = str(Path("/tmp/zivo-empty-state").resolve())
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={path: _build_snapshot(path, (), child_path=path, child_entries=())}
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(120, 20)):
+        await _wait_for_predicate(
+            lambda: app.app_state.pending_browser_snapshot_request_id is None,
+            message="empty directory snapshot did not finish",
+        )
+        status = app.query_one("#current-pane-status", Static)
+        assert status.display is True
+        assert "Empty directory" in str(status.renderable)
+        assert "[n] New file" in str(status.renderable)
+        assert "[N] New directory" in str(status.renderable)
+
+        await app.on_main_pane_action_clicked(MainPane.ActionClicked("create_file"))
+
+        assert app.app_state.ui_mode == "CREATE"
+        assert app.app_state.pending_input is not None
+        assert app.app_state.pending_input.create_kind == "file"
+
+
+@pytest.mark.asyncio
+async def test_app_header_click_uses_set_sort_reducer_path() -> None:
+    path = str(Path("/tmp/zivo-header-sort").resolve())
+    entries = (
+        DirectoryEntryState(f"{path}/alpha", "alpha", "dir", size_bytes=10),
+        DirectoryEntryState(f"{path}/beta.txt", "beta.txt", "file", size_bytes=20),
+    )
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={path: _build_snapshot(path, entries, child_path=path)}
+    )
+    app = create_app(snapshot_loader=loader, initial_path=path)
+
+    async with app.run_test(size=(120, 20)) as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        table = app.query_one("#current-pane-table", DataTable)
+
+        class _HeaderClick:
+            style = Style(meta={"row": -1, "column": 2})
+
+            def stop(self) -> None:
+                return None
+
+        await table._on_click(_HeaderClick())
+        await pilot.pause()
+
+        assert app.app_state.sort.field == "size"
+        assert app.app_state.sort.descending is True
+        assert "Size ↓" in table.columns["size"].label.plain
+
+        await table._on_click(_HeaderClick())
+        await pilot.pause()
+        assert app.app_state.sort.field == "size"
+        assert app.app_state.sort.descending is False

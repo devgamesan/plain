@@ -367,6 +367,7 @@ def test_config_save_service_preserves_advanced_and_unknown_settings(tmp_path) -
 [display]
 show_hidden_files = false
 theme = "textual-dark"
+preview_syntax_theme = "monokai"
 preview_max_kib = 1024
 custom_preview_option = "keep"
 
@@ -386,6 +387,7 @@ enabled = true
             display=DisplayConfig(
                 show_hidden_files=True,
                 theme="tokyo-night",
+                preview_syntax_theme="one-dark",
             ),
             behavior=BehaviorConfig(confirm_delete=False),
         ),
@@ -397,12 +399,19 @@ enabled = true
     assert "# Keep this comment." in written
     assert "show_hidden_files = true" in written
     assert 'theme = "tokyo-night"' in written
+    assert 'preview_syntax_theme = "one-dark"' in written
     assert "preview_max_kib = 1024" in written
     assert 'custom_preview_option = "keep"' in written
     assert "confirm_delete = false" in written
     assert "confirm_exit = false" in written
     assert "[custom_plugin]" in written
     assert "enabled = true" in written
+
+    reloaded = AppConfigLoader(config_path_resolver=lambda: config_path).load()
+
+    assert reloaded.config.display.preview_syntax_theme == "one-dark"
+    assert reloaded.config.display.preview_max_kib == 1024
+    assert reloaded.config.behavior.confirm_exit is False
 
 
 def test_loader_accepts_all_supported_builtin_themes(tmp_path) -> None:

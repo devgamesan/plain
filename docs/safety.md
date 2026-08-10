@@ -26,15 +26,22 @@ zivo includes several safety mechanisms to prevent accidents during file operati
 ## Undo
 
 - Press `z` to undo the most recent file operation.
-- Undoable operations: rename, paste, and move to trash.
+- Undoable operations: rename, paste (including cross-pane Copy/Move in Transfer mode), and move to trash.
 - `Undo last file operation` is hidden from the command palette when the undo history is empty.
 - Only reversible file operations are recorded in the undo history.
+
+## Bulk Rename
+
+- Selecting two or more items and invoking `r` or `Rename selected items` opens a review overlay with a Base name input, Old Name / New Name / Status rows, and a count summary before any filesystem change.
+- The Base name generates numbered destinations while preserving each original extension. Unchanged rows are skipped. Any collision, invalid name, missing target, or parent-directory permission failure disables the apply action.
+- Execution stages entries under temporary names in the same directory before applying final names, so cycles such as `a→b` and `b→a` are safe. Failures trigger best-effort rollback and remain visible per row.
+- A single Undo entry is recorded only after every changed row succeeds. Undo also stages through temporary names and does not create history for a partial result.
 
 ---
 
 ## Paste Conflict Resolution
 
-- When the paste destination already contains a file with the same name, a conflict dialog is shown.
+- When the paste destination already contains a file with the same name (including the opposite pane during a Transfer-mode Copy/Move), a conflict dialog is shown.
 - Choose from `o` (overwrite), `s` (skip), `r` (rename), or `Esc` (cancel).
 - The default behavior is configurable via `behavior.paste_conflict_action` in `config.toml`.
 
@@ -59,6 +66,13 @@ zivo includes several safety mechanisms to prevent accidents during file operati
 
 - If the destination already exists, a confirmation dialog is shown before extraction.
 - The status bar shows entry-count progress while the extraction runs.
+
+## Long-Running File Operations
+
+- Copy, Move, Compress, Extract, and Replace show the operation name, progress, and current target while the UI remains modal.
+- `Cancel` and `Esc` request cooperative cancellation only at safe item boundaries; the current item is allowed to finish and workers are never force-stopped.
+- Partial results explicitly report succeeded, skipped, failed, and not-processed targets. Only completed Copy/Move targets are included in Undo.
+- Compress writes to a same-directory temporary archive and atomically publishes it on success. Extract and Replace write temporary files and atomically replace their destinations, cleaning temporary files on cancellation or failure.
 
 ---
 

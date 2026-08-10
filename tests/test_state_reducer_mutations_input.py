@@ -31,6 +31,7 @@ from zivo.state.actions import (
     CancelPendingInput,
     CancelSymlinkOverwriteConfirmation,
     ConfirmSymlinkOverwrite,
+    CycleCreateKind,
     DismissNameConflict,
     SetPendingInputValue,
     SubmitPendingInput,
@@ -250,10 +251,26 @@ def test_begin_create_input_sets_mode_and_kind() -> None:
 
     assert next_state.ui_mode == "CREATE"
     assert next_state.pending_input == PendingInputState(
-        prompt="New directory: ",
+        prompt="Name or path: ",
         value="",
         create_kind="dir",
     )
+
+
+def test_cycle_create_kind_keeps_path_and_switches_type() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CREATE",
+        pending_input=PendingInputState(
+            prompt="Name or path:", value="reports/2026/january", create_kind="file"
+        ),
+    )
+
+    next_state = _reduce_state(state, CycleCreateKind())
+
+    assert next_state.pending_input is not None
+    assert next_state.pending_input.value == "reports/2026/january"
+    assert next_state.pending_input.create_kind == "dir"
 
 
 def test_begin_symlink_input_sets_destination_prompt() -> None:
@@ -322,7 +339,7 @@ def test_set_pending_input_value_updates_current_value() -> None:
     state = replace(
         build_initial_app_state(),
         ui_mode="CREATE",
-        pending_input=PendingInputState(prompt="New file: ", value="", create_kind="file"),
+        pending_input=PendingInputState(prompt="Name or path: ", value="", create_kind="file"),
     )
 
     next_state = _reduce_state(state, SetPendingInputValue("notes.txt", cursor_pos=8))
@@ -336,7 +353,7 @@ def test_submit_pending_input_rejects_duplicate_name() -> None:
         build_initial_app_state(),
         ui_mode="CREATE",
         pending_input=PendingInputState(
-            prompt="New file: ",
+            prompt="Name or path: ",
             value="README.md",
             create_kind="file",
         ),
@@ -543,7 +560,7 @@ def test_submit_pending_input_emits_create_effect() -> None:
         build_initial_app_state(),
         ui_mode="CREATE",
         pending_input=PendingInputState(
-            prompt="New file: ",
+            prompt="Name or path: ",
             value="notes.txt",
             create_kind="file",
         ),
@@ -587,7 +604,7 @@ def test_submit_pending_input_name_conflict_enters_confirm_mode_for_create_dir()
         build_initial_app_state(),
         ui_mode="CREATE",
         pending_input=PendingInputState(
-            prompt="New directory: ",
+            prompt="Name or path: ",
             value="docs",
             create_kind="dir",
         ),
@@ -655,7 +672,7 @@ def test_dismiss_name_conflict_restores_create_mode_and_keeps_input() -> None:
         build_initial_app_state(),
         ui_mode="CONFIRM",
         pending_input=PendingInputState(
-            prompt="New file: ",
+            prompt="Name or path: ",
             value="docs",
             create_kind="file",
         ),
@@ -806,7 +823,7 @@ def test_submit_pending_input_rejects_colon_in_name_on_macos(monkeypatch) -> Non
         build_initial_app_state(),
         ui_mode="CREATE",
         pending_input=PendingInputState(
-            prompt="New file: ",
+            prompt="Name or path: ",
             value="file:name.txt",
             create_kind="file",
         ),
@@ -827,7 +844,7 @@ def test_submit_pending_input_allows_colon_in_name_on_linux(monkeypatch) -> None
         build_initial_app_state(),
         ui_mode="CREATE",
         pending_input=PendingInputState(
-            prompt="New file: ",
+            prompt="Name or path: ",
             value="file:name.txt",
             create_kind="file",
         ),

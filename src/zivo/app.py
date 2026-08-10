@@ -37,10 +37,12 @@ from zivo.services import (
     ArchiveExtractService,
     AttributeInspectionService,
     BrowserSnapshotLoader,
+    BulkRenameService,
     ClipboardOperationService,
     ConfigSaveService,
     CustomActionService,
     DirectorySizeService,
+    DuplicateOperationService,
     ExternalLaunchService,
     FileMutationService,
     FileSearchService,
@@ -49,10 +51,12 @@ from zivo.services import (
     LiveArchiveExtractService,
     LiveAttributeInspectionService,
     LiveBrowserSnapshotLoader,
+    LiveBulkRenameService,
     LiveClipboardOperationService,
     LiveConfigSaveService,
     LiveCustomActionService,
     LiveDirectorySizeService,
+    LiveDuplicateOperationService,
     LiveExternalLaunchService,
     LiveFileMutationService,
     LiveFileSearchService,
@@ -84,19 +88,30 @@ from zivo.state import (
 from zivo.state.actions import (
     Action,
     ActivateTabByIndex,
+    BeginConfigEditor,
+    BeginCreateInput,
+    CancelFilterInput,
+    CloseTabByIndex,
     EnterCursorDirectory,
     EnterTransferDirectory,
     ExitCurrentPath,
     FocusTransferPane,
+    GoBack,
+    GoForward,
     NavigateTransferToPath,
+    OpenNewTab,
     OpenPathWithDefaultApp,
     RequestBrowserSnapshot,
     SetCursorPath,
+    SetSort,
     SetTerminalHeight,
+    SetTerminalWidth,
     SetTransferCursorPath,
+    ShowAttributes,
 )
 from zivo.ui import (
     AttributeDialog,
+    BulkRenameDialog,
     ChildPane,
     CommandPalette,
     ConfigDialog,
@@ -105,6 +120,7 @@ from zivo.ui import (
     HelpBar,
     InputDialog,
     MainPane,
+    NotificationDetailsDialog,
     ShellCommandDialog,
     SidePane,
     StatusBar,
@@ -178,6 +194,8 @@ class zivoApp(App[None]):
         clipboard_service: ClipboardOperationService | None = None,
         config_save_service: ConfigSaveService | None = None,
         directory_size_service: DirectorySizeService | None = None,
+        duplicate_service: DuplicateOperationService | None = None,
+        bulk_rename_service: BulkRenameService | None = None,
         file_mutation_service: FileMutationService | None = None,
         archive_extract_service: ArchiveExtractService | None = None,
         zip_compress_service: ZipCompressService | None = None,
@@ -221,6 +239,8 @@ class zivoApp(App[None]):
         self._clipboard_service = clipboard_service or LiveClipboardOperationService()
         self._config_save_service = config_save_service or LiveConfigSaveService()
         self._directory_size_service = directory_size_service or LiveDirectorySizeService()
+        self._duplicate_service = duplicate_service or LiveDuplicateOperationService()
+        self._bulk_rename_service = bulk_rename_service or LiveBulkRenameService()
         self._file_mutation_service = file_mutation_service or LiveFileMutationService()
         self._archive_extract_service = archive_extract_service or LiveArchiveExtractService()
         self._zip_compress_service = zip_compress_service or LiveZipCompressService()
@@ -236,6 +256,8 @@ class zivoApp(App[None]):
         self._custom_action_service = custom_action_service or LiveCustomActionService()
         self._undo_service = undo_service or LiveUndoService()
         self._pending_workers: dict[str, Effect] = {}
+        self._foreground_operation_cancel_event: threading.Event | None = None
+        self._foreground_operation_id: int | None = None
         self._child_pane_timer: Timer | None = None
         self._active_child_pane_cancel_event: threading.Event | None = None
         self._active_child_pane_request_id: int | None = None
@@ -260,7 +282,11 @@ class zivoApp(App[None]):
 
     def compose(self) -> ComposeResult:
         shell = select_shell_data(self._app_state)
-        yield CurrentPathBar(shell.current_path, id="current-path-bar")
+        yield CurrentPathBar(
+            shell.current_path,
+            state=shell.path_bar,
+            id="current-path-bar",
+        )
         yield self._build_body(shell)
         yield Container(
             CommandPalette(shell.command_palette, id="command-palette"),
@@ -278,6 +304,14 @@ class zivoApp(App[None]):
             classes="overlay-layer dialog-layer",
         )
         yield Container(
+            NotificationDetailsDialog(
+                shell.notification_details_dialog,
+                id="notification-details-dialog",
+            ),
+            id="notification-details-dialog-layer",
+            classes="overlay-layer dialog-layer",
+        )
+        yield Container(
             ConfigDialog(shell.config_dialog, id="config-dialog"),
             id="config-dialog-layer",
             classes="overlay-layer dialog-layer",
@@ -292,6 +326,11 @@ class zivoApp(App[None]):
             id="input-dialog-layer",
             classes="overlay-layer dialog-layer",
         )
+        yield Container(
+            BulkRenameDialog(shell.bulk_rename_dialog, id="bulk-rename-dialog"),
+            id="bulk-rename-dialog-layer",
+            classes="overlay-layer dialog-layer",
+        )
         yield HelpBar(shell.help, id="help-bar")
         yield StatusBar(shell.status, id="status-bar")
 
@@ -300,6 +339,7 @@ class zivoApp(App[None]):
 
         await self.dispatch_actions((
             SetTerminalHeight(height=self.size.height),
+            SetTerminalWidth(width=self.size.width),
             RequestBrowserSnapshot(self._initial_path, blocking=True),
         ))
         self.call_after_refresh(lambda: sync_overlay_layout(self))
@@ -310,7 +350,15 @@ class zivoApp(App[None]):
         if (
             event.key == "ctrl+v"
             and self._app_state.ui_mode
-            in {"CHMOD", "CHOWN", "RENAME", "CREATE", "EXTRACT", "ZIP", "SYMLINK"}
+            in {
+                "CHMOD",
+                "CHOWN",
+                "RENAME",
+                "CREATE",
+                "EXTRACT",
+                "ZIP",
+                "SYMLINK",
+            }
             and self._app_state.pending_input is not None
         ):
             text = self._external_launch_service.get_from_clipboard()
@@ -318,6 +366,20 @@ class zivoApp(App[None]):
                 from zivo.state.actions import PasteIntoPendingInput
 
                 await self.dispatch_actions((PasteIntoPendingInput(text=text),))
+            event.stop()
+            event.prevent_default()
+            return
+
+        if (
+            event.key == "ctrl+v"
+            and self._app_state.ui_mode == "BULK_RENAME"
+            and self._app_state.bulk_rename is not None
+        ):
+            from zivo.state.actions import PasteIntoBulkRenameBaseName
+
+            text = self._external_launch_service.get_from_clipboard()
+            if text:
+                await self.dispatch_actions((PasteIntoBulkRenameBaseName(text=text),))
             event.stop()
             event.prevent_default()
             return
@@ -382,6 +444,14 @@ class zivoApp(App[None]):
             )
             event.stop()
             event.prevent_default()
+            return
+
+        if self._app_state.ui_mode == "BULK_RENAME" and self._app_state.bulk_rename is not None:
+            from zivo.state.actions import PasteIntoBulkRenameBaseName
+
+            await self.dispatch_actions((PasteIntoBulkRenameBaseName(text=event.text),))
+            event.stop()
+            event.prevent_default()
 
     async def on_click(self, event: events.Click) -> None:
         """Handle bubbled mouse clicks for side panes and previews."""
@@ -444,12 +514,52 @@ class zivoApp(App[None]):
             double_click=message.double_click,
         )
 
+    async def on_main_pane_sort_header_clicked(
+        self,
+        message: MainPane.SortHeaderClicked,
+    ) -> None:
+        """Apply header sorting through the same action used by ``s``."""
+
+        field = message.field
+        if field == self._app_state.sort.field:
+            descending = not self._app_state.sort.descending
+        else:
+            descending = field in {"size", "modified"}
+        await self.dispatch_actions(
+            (SetSort(field=field, descending=descending),),
+        )
+
     async def on_main_pane_pane_clicked(self, message: MainPane.PaneClicked) -> None:
         """Handle clicks on a transfer pane area (not on a specific row)."""
 
         pane = "right" if message.pane_id == "transfer-right-pane" else "left"
         if self._app_state.active_transfer_pane != pane:
             await self.dispatch_actions((FocusTransferPane(pane),))
+
+    async def on_main_pane_action_clicked(self, message: MainPane.ActionClicked) -> None:
+        """Run a center-pane empty-state action through the reducer."""
+
+        await self._dispatch_pane_action(message.action_id)
+
+    async def on_status_bar_action_clicked(self, message: StatusBar.ActionClicked) -> None:
+        """Run the status-bar action through the shared notification reducer path."""
+
+        from zivo.state.actions import ActivateNotificationAction, CancelForegroundOperation
+
+        if message.action_id == "operation.cancel":
+            await self.dispatch_actions((CancelForegroundOperation(),))
+            return
+
+        await self.dispatch_actions(
+            (ActivateNotificationAction(message.action_id, message.revision),)
+        )
+
+    async def on_status_bar_auto_dismiss(self, message: StatusBar.AutoDismiss) -> None:
+        """Request revision-checked auto-dismissal from the status timer."""
+
+        from zivo.state.actions import DismissNotification
+
+        await self.dispatch_actions((DismissNotification(message.revision),))
 
     async def action_dispatch_bound_key(self, key: str) -> None:
         """Handle priority key bindings through the central dispatcher."""
@@ -584,15 +694,28 @@ class zivoApp(App[None]):
         await handle_worker_state_changed(self, event)
 
     async def on_resize(self, event: events.Resize) -> None:
-        """Update the terminal height on resize."""
+        """Update terminal dimensions and responsive pane layout on resize."""
 
-        await self.dispatch_actions((SetTerminalHeight(height=event.size.height),))
+        await self.dispatch_actions((
+            SetTerminalHeight(height=event.size.height),
+            SetTerminalWidth(width=event.size.width),
+        ))
         sync_overlay_layout(self, event.size.width)
 
     async def on_tab_bar_tab_clicked(self, message: TabBar.TabClicked) -> None:
         """Handle tab clicks from the TabBar widget."""
 
         await self.dispatch_actions((ActivateTabByIndex(index=message.tab_index),))
+
+    async def on_tab_bar_tab_closed(self, message: TabBar.TabClosed) -> None:
+        """Close the tab represented by a tab-bar close affordance."""
+
+        await self.dispatch_actions((CloseTabByIndex(index=message.tab_index),))
+
+    async def on_tab_bar_new_tab_clicked(self, _message: TabBar.NewTabClicked) -> None:
+        """Open a new tab through the existing navigation action."""
+
+        await self.dispatch_actions((OpenNewTab(),))
 
     async def on_current_path_bar_path_segment_clicked(
         self,
@@ -608,6 +731,15 @@ class zivoApp(App[None]):
         await self.dispatch_actions(
             (RequestBrowserSnapshot(message.path, blocking=True),),
         )
+
+    async def on_current_path_bar_path_navigation_clicked(
+        self,
+        message: CurrentPathBar.PathNavigationClicked,
+    ) -> None:
+        """Route path-bar history controls through the existing actions."""
+
+        action: Action = GoBack() if message.direction == "back" else GoForward()
+        await self.dispatch_actions((action,))
 
     async def on_side_pane_entry_clicked(self, message: SidePane.EntryClicked) -> None:
         """Handle left parent-pane clicks from the widget message path."""
@@ -643,6 +775,23 @@ class zivoApp(App[None]):
                 await self._open_or_enter_path(message.path)
             return
         await self._open_or_enter_path(message.path)
+
+    async def on_child_pane_action_clicked(self, message: ChildPane.ActionClicked) -> None:
+        """Run a child-pane fallback action through the reducer."""
+
+        await self._dispatch_pane_action(message.action_id)
+
+    async def _dispatch_pane_action(self, action_id: str) -> None:
+        actions = {
+            "clear_filter": CancelFilterInput(),
+            "create_file": BeginCreateInput("file"),
+            "create_dir": BeginCreateInput("dir"),
+            "show_attributes": ShowAttributes(),
+            "edit_config": BeginConfigEditor(),
+        }
+        action = actions.get(action_id)
+        if action is not None:
+            await self.dispatch_actions((action,))
 
     def on_child_pane_preview_clicked(self, _message: ChildPane.PreviewClicked) -> None:
         """Move focus to the preview scroll container when the preview is clicked."""

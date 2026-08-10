@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Protocol
 
 from zivo.state.models import DirectoryEntryState
+from zivo.state.natural_sort import natural_sort_key
 
 from .filesystem_attributes import resolve_owner_group
 
@@ -47,7 +48,7 @@ class LocalFilesystemAdapter:
                 entry = _build_directory_entry_summary(child)
                 if entry is not None:
                     entries.append(entry)
-        entries.sort(key=lambda entry: (entry.kind != "dir", entry.name.casefold()))
+        entries.sort(key=lambda entry: (entry.kind != "dir", natural_sort_key(entry.name)))
         return tuple(entries)
 
     def inspect_entry(self, path: str) -> DirectoryEntryState | None:
@@ -129,6 +130,12 @@ def _build_directory_entry_summary(entry: os.DirEntry[str]) -> DirectoryEntrySta
 
 def _build_directory_entry_details(path: Path) -> DirectoryEntryState | None:
     is_symlink = path.is_symlink()
+    symlink_target = None
+    if is_symlink:
+        try:
+            symlink_target = os.readlink(path)
+        except OSError:
+            pass
     try:
         stat_result = path.stat()
     except FileNotFoundError:
@@ -154,6 +161,7 @@ def _build_directory_entry_details(path: Path) -> DirectoryEntryState | None:
         owner=owner,
         group=group,
         symlink=is_symlink,
+        symlink_target=symlink_target,
     )
 
 

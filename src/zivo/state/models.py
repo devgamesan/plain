@@ -7,13 +7,17 @@ from typing import Literal
 
 from zivo.models import (
     AppConfig,
+    BulkRenamePlanItem,
+    BulkRenameTarget,
     ConflictResolution,
     CreateKind,
     CreateSymlinkRequest,
     CreateZipArchiveRequest,
     CustomActionExecutionRequest,
     DeleteMode,
+    DuplicateRequest,
     ExtractArchiveRequest,
+    OperationKind,
     PasteConflict,
     PasteConflictAction,
     PasteRequest,
@@ -30,6 +34,7 @@ UiMode = Literal[
     "CHMOD",
     "CHOWN",
     "RENAME",
+    "BULK_RENAME",
     "CREATE",
     "EXTRACT",
     "ZIP",
@@ -50,11 +55,14 @@ CommandPaletteSource = Literal[
     "history",
     "bookmarks",
     "go_to_path",
+    "go",
     "replace_text",
     "replace_in_found_files",
     "replace_in_grep_files",
     "grep_replace_selected",
 ]
+GoSourceFilter = Literal["all", "bookmarks", "recent", "open_tabs", "home"]
+GoCandidateSource = Literal["home", "bookmark", "recent", "open_tab", "direct"]
 GrepSearchScope = Literal["current_directory", "selected_entries", "search_workspace"]
 GrepSearchFieldId = Literal["keyword", "scope", "filename", "include", "exclude"]
 ReplaceScope = Literal[
@@ -73,6 +81,7 @@ FileSearchFieldId = Literal["keyword", "target"]
 DirectorySizeStatus = Literal["pending", "ready", "failed"]
 CurrentPaneProjectionMode = Literal["full", "viewport"]
 LayoutMode = Literal["browser", "transfer"]
+NarrowPaneView = Literal["current", "details"]
 TransferPaneId = Literal["left", "right"]
 ConfigFieldId = Literal[
     "editor.command",
@@ -112,6 +121,7 @@ class DirectoryEntryState:
     owner: str | None = None
     group: str | None = None
     symlink: bool = False
+    symlink_target: str | None = None
 
 
 @dataclass(frozen=True)
@@ -132,6 +142,23 @@ class PaneState:
     preview_truncated: bool = False
     preview_start_line: int | None = None
     preview_highlight_line: int | None = None
+    preview_reason: str | None = None
+    preview_metadata: "PreviewMetadataState | None" = None
+
+
+@dataclass(frozen=True)
+class PreviewMetadataState:
+    """Filesystem metadata retained for compact preview fallbacks."""
+
+    display_name: str
+    type_label: str
+    size_bytes: int | None = None
+    modified_at: datetime | None = None
+    permissions_mode: int | None = None
+    owner: str | None = None
+    group: str | None = None
+    symlink_target: str | None = None
+    archive_entry_count: int | None = None
 
 
 @dataclass(frozen=True)
@@ -222,6 +249,25 @@ class ArchiveExtractProgressState:
 
 
 @dataclass(frozen=True)
+class ForegroundOperationState:
+    """Transient progress and cancellation state for one file operation."""
+
+    operation_id: int
+    kind: OperationKind
+    phase: str = "processing"
+    completed: int = 0
+    total: int | None = None
+    current_path: str | None = None
+    cancelable: bool = True
+    cancel_requested: bool = False
+    succeeded: int = 0
+    skipped: int = 0
+    failed: int = 0
+    unprocessed: int = 0
+    message: str = "Processing..."
+
+
+@dataclass(frozen=True)
 class ZipCompressConfirmationState:
     """Pending confirmation dialog state for zip compression conflicts."""
 
@@ -309,11 +355,52 @@ class HistoryState:
 
 
 @dataclass(frozen=True)
+class NotificationFailureDetail:
+    """One failed target shown by an actionable notification's details view."""
+
+    path: str
+    reason: str
+
+
+@dataclass(frozen=True)
+class NotificationDetails:
+    """Failure details retained for the notification details overlay."""
+
+    failure_count: int
+    failures: tuple[NotificationFailureDetail, ...] = ()
+    skipped_count: int = 0
+    unprocessed_count: int = 0
+    unprocessed_paths: tuple[str, ...] = ()
+    skipped_paths: tuple[str, ...] = ()
+
+
+NotificationActionId = Literal[
+    "notification.undo",
+    "notification.open_destination",
+    "notification.retry",
+    "notification.details",
+]
+
+
+@dataclass(frozen=True)
+class NotificationAction:
+    """Stable action metadata and immutable payload for a notification."""
+
+    action_id: NotificationActionId
+    label: str
+    payload: object | None = None
+
+
+@dataclass(frozen=True)
 class NotificationState:
     """Transient notification rendered by the UI shell."""
 
     level: NotificationLevel
     message: str
+    action: NotificationAction | None = None
+    auto_dismiss: bool = False
+    destination_path: str | None = None
+    details: NotificationDetails | None = None
 
 
 @dataclass(frozen=True)
@@ -334,6 +421,26 @@ class PendingInputState:
     zip_source_paths: tuple[str, ...] | None = None
     symlink_source_path: str | None = None
     symlink_overwrite: bool = False
+
+
+BulkRenameField = Literal[
+    "base_name",
+]
+
+
+@dataclass(frozen=True)
+class BulkRenameEditorState:
+    """Draft, validation, and result state for the bulk rename overlay."""
+
+    parent_dir: str
+    targets: tuple[BulkRenameTarget, ...]
+    items: tuple[BulkRenamePlanItem, ...]
+    base_name: str = ""
+    active_field: BulkRenameField = "base_name"
+    result_message: str | None = None
+    progress_completed: int = 0
+    progress_total: int = 0
+    progress_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -424,6 +531,17 @@ class HistoryAndNavigationPaletteState:
     history_results: tuple[str, ...] = ()
     go_to_path_candidates: tuple[str, ...] = ()
     go_to_path_selection_active: bool = True
+    go_candidates: tuple["GoCandidateState", ...] = ()
+    go_source_filter: GoSourceFilter = "all"
+
+
+@dataclass(frozen=True)
+class GoCandidateState:
+    """A destination candidate shown by the unified Go palette."""
+
+    path: str
+    sources: tuple[GoCandidateSource, ...] = ()
+    tab_index: int | None = None
 
 
 @dataclass(frozen=True)
@@ -607,9 +725,14 @@ class AppState:
     transfer_left: TransferPaneState | None = None
     transfer_right: TransferPaneState | None = None
     notification: NotificationState | None = None
+    notification_revision: int = 0
+    notification_details: NotificationDetails | None = None
+    foreground_operation: ForegroundOperationState | None = None
     pending_input: PendingInputState | None = None
+    bulk_rename: BulkRenameEditorState | None = None
     pending_key_sequence: PendingKeySequenceState | None = None
     command_palette: CommandPaletteState | None = None
+    pending_go_palette: CommandPaletteState | None = None
     paste_conflict: PasteConflictState | None = None
     delete_confirmation: DeleteConfirmationState | None = None
     exit_confirmation: ExitConfirmationState | None = None
@@ -631,11 +754,18 @@ class AppState:
     pending_browser_snapshot_request_id: int | None = None
     pending_child_pane_request_id: int | None = None
     pending_paste_request_id: int | None = None
+    pending_paste_request: PasteRequest | None = None
+    pending_paste_retry_requires_confirmation: bool = False
+    pending_duplicate_request_id: int | None = None
+    pending_duplicate_request: DuplicateRequest | None = None
+    pending_bulk_rename_request_id: int | None = None
     pending_file_mutation_request_id: int | None = None
     pending_delete_prepare_request_id: int | None = None
     pending_archive_prepare_request_id: int | None = None
+    pending_archive_prepare_request: ExtractArchiveRequest | None = None
     pending_archive_extract_request_id: int | None = None
     pending_zip_compress_prepare_request_id: int | None = None
+    pending_zip_compress_prepare_request: CreateZipArchiveRequest | None = None
     pending_zip_compress_request_id: int | None = None
     pending_file_search_request_id: int | None = None
     pending_grep_search_request_id: int | None = None
@@ -651,6 +781,8 @@ class AppState:
     pending_undo_entry: UndoEntry | None = None
     pending_undo_request_id: int | None = None
     terminal_height: int = 24
+    terminal_width: int = 120
+    narrow_pane_view: NarrowPaneView = "current"
     current_pane_projection_mode: CurrentPaneProjectionMode = "full"
     current_pane_window_start: int = 0
     next_request_id: int = 1

@@ -2,6 +2,24 @@
 
 Complete list of keybindings for all zivo modes.
 
+## Help Bar
+
+The three-row help bar keeps a stable order. Browsing uses these groups:
+
+1. `enter open`, `e edit`, `/ filter`, `s sort`, `. hidden`, `[ ] bk/fwd`, `q quit`
+2. `space select`, `c copy`, `x cut`, `v paste`, `d delete`, `r rename`, `z undo`
+3. `f find`, `g grep`, `n new-file`, `N new-dir`, `t term`, `: palette`
+
+Search Workspace shows `enter open`, `e edit`, `/ filter`, `s sort`, `. hidden`, `[ ] bk/fwd`, `q quit`, then `space select`, `c copy`, `z undo`, and `: palette`.
+
+On terminals narrower than 80 columns, normal browsing uses `Tab` to toggle the details view (preview/results) and the current file list. The current cursor, selection, filter, and preview identity are preserved; `j` / `k` still move the underlying current-list cursor. Search Workspace keeps `Tab` for moving between its input fields.
+
+Transfer shows `enter dir`, `. hidden`, `Tab switch-pane`, `p/Esc close`, `q quit`, then `space select`, `c copy-to-pane`, `m move-to-pane`, `d delete`, `r rename`, `z undo`, and finally `N new-dir`, `: palette`. `D` remains documented below but is intentionally omitted from the help bar.
+
+When a right-pane preview is active, its footer shows `Ctrl+J/K scroll preview`. Replace previews use `Shift+↑/↓ scroll preview`. `Ctrl+↑/↓` are aliases for normal preview scrolling. Narrow terminals keep three rows and elide lower-frequency items from the right.
+
+Mouse affordances mirror these actions: click breadcrumb segments or normal-browsing Back/Forward controls to navigate, click a tab to activate it, hover a tab for `×` close, use `+` for a new tab, and click the Name/Size/Modified headers to sort. Search Workspace is shown as a dedicated label, and Transfer mode does not add path-bar history buttons.
+
 ---
 
 ## Normal Mode
@@ -26,8 +44,8 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 | `v` | Paste from clipboard |
 | `z` | Undo the last reversible file operation |
 | `r` | Rename selected item |
-| `n` | Create new file |
-| `N` | Create new directory |
+| `n` | Open Create with File selected |
+| `N` | Open Create with Directory selected |
 | `d` | Move selected items to trash |
 | `D` | Permanently delete selected items |
 | `Delete` | Move selected items to trash (fn + Delete on macOS) |
@@ -35,9 +53,9 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 | `e` | Edit selected file with terminal editor |
 | `!` | Run a short non-interactive shell command in the current directory; the dialog shows cwd and retains output/error details |
 | `f` | Find files (recursive search) |
-| `g` | Search contents |
+| `g` | Grep search |
 | `/` | Filter files |
-| `b` | Show bookmarks |
+| `b` | Open the Go view filtered to bookmarks |
 | `~` | Go to home directory |
 | `.` | Toggle hidden files |
 | `s` | Cycle sort |
@@ -45,8 +63,6 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 | `o` | Open new tab |
 | `w` | Close current tab |
 | `1`-`9`, `0` | Switch to tab 1-9, or tab 10 with `0` |
-| `tab` | Switch to next tab |
-| `shift+tab` | Switch to previous tab |
 | `:` | Open command palette |
 | `q` | Quit |
 | `[` | Go back in history |
@@ -54,15 +70,19 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 | `Ctrl+J` / `Ctrl+↑` | Scroll the right-pane text preview up by a page |
 | `Ctrl+K` / `Ctrl+↓` | Scroll the right-pane text preview down by a page |
 | `p` | Toggle two-pane transfer mode |
+| `Tab` (under 80 columns) | Toggle between the current file list and the details view (preview/results) |
 
 ---
 
 ## Transfer Mode
 
+The active pane is the source and the opposite pane is the destination; the direction and counts are shown in the header. Clipboard cut/copy/paste (`c`/`x`/`v`) are normal-mode only.
+
 | Key | Action |
 | --- | ------ |
-| `Esc` | Return to normal mode / Clear selection |
-| `[` / `]` | Focus the left/right transfer pane |
+| `Tab` / `Shift+Tab` | Switch focus to the opposite pane (sets transfer direction) |
+| `1`-`9`, `0` | Switch to tab 1-9, or tab 10 with `0` |
+| `Esc` | Clear selection, or return to normal mode when nothing is selected |
 | `j` / `↓` | Move down in the focused pane |
 | `k` / `↑` | Move up in the focused pane |
 | `PageUp` / `PageDown` | Move by page in the focused pane |
@@ -73,11 +93,8 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 | `Space` | Toggle selection and move down in the focused pane |
 | `Shift+↑` / `Shift+↓` | Extend selection in the focused pane |
 | `a` | Select all visible entries in the focused pane |
-| `c` | Copy selected items to clipboard |
-| `x` | Cut selected items to clipboard |
-| `v` | Paste from clipboard to focused pane |
-| `y` | Copy focused-pane targets to opposite pane (copy-to-pane) |
-| `m` | Move focused-pane targets to opposite pane (move-to-pane) |
+| `c` | Copy selected (or focused) items to the opposite pane |
+| `m` | Move selected (or focused) items to the opposite pane |
 | `d` | Delete focused-pane targets to trash |
 | `D` | Permanently delete focused-pane targets |
 | `Delete` / `Shift+Delete` | Move to trash / permanently delete |
@@ -85,15 +102,12 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 | `z` | Undo the last file operation |
 | `.` | Toggle hidden files |
 | `N` | Create new directory in the focused pane |
-| `b` | Show bookmarks |
-| `:` | Open a transfer-mode command palette with transfer-available commands only |
-| `o` | Open new tab |
-| `w` | Close current tab |
-| `1`-`9`, `0` | Switch to tab 1-9, or tab 10 with `0` |
-| `tab` | Switch to next tab |
-| `shift+tab` | Switch to previous tab |
-| `p` / `Esc` | Return to normal mode |
+| `b` | Open the Go view filtered to bookmarks |
+| `:` | Open a transfer-mode command palette (new/rename/delete/tabs/etc.) |
+| `p` | Return to normal mode |
 | `q` | Exit the application |
+
+Browser tab operations are reachable from the transfer-mode command palette (`:`); switch tabs directly with number keys `1`-`9`/`0`. `Tab` switches panes.
 
 ---
 
@@ -166,6 +180,19 @@ When the `Replace text` preview is open in the right pane, `Shift+↑` / `Shift+
 | --- | ------ |
 | Text input / `Backspace` / `Enter` / `Esc` | Edit, confirm, or cancel rename/create input |
 
+## Bulk Rename Mode
+
+Bulk rename opens with `Base name` active. Entering a base name fills the review table with numbered names while preserving each original extension (`project_1.txt`, `project_2.md`). Press `r` or choose `Rename N items` with multiple selections.
+
+| Key | Behavior |
+| --- | --- |
+| Text input / `Backspace` | Edit the Base name and regenerate all New Name values |
+| `Enter` | Run `Rename items` |
+| `Ctrl+V` | Paste clipboard text into the Base name |
+| `Esc` | Close the overlay and discard the draft |
+
+There is only one keyboard input field in this mode, so `Tab` / `Shift+Tab` do not move focus to another control.
+
 ---
 
 ## Confirmation Dialog Mode
@@ -177,3 +204,7 @@ When the `Replace text` preview is open in the right pane, `Shift+↑` / `Shift+
 | `o` / `s` / `r` / `Esc` | Resolve a paste conflict with overwrite / skip / rename / cancel |
 
 The direct keys `i`, `C`, `B`, `G`, `M`, `O`, `T`, `H`, and `R` are intentionally unbound. Their attribute, path-copy, bookmark, navigation, external-launch, history, and reload commands remain available from the command palette.
+
+## Long-running Operation Mode
+
+While Copy, Move, Compress, Extract, or Replace is running, normal browsing remains modal. When the active service supports safe cancellation, press `Esc` or click `Cancel` in the status bar. The current item finishes before the operation stops; after a cancel request, repeated cancellation is ignored.

@@ -3,6 +3,7 @@
 import string
 
 from .input_browsing import BROWSING_KEYMAP, dispatch_browsing_input
+from .input_bulk_rename import dispatch_bulk_rename_input
 from .input_common import BrowsingHandler, DispatchedActions, warn
 from .input_dialogs import (
     dispatch_about_input,
@@ -73,9 +74,20 @@ def dispatch_key_input(
     if state.ui_mode == "CONFIG":
         return dispatch_config_input(state, key=key, character=character)
     if state.ui_mode == "BUSY":
+        if (
+            key in {"escape", "esc"}
+            and state.foreground_operation is not None
+            and state.foreground_operation.cancelable
+            and not state.foreground_operation.cancel_requested
+        ):
+            from .actions_mutations import CancelForegroundOperation
+
+            return (CancelForegroundOperation(),)
         return warn("Input ignored while processing")
     if state.ui_mode == "PALETTE":
         return dispatch_command_palette_input(state, key=key, character=character)
+    if state.ui_mode == "BULK_RENAME":
+        return dispatch_bulk_rename_input(state, key=key, character=character)
     if state.ui_mode in {"CHMOD", "CHOWN", "RENAME", "CREATE", "EXTRACT", "ZIP", "SYMLINK"}:
         return dispatch_input_dialog_input(state, key=key, character=character)
     if state.ui_mode == "SHELL":
@@ -102,6 +114,7 @@ def _normalize_input_character(
 
     if state.ui_mode in {
         "PALETTE",
+        "BULK_RENAME",
         "CHMOD",
         "CHOWN",
         "RENAME",

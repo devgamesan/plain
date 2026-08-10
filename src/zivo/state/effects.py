@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from zivo.models import (
     AppConfig,
+    BulkRenameRequest,
     ChmodRequest,
     ChownRequest,
     CreatePathRequest,
@@ -11,6 +12,7 @@ from zivo.models import (
     CreateZipArchiveRequest,
     CustomActionExecutionRequest,
     DeleteRequest,
+    DuplicateRequest,
     ExternalLaunchRequest,
     ExtractArchiveRequest,
     PasteRequest,
@@ -115,6 +117,22 @@ class RunClipboardPasteEffect:
 
     request_id: int
     request: PasteRequest
+
+
+@dataclass(frozen=True)
+class RunDuplicateEffect:
+    """Execute a same-directory duplicate operation outside the reducer."""
+
+    request_id: int
+    request: DuplicateRequest
+
+
+@dataclass(frozen=True)
+class RunBulkRenameEffect:
+    """Execute a validated same-directory bulk rename outside the reducer."""
+
+    request_id: int
+    request: BulkRenameRequest
 
 
 @dataclass(frozen=True)
@@ -282,6 +300,8 @@ Effect = (
     | RunDirectorySizeEffect
     | RunAttributeInspectionEffect
     | RunClipboardPasteEffect
+    | RunDuplicateEffect
+    | RunBulkRenameEffect
     | RunFileMutationEffect
     | RunDeletePreparationEffect
     | RunUndoEffect

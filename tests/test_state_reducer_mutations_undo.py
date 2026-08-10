@@ -40,7 +40,7 @@ def test_file_mutation_completed_requests_reload_with_result_cursor() -> None:
         ui_mode="BUSY",
         pending_file_mutation_request_id=4,
         pending_input=PendingInputState(
-            prompt="New file: ",
+            prompt="Name or path: ",
             value="notes.txt",
             create_kind="file",
         ),
@@ -240,6 +240,7 @@ def test_undo_completed_pops_stack_and_requests_reload() -> None:
     assert result.state.post_reload_notification == NotificationState(
         level="info",
         message="Undid copied item",
+        auto_dismiss=True,
     )
     assert result.effects == (
         LoadBrowserSnapshotEffect(

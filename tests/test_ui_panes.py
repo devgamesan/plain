@@ -11,8 +11,12 @@ from zivo.models import (
     CurrentPaneRowUpdate,
     CurrentPaneSizeUpdate,
     CurrentSummaryState,
+    HelpBarState,
+    MetadataItemViewState,
     PaneEntry,
+    PaneStatusViewState,
 )
+from zivo.ui.help_bar import HelpBar
 from zivo.ui.pane_rendering import _FileEntryLabelCache
 from zivo.ui.panes import (
     ChildPane,
@@ -45,6 +49,22 @@ def _style_map() -> dict[str, Style]:
     }
 
 
+def test_help_bar_keeps_three_rows_and_uses_tail_ellipsis() -> None:
+    state = HelpBarState(
+        (
+            "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit",
+            "space select | c copy | x cut | v paste | d delete | r rename | z undo",
+            "f find | g grep | n new-file | N new-dir | : palette",
+        )
+    )
+
+    rendered = HelpBar._render_text(state)
+
+    assert rendered.no_wrap is True
+    assert rendered.overflow == "ellipsis"
+    assert rendered.plain.count("\n") == 2
+
+
 def test_truncate_middle_keeps_text_when_width_is_sufficient() -> None:
     assert truncate_middle("README.md", 9) == "README.md"
 
@@ -63,6 +83,20 @@ def test_truncate_middle_preserves_file_extension_when_possible() -> None:
 def test_truncate_middle_handles_extremely_narrow_widths() -> None:
     assert truncate_middle("README.md", 1) == "~"
     assert truncate_middle("README.md", 2) == "~d"
+
+
+def test_child_metadata_bar_keeps_priority_order_at_narrow_widths() -> None:
+    items = (
+        MetadataItemViewState("Size", "2.1MiB"),
+        MetadataItemViewState("Permissions", "-rw-r--r-- (644)"),
+        MetadataItemViewState("Owner/group", "alice staff"),
+    )
+
+    assert ChildPane._render_metadata_bar(items, 80) == (
+        "2.1MiB · -rw-r--r-- (644) · alice staff"
+    )
+    assert ChildPane._render_metadata_bar(items, 28) == "2.1MiB · -rw-r--r-- (644) …"
+    assert ChildPane._render_metadata_bar(items, 8) == "2.1MiB …"
 
 
 def test_build_entry_label_truncates_full_name_detail_string() -> None:
@@ -87,6 +121,28 @@ def test_pane_entry_defaults_executable_to_false() -> None:
     entry = PaneEntry("README.md", "file")
 
     assert entry.executable is False
+
+
+def test_main_pane_header_labels_expose_sort_and_directory_grouping() -> None:
+    summary = CurrentSummaryState(
+        item_count=2,
+        selected_count=0,
+        sort_label="size desc",
+        sort_field="size",
+        sort_descending=True,
+        directories_first=False,
+    )
+    pane = MainPane("Current", (), summary=summary)
+
+    assert pane._header_label("name") == "Name · mixed"
+    assert pane._header_label("size") == "Size ↓"
+    assert pane._header_label("modified") == "Modified"
+
+
+def test_main_pane_hides_low_priority_columns_at_narrow_width() -> None:
+    assert MainPane._select_visible_column_keys(80) == MainPane.COLUMN_KEYS
+    assert MainPane._select_visible_column_keys(36) == ("sel", "name", "size")
+    assert MainPane._select_visible_column_keys(24) == ("sel", "name")
 
 
 def test_child_pane_renders_image_preview_as_ansi() -> None:
@@ -914,6 +970,26 @@ def test_child_pane_refresh_rendered_content_skips_duplicate_preview_render(
     assert pane._refresh_rendered_content() is True
     assert pane._refresh_rendered_content() is True
     assert preview_widget.update.call_count == 1
+
+
+def test_child_pane_renders_status_before_preview_width_is_available() -> None:
+    pane = ChildPane(
+        ChildPaneViewState(
+            title="Child Directory",
+            status=PaneStatusViewState(kind="loading", title="Loading directory…"),
+            view_kind="loading",
+        ),
+        id="child-pane",
+    )
+    preview_widget = Mock()
+    preview_widget.size = SimpleNamespace(width=0)
+    pane._preview_widget = lambda: preview_widget  # type: ignore[method-assign]
+
+    assert pane._refresh_rendered_content(force=True) is True
+
+    rendered = preview_widget.update.call_args.args[0]
+    assert isinstance(rendered, Text)
+    assert rendered.plain == "Loading directory…"
 
 
 @pytest.mark.asyncio

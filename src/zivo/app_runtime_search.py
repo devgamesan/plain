@@ -15,7 +15,9 @@ from zivo.app_runtime_core import (
     cancel_timer,
     run_worker,
     set_active_tracking,
+    start_foreground_operation,
 )
+from zivo.app_runtime_execution import report_foreground_operation_progress
 from zivo.state import (
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
@@ -320,10 +322,20 @@ def _is_document_preview_path(path: str | None) -> bool:
 
 
 def schedule_text_replace_apply(app: Any, effect: RunTextReplaceApplyEffect) -> None:
+    cancel_event = start_foreground_operation(app, effect.request_id)
     run_worker(
         app,
         effect,
-        partial(app._text_replace_service.apply, effect.request),
+        partial(
+            app._text_replace_service.apply,
+            effect.request,
+            progress_callback=partial(
+                report_foreground_operation_progress,
+                app,
+                effect.request_id,
+            ),
+            cancel_callback=cancel_event.is_set,
+        ),
         WorkerSpec(
             name=f"text-replace-apply:{effect.request_id}",
             group="text-replace-apply",

@@ -119,6 +119,19 @@ def test_search_workspace_keeps_allowed_browsing_shortcuts() -> None:
     )
 
 
+def test_colon_preserves_actionable_notification_for_command_palette() -> None:
+    notification = NotificationState(
+        level="error",
+        message="Paste failed",
+        action=NotificationAction(action_id="notification.details", label="Details"),
+    )
+    for state in (
+        replace(build_initial_app_state(), notification=notification),
+        replace(build_search_workspace_state(), notification=notification),
+    ):
+        assert dispatch_key_input(state, key=":") == (BeginCommandPalette(),)
+
+
 def test_search_workspace_blocks_unavailable_browsing_shortcuts() -> None:
     state = build_search_workspace_state()
 
@@ -148,6 +161,8 @@ def test_search_workspace_blocks_unavailable_browsing_shortcuts() -> None:
                 )
             ),
         )
+
+    assert dispatch_key_input(state, key="tab") == ()
 
 
 def test_removed_direct_shortcuts_are_unbound_in_browsing_and_search_workspace() -> None:
@@ -563,7 +578,7 @@ def test_browsing_lowercase_r_begins_rename_for_single_target() -> None:
     )
 
 
-def test_browsing_lowercase_r_warns_for_multiple_targets() -> None:
+def test_browsing_lowercase_r_opens_bulk_rename_for_multiple_targets() -> None:
     state = build_initial_app_state()
     state = replace(
         state,
@@ -580,10 +595,12 @@ def test_browsing_lowercase_r_warns_for_multiple_targets() -> None:
 
     actions = dispatch_key_input(state, key="r")
 
-    assert actions == (
-        SetNotification(
-            NotificationState(level="warning", message="Rename requires a single target")
-        ),
+    assert actions[0] == SetNotification(None)
+    assert isinstance(actions[1], BeginBulkRename)
+    assert actions[1].parent_dir == "/home/tadashi/develop/zivo"
+    assert tuple(target.source_path for target in actions[1].targets) == (
+        "/home/tadashi/develop/zivo/docs",
+        "/home/tadashi/develop/zivo/src",
     )
 
 
@@ -613,20 +630,29 @@ def test_browsing_w_closes_current_tab() -> None:
     assert actions == (SetNotification(None), CloseCurrentTab())
 
 
-def test_browsing_tab_activates_next_tab() -> None:
-    state = build_initial_app_state()
+def test_browsing_tab_toggles_narrow_details_view() -> None:
+    state = replace(
+        build_initial_app_state(),
+        terminal_width=72,
+    )
 
     actions = dispatch_key_input(state, key="tab")
 
-    assert actions == (SetNotification(None), ActivateNextTab())
+    assert actions == (SetNotification(None), ToggleNarrowPaneView())
 
 
-def test_browsing_shift_tab_activates_previous_tab() -> None:
+def test_browsing_tab_is_ignored_at_medium_width() -> None:
+    state = replace(build_initial_app_state(), terminal_width=80)
+
+    assert dispatch_key_input(state, key="tab") == ()
+
+
+def test_browsing_shift_tab_is_no_longer_bound() -> None:
     state = build_initial_app_state()
 
     actions = dispatch_key_input(state, key="shift+tab")
 
-    assert actions == (SetNotification(None), ActivatePreviousTab())
+    assert actions == ()
 
 
 def test_browsing_number_activates_direct_tab() -> None:

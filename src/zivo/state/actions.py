@@ -1,8 +1,11 @@
 """Reducer actions for app state transitions."""
 
 from .actions_input import (
+    ApplyBulkRename,
+    BeginBulkRename,
     BeginChmodInput,
     BeginChownInput,
+    BeginConfigEditor,
     BeginCreateInput,
     BeginExtractArchiveInput,
     BeginFilterInput,
@@ -10,11 +13,13 @@ from .actions_input import (
     BeginShellCommandInput,
     BeginSymlinkInput,
     BeginZipCompressInput,
+    CancelBulkRename,
     CancelFilterInput,
     CancelPendingInput,
     CancelShellCommandInput,
     ConfirmFilterInput,
     CycleConfigEditorValue,
+    CycleCreateKind,
     DeletePendingInputForward,
     DismissAboutDialog,
     DismissAttributeDialog,
@@ -23,9 +28,11 @@ from .actions_input import (
     MoveConfigEditorCursor,
     MovePendingInputCursor,
     MoveShellCommandCursor,
+    PasteIntoBulkRenameBaseName,
     PasteIntoPendingInput,
     PasteIntoShellCommand,
     SaveConfigEditor,
+    SetBulkRenameBaseName,
     SetFilterQuery,
     SetPendingInputCursor,
     SetPendingInputValue,
@@ -44,6 +51,7 @@ from .actions_mutations import (
     CancelCustomActionConfirmation,
     CancelDeleteConfirmation,
     CancelExitConfirmation,
+    CancelForegroundOperation,
     CancelPasteConflict,
     CancelReplaceConfirmation,
     CancelSymlinkOverwriteConfirmation,
@@ -58,6 +66,7 @@ from .actions_mutations import (
     ConfirmZipCompress,
     CopyTargets,
     CutTargets,
+    DuplicateTargets,
     PasteClipboard,
     ResolvePasteConflict,
     SelectAllVisibleEntries,
@@ -71,9 +80,14 @@ __all__ = [
     "BeginChmodInput",
     "BeginChownInput",
     "BeginCreateInput",
+    "CycleCreateKind",
+    "BeginConfigEditor",
     "BeginExtractArchiveInput",
     "BeginFilterInput",
     "BeginRenameInput",
+    "BeginBulkRename",
+    "ApplyBulkRename",
+    "CancelBulkRename",
     "BeginShellCommandInput",
     "BeginSymlinkInput",
     "BeginZipCompressInput",
@@ -91,9 +105,11 @@ __all__ = [
     "MovePendingInputCursor",
     "MoveShellCommandCursor",
     "PasteIntoPendingInput",
+    "PasteIntoBulkRenameBaseName",
     "PasteIntoShellCommand",
     "SaveConfigEditor",
     "SetFilterQuery",
+    "SetBulkRenameBaseName",
     "SetPendingInputCursor",
     "SetPendingInputValue",
     "TogglePendingInputRecursive",
@@ -110,6 +126,7 @@ __all__ = [
     "CancelCustomActionConfirmation",
     "CancelDeleteConfirmation",
     "CancelExitConfirmation",
+    "CancelForegroundOperation",
     "CancelPasteConflict",
     "CancelReplaceConfirmation",
     "CancelSymlinkOverwriteConfirmation",
@@ -124,6 +141,7 @@ __all__ = [
     "ConfirmZipCompress",
     "CopyTargets",
     "CutTargets",
+    "DuplicateTargets",
     "PasteClipboard",
     "ResolvePasteConflict",
     "SelectAllVisibleEntries",
@@ -139,6 +157,7 @@ from .actions_navigation import (
     AddBookmark,
     ClearTransferSelection,
     CloseCurrentTab,
+    CloseTabByIndex,
     CopyPathsToClipboard,
     EnterCursorDirectory,
     EnterTransferDirectory,
@@ -184,6 +203,7 @@ from .actions_palette import (
     BeginCommandPalette,
     BeginFileSearch,
     BeginFindAndReplace,
+    BeginGo,
     BeginGoToPath,
     BeginGrepReplace,
     BeginGrepReplaceSelected,
@@ -235,6 +255,9 @@ from .actions_runtime import (
     AttributeInspectionLoaded,
     BrowserSnapshotFailed,
     BrowserSnapshotLoaded,
+    BulkRenameCompleted,
+    BulkRenameFailed,
+    BulkRenameProgress,
     ChildPaneSnapshotFailed,
     ChildPaneSnapshotLoaded,
     ClipboardPasteCompleted,
@@ -249,10 +272,14 @@ from .actions_runtime import (
     DeletePreparationFailed,
     DirectorySizesFailed,
     DirectorySizesLoaded,
+    DuplicateCompleted,
+    DuplicateFailed,
+    DuplicateProgress,
     ExternalLaunchCompleted,
     ExternalLaunchFailed,
     FileMutationCompleted,
     FileMutationFailed,
+    ForegroundOperationProgress,
     ParentChildSnapshotFailed,
     ParentChildSnapshotLoaded,
     RequestBrowserSnapshot,
@@ -270,12 +297,16 @@ from .actions_runtime import (
     ZipCompressProgress,
 )
 from .actions_ui import (
+    ActivateNotificationAction,
     ClearPendingKeySequence,
+    DismissNotification,
     InitializeState,
     SetNotification,
     SetPendingKeySequence,
     SetTerminalHeight,
+    SetTerminalWidth,
     SetUiMode,
+    ToggleNarrowPaneView,
 )
 
 Action = (
@@ -284,7 +315,11 @@ Action = (
     | SetPendingKeySequence
     | ClearPendingKeySequence
     | SetNotification
+    | ActivateNotificationAction
+    | DismissNotification
     | SetTerminalHeight
+    | SetTerminalWidth
+    | ToggleNarrowPaneView
     | BeginFileSearch
     | BeginGrepSearch
     | SaveGrepResults
@@ -293,6 +328,7 @@ Action = (
     | BeginHistorySearch
     | BeginBookmarkSearch
     | BeginGoToPath
+    | BeginGo
     | BeginTextReplace
     | BeginFindAndReplace
     | BeginGrepReplace
@@ -334,8 +370,15 @@ Action = (
     | CancelFilterInput
     | BeginChmodInput
     | BeginChownInput
+    | BeginBulkRename
     | BeginRenameInput
+    | SetBulkRenameBaseName
+    | PasteIntoBulkRenameBaseName
+    | ApplyBulkRename
+    | CancelBulkRename
     | BeginCreateInput
+    | CycleCreateKind
+    | BeginConfigEditor
     | BeginSymlinkInput
     | BeginExtractArchiveInput
     | BeginZipCompressInput
@@ -367,6 +410,7 @@ Action = (
     | ActivateNextTab
     | ActivatePreviousTab
     | CloseCurrentTab
+    | CloseTabByIndex
     | MoveCursor
     | JumpCursor
     | MoveCursorByPage
@@ -416,10 +460,12 @@ Action = (
     | SelectAllVisibleEntries
     | CopyTargets
     | CutTargets
+    | DuplicateTargets
     | PasteClipboard
     | UndoLastOperation
     | ResolvePasteConflict
     | CancelPasteConflict
+    | CancelForegroundOperation
     | ConfirmDeleteTargets
     | CancelDeleteConfirmation
     | BeginExitCurrentPath
@@ -453,6 +499,13 @@ Action = (
     | ClipboardPasteNeedsResolution
     | ClipboardPasteCompleted
     | ClipboardPasteFailed
+    | ForegroundOperationProgress
+    | DuplicateProgress
+    | DuplicateCompleted
+    | DuplicateFailed
+    | BulkRenameProgress
+    | BulkRenameCompleted
+    | BulkRenameFailed
     | ArchivePreparationCompleted
     | ArchivePreparationFailed
     | ArchiveExtractProgress

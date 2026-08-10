@@ -39,13 +39,13 @@ those settings and preserves advanced, unknown, and custom TOML values.
 | `display` | `enable_text_preview` | `true` / `false` | Shows text-file previews in the right pane. Defaults to `true`. grep result context preview follows the same setting. |
 | `display` | `enable_image_preview` | `true` / `false` | Shows image-file previews in the right pane through `chafa`. Defaults to `true`. When `chafa` is missing, zivo shows a dependency message instead of failing. Set `image_preview_mode` to `kitty` for high-fidelity image rendering on compatible terminals. |
 | `display` | `image_preview_mode` | `auto` / `kitty` / `chafa` | Selects the image preview backend. Defaults to `auto`. `auto` detects terminal support — uses the Kitty graphics protocol on Kitty, Ghostty, or compatible terminals; falls back to chafa Unicode symbols otherwise. `kitty` forces Kitty graphics protocol (requires a compatible terminal). `chafa` forces the legacy Unicode symbol output. |
-| `display` | `enable_pdf_preview` | `true` / `false` | Enables PDF preview conversion through `pdftotext`. Defaults to `true`. When disabled, PDF files fall back to the usual unsupported-file message. |
-| `display` | `enable_office_preview` | `true` / `false` | Enables `pandoc`-based preview conversion for `docx`, `xlsx`, and `pptx` files. Defaults to `true`. When disabled, those formats fall back to the usual unsupported-file message. |
+| `display` | `enable_pdf_preview` | `true` / `false` | Enables PDF preview conversion through `pdftotext`. Defaults to `true`. When disabled, the pane reports that preview is disabled and offers `Edit config` with compact metadata. |
+| `display` | `enable_office_preview` | `true` / `false` | Enables `pandoc`-based preview conversion for `docx`, `xlsx`, and `pptx` files. Defaults to `true`. When disabled, the pane reports that preview is disabled and offers `Edit config` with compact metadata. |
 | `display` | `show_help_bar` | `true` / `false` | Shows the help bar at the bottom of the screen. Defaults to `true`. The help bar is always shown when the command palette is open, regardless of this setting. |
 | `display` | `theme` | Any built-in Textual theme, for example `textual-dark`, `textual-light`, `dracula`, or `tokyo-night` | Default UI theme applied on startup. In the settings editor, theme changes are previewed immediately and are persisted when you save. |
 | `display` | `preview_syntax_theme` | `auto` or a supported Pygments style, for example `one-dark`, `xcode`, `nord`, or `gruvbox-dark` | Syntax-highlighting colors used by the right-pane text preview. `auto` keeps the current light/dark-based default selection. In the settings editor, changes are previewed immediately when a text preview is visible. |
 | `display` | `preview_max_kib` | `64` / `128` / `256` / `512` / `1024` | Maximum amount of text read for right-pane file previews and preview sampling. Defaults to `64`. Larger values allow deeper previews at the cost of more I/O. |
-| `display` | `default_sort_field` | `name` / `modified` / `size` | Default sort field for the main pane. |
+| `display` | `default_sort_field` | `name` / `modified` / `size` | Default sort field for the main pane. The `name` field uses natural sort (numeric runs ordered by value, e.g. `file2` before `file10`). |
 | `display` | `default_sort_descending` | `true` / `false` | Starts the main-pane sort in descending order when enabled. |
 | `display` | `directories_first` | `true` / `false` | Keeps directories grouped before files in the main pane. |
 | `behavior` | `confirm_delete` | `true` / `false` | Shows a confirmation dialog before moving items to trash. Permanent delete via `D` / `Shift+Delete` always asks for confirmation. |
@@ -53,7 +53,7 @@ those settings and preserves advanced, unknown, and custom TOML values.
 | `logging` | `enabled` | `true` / `false` | Enables file output for startup failures and unhandled exceptions. |
 | `logging` | `level` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` | Log level for file output. Defaults to `ERROR`. Requires app restart to take effect. |
 | `logging` | `path` | Path string | Optional log file path. Leave empty to use `zivo.log` next to `config.toml`. Default log file locations: Linux: `~/.config/zivo/zivo.log`, macOS: `~/Library/Application Support/zivo/zivo.log`. |
-| `bookmarks` | `paths` | Array of absolute path strings | Bookmarked directories shown by `b` and `Show bookmarks` in the command palette. Duplicate paths are removed when the config is loaded. |
+| `bookmarks` | `paths` | Array of absolute path strings | Bookmarked directories shown by `b` and the `Go` command's `@bookmark` filter. Duplicate paths are removed when the config is loaded. |
 | `file_search` | `max_results` | Integer or empty | Maximum number of file search results. Leave empty for unlimited (default). Set to reduce memory usage on large repositories. |
 | `actions` | `custom` | Array of action tables | Custom command palette actions. See [Custom Actions](custom-actions.md). |
 

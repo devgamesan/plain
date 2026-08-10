@@ -7,9 +7,11 @@ from zivo.windows_paths import paths_equal
 
 from .actions import (
     Action,
+    ActivateNotificationAction,
     ClearPendingKeySequence,
     DirectorySizesFailed,
     DirectorySizesLoaded,
+    DismissNotification,
     ExitCurrentPath,
     InitializeState,
     SetNotification,
@@ -21,6 +23,7 @@ from .models import AppState, PendingKeySequenceState, sync_active_browser_tab
 from .reducer_common import finalize
 from .reducer_mutations import handle_mutation_action
 from .reducer_navigation import handle_navigation_action
+from .reducer_notifications import handle_notification_action, handle_notification_dismiss
 from .reducer_palette import handle_palette_action
 from .reducer_terminal_config import handle_terminal_config_action
 from .reducer_transfer import handle_transfer_action
@@ -33,7 +36,21 @@ def reduce_app_state(state: AppState, action: Action) -> ReduceResult:
     """Return a new state after applying a reducer action."""
 
     if isinstance(action, InitializeState):
-        return finalize(action.state)
+        return _finalize_reduce_result(state, action, finalize(action.state))
+
+    if isinstance(action, ActivateNotificationAction):
+        return _finalize_reduce_result(
+            state,
+            action,
+            handle_notification_action(state, action, reduce_app_state),
+        )
+
+    if isinstance(action, DismissNotification):
+        return _finalize_reduce_result(
+            state,
+            action,
+            handle_notification_dismiss(state, action),
+        )
 
     if isinstance(action, SetUiMode):
         return _finalize_reduce_result(state, action, finalize(replace(state, ui_mode=action.mode)))
@@ -89,6 +106,7 @@ def _finalize_reduce_result(
     action: Action,
     result: ReduceResult,
 ) -> ReduceResult:
+    result = _finalize_notification_revision(previous_state, result, action)
     result = _finalize_pending_key_sequence(result)
     result = _finalize_current_pane_window(previous_state, result)
     result = _finalize_current_pane_delta(previous_state, result)
@@ -102,6 +120,36 @@ def _finalize_reduce_result(
         return result
     return ReduceResult(
         state=_clear_transient_deltas(result.state),
+        effects=result.effects,
+    )
+
+
+def _finalize_notification_revision(
+    previous_state: AppState,
+    result: ReduceResult,
+    action: Action | None = None,
+) -> ReduceResult:
+    """Assign a revision for every notification emission or visible replacement."""
+
+    previous_notification = previous_state.notification
+    next_notification = result.state.notification
+    if (
+        previous_notification is None
+        and next_notification is None
+    ) or (
+        previous_notification is next_notification
+        and not isinstance(action, SetNotification)
+    ):
+        return result
+    revision = previous_state.notification_revision + 1
+    if next_notification is not None:
+        next_notification = replace(next_notification)
+    return ReduceResult(
+        state=replace(
+            result.state,
+            notification=next_notification,
+            notification_revision=revision,
+        ),
         effects=result.effects,
     )
 

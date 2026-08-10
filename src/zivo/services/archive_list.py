@@ -11,6 +11,7 @@ from typing import Protocol
 from zivo.archive_utils import detect_archive_format
 from zivo.models import ArchiveFormat
 from zivo.state.models import DirectoryEntryState
+from zivo.state.natural_sort import natural_sort_key
 
 
 class ArchiveListService(Protocol):
@@ -197,5 +198,5 @@ def _build_directory_entries(
             )
         )
 
-    directory_entries.sort(key=lambda e: (e.kind != "dir", e.name.casefold()))
+    directory_entries.sort(key=lambda e: (e.kind != "dir", natural_sort_key(e.name)))
     return tuple(directory_entries)

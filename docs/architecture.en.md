@@ -14,6 +14,7 @@ The current implementation is built around these responsibilities:
 - `selectors`: builds render-only models from `AppState`
 - `services`: use-case boundaries that execute effects outside the reducer
 - `adapters`: implementations for external dependencies such as the OS, filesystem, and clipboard
+- `actionable notifications`: notification state, stable action IDs, revision-checked timers, and the Details overlay
 
 The design keeps branching logic out of widgets and centralizes state transitions under `state/`.  
 Actual UI refresh stays confined to selector-produced view models plus `app_shell.py`, while async orchestration is split into `app_runtime.py`.
@@ -52,6 +53,7 @@ flowchart LR
         Search["file_search.py / grep_search.py"]
         DirSize["directory_size.py"]
         Clipboard["clipboard_operations.py"]
+        Duplicate["duplicate_operations.py"]
         Mutations["file_mutations.py"]
         Archive["archive_extract.py"]
         Config["config.py"]
@@ -161,6 +163,7 @@ sequenceDiagram
 - Mounts and refreshes the widget tree for the three-pane browser, dialogs, and split terminal
 - Applies selector-generated view models to widgets
 - Handles split-terminal focus and terminal-size synchronization
+- Active-pane styling is shown only while a pane accepts `BROWSING` / `FILTER` input. Normal browsing uses a round accent border and heading color, while Transfer uses the stronger heavy accent border and filled heading. Row state remains color-independent with `>` (cursor), `*` (selected), and `x` (cut) in the two-slot state column, plus `@` (symlink) and `*` (executable) as name suffixes; cut takes precedence over selection
 
 ### `src/zivo/state/input.py`
 
@@ -174,6 +177,16 @@ sequenceDiagram
 - The single public update point for `AppState`
 - Acts as a thin entrypoint that delegates work to responsibility-specific reducer handlers
 
+### Actionable operation-notification path
+
+`NotificationState` carries at most one `NotificationAction`, plus destination or details payloads when needed. `reducer_notifications.py` validates `ActivateNotificationAction` by revision and stable action ID, then delegates Undo, destination navigation, Retry, or Details to the existing reducer/effect paths. Status-bar clicks and the conditional `Suggested` command-palette item dispatch the same action ID, so their validation and duplicate-execution protection are shared.
+
+`notification_revision` increments whenever the visible notification changes and rejects stale `DismissNotification` messages from the StatusBar's five-second timer. The action is consumed before its effect starts. Details uses the existing `DETAIL` mode Enter/Esc input path. Retry is allowlisted to paste, duplicate, and archive/zip preparation failures; paste and archive/zip retries re-run fresh preflight/preparation. Only final success sets `auto_dismiss`; processing, warning/error, and partial-success notifications remain visible.
+
+### Foreground file-operation progress
+
+Copy, Move, Compress, Extract, and Replace share one transient `ForegroundOperationState`. The runtime owns the operation ID and cooperative cancel event; services check the event only at safe item boundaries and report progress back as reducer actions. Stale progress is discarded by operation ID. StatusBar and HelpBar project the state without adding a task screen; `Cancel` and `Esc` are available only while cancellation is safe. Compression publishes a same-directory temporary archive atomically, while extraction and replacement publish temporary files atomically. Terminal partial results retain counts and paths for the existing Details flow.
+
 ### `src/zivo/state/reducer_navigation.py`
 
 - Handles directory movement, history back / forward, home navigation, reload, filter, sort, and hidden-files toggling
@@ -181,8 +194,8 @@ sequenceDiagram
 
 ### `src/zivo/state/reducer_transfer.py`
 
-- Handles two-pane transfer mode open / close, left-right focus, and movement / selection inside each transfer pane
-- Reuses the existing `PasteRequest` and clipboard paste effect for copy / move into the opposite pane
+- Handles two-pane transfer mode open / close, Tab-driven pane focus, and movement / selection inside each transfer pane
+- Reuses the existing `PasteRequest` (tagged `origin="transfer"`) and clipboard paste effect for Copy / Move into the opposite pane
 - Owns transfer-pane directory snapshot loading and reloads both transfer panes after paste completion
 
 ### `src/zivo/state/reducer_mutations.py`
@@ -207,13 +220,18 @@ sequenceDiagram
 
 - Builds `ThreePaneShellData` from `AppState`
 - Applies filter, sort, and directory-size display only to the main pane, while parent and child panes remain fixed-order
+- Builds a selector-owned `ResponsivePaneLayoutState`: 120+ columns show Parent / Current / Child, 80–119 show Current / Child, and below 80 show one Current or Details view. Resizing preserves the browser cursor, selection, and filter; `Tab` toggles only the narrow view
 - In transfer mode, builds display models for two `MainPane` instances and leaves Parent / Child / Preview out of the visible layout
+- Central and transfer-pane headings use `PaneHeadingState` to keep role, target name, item count, selected count, sort label, and active state in one selector-owned model, with semantic Parent / Current / Contents / Preview / Results labels
 - Formats display text for the help bar, status bar, input bar, command palette, conflict dialog, attribute dialog, config dialog, and split terminal
 - Summarizes busy state, extraction progress, search errors, and notifications for the UI
 
 ### `src/zivo/state/command_palette.py`
 
 - Builds palette items and filters them by query
+- Owns shared metadata for stable command IDs, categories, keywords, shortcuts, context priority, and disabled reasons
+- Applies deterministic category and match ranking to the command list
+- Keeps disabled candidates searchable so selectors and reducers can reuse the same reason text
 - The default command palette includes:
   - `Find files`
   - `Grep search`
@@ -232,6 +250,7 @@ sequenceDiagram
   - `Edit with terminal editor`
   - `Edit with GUI editor`
   - `Copy path`
+  - `Duplicate` (non-overwriting same-parent copy of selected or focused targets)
   - `Move to trash`
   - `Open current directory with file manager`
   - `Open current directory with terminal`
@@ -251,6 +270,7 @@ sequenceDiagram
 - `grep_search.py`: handles recursive content search through `rg`
 - `directory_size.py`: calculates recursive sizes for visible directories
 - `clipboard_operations.py`: executes copy / cut / paste, detects conflicts, and records undo metadata
+- `duplicate_operations.py`: performs non-overwriting same-parent duplication with collision naming, symlink handling, per-target progress, and failures
 - `file_mutations.py`: handles rename / create / delete, captures trash-restore metadata, and recursively measures targets for permanent-delete confirmation
 - `undo_operations.py`: executes undo for reversible file operations
 - `archive_extract.py`: handles archive preflight scanning, conflict detection, safe extraction, and progress reporting
@@ -330,12 +350,12 @@ Notes:
 - Supports jumping from saved bookmarks plus adding or removing the current directory as a bookmark
 - Supports go-to-path input for direct navigation to a typed path
 - Supports filter input and continued list interaction after filtering
-- Switches sort by name / modified time / size and toggles directories-first ordering
+- Switches sort by name (natural sort: numeric runs ordered by value) / modified time / size and toggles directories-first ordering
 - Shows recursive directory sizes for visible directories when needed
 - Supports selection toggle, clear selection, copy / cut / paste
-- Supports left-right focus, copy / move between panes, and existing clipboard paste in two-pane transfer mode
+- Supports Tab pane focus, Copy / Move between panes, and a transfer header showing direction and counts in two-pane transfer mode
 - Detects paste conflicts and resolves them with overwrite / skip / rename
-- Renames a single target
+- Renames a single target and safely bulk-renames same-directory targets via temporary staging
 - Creates files and directories
 - Moves items to trash with confirmation
 - Opens files with the OS default app

@@ -5,10 +5,12 @@ from typing import Any
 
 from zivo.app_runtime_core import CompleteActionHandler, FailureActionHandler, find_handler
 from zivo.models import (
+    BulkRenameExecutionResult,
     CreateZipArchivePreparationResult,
     CreateZipArchiveResult,
     CustomActionResult,
     DeletePreparationResult,
+    DuplicateExecutionResult,
     ExtractArchivePreparationResult,
     ExtractArchiveResult,
     FileMutationResult,
@@ -34,11 +36,13 @@ from zivo.state import (
     RunArchiveExtractEffect,
     RunArchivePreparationEffect,
     RunAttributeInspectionEffect,
+    RunBulkRenameEffect,
     RunClipboardPasteEffect,
     RunConfigSaveEffect,
     RunCustomActionEffect,
     RunDeletePreparationEffect,
     RunDirectorySizeEffect,
+    RunDuplicateEffect,
     RunExternalLaunchEffect,
     RunFileMutationEffect,
     RunFileSearchEffect,
@@ -60,6 +64,8 @@ from zivo.state.actions import (
     AttributeInspectionLoaded,
     BrowserSnapshotFailed,
     BrowserSnapshotLoaded,
+    BulkRenameCompleted,
+    BulkRenameFailed,
     ChildPaneSnapshotFailed,
     ChildPaneSnapshotLoaded,
     ClipboardPasteCompleted,
@@ -74,6 +80,8 @@ from zivo.state.actions import (
     DeletePreparationFailed,
     DirectorySizesFailed,
     DirectorySizesLoaded,
+    DuplicateCompleted,
+    DuplicateFailed,
     ExternalLaunchCompleted,
     ExternalLaunchFailed,
     FileMutationCompleted,
@@ -194,6 +202,31 @@ def complete_clipboard_paste(
             request_id=effect.request_id,
             summary=result.summary,
             applied_changes=result.applied_changes,
+        ),
+    )
+
+
+def complete_duplicate(
+    effect: RunDuplicateEffect,
+    result: DuplicateExecutionResult,
+) -> tuple[Any, ...]:
+    return (
+        DuplicateCompleted(
+            request_id=effect.request_id,
+            summary=result.summary,
+            applied_changes=result.applied_changes,
+        ),
+    )
+
+
+def complete_bulk_rename(
+    effect: RunBulkRenameEffect,
+    result: BulkRenameExecutionResult,
+) -> tuple[Any, ...]:
+    return (
+        BulkRenameCompleted(
+            request_id=effect.request_id,
+            result=result,
         ),
     )
 
@@ -436,6 +469,8 @@ failed_transfer_pane_snapshot = make_failed_handler(
     extra_field_builders={"pane_id": lambda e, _err, _msg: e.pane_id},
 )
 failed_clipboard_paste = make_failed_handler(ClipboardPasteFailed)
+failed_duplicate = make_failed_handler(DuplicateFailed)
+failed_bulk_rename = make_failed_handler(BulkRenameFailed)
 failed_file_mutation = make_failed_handler(FileMutationFailed)
 failed_delete_preparation = make_failed_handler(DeletePreparationFailed)
 failed_archive_preparation = make_failed_handler(ArchivePreparationFailed)
@@ -523,6 +558,8 @@ COMPLETE_ACTION_HANDLERS: tuple[tuple[type[Any], CompleteActionHandler], ...] = 
     (RunGrepExportEffect, complete_grep_export),
     (RunTextReplacePreviewEffect, complete_text_replace_preview),
     (RunTextReplaceApplyEffect, complete_text_replace_apply),
+    (RunDuplicateEffect, complete_duplicate),
+    (RunBulkRenameEffect, complete_bulk_rename),
 )
 
 FAILED_ACTION_HANDLERS: tuple[tuple[type[Any], FailureActionHandler], ...] = (
@@ -536,6 +573,8 @@ FAILED_ACTION_HANDLERS: tuple[tuple[type[Any], FailureActionHandler], ...] = (
     (RunZipCompressPreparationEffect, failed_zip_compress_preparation),
     (RunZipCompressEffect, failed_zip_compress),
     (RunClipboardPasteEffect, failed_clipboard_paste),
+    (RunDuplicateEffect, failed_duplicate),
+    (RunBulkRenameEffect, failed_bulk_rename),
     (RunFileMutationEffect, failed_file_mutation),
     (RunDeletePreparationEffect, failed_delete_preparation),
     (RunConfigSaveEffect, failed_config_save),

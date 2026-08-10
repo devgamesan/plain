@@ -218,6 +218,25 @@ def test_palette_printable_key_updates_query() -> None:
     assert actions == (SetNotification(None), SetCommandPaletteQuery("f"))
 
 
+def test_go_palette_j_and_k_are_query_input() -> None:
+    from zivo.state.models import CommandPaletteState
+
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(source="go", query="ab"),
+    )
+
+    assert dispatch_key_input(state, key="j", character="j") == (
+        SetNotification(None),
+        SetCommandPaletteQuery("abj"),
+    )
+    assert dispatch_key_input(state, key="k", character="k") == (
+        SetNotification(None),
+        SetCommandPaletteQuery("abk"),
+    )
+
+
 def test_palette_space_updates_query() -> None:
     state = replace(build_initial_app_state(), ui_mode="PALETTE")
 

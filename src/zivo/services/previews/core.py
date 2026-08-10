@@ -182,6 +182,8 @@ PREVIEW_PERMISSION_DENIED_MESSAGE = "Preview unavailable: permission denied"
 PREVIEW_UNSUPPORTED_MESSAGE = "Preview unavailable for this file type"
 PREVIEW_ERROR_MESSAGE = "Preview unavailable"
 IMAGE_PREVIEW_DEPENDENCY_MESSAGE = "Preview unavailable: install `chafa` for image preview"
+PDF_PREVIEW_DEPENDENCY_MESSAGE = "PDF preview unavailable: install `pdftotext`"
+OFFICE_PREVIEW_DEPENDENCY_MESSAGE = "Office preview unavailable: install `pandoc`"
 GREP_PREVIEW_ERROR_MESSAGE = "Preview unavailable: failed to load context"
 
 GrepContextCacheKey = tuple[str, int, int, int, int, int]
@@ -232,6 +234,7 @@ class FilePreviewState:
     content_kind: Literal["text", "image", "kitty"] = "text"
     message: str | None = None
     truncated: bool = False
+    reason: str | None = None
 
     @classmethod
     def with_content(
@@ -249,24 +252,28 @@ class FilePreviewState:
         )
 
     @classmethod
-    def with_message(cls, message: str) -> "FilePreviewState":
-        return cls(kind="message", message=message)
+    def with_message(cls, message: str, *, reason: str | None = None) -> "FilePreviewState":
+        return cls(kind="message", message=message, reason=reason)
 
     @classmethod
     def permission_denied(cls) -> "FilePreviewState":
-        return cls(kind="message", message=PREVIEW_PERMISSION_DENIED_MESSAGE)
+        return cls(
+            kind="message",
+            message=PREVIEW_PERMISSION_DENIED_MESSAGE,
+            reason="permission_denied",
+        )
 
     @classmethod
     def unsupported(cls) -> "FilePreviewState":
-        return cls(kind="message", message=PREVIEW_UNSUPPORTED_MESSAGE)
+        return cls(kind="message", message=PREVIEW_UNSUPPORTED_MESSAGE, reason="unsupported")
 
     @classmethod
-    def unavailable(cls) -> "FilePreviewState":
-        return cls(kind="unavailable")
+    def unavailable(cls, reason: str = "disabled") -> "FilePreviewState":
+        return cls(kind="unavailable", reason=reason)
 
     @classmethod
     def error(cls) -> "FilePreviewState":
-        return cls(kind="message", message=PREVIEW_ERROR_MESSAGE)
+        return cls(kind="message", message=PREVIEW_ERROR_MESSAGE, reason="error")
 
 
 @dataclass(frozen=True)
@@ -347,7 +354,10 @@ class PandocDocumentPreviewLoader:
     ) -> FilePreviewState | None:
         pandoc = self._resolve_pandoc()
         if pandoc is None:
-            return None
+            return FilePreviewState.with_message(
+                OFFICE_PREVIEW_DEPENDENCY_MESSAGE,
+                reason="dependency_missing",
+            )
         try:
             result = subprocess.run(
                 [
@@ -400,7 +410,10 @@ class PdftotextPdfPreviewLoader:
     ) -> FilePreviewState | None:
         pdftotext = self._resolve_pdftotext()
         if pdftotext is None:
-            return None
+            return FilePreviewState.with_message(
+                PDF_PREVIEW_DEPENDENCY_MESSAGE,
+                reason="dependency_missing",
+            )
         try:
             path_str = str(path)
             if " " in path_str:
@@ -638,7 +651,10 @@ def _load_text_preview(
         )
         if preview is not None:
             return preview
-        return FilePreviewState.with_message(IMAGE_PREVIEW_DEPENDENCY_MESSAGE)
+        return FilePreviewState.with_message(
+            IMAGE_PREVIEW_DEPENDENCY_MESSAGE,
+            reason="dependency_missing",
+        )
 
     if _is_pdf_preview_candidate(path):
         if not enable_pdf_preview:

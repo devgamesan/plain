@@ -11,6 +11,8 @@ from typing import Protocol
 from zivo.state.models import GrepSearchResultState
 
 _REGEX_QUERY_PREFIX = "re:"
+GrepSearchProgressCallback = Callable[[tuple[GrepSearchResultState, ...], bool], None]
+_SEARCH_BATCH_SIZE = 32
 
 
 class GrepSearchService(Protocol):
@@ -28,6 +30,7 @@ class GrepSearchService(Protocol):
         filename_filter: str = "",
         max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
+        on_results: GrepSearchProgressCallback | None = None,
     ) -> tuple[GrepSearchResultState, ...]: ...
 
 
@@ -59,6 +62,7 @@ class LiveGrepSearchService:
         filename_filter: str = "",
         max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
+        on_results: GrepSearchProgressCallback | None = None,
     ) -> tuple[GrepSearchResultState, ...]:
         stripped_query = query.strip()
         if not stripped_query:
@@ -99,8 +103,16 @@ class LiveGrepSearchService:
 
         try:
             results: list[GrepSearchResultState] = []
+            pending_results: list[GrepSearchResultState] = []
             previous_sort_key: tuple[str, int] | None = None
             results_are_sorted = True
+
+            def emit_results(*, truncated: bool = False) -> None:
+                if on_results is None or (not pending_results and not truncated):
+                    return
+                on_results(tuple(pending_results), truncated)
+                pending_results.clear()
+
             assert process.stdout is not None
             for line in process.stdout:
                 if is_cancelled is not None and is_cancelled():
@@ -109,18 +121,23 @@ class LiveGrepSearchService:
                     return ()
                 result = self._parse_result_line(root, line)
                 if result is not None:
+                    if max_results is not None and len(results) >= max_results:
+                        _stop_process(process)
+                        emit_results(truncated=True)
+                        return _ordered_grep_results(results, results_are_sorted)
                     sort_key = _grep_result_sort_key(result)
                     if previous_sort_key is not None and sort_key < previous_sort_key:
                         results_are_sorted = False
                     previous_sort_key = sort_key
                     results.append(result)
-                    if max_results is not None and len(results) >= max_results:
-                        _stop_process(process)
-                        return _ordered_grep_results(results, results_are_sorted)
+                    pending_results.append(result)
+                    if len(results) == 1 or len(pending_results) >= _SEARCH_BATCH_SIZE:
+                        emit_results()
             stderr_text = ""
             if process.stderr is not None:
                 stderr_text = process.stderr.read()
             return_code = process.wait()
+            emit_results()
         finally:
             if process.stdout is not None:
                 process.stdout.close()
@@ -277,6 +294,7 @@ class FakeGrepSearchService:
         filename_filter: str = "",
         max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
+        on_results: GrepSearchProgressCallback | None = None,
     ) -> tuple[GrepSearchResultState, ...]:
         key = (root_path, query, include_globs, exclude_globs, show_hidden)
         self.executed_requests.append(key)
@@ -289,7 +307,15 @@ class FakeGrepSearchService:
             raise OSError(self.failure_messages[key])
         results = self.results_by_query.get(key, ())
         if max_results is not None:
-            return results[:max_results]
+            truncated = len(results) > max_results
+            limited_results = results[:max_results]
+            if on_results is not None and limited_results:
+                on_results(limited_results, truncated)
+            elif on_results is not None and truncated:
+                on_results((), True)
+            return limited_results
+        if on_results is not None and results:
+            on_results(results, False)
         return results
 
 

@@ -141,8 +141,8 @@ def render_file_search_section(config: AppConfig) -> str:
     return (
         "[file_search]\n"
         "# Optional file search behavior settings.\n"
-        "# Leave max_results empty (null) for no limit (default).\n"
-        "# Set to a positive integer to limit the number of results.\n"
+        "# Leave max_results unset to use the default limit of 1000.\n"
+        "# Set to a non-negative integer to change the limit (0 disables results).\n"
         "# Example:\n"
         "# max_results = 1000\n"
         f"{max_results_line}"
@@ -158,7 +158,7 @@ def render_grep_search_section(config: AppConfig) -> str:
     return (
         "[grep_search]\n"
         "# Optional recursive content-search behavior settings.\n"
-        "# Leave max_results empty (null) for no limit (default).\n"
+        "# Leave max_results unset to use the default limit of 1000.\n"
         "# Set to a non-negative integer to limit the number of results.\n"
         "# Example:\n"
         "# max_results = 1000\n"

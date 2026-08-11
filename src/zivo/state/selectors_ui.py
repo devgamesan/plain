@@ -529,6 +529,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             empty_message=_file_search_empty_message(state),
             has_more_items=len(state.command_palette.file_search.results) > len(visible_results),
             input_fields=_build_file_search_input_fields(state.command_palette),
+            footer_message=_search_truncation_message(state, "file_search"),
         )
     if state.command_palette.source == "grep_search":
         visible_results, title = _select_grep_search_window(
@@ -551,6 +552,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             empty_message=_grep_search_empty_message(state),
             input_fields=_build_grep_search_input_fields(state.command_palette),
             has_more_items=len(state.command_palette.grep_search.results) > len(visible_results),
+            footer_message=_search_truncation_message(state, "grep_search"),
         )
     if state.command_palette.source == "replace_text":
         visible_results, title = _select_replace_preview_window(
@@ -1058,6 +1060,28 @@ def _file_search_empty_message(state: AppState) -> str:
     ):
         return state.command_palette.file_search.error_message
     return "No matching files"
+
+
+def _search_truncation_message(state: AppState, source: str) -> str | None:
+    if state.command_palette is None:
+        return None
+    if source == "file_search":
+        truncated = state.command_palette.file_search.results_truncated
+        configured_limit = state.config.file_search.max_results
+    else:
+        truncated = state.command_palette.grep_search.results_truncated
+        configured_limit = state.config.grep_search.max_results
+    if not truncated:
+        return None
+    from zivo.models.config import DEFAULT_SEARCH_MAX_RESULTS
+
+    limit = configured_limit or DEFAULT_SEARCH_MAX_RESULTS
+    return (
+        f"Showing first {limit:,} results — more results omitted. "
+        "Refine the query or change max_results."
+    )
+
+
 def _grep_search_empty_message(state: AppState) -> str:
     if state.pending_grep_search_request_id is not None:
         return "Searching matches..."

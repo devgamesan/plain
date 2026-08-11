@@ -52,8 +52,8 @@ Config Editor に未保存の変更がある場合は、先に保存または画
 | `logging` | `level` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` | ログファイルへ出力するログレベルです。既定値は `ERROR` です。設定の反映にはアプリの再起動が必要です。 |
 | `logging` | `path` | パス文字列 | 任意のログファイル保存先です。空文字なら `config.toml` と同じディレクトリの `zivo.log` を使います。ログファイルの既定の場所: Linux: `~/.config/zivo/zivo.log`、macOS: `~/Library/Application Support/zivo/zivo.log`。 |
 | `bookmarks` | `paths` | 絶対パス文字列の配列 | `b` や Go の `@bookmark` フィルターで表示するブックマーク一覧です。重複パスは読み込み時に取り除かれます。 |
-| `file_search` | `max_results` | 整数または空 | ファイル検索の最大結果件数です。空欄の場合は制限なし（既定値）。大規模リポジトリでのメモリ使用量を削減するために設定します。 |
-| `grep_search` | `max_results` | 整数または空 | 再帰 grep 検索の最大結果件数です。空欄の場合は制限なし（既定値）。設定した場合は上限到達時に検索プロセスを停止します。 |
+| `file_search` | `max_results` | 0以上の整数または省略 | 直接 Find file の最大結果件数です。キーを省略すると既定値1,000件、`0` では結果を無効にします。上限超過時はパレットに省略結果を明示します。 |
+| `grep_search` | `max_results` | 0以上の整数または省略 | 直接 Grep search の最大結果件数です。キーを省略すると既定値1,000件、`0` では結果を無効にします。上限超過時はパレットに省略結果を明示します。 |
 | `actions` | `custom` | action table の配列 | コマンドパレットに表示するカスタムアクションです。詳しくは [カスタムアクション](custom-actions.ja.md) を参照してください。 |
 
 ## 設定例

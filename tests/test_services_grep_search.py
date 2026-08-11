@@ -221,6 +221,40 @@ def test_live_grep_search_service_stops_process_at_max_results(
     assert process.stderr.closed
 
 
+def test_live_grep_search_service_emits_first_batch_and_truncation(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    process = _FakeGrepProcess(
+        (
+            _rg_match_line("a.txt", line_number=1, text="TODO a\n"),
+            _rg_match_line("b.txt", line_number=1, text="TODO b\n"),
+            _rg_match_line("c.txt", line_number=1, text="TODO c\n"),
+        )
+    )
+    batches: list[tuple[tuple[str, ...], bool]] = []
+    monkeypatch.setattr(
+        "zivo.services.grep_search.subprocess.Popen",
+        lambda *args, **kwargs: process,
+    )
+
+    results = LiveGrepSearchService().search(
+        str(root),
+        "todo",
+        show_hidden=False,
+        max_results=2,
+        on_results=lambda batch, truncated: batches.append(
+            (tuple(result.display_path for result in batch), truncated)
+        ),
+    )
+
+    assert [result.display_path for result in results] == ["a.txt", "b.txt"]
+    assert batches[0] == (("a.txt",), False)
+    assert batches[-1][1] is True
+
+
 def test_live_grep_search_service_sorts_when_stdout_order_regresses(
     tmp_path,
     monkeypatch,

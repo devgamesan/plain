@@ -206,6 +206,17 @@ class FileSearchCompleted:
     request_id: int
     query: str
     results: tuple[FileSearchResultState, ...]
+    truncated: bool = False
+
+
+@dataclass(frozen=True)
+class FileSearchResultsUpdated:
+    """Apply a partial batch of file-search results."""
+
+    request_id: int
+    query: str
+    results: tuple[FileSearchResultState, ...]
+    truncated: bool = False
 
 
 @dataclass(frozen=True)
@@ -225,6 +236,17 @@ class GrepSearchCompleted:
     request_id: int
     query: str
     results: tuple[GrepSearchResultState, ...]
+    truncated: bool = False
+
+
+@dataclass(frozen=True)
+class GrepSearchResultsUpdated:
+    """Apply a partial batch of grep-search results."""
+
+    request_id: int
+    query: str
+    results: tuple[GrepSearchResultState, ...]
+    truncated: bool = False
 
 
 @dataclass(frozen=True)

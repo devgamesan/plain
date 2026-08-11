@@ -208,6 +208,7 @@ class ChildPaneViewState:
     status: PaneStatusViewState | None = None
     metadata: tuple[MetadataItemViewState, ...] = ()
     header_title: str | None = None
+    total_item_count: int | None = None
 
     @property
     def is_preview(self) -> bool:

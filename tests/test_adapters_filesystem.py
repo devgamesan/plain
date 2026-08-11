@@ -34,6 +34,7 @@ class _FakeDirEntry:
         self._kind = kind
         self._fail_is_dir = fail_is_dir
         self._fail_stat = fail_stat
+        self.stat_calls = 0
 
     def is_symlink(self) -> bool:
         return False
@@ -44,6 +45,7 @@ class _FakeDirEntry:
         return self._kind == "dir"
 
     def stat(self):
+        self.stat_calls += 1
         if self._fail_stat:
             raise PermissionError("permission denied")
         return SimpleNamespace(st_size=12, st_mtime=0, st_mode=0o100644)
@@ -133,6 +135,27 @@ def test_local_filesystem_adapter_skips_entries_with_permission_denied_metadata(
     entries = adapter.list_directory("/mnt/c")
 
     assert [entry.name for entry in entries] == ["docs", "README.md"]
+
+
+def test_local_filesystem_adapter_summary_skips_per_entry_stat(monkeypatch) -> None:
+    entries = tuple(
+        _FakeDirEntry(
+            name=f"item-{index}.txt",
+            path=f"/mnt/c/item-{index}.txt",
+        )
+        for index in range(10_000)
+    )
+
+    monkeypatch.setattr(os, "scandir", lambda _directory: _FakeScandir(entries))
+    adapter = LocalFilesystemAdapter()
+
+    summaries = adapter.list_directory_summary("/mnt/c")
+
+    assert len(summaries) == 10_000
+    assert sum(entry.stat_calls for entry in entries) == 0
+    assert all(summary.size_bytes is None for summary in summaries)
+    assert all(summary.modified_at is None for summary in summaries)
+    assert all(summary.permissions_mode is None for summary in summaries)
 
 
 def test_local_filesystem_adapter_inspect_entry_loads_detailed_metadata(tmp_path) -> None:

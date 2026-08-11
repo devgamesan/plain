@@ -1,4 +1,5 @@
 from dataclasses import replace
+from datetime import datetime
 from pathlib import Path
 
 from tests.state_test_helpers import reduce_state
@@ -475,8 +476,21 @@ def test_enter_cursor_directory_promotes_matching_child_pane() -> None:
         child_pane=PaneState(
             directory_path="/tmp/project/docs",
             entries=(
-                DirectoryEntryState("/tmp/project/docs/api", "api", "dir"),
-                DirectoryEntryState("/tmp/project/docs/guide.md", "guide.md", "file"),
+                DirectoryEntryState(
+                    "/tmp/project/docs/api",
+                    "api",
+                    "dir",
+                    modified_at=datetime(2026, 1, 1),
+                    permissions_mode=0o40755,
+                ),
+                DirectoryEntryState(
+                    "/tmp/project/docs/guide.md",
+                    "guide.md",
+                    "file",
+                    size_bytes=42,
+                    modified_at=datetime(2026, 1, 1),
+                    permissions_mode=0o100644,
+                ),
             ),
         ),
         directory_size_cache=(
@@ -523,6 +537,36 @@ def test_enter_cursor_directory_promotes_matching_child_pane() -> None:
         RunDirectorySizeEffect(
             request_id=2,
             paths=("/tmp/project/docs/api",),
+        ),
+    )
+
+
+def test_enter_cursor_directory_does_not_promote_lightweight_child_entries() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/tmp/project",
+        current_pane=PaneState(
+            directory_path="/tmp/project",
+            entries=(DirectoryEntryState("/tmp/project/docs", "docs", "dir"),),
+            cursor_path="/tmp/project/docs",
+        ),
+        child_pane=PaneState(
+            directory_path="/tmp/project/docs",
+            entries=(
+                DirectoryEntryState("/tmp/project/docs/guide.md", "guide.md", "file"),
+            ),
+        ),
+    )
+
+    result = reduce_app_state(state, EnterCursorDirectory())
+
+    assert result.state.pending_browser_snapshot_request_id == 1
+    assert result.effects == (
+        LoadBrowserSnapshotEffect(
+            request_id=1,
+            path="/tmp/project/docs",
+            cursor_path=None,
+            blocking=True,
         ),
     )
 

@@ -3,6 +3,7 @@
 from dataclasses import replace
 
 from zivo.models import (
+    ChildPaneViewState,
     CurrentSummaryState,
     PaneActionViewState,
     PaneStatusViewState,
@@ -32,6 +33,7 @@ from .selectors_panes import (
     select_current_entries,
     select_current_summary_state,
     select_parent_entries,
+    select_parent_entry_count,
     select_tab_bar_state,
 )
 from .selectors_panes import (
@@ -115,7 +117,12 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
     """Build the display shell data consumed by the UI layer."""
 
     current_pane = _select_current_pane_projection(state)
-    child_pane = _select_child_pane_for_cursor(state, current_pane.cursor_entry)
+    responsive_layout = select_responsive_pane_layout(state)
+    child_pane = (
+        _select_child_pane_for_cursor(state, current_pane.cursor_entry)
+        if responsive_layout.show_child
+        else ChildPaneViewState(title="Child Directory")
+    )
     display_directory_sizes = (
         state.config.display.show_directory_sizes or state.sort.field == "size"
     )
@@ -131,9 +138,11 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         state.directory_size_delta.changed_paths,
         state.directory_size_delta.revision,
     )
-    responsive_layout = select_responsive_pane_layout(state)
     current_status_label = _current_cursor_status_label(current_pane)
-    parent_entries = select_parent_entries(state)
+    parent_entries = select_parent_entries(state) if responsive_layout.show_parent else ()
+    parent_entry_count = (
+        select_parent_entry_count(state) if responsive_layout.show_parent else 0
+    )
     shell = ThreePaneShellData(
         tab_bar=select_tab_bar_state(state),
         current_path=state.current_pane.directory_path,
@@ -166,7 +175,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         parent_heading=_format_directory_heading(
             "Parent",
             state.parent_pane.directory_path,
-            len(parent_entries),
+            parent_entry_count,
         ),
         current_context_input=select_input_bar_state(state),
         current_pane_status=_select_current_pane_status(state, current_pane.visible_entries),

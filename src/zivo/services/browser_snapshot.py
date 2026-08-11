@@ -143,7 +143,9 @@ class LiveBrowserSnapshotLoader:
     pdf_preview_loader: "PdfPreviewLoader | None" = None
     image_preview_loader: "ImagePreviewLoader | None" = None
     app_state: "AppState | None" = field(default=None, compare=False, repr=False)
-    _directory_entries_cache: OrderedDict[str, tuple[DirectoryEntryState, ...]] = field(
+    _directory_entries_cache: OrderedDict[
+        tuple[str, bool], tuple[DirectoryEntryState, ...]
+    ] = field(
         default_factory=OrderedDict,
         init=False,
         repr=False,
@@ -229,7 +231,7 @@ class LiveBrowserSnapshotLoader:
         enable_office_preview: bool = True,
     ) -> BrowserSnapshot:
         resolved_path, parent_path = resolve_parent_directory_path(path)
-        current_entries = self._list_directory(resolved_path)
+        current_entries = self._list_directory(resolved_path, detailed=True)
         resolved_cursor_path = _resolve_cursor_path(current_entries, cursor_path, show_hidden)
 
         if parent_path is None:
@@ -238,7 +240,7 @@ class LiveBrowserSnapshotLoader:
             parent_cursor_path = None
         else:
             parent_directory_path = parent_path
-            parent_entries = self._list_directory(parent_path)
+            parent_entries = self._list_directory(parent_path, detailed=False)
             parent_cursor_path = (
                 resolved_path if _contains_path(parent_entries, resolved_path) else None
             )
@@ -283,7 +285,10 @@ class LiveBrowserSnapshotLoader:
 
         if is_windows_drive_root(cursor_path):
             try:
-                child_entries = self._list_directory(normalize_windows_path(cursor_path))
+                child_entries = self._list_directory(
+                    normalize_windows_path(cursor_path),
+                    detailed=False,
+                )
                 return PaneState(
                     directory_path=normalize_windows_path(cursor_path),
                     entries=child_entries,
@@ -302,7 +307,7 @@ class LiveBrowserSnapshotLoader:
         child_path = Path(cursor_path).expanduser().resolve()
         if child_path.is_dir():
             try:
-                child_entries = self._list_directory(str(child_path))
+                child_entries = self._list_directory(str(child_path), detailed=False)
                 return PaneState(
                     directory_path=str(child_path),
                     entries=child_entries,
@@ -414,7 +419,7 @@ class LiveBrowserSnapshotLoader:
             (current_path, current_pane, parent_pane)
         """
         resolved_path, parent_path = resolve_parent_directory_path(path)
-        current_entries = self._list_directory(resolved_path)
+        current_entries = self._list_directory(resolved_path, detailed=True)
         resolved_cursor_path = _resolve_cursor_path(current_entries, cursor_path, show_hidden)
 
         if parent_path is None:
@@ -424,7 +429,10 @@ class LiveBrowserSnapshotLoader:
         else:
             parent_directory_path = parent_path
             # Try to load parent from cache for Phase 1
-            parent_entries = self._get_cached_directory_entries(parent_path)
+            parent_entries = self._get_cached_directory_entries(
+                parent_path,
+                detailed=False,
+            )
             if parent_entries is None:
                 # No cache available, use empty parent for now
                 parent_entries = ()
@@ -471,7 +479,7 @@ class LiveBrowserSnapshotLoader:
             parent_cursor_path = None
         else:
             parent_directory_path = parent_path
-            parent_entries = self._list_directory(parent_path)
+            parent_entries = self._list_directory(parent_path, detailed=False)
             parent_cursor_path = (
                 resolved_path if _contains_path(parent_entries, resolved_path) else None
             )
@@ -590,43 +598,60 @@ class LiveBrowserSnapshotLoader:
             if not normalized_paths:
                 self._directory_entries_cache.clear()
                 return
-            for path in normalized_paths:
-                self._directory_entries_cache.pop(path, None)
+            invalidated_paths = frozenset(normalized_paths)
+            stale_keys = tuple(
+                key for key in self._directory_entries_cache if key[0] in invalidated_paths
+            )
+            for key in stale_keys:
+                self._directory_entries_cache.pop(key, None)
 
-    def _list_directory(self, path: str):
+    def _list_directory(self, path: str, *, detailed: bool):
         resolved_path = _normalize_directory_cache_path(path)
-        cached_entries = self._get_cached_directory_entries(resolved_path)
+        cached_entries = self._get_cached_directory_entries(
+            resolved_path,
+            detailed=detailed,
+        )
         if cached_entries is not None:
             return cached_entries
-        entries = self._read_directory(resolved_path)
-        self._store_cached_directory_entries(resolved_path, entries)
+        entries = self._read_directory(resolved_path, detailed=detailed)
+        self._store_cached_directory_entries(
+            resolved_path,
+            entries,
+            detailed=detailed,
+        )
         return entries
 
     def _get_cached_directory_entries(
         self,
         path: str,
+        *,
+        detailed: bool,
     ) -> tuple[DirectoryEntryState, ...] | None:
+        key = (path, detailed)
         with self._directory_entries_cache_lock:
-            entries = self._directory_entries_cache.get(path)
+            entries = self._directory_entries_cache.get(key)
             if entries is None:
                 return None
-            self._directory_entries_cache.move_to_end(path)
+            self._directory_entries_cache.move_to_end(key)
             return entries
 
     def _store_cached_directory_entries(
         self,
         path: str,
         entries: tuple[DirectoryEntryState, ...],
+        *,
+        detailed: bool,
     ) -> None:
         if self.directory_cache_capacity <= 0:
             return
+        key = (path, detailed)
         with self._directory_entries_cache_lock:
-            self._directory_entries_cache[path] = entries
-            self._directory_entries_cache.move_to_end(path)
+            self._directory_entries_cache[key] = entries
+            self._directory_entries_cache.move_to_end(key)
             while len(self._directory_entries_cache) > self.directory_cache_capacity:
                 self._directory_entries_cache.popitem(last=False)
 
-    def _read_directory(self, path: str):
+    def _read_directory(self, path: str, *, detailed: bool):
         # Handle virtual search workspace paths
         if is_search_workspace_path(path):
             return self._read_virtual_search_directory(path)
@@ -641,6 +666,10 @@ class LiveBrowserSnapshotLoader:
                 for drive in list_windows_drive_paths()
             )
         try:
+            if not detailed:
+                list_summary = getattr(self.filesystem, "list_directory_summary", None)
+                if list_summary is not None:
+                    return list_summary(path)
             return self.filesystem.list_directory(path)
         except PermissionError as error:
             raise OSError(f"Permission denied: {path}") from error

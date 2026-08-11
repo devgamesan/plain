@@ -61,7 +61,7 @@ COMMAND_PALETTE_VISIBLE_WINDOW = 8
 MIN_SEARCH_VISIBLE_WINDOW = 3
 _SEARCH_OVERHEAD_ROWS = 10
 _GREP_SEARCH_EXTRA_INPUT_ROWS = 3
-_FILE_SEARCH_EXTRA_INPUT_ROWS = 1
+_FILE_SEARCH_EXTRA_INPUT_ROWS = 3
 MIN_CURRENT_PANE_VISIBLE_WINDOW = 5
 _CURRENT_PANE_OVERHEAD_ROWS = 9
 
@@ -443,6 +443,18 @@ def _build_file_search_input_fields(
             value=target_labels.get(palette.file_search.target, "all"),
             placeholder="files/dirs/all",
             active=palette.file_search.active_field == "target",
+        ),
+        CommandPaletteInputFieldViewState(
+            label="Include extensions",
+            value=palette.file_search.include_extensions,
+            placeholder="e.g. py, js",
+            active=palette.file_search.active_field == "include",
+        ),
+        CommandPaletteInputFieldViewState(
+            label="Exclude extensions",
+            value=palette.file_search.exclude_extensions,
+            placeholder="e.g. log, tmp",
+            active=palette.file_search.active_field == "exclude",
         ),
     )
 

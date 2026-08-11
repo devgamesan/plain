@@ -568,6 +568,35 @@ def test_start_file_search_worker_uses_default_limit_for_direct_palette() -> Non
     assert callable(calls[0]["on_results"])
 
 
+def test_start_file_search_worker_passes_extension_filters() -> None:
+    calls: list[dict[str, Any]] = []
+    app_state = replace(
+        build_initial_app_state(),
+        pending_file_search_request_id=7,
+        command_palette=CommandPaletteState(source="file_search"),
+    )
+    app = _RecordingApp(_app_state=app_state)
+    app._file_search_service = SimpleNamespace(
+        search=lambda *args, **kwargs: calls.append(kwargs) or (),
+    )
+
+    start_file_search_worker(
+        app,
+        RunFileSearchEffect(
+            request_id=7,
+            root_path="/tmp/project",
+            query="",
+            show_hidden=False,
+            include_extensions=("*.py",),
+            exclude_extensions=("*.pyc",),
+        ),
+    )
+    app.run_worker_calls[0]["worker_fn"]()
+
+    assert calls[0]["include_extensions"] == ("*.py",)
+    assert calls[0]["exclude_extensions"] == ("*.pyc",)
+
+
 def test_start_file_search_worker_keeps_replace_search_unbounded() -> None:
     calls: list[dict[str, Any]] = []
     app_state = replace(

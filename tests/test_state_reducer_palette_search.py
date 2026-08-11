@@ -40,7 +40,10 @@ from zivo.state.actions import (
     OpenFindResultInGuiEditor,
     OpenGrepResultInEditor,
     OpenGrepResultInGuiEditor,
+    OpenSearchWorkspace,
     SetCommandPaletteQuery,
+    SetFileSearchField,
+    SetFileSearchTarget,
     SetGrepSearchField,
     SetGrepSearchScope,
     SubmitCommandPalette,
@@ -433,6 +436,108 @@ def test_set_command_palette_query_starts_file_search_effect() -> None:
             show_hidden=False,
         ),
     )
+
+
+def test_set_file_search_extension_field_starts_filtered_effect() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
+    state = _reduce_state(state, SetCommandPaletteQuery("read"))
+
+    result = reduce_app_state(
+        state,
+        SetFileSearchField(field="include", value="py, .JS"),
+    )
+
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.file_search.include_extensions == "py, .JS"
+    assert result.effects == (
+        RunFileSearchEffect(
+            request_id=2,
+            root_path="/home/tadashi/develop/zivo",
+            query="read",
+            show_hidden=False,
+            include_extensions=("*.py", "*.js"),
+        ),
+    )
+
+
+def test_file_search_extension_filter_allows_empty_keyword() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
+
+    result = reduce_app_state(
+        state,
+        SetFileSearchField(field="include", value="py"),
+    )
+
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.query == ""
+    assert result.effects == (
+        RunFileSearchEffect(
+            request_id=1,
+            root_path="/home/tadashi/develop/zivo",
+            query="",
+            show_hidden=False,
+            include_extensions=("*.py",),
+        ),
+    )
+
+
+def test_file_search_extension_conflict_keeps_input_and_reports_error() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
+    state = _reduce_state(state, SetFileSearchField(field="include", value="py"))
+
+    result = reduce_app_state(
+        state,
+        SetFileSearchField(field="exclude", value=".PY"),
+    )
+
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.file_search.exclude_extensions == ".PY"
+    assert result.state.command_palette.file_search.results == ()
+    assert result.state.command_palette.file_search.error_message == (
+        "Extensions cannot be included and excluded at the same time: py"
+    )
+    assert result.effects == ()
+
+
+def test_file_search_extension_filter_rejects_directory_target() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
+    state = _reduce_state(state, SetFileSearchField(field="include", value="py"))
+
+    result = reduce_app_state(state, SetFileSearchTarget(target="directories"))
+
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.file_search.target == "directories"
+    assert result.state.command_palette.file_search.include_extensions == "py"
+    assert result.state.command_palette.file_search.error_message == (
+        "Extension filters require Target=files or all; clear the filters or change Target"
+    )
+    assert result.effects == ()
+
+
+def test_open_file_search_workspace_keeps_extension_filter_identity() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
+    state = _reduce_state(state, SetFileSearchField(field="include", value="py, js"))
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            file_search=replace(
+                state.command_palette.file_search,
+                results=(
+                    FileSearchResultState(
+                        path="/home/tadashi/develop/zivo/main.py",
+                        display_path="main.py",
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    result = reduce_app_state(state, OpenSearchWorkspace())
+
+    assert len(result.state.search_workspaces) == 1
+    workspace_path = next(iter(result.state.search_workspaces))
+    assert "include=%2A.py%2C%2A.js" in workspace_path
 
 def test_set_command_palette_query_starts_grep_search_effect() -> None:
     state = _reduce_state(build_initial_app_state(), BeginGrepSearch())

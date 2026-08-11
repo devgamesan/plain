@@ -23,6 +23,8 @@ class FileSearchService(Protocol):
         *,
         show_hidden: bool,
         search_target: FileSearchTarget = "all",
+        include_extensions: tuple[str, ...] = (),
+        exclude_extensions: tuple[str, ...] = (),
         max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
         on_results: FileSearchProgressCallback | None = None,
@@ -30,6 +32,12 @@ class FileSearchService(Protocol):
 
 
 _REGEX_QUERY_PREFIX = "re:"
+
+
+def _extension_suffix(pattern: str) -> str:
+    """Convert a normalized extension glob (``*.py``) to a suffix."""
+
+    return pattern.removeprefix("*").casefold()
 
 
 class InvalidFileSearchQueryError(ValueError):
@@ -112,12 +120,17 @@ class LiveFileSearchService:
         *,
         show_hidden: bool,
         search_target: FileSearchTarget = "all",
+        include_extensions: tuple[str, ...] = (),
+        exclude_extensions: tuple[str, ...] = (),
         max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
         on_results: FileSearchProgressCallback | None = None,
     ) -> tuple[FileSearchResultState, ...]:
         parsed_query = parse_file_search_query(query)
-        if not parsed_query.raw_query:
+        has_extension_filters = bool(include_extensions or exclude_extensions)
+        if not parsed_query.raw_query and not has_extension_filters:
+            return ()
+        if search_target == "directories" and has_extension_filters:
             return ()
 
         root = Path(root_path).expanduser().resolve()
@@ -153,6 +166,20 @@ class LiveFileSearchService:
                         continue
                     if search_target == "files" and is_dir:
                         continue
+                    if has_extension_filters:
+                        if is_dir:
+                            continue
+                        lowered_name = child.name.casefold()
+                        if include_extensions and not any(
+                            lowered_name.endswith(_extension_suffix(pattern))
+                            for pattern in include_extensions
+                        ):
+                            continue
+                        if any(
+                            lowered_name.endswith(_extension_suffix(pattern))
+                            for pattern in exclude_extensions
+                        ):
+                            continue
                     if not parsed_query.matches(child.name):
                         continue
                     if max_results is not None and len(results) >= max_results:
@@ -199,15 +226,18 @@ class FakeFileSearchService:
         *,
         show_hidden: bool,
         search_target: FileSearchTarget = "all",
+        include_extensions: tuple[str, ...] = (),
+        exclude_extensions: tuple[str, ...] = (),
         max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
         on_results: FileSearchProgressCallback | None = None,
     ) -> tuple[FileSearchResultState, ...]:
-        key = (
-            (root_path, query, show_hidden)
-            if search_target == "all"
-            else (root_path, query, show_hidden, search_target)
-        )
+        key_parts = [root_path, query, show_hidden]
+        if search_target != "all":
+            key_parts.append(search_target)
+        if include_extensions or exclude_extensions:
+            key_parts.extend((include_extensions, exclude_extensions))
+        key = tuple(key_parts)
         self.executed_requests.append(key)
         if is_cancelled is not None and is_cancelled():
             return ()

@@ -74,7 +74,7 @@ FindReplaceFieldId = Literal["filename", "find", "replace"]
 GrepReplaceFieldId = Literal["keyword", "replace", "filename", "include", "exclude"]
 GrepReplaceSelectedFieldId = Literal["keyword", "replace"]
 FileSearchTarget = Literal["files", "directories", "all"]
-FileSearchFieldId = Literal["keyword", "target"]
+FileSearchFieldId = Literal["keyword", "target", "include", "exclude"]
 DirectorySizeStatus = Literal["pending", "ready", "failed"]
 CurrentPaneProjectionMode = Literal["full", "viewport"]
 LayoutMode = Literal["browser", "transfer"]
@@ -551,7 +551,11 @@ class FileSearchPaletteState:
     cache_root_path: str | None = None
     cache_show_hidden: bool = False
     cache_target: FileSearchTarget | None = None
+    cache_include_extensions: tuple[str, ...] = ()
+    cache_exclude_extensions: tuple[str, ...] = ()
     target: FileSearchTarget = "all"
+    include_extensions: str = ""
+    exclude_extensions: str = ""
     active_field: FileSearchFieldId = "keyword"
     results_truncated: bool = False
 

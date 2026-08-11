@@ -1020,6 +1020,11 @@ def _file_search_empty_message(state: AppState) -> str:
         and state.command_palette.file_search.error_message is not None
     ):
         return state.command_palette.file_search.error_message
+    file_search = state.command_palette.file_search if state.command_palette else None
+    if file_search is not None and (
+        file_search.include_extensions or file_search.exclude_extensions
+    ):
+        return "No matching files for the current extension filters"
     return "No matching files"
 
 

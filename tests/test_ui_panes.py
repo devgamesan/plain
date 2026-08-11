@@ -874,6 +874,7 @@ def test_apply_row_updates_updates_slot_key_for_visible_row() -> None:
         PaneEntry("b.txt", "file", path="/path/b.txt"),
     )
     pane = MainPane(title="Test", entries=entries, summary=summary)
+    path_row_index = pane._path_row_index
     table = Mock(spec=DataTable)
     table.size.width = 80
     table.cell_padding = 1
@@ -890,6 +891,7 @@ def test_apply_row_updates_updates_slot_key_for_visible_row() -> None:
     )
 
     assert pane._entries[1].name == "renamed.txt"
+    assert pane._path_row_index is path_row_index
     assert table.update_cell.call_count == 4
     assert table.update_cell.call_args_list[0].args[0] == "__slot__:1"
 
@@ -901,6 +903,7 @@ def test_apply_size_updates_updates_only_target_slot() -> None:
         PaneEntry("b.txt", "file", path="/path/b.txt", size_label="2 B"),
     )
     pane = MainPane(title="Test", entries=entries, summary=summary)
+    path_row_index = pane._path_row_index
     table = Mock(spec=DataTable)
     pane.query_one = Mock(return_value=table)
 
@@ -916,9 +919,40 @@ def test_apply_size_updates_updates_only_target_slot() -> None:
 
     assert pane._entries[0] is entries[0]
     assert pane._entries[1].size_label == "3 B"
+    assert pane._path_row_index is path_row_index
     table.update_cell.assert_called_once()
     assert table.update_cell.call_args.args[0] == "__slot__:1"
     assert table.update_cell.call_args.args[1] == "size"
+
+
+def test_apply_row_updates_refreshes_path_row_index_when_path_changes() -> None:
+    summary = CurrentSummaryState(item_count=2, selected_count=0, sort_label="Name")
+    entries = (
+        PaneEntry("a.txt", "file", path="/path/a.txt"),
+        PaneEntry("b.txt", "file", path="/path/b.txt"),
+    )
+    pane = MainPane(title="Test", entries=entries, summary=summary)
+    path_row_index = pane._path_row_index
+    table = Mock(spec=DataTable)
+    table.size.width = 80
+    table.cell_padding = 1
+    pane.query_one = Mock(return_value=table)
+
+    pane.apply_row_updates(
+        (
+            CurrentPaneRowUpdate(
+                path="/path/b.txt",
+                entry=PaneEntry("renamed.txt", "file", path="/path/renamed.txt"),
+                row_index=1,
+            ),
+        )
+    )
+
+    assert pane._path_row_index is not path_row_index
+    assert pane._path_row_index == {
+        "/path/a.txt": 0,
+        "/path/renamed.txt": 1,
+    }
 
 
 def test_apply_size_updates_resolves_stale_row_index_by_path_index() -> None:

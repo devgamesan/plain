@@ -403,7 +403,6 @@ class MainPane(Vertical):
             return
 
         self._entries = tuple(next_entries)
-        self._path_row_index = self._build_path_row_index(self._entries)
         table = self.query_one(DataTable)
         for row_key, entry in changed_rows:
             try:
@@ -417,7 +416,8 @@ class MainPane(Vertical):
         if not updates:
             return
 
-        changed_rows: list[tuple[str, PaneEntry]] = []
+        changed_rows: list[tuple[str, PaneEntry, int]] = []
+        path_index_changed = False
         next_entries: list[PaneEntry] | None = None
         update_by_row = {
             row_index: entry
@@ -434,17 +434,18 @@ class MainPane(Vertical):
             if next_entries is None:
                 next_entries = list(self._entries)
             next_entries[row_index] = next_entry
-            changed_rows.append((self._slot_row_key(row_index), next_entry))
+            changed_rows.append((self._slot_row_key(row_index), next_entry, row_index))
+            path_index_changed = path_index_changed or next_entry.path != entry.path
 
         if not changed_rows:
             return
 
         self._entries = tuple(next_entries)
-        self._path_row_index = self._build_path_row_index(self._entries)
+        if path_index_changed:
+            self._path_row_index = self._build_path_row_index(self._entries)
         table = self.query_one(DataTable)
         column_widths = self._allocate_column_widths(table, self._visible_columns)
-        for row_key, entry in changed_rows:
-            row_index = self._path_row_index.get(entry.path)
+        for row_key, entry, row_index in changed_rows:
             next_cells = self._build_row_cells(entry, column_widths, row_index=row_index)
             for column_key, next_cell in zip(
                 self._visible_columns,

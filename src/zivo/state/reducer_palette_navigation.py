@@ -37,9 +37,9 @@ def handle_begin_history_search(state: AppState) -> ReduceResult:
         )
         if transfer is None:
             return finalize(state)
-        history_items = tuple(dict.fromkeys(transfer.history.visited_all))
+        history_items = tuple(reversed(transfer.history.visited_all))
     else:
-        history_items = tuple(dict.fromkeys(state.history.visited_all))
+        history_items = tuple(reversed(state.history.visited_all))
     return finalize(enter_palette(state, source="history", history_results=history_items))
 
 

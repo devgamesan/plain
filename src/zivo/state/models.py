@@ -354,6 +354,11 @@ class HistoryState:
     visited_all: tuple[str, ...] = ()
 
 
+# Directory history is intentionally bounded so long-running sessions do not
+# accumulate unbounded immutable tuples in every tab and transfer pane.
+DIRECTORY_HISTORY_LIMIT = 100
+
+
 @dataclass(frozen=True)
 class NotificationFailureDetail:
     """One failed target shown by an actionable notification's details view."""

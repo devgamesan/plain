@@ -9,6 +9,8 @@ In normal browsing, the path bar also exposes clickable breadcrumb segments and 
 
 When the query is empty, the palette shows the fixed `Navigate`, `File`, `Search`, `View`, `System`, and `Custom actions` sections. Category order and command ranking are deterministic and do not use usage history or telemetry.
 
+Directory History and the Go palette's recent-history source show the most recently visited directories first. Each tab and transfer pane keeps the latest 100 unique directory paths in memory; older entries are discarded automatically.
+
 When the latest operation has a next action, the empty `commands` palette conditionally prepends one `Suggested` item. At most one action is exposed, in this order: `Undo`, `Open destination`, safe `Retry`, `Details`. The StatusBar and conditional `Suggested` item share the same stable action ID and reducer path; existing keyboard routes keep their current meanings. No new global key is added, and existing `Enter` / `r` meanings are unchanged. A final success notification auto-dismisses five seconds after display; processing, warning/error, and partial-success notifications do not.
 
 `Retry` is limited to a failed paste with no success/skip/overwrite and an original `PasteRequest` whose conflict resolution is unset, a duplicate with no success or applied changes, or archive/zip preparation failure. Each retry runs fresh preparation/preflight and can return to the existing conflict or reconfirmation flow. `Details` shows failure count, target paths, and reasons, and closes with `Enter` or `Esc`.

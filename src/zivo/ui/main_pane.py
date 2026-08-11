@@ -32,6 +32,7 @@ from .pane_rendering import (
     truncate_middle,
 )
 from .pane_status import render_pane_status
+from .resize_debounce import ResizeDebouncer
 from .summary_bar import SummaryBar
 
 
@@ -150,6 +151,11 @@ class MainPane(Vertical):
         self._last_table_width = 0
         self._last_clicked_path: str | None = None
         self._visible_columns: tuple[str, ...] = self.COLUMN_KEYS
+        self._resize_debouncer = ResizeDebouncer(
+            self,
+            self._refresh_after_resize,
+            name="main-pane-resize-debounce",
+        )
 
     @property
     def table_id(self) -> str | None:
@@ -193,6 +199,12 @@ class MainPane(Vertical):
         self.call_after_refresh(self._refresh_table_width)
 
     def on_resize(self, _event: events.Resize) -> None:
+        self._resize_debouncer.schedule()
+
+    def on_unmount(self) -> None:
+        self._resize_debouncer.stop()
+
+    def _refresh_after_resize(self) -> None:
         self._refresh_table_width()
 
     async def handle_table_row_clicked(self, row_index: int) -> None:

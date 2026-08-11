@@ -29,6 +29,98 @@ from zivo.ui.panes import (
     build_entry_label,
     truncate_middle,
 )
+from zivo.ui.resize_debounce import ResizeDebouncer
+
+
+def test_resize_debouncer_runs_only_latest_scheduled_callback() -> None:
+    callbacks: list[object] = []
+    timers: list[SimpleNamespace] = []
+
+    class Owner:
+        def set_timer(self, delay: float, callback: object, *, name: str) -> SimpleNamespace:
+            timer = SimpleNamespace(delay=delay, callback=callback, name=name, stop=Mock())
+            timers.append(timer)
+            return timer
+
+    debouncer = ResizeDebouncer(Owner(), lambda: callbacks.append("refresh"), name="test-resize")
+
+    debouncer.schedule()
+    debouncer.schedule()
+    debouncer.schedule()
+
+    assert timers[0].delay == pytest.approx(0.05)
+    assert timers[0].stop.call_count == 1
+    assert timers[1].stop.call_count == 1
+    assert timers[2].stop.call_count == 0
+    timers[0].callback()
+    timers[1].callback()
+    assert callbacks == []
+
+    timers[2].callback()
+
+    assert callbacks == ["refresh"]
+    assert timers[2].name == "test-resize"
+
+
+def test_resize_debouncer_stop_ignores_pending_callback() -> None:
+    timers: list[SimpleNamespace] = []
+
+    class Owner:
+        def set_timer(self, _delay: float, callback: object, *, name: str) -> SimpleNamespace:
+            timer = SimpleNamespace(callback=callback, name=name, stop=Mock())
+            timers.append(timer)
+            return timer
+
+    callback = Mock()
+    debouncer = ResizeDebouncer(Owner(), callback, name="test-resize")
+    debouncer.schedule()
+    debouncer.stop()
+    timers[0].callback()
+
+    callback.assert_not_called()
+    timers[0].stop.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "pane_factory",
+    (
+        lambda: MainPane(
+            "Current",
+            (),
+            summary=CurrentSummaryState(item_count=0, selected_count=0, sort_label="Name"),
+        ),
+        lambda: SidePane("Parent", ()),
+        lambda: ChildPane(ChildPaneViewState(title="Child")),
+    ),
+)
+def test_panes_debounce_resize_refresh(pane_factory) -> None:
+    pane = pane_factory()
+    pane._resize_debouncer.schedule = Mock()  # type: ignore[method-assign]
+
+    pane.on_resize(SimpleNamespace())
+
+    pane._resize_debouncer.schedule.assert_called_once_with()
+
+
+@pytest.mark.parametrize(
+    "pane_factory",
+    (
+        lambda: MainPane(
+            "Current",
+            (),
+            summary=CurrentSummaryState(item_count=0, selected_count=0, sort_label="Name"),
+        ),
+        lambda: SidePane("Parent", ()),
+        lambda: ChildPane(ChildPaneViewState(title="Child")),
+    ),
+)
+def test_panes_stop_pending_resize_refresh_on_unmount(pane_factory) -> None:
+    pane = pane_factory()
+    pane._resize_debouncer.stop = Mock()  # type: ignore[method-assign]
+
+    pane.on_unmount()
+
+    pane._resize_debouncer.stop.assert_called_once_with()
 
 
 def _style_map() -> dict[str, Style]:

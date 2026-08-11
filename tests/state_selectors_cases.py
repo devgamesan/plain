@@ -4,6 +4,8 @@ import os
 from dataclasses import replace
 from stat import S_IFREG
 
+import pytest
+
 import zivo.state.selectors as selectors_module
 from tests.state_test_helpers import entry, pane, reduce_state
 from zivo.models import (
@@ -1312,6 +1314,67 @@ def test_select_shell_data_viewport_projection_limits_rendered_entries() -> None
     ]
     assert shell.current_cursor_index == 0
     assert shell.current_summary.item_count == len(current_entries)
+
+
+def test_select_shell_data_limits_parent_and_child_panes_to_visible_window() -> None:
+    root = "/tmp/zivo-side-viewport"
+    parent_entries = tuple(
+        entry(f"/tmp/sibling_{index:02d}", name=f"sibling_{index:02d}", kind="dir")
+        for index in range(12)
+    )
+    current_directory = parent_entries[10]
+    child_entries = tuple(
+        entry(f"{root}/child_{index:02d}", name=f"child_{index:02d}")
+        for index in range(12)
+    )
+    state = replace(
+        build_initial_app_state(current_pane_projection_mode="viewport"),
+        terminal_width=120,
+        terminal_height=12,
+        parent_pane=pane(
+            "/tmp",
+            parent_entries,
+            cursor_path=current_directory.path,
+        ),
+        current_pane=pane(
+            root,
+            (entry(f"{root}/selected", name="selected", kind="dir"),),
+            cursor_path=f"{root}/selected",
+        ),
+        child_pane=pane(f"{root}/selected", child_entries),
+    )
+
+    shell = select_shell_data(state)
+
+    visible_window = compute_current_pane_visible_window(state.terminal_height)
+    assert len(shell.parent_entries) == visible_window
+    assert current_directory.path in {item.path for item in shell.parent_entries}
+    assert len(shell.child_pane.entries) == visible_window
+    assert shell.child_pane.display_title == "Contents · selected · 12 items"
+
+
+def test_select_shell_data_skips_hidden_side_pane_projection(monkeypatch) -> None:
+    state = replace(
+        build_initial_app_state(current_pane_projection_mode="viewport"),
+        terminal_width=79,
+        narrow_pane_view="current",
+    )
+
+    monkeypatch.setattr(
+        selectors_module,
+        "select_parent_entries",
+        lambda _state: pytest.fail("hidden parent pane must not be projected"),
+    )
+    monkeypatch.setattr(
+        selectors_module,
+        "_select_child_pane_for_cursor",
+        lambda _state, _entry: pytest.fail("hidden child pane must not be projected"),
+    )
+
+    shell = select_shell_data(state)
+
+    assert shell.parent_entries == ()
+    assert shell.child_pane.entries == ()
 
 
 def test_select_shell_data_viewport_projection_reuses_window_for_cursor_move_inside_window(

@@ -19,6 +19,12 @@ class DirectoryReader(Protocol):
     def list_directory(self, path: str) -> tuple[DirectoryEntryState, ...]: ...
 
 
+class DirectorySummaryReader(Protocol):
+    """Boundary for reading directory entries without detailed stat metadata."""
+
+    def list_directory_summary(self, path: str) -> tuple[DirectoryEntryState, ...]: ...
+
+
 class DirectorySizeReader(Protocol):
     """Boundary for recursive directory-size calculations."""
 
@@ -41,11 +47,27 @@ class LocalFilesystemAdapter:
     """Read and normalize directory contents from the local filesystem."""
 
     def list_directory(self, path: str) -> tuple[DirectoryEntryState, ...]:
+        return self._list_directory(path, include_metadata=True)
+
+    def list_directory_summary(self, path: str) -> tuple[DirectoryEntryState, ...]:
+        """Return entries suitable for side panes without calling stat per entry."""
+
+        return self._list_directory(path, include_metadata=False)
+
+    def _list_directory(
+        self,
+        path: str,
+        *,
+        include_metadata: bool,
+    ) -> tuple[DirectoryEntryState, ...]:
         directory = Path(path).expanduser().resolve()
         entries: list[DirectoryEntryState] = []
         with os.scandir(directory) as iterator:
             for child in iterator:
-                entry = _build_directory_entry_summary(child)
+                entry = _build_directory_entry_summary(
+                    child,
+                    include_metadata=include_metadata,
+                )
                 if entry is not None:
                     entries.append(entry)
         entries.sort(key=lambda entry: (entry.kind != "dir", natural_sort_key(entry.name)))
@@ -69,7 +91,11 @@ class LocalFilesystemAdapter:
         return _calculate_directory_size(directory, is_cancelled=is_cancelled)
 
 
-def _build_directory_entry_summary(entry: os.DirEntry[str]) -> DirectoryEntryState | None:
+def _build_directory_entry_summary(
+    entry: os.DirEntry[str],
+    *,
+    include_metadata: bool = True,
+) -> DirectoryEntryState | None:
     is_symlink = entry.is_symlink()
     hidden = entry.name.startswith(".")
     try:
@@ -101,6 +127,15 @@ def _build_directory_entry_summary(entry: os.DirEntry[str]) -> DirectoryEntrySta
                 hidden=hidden,
                 symlink=True,
             )
+
+    if not include_metadata:
+        return DirectoryEntryState(
+            path=entry.path,
+            name=entry.name,
+            kind=kind,
+            hidden=hidden,
+            symlink=is_symlink,
+        )
 
     try:
         stat_result = entry.stat()

@@ -7,12 +7,14 @@ from .filesystem import (
     DirectoryReader,
     DirectorySizeCancelled,
     DirectorySizeReader,
+    DirectorySummaryReader,
     LocalFilesystemAdapter,
 )
 
 __all__ = [
     "DirectoryAttributeReader",
     "DirectoryReader",
+    "DirectorySummaryReader",
     "DirectorySizeCancelled",
     "DirectorySizeReader",
     "ExternalLaunchAdapter",

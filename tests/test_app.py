@@ -992,7 +992,7 @@ async def test_app_live_snapshot_highlights_current_directory_in_parent_pane(tmp
     (tmp_path / "README.md").write_text("readme\n", encoding="utf-8")
     app = create_app(initial_path=tmp_path)
 
-    async with app.run_test():
+    async with app.run_test(size=(240, 20)):
         await _wait_for_snapshot_loaded(app, str(tmp_path))
         await _wait_for_row_count(app, 2)
 
@@ -1002,7 +1002,10 @@ async def test_app_live_snapshot_highlights_current_directory_in_parent_pane(tmp
 
         assert app.app_state.parent_pane.cursor_path == str(tmp_path)
         assert isinstance(parent_renderable, Text)
-        assert tmp_path.name in parent_renderable.plain.splitlines()
+        assert any(
+            line.startswith(tmp_path.name[:12])
+            for line in parent_renderable.plain.splitlines()
+        )
         assert _text_has_style(
             parent_renderable,
             _style_without_background(parent_pane.get_component_rich_style("ft-directory-sel")),
@@ -4817,7 +4820,7 @@ async def test_app_config_dialog_save_updates_theme(monkeypatch) -> None:
         initial_path=path,
     )
 
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(240, 24)) as pilot:
         await _wait_for_snapshot_loaded(app, path)
         parent_pane = app.query_one("#parent-pane", SidePane)
         child_pane = app.query_one("#child-pane", ChildPane)
@@ -5622,7 +5625,7 @@ async def test_app_sort_shortcuts_keep_side_panes_fixed_and_update_status_bar() 
         ),
     )
 
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(240, 24)) as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 3)
 
@@ -6341,10 +6344,16 @@ async def test_app_cursor_move_refreshes_large_child_pane_without_remount(
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
 
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(80, 24)) as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 2)
-        await _wait_for_child_list_label(app, "child-0999.txt", index=999, timeout=2.0)
+        visible_window = compute_current_pane_visible_window(app.app_state.terminal_height)
+        await _wait_for_child_list_label(
+            app,
+            f"child-{visible_window - 1:04d}.txt",
+            index=visible_window - 1,
+            timeout=2.0,
+        )
 
         child_list = app.query_one("#child-pane-list", Static)
         original_update = Static.update
@@ -6359,10 +6368,15 @@ async def test_app_cursor_move_refreshes_large_child_pane_without_remount(
         monkeypatch.setattr(Static, "update", counting_update)
 
         await pilot.press("down")
-        await _wait_for_child_list_label(app, "module-0999.py", index=999, timeout=2.0)
+        await _wait_for_child_list_label(
+            app,
+            f"module-{visible_window - 1:04d}.py",
+            index=visible_window - 1,
+            timeout=2.0,
+        )
 
         assert app.query_one("#child-pane-list", Static) is child_list
-        assert len(_side_pane_lines(child_list)) == 1000
+        assert len(_side_pane_lines(child_list)) == visible_window
         assert update_calls == 1
 
 

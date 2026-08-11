@@ -109,11 +109,8 @@ _COMMAND_METADATA: dict[str, CommandPaletteMetadata] = {
     "grep_search": CommandPaletteMetadata(
         "Search", ("grep", "search", "search contents", "text", "content", "contents"), 21
     ),
-    "history_search": CommandPaletteMetadata("Navigate", ("history", "recent"), 30),
-    "bookmark_search": CommandPaletteMetadata("Navigate", ("bookmark", "saved"), 31),
     "go_back": CommandPaletteMetadata("Navigate", ("back", "previous"), 32),
     "go_forward": CommandPaletteMetadata("Navigate", ("forward", "next"), 33),
-    "go_to_path": CommandPaletteMetadata("Navigate", ("go", "path", "directory"), 34),
     "go_to_home_directory": CommandPaletteMetadata("Navigate", ("home", "~"), 35),
     "reload_directory": CommandPaletteMetadata("View", ("reload", "refresh"), 70),
     "undo_last_operation": CommandPaletteMetadata("System", ("undo", "revert"), 50),
@@ -268,54 +265,6 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
             for index, result in enumerate(state.command_palette.grep_search.results)
         )
 
-    if state.command_palette.source == "history":
-        query = state.command_palette.query
-        history_results = state.command_palette.history_and_navigation.history_results
-        return tuple(
-            item
-            for item in (
-                CommandPaletteItem(
-                    id=f"history_result:{index}",
-                    label=_display_path(path),
-                    shortcut=None,
-                    enabled=True,
-                    path=path,
-                )
-                for index, path in enumerate(history_results)
-            )
-            if _matches_query(item, query)
-        )
-
-    if state.command_palette.source == "bookmarks":
-        query = state.command_palette.query
-        return tuple(
-            item
-            for item in (
-                CommandPaletteItem(
-                    id=f"bookmark_result:{index}",
-                    label=_display_path(path),
-                    shortcut=None,
-                    enabled=True,
-                    path=path,
-                )
-                for index, path in enumerate(state.config.bookmarks.paths)
-            )
-            if _matches_query(item, query)
-        )
-
-    if state.command_palette.source == "go_to_path":
-        go_to_path_candidates = state.command_palette.history_and_navigation.go_to_path_candidates
-        return tuple(
-            CommandPaletteItem(
-                id=f"go_to_path_candidate:{index}",
-                label=_display_path(path),
-                shortcut=None,
-                enabled=True,
-                path=path,
-            )
-            for index, path in enumerate(go_to_path_candidates)
-        )
-
     if state.command_palette.source == "go":
         candidates = select_go_candidates(
             state,
@@ -402,7 +351,7 @@ def normalize_command_palette_cursor(state: AppState, cursor_index: int) -> int:
         item_count = len(state.command_palette.grf.preview_results)
     elif state.command_palette.source == "grep_replace_selected":
         item_count = len(state.command_palette.grs.preview_results)
-    elif state.command_palette.source in {"history", "go"}:
+    elif state.command_palette.source == "go":
         item_count = len(get_command_palette_items(state))
     else:
         item_count = len(get_command_palette_items(state))
@@ -437,7 +386,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         CommandPaletteItem(
             id="go",
             label="Go",
-            shortcut=None,
+            shortcut="G",
             enabled=True,
         ),
         CommandPaletteItem(
@@ -1030,7 +979,7 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
         CommandPaletteItem(
             id="go",
             label="Go",
-            shortcut=None,
+            shortcut="G",
             enabled=True,
         ),
         CommandPaletteItem(

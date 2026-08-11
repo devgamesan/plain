@@ -3,8 +3,6 @@
 from dataclasses import replace
 from typing import Callable
 
-from zivo.windows_paths import list_windows_drive_paths
-
 from .actions import (
     Action,
     AttributeInspectionFailed,
@@ -14,11 +12,9 @@ from .actions import (
     BeginFileSearch,
     BeginFindAndReplace,
     BeginGo,
-    BeginGoToPath,
     BeginGrepReplace,
     BeginGrepReplaceSelected,
     BeginGrepSearch,
-    BeginHistorySearch,
     BeginTextReplace,
     CancelCommandPalette,
     CycleFileSearchField,
@@ -81,13 +77,7 @@ from .reducer_palette_export import (
 from .reducer_palette_navigation import (
     handle_begin_bookmark_search,
     handle_begin_go,
-    handle_begin_go_to_path,
-    handle_begin_history_search,
-    handle_set_go_to_path_query,
-    handle_submit_bookmarks_palette,
     handle_submit_go_palette,
-    handle_submit_go_to_path_palette,
-    handle_submit_history_palette,
 )
 from .reducer_palette_replace import (
     handle_cycle_find_replace_field,
@@ -159,14 +149,6 @@ def _handle_move_palette_cursor(state: AppState, action: MoveCommandPaletteCurso
             state.command_palette.cursor_index + action.delta,
         ),
     )
-    if state.command_palette.source == "go_to_path":
-        next_palette = replace(
-            next_palette,
-            history_and_navigation=replace(
-                next_palette.history_and_navigation,
-                go_to_path_selection_active=True,
-            ),
-        )
     next_state = replace(state, command_palette=next_palette)
     if state.command_palette.source == "file_search":
         return sync_file_search_preview(next_state)
@@ -206,8 +188,6 @@ def _handle_set_palette_query(state: AppState, action: SetCommandPaletteQuery) -
         return handle_set_file_search_query(state, next_palette, action.query)
     if state.command_palette.source == "grep_search":
         return handle_set_grep_search_field(state, "keyword", action.query)
-    if state.command_palette.source == "go_to_path":
-        return handle_set_go_to_path_query(state, next_palette, action.query)
     return finalize(replace(state, command_palette=next_palette))
 
 
@@ -244,12 +224,6 @@ def _handle_submit_palette(state: AppState, reduce_state: ReducerFn) -> ReduceRe
         return handle_submit_grep_replace_palette(state)
     if state.command_palette.source == "grep_replace_selected":
         return handle_submit_grep_replace_selected_palette(state)
-    if state.command_palette.source == "history":
-        return handle_submit_history_palette(state, reduce_state)
-    if state.command_palette.source == "bookmarks":
-        return handle_submit_bookmarks_palette(state, reduce_state)
-    if state.command_palette.source == "go_to_path":
-        return handle_submit_go_to_path_palette(state, reduce_state)
     if state.command_palette.source == "go":
         return handle_submit_go_palette(state, reduce_state)
     return handle_submit_commands_palette(state, reduce_state)
@@ -328,15 +302,6 @@ def _handle_begin_text_replace(
     )
 
 
-def _dispatch_begin_history_search(
-    state: AppState,
-    action: BeginHistorySearch,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    del action, reduce_state
-    return handle_begin_history_search(state)
-
-
 def _handle_begin_legacy_replace(state: AppState, source: str) -> ReduceResult:
     return finalize(enter_palette(state, source=source))
 
@@ -364,15 +329,6 @@ def _dispatch_begin_bookmark_search(
 ) -> ReduceResult:
     del action, reduce_state
     return handle_begin_bookmark_search(state)
-
-
-def _handle_begin_go_to_path(
-    state: AppState,
-    action: BeginGoToPath,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    del action, reduce_state
-    return handle_begin_go_to_path(state, list_windows_drive_paths)
 
 
 def _handle_cancel_command_palette(
@@ -512,9 +468,7 @@ _PALETTE_HANDLERS: dict[type[Action], _PaletteHandler] = {
     BeginFindAndReplace: lambda s, a, r: _handle_begin_legacy_replace(s, "replace_in_found_files"),
     BeginGrepReplace: lambda s, a, r: _handle_begin_legacy_replace(s, "replace_in_grep_files"),
     BeginGrepReplaceSelected: _handle_begin_grep_replace_selected,
-    BeginHistorySearch: _dispatch_begin_history_search,
     BeginBookmarkSearch: _dispatch_begin_bookmark_search,
-    BeginGoToPath: _handle_begin_go_to_path,
     BeginGo: _handle_begin_go,
     CancelCommandPalette: _handle_cancel_command_palette,
     DismissAboutDialog: _handle_dismiss_about_dialog,

@@ -16,7 +16,6 @@ from .actions import (
     ActivateNotificationAction,
     ActivatePreviousTab,
     AddBookmark,
-    BeginBookmarkSearch,
     BeginBulkRename,
     BeginChmodInput,
     BeginChownInput,
@@ -27,9 +26,7 @@ from .actions import (
     BeginExtractArchiveInput,
     BeginFileSearch,
     BeginGo,
-    BeginGoToPath,
     BeginGrepSearch,
-    BeginHistorySearch,
     BeginRenameInput,
     BeginShellCommandInput,
     BeginSymlinkInput,
@@ -146,24 +143,12 @@ def _run_grep_search_command(state: AppState, reduce_state: ReducerFn) -> Reduce
     return reduce_state(state, BeginGrepSearch())
 
 
-def _run_history_search_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
-    return reduce_state(state, BeginHistorySearch())
-
-
-def _run_bookmark_search_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
-    return reduce_state(state, BeginBookmarkSearch())
-
-
 def _run_go_back_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
     return reduce_state(state, GoBack())
 
 
 def _run_go_forward_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
     return reduce_state(state, GoForward())
-
-
-def _run_go_to_path_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
-    return reduce_state(state, BeginGoToPath())
 
 
 def _run_go_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
@@ -572,16 +557,10 @@ def _run_palette_command_item(
         return _run_file_search_command(next_state, reduce_state)
     if item_id == "grep_search":
         return _run_grep_search_command(next_state, reduce_state)
-    if item_id == "history_search":
-        return _run_history_search_command(next_state, reduce_state)
-    if item_id == "bookmark_search":
-        return _run_bookmark_search_command(next_state, reduce_state)
     if item_id == "go_back":
         return _run_go_back_command(next_state, reduce_state)
     if item_id == "go_forward":
         return _run_go_forward_command(next_state, reduce_state)
-    if item_id == "go_to_path":
-        return _run_go_to_path_command(next_state, reduce_state)
     if item_id == "go":
         return _run_go_command(next_state, reduce_state)
     if item_id == "go_to_home_directory":

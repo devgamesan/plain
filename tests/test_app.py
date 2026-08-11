@@ -3227,7 +3227,7 @@ async def test_app_displays_browsing_help_bar() -> None:
     expected_help = (
         "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
         "space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
-        f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
+            f"f find | g grep | G go | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
 
     async with app.run_test():
@@ -3333,7 +3333,7 @@ async def test_app_displays_transfer_help_bar() -> None:
     expected_help = (
         "enter dir | . hidden | Tab switch-pane | p/Esc close | q quit\n"
         "space select | c copy-to-pane | m move-to-pane | d delete | r rename | z undo\n"
-        "n new-file | N new-dir | : palette"
+            "n new-file | N new-dir | G go | : palette"
     )
 
     async with app.run_test() as pilot:
@@ -3626,7 +3626,7 @@ async def test_app_command_palette_create_opens_context_input() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_go_to_path_shows_candidates_and_tabs_to_selected_directory(tmp_path) -> None:
+async def test_app_go_shows_candidates_and_tabs_to_selected_directory(tmp_path) -> None:
     path = str(tmp_path)
     docs_path = str(tmp_path / "docs")
     downloads_path = str(tmp_path / "downloads")
@@ -3658,9 +3658,7 @@ async def test_app_go_to_path_shows_candidates_and_tabs_to_selected_directory(tm
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press(":")
-        await pilot.press("g", "o")
-        await pilot.press("enter")
+        await pilot.press("G")
         await pilot.press("d", "o")
         await asyncio.sleep(0.05)
 
@@ -3681,7 +3679,7 @@ async def test_app_go_to_path_shows_candidates_and_tabs_to_selected_directory(tm
 
 
 @pytest.mark.asyncio
-async def test_app_go_to_path_submit_after_completion_stays_on_completed_directory(
+async def test_app_go_submit_after_completion_stays_on_completed_directory(
     tmp_path,
 ) -> None:
     path = str(tmp_path)
@@ -3711,9 +3709,7 @@ async def test_app_go_to_path_submit_after_completion_stays_on_completed_directo
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press(":")
-        await pilot.press("g", "o")
-        await pilot.press("enter")
+        await pilot.press("G")
         await pilot.press("d", "o", "tab", "enter")
         await _wait_for_snapshot_loaded(app, docs_path)
 

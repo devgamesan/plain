@@ -41,7 +41,6 @@ from zivo.state import (
     GrepSearchResultState,
     GrfPaletteState,
     GrsPaletteState,
-    HistoryAndNavigationPaletteState,
     HistoryState,
     NameConflictState,
     NotificationState,
@@ -1601,12 +1600,12 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     assert help_state.lines == (
         "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit",
         "space select | c copy | x cut | v paste | d delete | r rename | z undo",
-        f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette",
+        f"f find | g grep | G go | n new-file | N new-dir{split_terminal_hint} | : palette",
     )
     assert help_state.text == (
         "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
         "space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
-        f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
+            f"f find | g grep | G go | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
 
 
@@ -1652,12 +1651,12 @@ def test_select_help_bar_for_transfer_mode_prioritizes_transfer_actions() -> Non
     assert help_state.lines == (
         "enter dir | . hidden | Tab switch-pane | p/Esc close | q quit",
         "space select | c copy-to-pane | m move-to-pane | d delete | r rename | z undo",
-        "n new-file | N new-dir | : palette",
+        "n new-file | N new-dir | G go | : palette",
     )
     assert help_state.text == (
         "enter dir | . hidden | Tab switch-pane | p/Esc close | q quit\n"
         "space select | c copy-to-pane | m move-to-pane | d delete | r rename | z undo\n"
-        "n new-file | N new-dir | : palette"
+            "n new-file | N new-dir | G go | : palette"
     )
 
 
@@ -1714,16 +1713,16 @@ def test_removed_direct_shortcuts_remain_available_without_palette_shortcuts() -
         "Show attributes",
         "Copy path",
         "Bookmark this directory",
-        "Go to path",
+        "Go",
         "Open current directory with file manager",
         "Edit with GUI editor",
         "Open current directory with terminal",
-        "History search",
         "Reload directory",
     }
 
     assert labels <= items.keys()
-    assert all(items[label].shortcut is None for label in labels)
+    assert all(items[label].shortcut is None for label in labels - {"Go"})
+    assert items["Go"].shortcut == "G"
 
 
 def test_command_palette_exposes_one_dynamic_narrow_view_command() -> None:
@@ -1767,11 +1766,9 @@ def test_command_palette_items_for_search_workspace_explain_unavailable_actions(
     }
     labels = list(items)
 
-    assert "History search" in labels
-    assert "Show bookmarks" in labels
+    assert "Go" in labels
     assert "Go back" in labels
     assert "Go forward" in labels
-    assert "Go to path" in labels
     assert "Go to home directory" in labels
     assert "Undo last file operation" in labels
     assert "New tab" in labels
@@ -1978,108 +1975,12 @@ def test_select_command_palette_state_in_transfer_mode_shows_transfer_commands_o
 
     assert palette_state is not None
     labels = [item.label for item in palette_state.items]
-    assert "History search" in labels
+    assert "Go" in labels
     assert "Copy to opposite pane" in labels
     assert "Move to opposite pane" in labels
     assert "Close transfer mode" in labels
     assert "Find files" not in labels
     assert "Toggle split terminal" not in labels
-
-
-def test_select_command_palette_state_shows_bookmark_items() -> None:
-    state = build_initial_app_state(
-        config=AppConfig(
-            bookmarks=BookmarkConfig(
-                paths=(
-                    "/home/tadashi/src",
-                    "/home/tadashi/docs",
-                )
-            )
-        )
-    )
-    state = replace(
-        _reduce_state(state, BeginCommandPalette()),
-        command_palette=CommandPaletteState(source="bookmarks", query="docs"),
-    )
-
-    palette_state = select_command_palette_state(state)
-
-    assert palette_state is not None
-    assert palette_state.title == "Bookmarks"
-    assert [item.label for item in palette_state.items] == [
-        _display_path_for_test("/home/tadashi/docs")
-    ]
-    assert palette_state.empty_message == "No bookmarks"
-
-
-def test_select_command_palette_state_shows_go_to_path_candidates() -> None:
-    state = replace(
-        _reduce_state(build_initial_app_state(), BeginCommandPalette()),
-        command_palette=CommandPaletteState(
-            source="go_to_path",
-            query="do",
-            cursor_index=1,
-            history_and_navigation=HistoryAndNavigationPaletteState(
-                go_to_path_candidates=(
-                    "/home/tadashi/docs",
-                    "/home/tadashi/downloads",
-                ),
-            ),
-        ),
-    )
-
-    palette_state = select_command_palette_state(state)
-
-    assert palette_state is not None
-    assert palette_state.title == "Go to path"
-    assert [item.label for item in palette_state.items] == [
-        _display_path_for_test("/home/tadashi/docs"),
-        _display_path_for_test("/home/tadashi/downloads"),
-    ]
-    assert palette_state.items[1].selected is True
-    assert palette_state.empty_message == "No matching directories"
-
-
-def test_select_help_bar_state_for_go_to_path_palette_mentions_tab_completion() -> None:
-    state = replace(
-        build_initial_app_state(),
-        ui_mode="PALETTE",
-        command_palette=CommandPaletteState(source="go_to_path"),
-    )
-
-    help_bar = select_help_bar_state(state)
-
-    assert help_bar.lines == (
-        "type path | ↑↓ or Ctrl+j/k select | tab complete | enter jump | esc cancel",
-    )
-
-
-def test_select_help_bar_state_for_history_palette() -> None:
-    state = replace(
-        build_initial_app_state(),
-        ui_mode="PALETTE",
-        command_palette=CommandPaletteState(source="history"),
-    )
-
-    help_bar = select_help_bar_state(state)
-
-    assert help_bar.lines == (
-        "type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",
-    )
-
-
-def test_select_help_bar_state_for_bookmarks_palette() -> None:
-    state = replace(
-        build_initial_app_state(),
-        ui_mode="PALETTE",
-        command_palette=CommandPaletteState(source="bookmarks"),
-    )
-
-    help_bar = select_help_bar_state(state)
-
-    assert help_bar.lines == (
-        "type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",
-    )
 
 
 def test_select_help_bar_state_for_file_search_palette() -> None:
@@ -2243,28 +2144,6 @@ def test_select_command_palette_state_for_text_replace_includes_input_fields() -
         "README.md (2): 8: todo item"
     ]
     assert palette_state.empty_message == "Preview shown in right pane. Press Enter to apply."
-
-
-def test_select_command_palette_state_go_to_path_can_show_candidates_without_selection() -> None:
-    state = replace(
-        _reduce_state(build_initial_app_state(), BeginCommandPalette()),
-        command_palette=CommandPaletteState(
-            source="go_to_path",
-            query="docs/",
-            history_and_navigation=HistoryAndNavigationPaletteState(
-                go_to_path_candidates=(
-                    "/home/tadashi/docs/api",
-                    "/home/tadashi/docs/guides",
-                ),
-                go_to_path_selection_active=False,
-            ),
-        ),
-    )
-
-    palette_state = select_command_palette_state(state)
-
-    assert palette_state is not None
-    assert [item.selected for item in palette_state.items] == [False, False]
 
 
 def test_select_command_palette_state_filters_query() -> None:
@@ -3467,90 +3346,6 @@ class TestSelectCommandPaletteWindow:
 
 class TestCommandPaletteDynamicWindow:
     """コマンドパレットの動的表示ウィンドウ計算のテスト."""
-
-    def test_go_to_path_uses_dynamic_window_size(self) -> None:
-        """Go to pathで48行端末の場合40件まで表示できること."""
-        state = replace(
-            _reduce_state(build_initial_app_state(), BeginCommandPalette()),
-            terminal_height=48,
-            command_palette=CommandPaletteState(
-                source="go_to_path",
-                query="",
-                cursor_index=0,
-                history_and_navigation=HistoryAndNavigationPaletteState(
-                    go_to_path_candidates=tuple(f"/path/{i}" for i in range(25)),
-                ),
-            ),
-        )
-
-        palette_state = select_command_palette_state(state)
-
-        assert palette_state is not None
-        assert len(palette_state.items) == 25
-        assert palette_state.has_more_items is False
-
-    def test_go_to_path_small_terminal_uses_minimum(self) -> None:
-        """Go to pathで小さな端末の場合最小3件表示されること."""
-        state = replace(
-            _reduce_state(build_initial_app_state(), BeginCommandPalette()),
-            terminal_height=10,
-            command_palette=CommandPaletteState(
-                source="go_to_path",
-                query="",
-                cursor_index=0,
-                history_and_navigation=HistoryAndNavigationPaletteState(
-                    go_to_path_candidates=tuple(f"/path/{i}" for i in range(10)),
-                ),
-            ),
-        )
-
-        palette_state = select_command_palette_state(state)
-
-        assert palette_state is not None
-        assert len(palette_state.items) == 3
-
-    def test_directory_history_uses_dynamic_window_size(self) -> None:
-        """Directory Historyで48行端末なら全候補を表示できること."""
-        state = replace(
-            build_initial_app_state(),
-            terminal_height=48,
-            history=HistoryState(
-                back=tuple(f"/history/{i}" for i in range(25)),
-                forward=(),
-            ),
-            ui_mode="PALETTE",
-            command_palette=CommandPaletteState(
-                source="history",
-                history_and_navigation=HistoryAndNavigationPaletteState(
-                    history_results=tuple(f"/history/{i}" for i in range(25)),
-                ),
-            ),
-        )
-
-        palette_state = select_command_palette_state(state)
-
-        assert palette_state is not None
-        assert len(palette_state.items) == 25
-        assert palette_state.has_more_items is False
-
-    def test_bookmarks_uses_dynamic_window_size(self) -> None:
-        """Bookmarksで48行端末なら全候補を表示できること."""
-        state = replace(
-            build_initial_app_state(),
-            terminal_height=48,
-            config=replace(
-                build_initial_app_state().config,
-                bookmarks=BookmarkConfig(paths=tuple(f"/bookmark/{i}" for i in range(25))),
-            ),
-            ui_mode="PALETTE",
-            command_palette=CommandPaletteState(source="bookmarks"),
-        )
-
-        palette_state = select_command_palette_state(state)
-
-        assert palette_state is not None
-        assert len(palette_state.items) == 25
-        assert palette_state.has_more_items is False
 
     def test_default_command_palette_keeps_all_commands_scrollable(self) -> None:
         """通常のコマンド一覧は末尾までスクロールできること."""

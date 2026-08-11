@@ -159,10 +159,7 @@ class CommandPalette(Container):
         query_text = Text()
         query_text.append("> ", style="bold")
         is_path_source = (
-            state.title.startswith("Directory History")
-            or state.title.startswith("Go to path")
-            or state.title.startswith("Go")
-            or state.title.startswith("Bookmarks")
+            state.title.startswith("Go")
         )
         placeholder = (
             "type a filename or re:pattern"

@@ -27,7 +27,7 @@ Directory History と Go の最近の履歴は、最後に訪問したディレ�
 | `Close current tab` | 2 タブ以上開いているとき | アクティブなブラウズタブを閉じます。最後の 1 タブは閉じられません。 |
 | `Find files` | 常に表示 | 再帰ファイル検索を開きます。 |
 | `Grep search` | 常に表示 | 共通の再帰コンテンツ検索を開きます（`ripgrep` / `rg` が `PATH` 上に必要）。従来の `search contents` も検索用 alias として利用できます。current directory / selected files/directories / Search Workspace（Search Workspace を開いているときだけ選択可能）の scope を選択でき、keyword / filename / include extension / exclude extension の各フィルタを共通で利用できます。選択したディレクトリは再帰的に検索します。 |
-| `Go` | 常に表示 | Home、ブックマーク、最近の履歴、開いているタブ、直接パスを 1 画面で検索します。入力先頭に `@bookmark`、`@history` / `@recent`、`@tab`、`@home` を付けると source を絞れます。`b` は同じ画面をブックマーク限定で開きます。`j` / `k` は通常の入力文字で、選択移動には矢印キーまたは `Ctrl+j` / `Ctrl+k` を使います。 |
+| `Go` | 常に表示 | `G` で Home、ブックマーク、最近の履歴、開いているタブ、直接パスを 1 画面で検索します。入力先頭に `@bookmark`、`@history` / `@recent`、`@tab`、`@home` を付けると source を絞れます。`b` は同じ画面をブックマーク限定で開きます。`j` / `k` は通常の入力文字で、選択移動には矢印キーまたは `Ctrl+j` / `Ctrl+k` を使います。 |
 | `Go back` | ディレクトリ履歴に戻り先があるとき | 履歴を一つ戻ります。 |
 | `Go forward` | ディレクトリ履歴に進み先があるとき | 履歴を一つ進みます。 |
 | `Go to home directory` | 常に表示 | ホームディレクトリへ移動します。 |

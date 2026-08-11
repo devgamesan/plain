@@ -32,18 +32,8 @@ class BeginGrepSearch:
 
 
 @dataclass(frozen=True)
-class BeginHistorySearch:
-    """Open the command palette in directory history mode."""
-
-
-@dataclass(frozen=True)
 class BeginBookmarkSearch:
     """Open the command palette in bookmark-list mode."""
-
-
-@dataclass(frozen=True)
-class BeginGoToPath:
-    """Open the command palette in go-to-path mode."""
 
 
 @dataclass(frozen=True)

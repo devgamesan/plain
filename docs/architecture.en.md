@@ -208,7 +208,7 @@ Copy, Move, Compress, Extract, and Replace share one transient `ForegroundOperat
 ### `src/zivo/state/reducer_palette.py`
 
 - Handles command-palette open / close, query updates, cursor movement, and execution
-- Starts derived flows such as `Find files`, `Grep search`, `History search`, `Show bookmarks`, `Go to path`, bookmark add/remove, `Show attributes`, and `Extract archive`
+- Starts derived flows such as `Find files`, `Grep search`, unified `Go`, bookmark add/remove, `Show attributes`, and `Extract archive`
 - Also owns attribute-dialog dismissal and file-search / grep-search result application
 
 ### `src/zivo/state/reducer_terminal_config.py`
@@ -235,11 +235,9 @@ Copy, Move, Compress, Extract, and Replace share one transient `ForegroundOperat
 - The default command palette includes:
   - `Find files`
   - `Grep search`
-  - `History search`
-  - `Show bookmarks`
   - `Go back`
   - `Go forward`
-  - `Go to path`
+  - `Go` (Home, bookmarks, recent history, open tabs, and direct paths)
   - `Go to home directory`
   - `Reload directory`
   - `Toggle split terminal`
@@ -259,8 +257,8 @@ Copy, Move, Compress, Extract, and Replace share one transient `ForegroundOperat
   - `Edit config`
   - `Create file`
   - `Create directory`
-- Palette sources are `commands`, `file_search`, `grep_search`, `history`, `bookmarks`, and `go_to_path`
-- `go_to_path` shows matching directory candidates while the user types and lets `Tab` complete the selected one
+- Palette sources include `commands`, `file_search`, `grep_search`, `go`, and `replace`
+- Unified `Go` shows Home, bookmark, recent-history, open-tab, and direct-path candidates while the user types, and lets `Tab` complete a direct-path candidate
 - `grep_search` uses separate keyword / filename-filter / include-extensions / exclude-extensions fields and moves focus with `Tab` / `Shift+Tab`
 
 ### `src/zivo/services/`

@@ -23,6 +23,7 @@ def render_app_config(config: AppConfig) -> str:
         render_logging_section(config),
         render_bookmarks_section(config),
         render_file_search_section(config),
+        render_grep_search_section(config),
         render_actions_section(config),
     ]
     return "\n\n".join(sections) + "\n"
@@ -142,6 +143,23 @@ def render_file_search_section(config: AppConfig) -> str:
         "# Optional file search behavior settings.\n"
         "# Leave max_results empty (null) for no limit (default).\n"
         "# Set to a positive integer to limit the number of results.\n"
+        "# Example:\n"
+        "# max_results = 1000\n"
+        f"{max_results_line}"
+    )
+
+
+def render_grep_search_section(config: AppConfig) -> str:
+    max_results = config.grep_search.max_results
+    if max_results is None:
+        max_results_line = "# max_results = 1000  # Optional: limit grep results"
+    else:
+        max_results_line = f"max_results = {max_results}"
+    return (
+        "[grep_search]\n"
+        "# Optional recursive content-search behavior settings.\n"
+        "# Leave max_results empty (null) for no limit (default).\n"
+        "# Set to a non-negative integer to limit the number of results.\n"
         "# Example:\n"
         "# max_results = 1000\n"
         f"{max_results_line}"

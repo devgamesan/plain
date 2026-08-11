@@ -95,6 +95,13 @@ class FileSearchConfig:
 
 
 @dataclass(frozen=True)
+class GrepSearchConfig:
+    """Grep search behavior settings."""
+
+    max_results: int | None = None
+
+
+@dataclass(frozen=True)
 class CustomActionConfig:
     """User-defined command palette action."""
 
@@ -125,6 +132,7 @@ class AppConfig:
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     bookmarks: BookmarkConfig = field(default_factory=BookmarkConfig)
     file_search: FileSearchConfig = field(default_factory=FileSearchConfig)
+    grep_search: GrepSearchConfig = field(default_factory=GrepSearchConfig)
     actions: ActionsConfig = field(default_factory=ActionsConfig)
 
 

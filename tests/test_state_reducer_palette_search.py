@@ -356,6 +356,35 @@ def test_selected_entries_scope_keeps_matches_under_selected_directories() -> No
     ]
 
 
+def test_selected_entries_scope_passes_target_paths_to_search_effect() -> None:
+    file_path = "/home/tadashi/develop/zivo/README.md"
+    directory_path = "/home/tadashi/develop/zivo/docs"
+    state = replace(
+        build_initial_app_state(),
+        current_pane=PaneState(
+            directory_path="/home/tadashi/develop/zivo",
+            entries=(
+                DirectoryEntryState(file_path, "README.md", "file"),
+                DirectoryEntryState(directory_path, "docs", "dir"),
+            ),
+            selected_paths=frozenset({file_path, directory_path}),
+        ),
+    )
+    state = _reduce_state(state, BeginGrepSearch(scope="selected_entries"))
+
+    result = reduce_app_state(state, SetCommandPaletteQuery("todo"))
+
+    assert result.effects == (
+        RunGrepSearchEffect(
+            request_id=1,
+            root_path="/home/tadashi/develop/zivo",
+            query="todo",
+            show_hidden=False,
+            target_paths=(file_path, directory_path),
+        ),
+    )
+
+
 def test_search_workspace_scope_is_rejected_outside_a_workspace() -> None:
     state = _reduce_state(build_initial_app_state(), BeginGrepSearch())
 
@@ -460,6 +489,7 @@ def test_set_grep_search_filename_filter_updates_palette_and_requests_search() -
             show_hidden=False,
             include_globs=(),
             exclude_globs=(),
+            filename_filter="readme",
         ),
     )
 

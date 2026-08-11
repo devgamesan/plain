@@ -51,6 +51,7 @@ Config Editor で `e` を押すと `config.toml` を開き、高度設定を編�
 | `logging` | `path` | パス文字列 | 任意のログファイル保存先です。空文字なら `config.toml` と同じディレクトリの `zivo.log` を使います。ログファイルの既定の場所: Linux: `~/.config/zivo/zivo.log`、macOS: `~/Library/Application Support/zivo/zivo.log`。 |
 | `bookmarks` | `paths` | 絶対パス文字列の配列 | `b` や Go の `@bookmark` フィルターで表示するブックマーク一覧です。重複パスは読み込み時に取り除かれます。 |
 | `file_search` | `max_results` | 整数または空 | ファイル検索の最大結果件数です。空欄の場合は制限なし（既定値）。大規模リポジトリでのメモリ使用量を削減するために設定します。 |
+| `grep_search` | `max_results` | 整数または空 | 再帰 grep 検索の最大結果件数です。空欄の場合は制限なし（既定値）。設定した場合は上限到達時に検索プロセスを停止します。 |
 | `actions` | `custom` | action table の配列 | コマンドパレットに表示するカスタムアクションです。詳しくは [カスタムアクション](custom-actions.ja.md) を参照してください。 |
 
 ## 設定例
@@ -88,6 +89,10 @@ directories_first = true
 [behavior]
 confirm_delete = true
 paste_conflict_action = "prompt"
+
+[grep_search]
+# 空欄の場合は結果数を制限しません（既定値）。
+# max_results = 1000
 
 [logging]
 enabled = true

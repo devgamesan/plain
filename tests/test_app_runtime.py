@@ -29,10 +29,18 @@ from zivo.app_runtime import (
     start_grep_search_worker,
     sync_runtime_state,
 )
-from zivo.models import AppConfig, ExternalLaunchRequest, UndoDeletePathStep, UndoEntry, UndoResult
+from zivo.models import (
+    AppConfig,
+    ExternalLaunchRequest,
+    GrepSearchConfig,
+    UndoDeletePathStep,
+    UndoEntry,
+    UndoResult,
+)
 from zivo.services import InvalidFileSearchQueryError
 from zivo.state import (
     BrowserSnapshot,
+    CommandPaletteState,
     DirectoryEntryState,
     ForegroundOperationState,
     LoadBrowserSnapshotEffect,
@@ -474,6 +482,48 @@ def test_start_grep_search_worker_ignores_stale_request() -> None:
     assert app._pending_workers == {}
     assert app._active_grep_search_cancel_event is None
     assert app._active_grep_search_request_id is None
+
+
+def test_start_grep_search_worker_passes_scope_filter_and_max_results() -> None:
+    calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
+    app_state = replace(
+        build_initial_app_state(
+            config=AppConfig(grep_search=GrepSearchConfig(max_results=25)),
+        ),
+        pending_grep_search_request_id=7,
+        command_palette=CommandPaletteState(source="grep_search"),
+    )
+    app = _RecordingApp(_app_state=app_state)
+    app._grep_search_service = SimpleNamespace(
+        search=lambda *args, **kwargs: calls.append((args, kwargs)) or (),
+    )
+
+    effect = RunGrepSearchEffect(
+        request_id=7,
+        root_path="/tmp/project",
+        query="TODO",
+        show_hidden=False,
+        target_paths=("/tmp/project/docs",),
+        filename_filter="readme",
+    )
+    start_grep_search_worker(app, effect)
+
+    assert len(app.run_worker_calls) == 1
+    app.run_worker_calls[0]["worker_fn"]()
+    assert calls == [
+        (
+            ("/tmp/project", "TODO"),
+            {
+                "show_hidden": False,
+                "is_cancelled": app._active_grep_search_cancel_event.is_set,
+                "include_globs": (),
+                "exclude_globs": (),
+                "target_paths": ("/tmp/project/docs",),
+                "filename_filter": "readme",
+                "max_results": 25,
+            },
+        )
+    ]
 
 
 def test_schedule_file_search_replaces_existing_timer() -> None:

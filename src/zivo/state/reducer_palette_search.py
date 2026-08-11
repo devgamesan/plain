@@ -301,6 +301,8 @@ def handle_set_grep_search_field(
             show_hidden=state.show_hidden,
             include_globs=include_globs,
             exclude_globs=exclude_globs,
+            target_paths=next_palette.grep_search.target_paths,
+            filename_filter=next_palette.grep_search.filename_filter,
         ),
     )
 

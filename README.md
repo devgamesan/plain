@@ -33,8 +33,8 @@ By default, it keeps a stable, mode-specific set of standard shortcuts visible i
 - **Responsive panes**: 120+ columns show Parent / Current / Contents, 80–119 show Current / Contents, and narrower terminals use `Tab` to switch between the current file list and Details
 - **Explicit pane states**: distinguish empty, filtered, loading, disabled, unsupported, dependency-missing, and permission-denied states; unavailable previews fall back to compact file metadata
 - **Transfer mode**: copy and move files between two directories side by side
-- **Search and grep**: find files, grep recursively, and open files from results
-- **Replace with preview**: choose a scope, review diffs, then apply a batch replacement
+- **Search and grep**: find files, grep recursively, and continue from visible results
+- **Replace with preview**: pass Find/Grep/Workspace results into one flow, review diffs, then apply a batch replacement
 - **Actionable operation notifications**: successful undoable operations offer `Undo`, archive/zip results offer destination navigation, and allowlisted failures offer `Retry` or `Details`
 
 ---
@@ -167,7 +167,7 @@ Long-running Copy, Move, Compress, Extract, and Replace operations show their op
 ### Search and replace
 - **Find files**: recursive filename search
 - **Grep search**: recursive content search via ripgrep with directory, current-file, selected-files, or Search Workspace scopes and common filename / extension filters
-- **Replace**: one scope-aware flow for current file, selected files, directories, found files, and grep result files
+- **Replace**: one scope-aware flow for current file, selected files, directories, and explicitly passed Search results from Find, Grep, or Search Workspace
 
 ### Preview
 

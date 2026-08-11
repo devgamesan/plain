@@ -5,6 +5,7 @@ import os
 from zivo.windows_paths import is_search_workspace_path
 
 from .actions import (
+    BeginReplaceFromSearchResults,
     CancelCommandPalette,
     CycleFileSearchField,
     CycleFindReplaceField,
@@ -243,12 +244,12 @@ def dispatch_command_palette_input(
     if key in ("left", "right") and palette_source == "replace_text":
         if state.command_palette.replace_preview.active_field != "scope":
             return warn("Use left/right arrows on the scope field to change scope")
+        if state.command_palette.replace_preview.scope == "search_results":
+            return warn("Search results scope is fixed to the displayed search results")
         scopes = (
             "current_file",
             "selected_files",
             "current_directory",
-            "found_files",
-            "grep_result_files",
         )
         current = state.command_palette.replace_preview.scope
         next_scope = scopes[(scopes.index(current) + (-1 if key == "left" else 1)) % len(scopes)]
@@ -289,6 +290,9 @@ def dispatch_command_palette_input(
 
     if key == "enter":
         return supported(SubmitCommandPalette())
+
+    if key == "ctrl+r" and palette_source in {"file_search", "grep_search"}:
+        return supported(BeginReplaceFromSearchResults())
 
     if key == "backspace":
         if palette_source == "file_search":
@@ -433,11 +437,11 @@ def dispatch_command_palette_input(
         if state.command_palette is not None and state.command_palette.source == "grep_search":
             return warn(
                 "Use Tab/Shift+Tab, type, arrows, Enter, "
-                "Ctrl+e editor, Ctrl+x save results, or Esc"
+                "Ctrl+r replace, Ctrl+e editor, Ctrl+x save results, or Esc"
             )
         return warn(
             "Use arrows, type to search, Enter, "
-            "Ctrl+e editor, Ctrl+x save results, or Esc"
+            "Ctrl+r replace, Ctrl+e editor, Ctrl+x save results, or Esc"
         )
 
     if palette_source == "replace_text":

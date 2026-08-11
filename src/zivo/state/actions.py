@@ -209,6 +209,7 @@ from .actions_palette import (
     BeginGrepReplace,
     BeginGrepReplaceSelected,
     BeginGrepSearch,
+    BeginReplaceFromSearchResults,
     BeginTextReplace,
     CancelCommandPalette,
     CycleFileSearchField,
@@ -338,6 +339,7 @@ Action = (
     | BeginFindAndReplace
     | BeginGrepReplace
     | BeginGrepReplaceSelected
+    | BeginReplaceFromSearchResults
     | CycleFileSearchField
     | SetFileSearchField
     | SetFileSearchTarget

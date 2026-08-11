@@ -267,7 +267,10 @@
 - [ ] 複数選択時、すべてのパスがコピーされること
 
 #### テキスト置換
-- [ ] 「Replace text」で Current file、Selected files、Current directory、Found files、Grep result files の置換を確認できること
+- [ ] 「Replace text」で Current file、Selected files、Current directory の置換を確認できること
+- [ ] Find / Grep の結果画面の `Replace results`（`Ctrl+r`またはクリック）で Search results 置換へ進めること
+- [ ] Search Workspace の `Replace selected results` で選択中またはフォーカス中の結果を置換できること
+- [ ] Search results の置換画面・確認画面で検索元、クエリ、対象ファイル数、Grep match数を確認できること
 - [ ] 利用できない Scope に理由が表示され、実行前 diff と対象件数を確認できること
 - [ ] 置換プレビューが右ペインに表示されること
 - [ ] Shift+↑/↓ で置換プレビューをスクロールできること

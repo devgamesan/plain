@@ -8,7 +8,11 @@ from textual.events import Click
 from textual.widgets import Static
 
 from zivo.models import CommandPaletteInputFieldViewState, CommandPaletteViewState
-from zivo.state.actions import MoveCommandPaletteCursor, SubmitCommandPalette
+from zivo.state.actions import (
+    BeginReplaceFromSearchResults,
+    MoveCommandPaletteCursor,
+    SubmitCommandPalette,
+)
 from zivo.ui.panes import truncate_middle
 
 
@@ -45,6 +49,10 @@ class CommandPalette(Container):
             return
 
         meta = event.style.meta
+        if meta.get("palette_action") == "replace_results":
+            event.stop()
+            await self.app.dispatch_actions((BeginReplaceFromSearchResults(),))
+            return
         item_index = meta.get("palette_item_index")
         if not isinstance(item_index, int):
             return
@@ -90,7 +98,10 @@ class CommandPalette(Container):
 
         self.set_class(state.has_more_items, "-expanded")
         title_widget.update(state.title)
-        footer_widget.display = bool(state.footer_message)
+        is_search_results = state.title.startswith("Find") or state.title.startswith("Grep")
+        footer_widget.display = bool(state.footer_message) or (
+            is_search_results and bool(state.items)
+        )
         query_width = self._resolve_render_width(query_widget)
         items_width = self._resolve_render_width(items_widget)
         if state.input_fields:
@@ -98,17 +109,23 @@ class CommandPalette(Container):
         else:
             query_widget.update(self._render_query_line(state, query_width))
         items_widget.update(self._render_items(state, items_width))
-        footer_widget.update(
-            Text(
+        footer_text = Text()
+        if is_search_results and state.items:
+            footer_text.append(
+                "Ctrl+r Replace results",
+                style=Style(meta={"palette_action": "replace_results"}),
+            )
+            if state.footer_message:
+                footer_text.append(" · ")
+        if state.footer_message:
+            footer_text.append(
                 truncate_middle(
                     state.footer_message,
                     self._resolve_render_width(footer_widget),
                 ),
                 style="yellow",
             )
-            if state.footer_message
-            else ""
-        )
+        footer_widget.update(footer_text if len(footer_text) else "")
         self.call_after_refresh(self._scroll_selected_item)
 
     def _scroll_selected_item(self) -> None:

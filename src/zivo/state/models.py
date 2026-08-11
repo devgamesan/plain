@@ -54,10 +54,12 @@ CommandPaletteSource = Literal[
     "grep_search",
     "go",
     "replace_text",
+    # Deprecated compatibility sources; new UI enters replace_text directly.
     "replace_in_found_files",
     "replace_in_grep_files",
     "grep_replace_selected",
 ]
+ReplaceResultOrigin = Literal["find", "grep", "workspace"]
 GoSourceFilter = Literal["all", "bookmarks", "recent", "open_tabs", "home"]
 GoCandidateSource = Literal["home", "bookmark", "recent", "open_tab", "direct"]
 GrepSearchScope = Literal["current_directory", "selected_entries", "search_workspace"]
@@ -66,6 +68,8 @@ ReplaceScope = Literal[
     "current_file",
     "selected_files",
     "current_directory",
+    "search_results",
+    # Deprecated compatibility values. They are not exposed by the unified UI.
     "found_files",
     "grep_result_files",
 ]
@@ -313,6 +317,8 @@ class ReplaceConfirmationState:
     replacement_text: str
     target_paths: tuple[str, ...]
     total_match_count: int
+    result_origin: ReplaceResultOrigin | None = None
+    result_query: str = ""
 
 
 @dataclass(frozen=True)
@@ -505,6 +511,9 @@ class GrepSearchResultState:
         return f"{self.display_path}:{self.line_number}: {self.line_text}"
 
 
+SearchResultState = FileSearchResultState | GrepSearchResultState
+
+
 @dataclass(frozen=True)
 class ReplacePreviewResultState:
     """A single text-replace preview result shown in the command palette."""
@@ -592,10 +601,15 @@ class ReplacePreviewPaletteState:
     status_message: str | None = None
     target_paths: tuple[str, ...] = ()
     total_match_count: int = 0
+    result_origin: ReplaceResultOrigin | None = None
+    result_query: str = ""
+    result_file_count: int = 0
+    result_match_count: int = 0
 
 
 @dataclass(frozen=True)
 class RffPaletteState:
+    """Deprecated compatibility state; new flows use replace_preview."""
     filename_query: str = ""
     active_field: FindReplaceFieldId = "filename"
     find_text: str = ""
@@ -610,6 +624,7 @@ class RffPaletteState:
 
 @dataclass(frozen=True)
 class GrsPaletteState:
+    """Deprecated compatibility state; new flows use replace_preview."""
     keyword: str = ""
     active_field: GrepReplaceSelectedFieldId = "keyword"
     grep_results: tuple[GrepSearchResultState, ...] = ()
@@ -624,6 +639,7 @@ class GrsPaletteState:
 
 @dataclass(frozen=True)
 class GrfPaletteState:
+    """Deprecated compatibility state; new flows use replace_preview."""
     keyword: str = ""
     include_extensions: str = ""
     exclude_extensions: str = ""

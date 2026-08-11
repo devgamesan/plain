@@ -41,6 +41,7 @@ from zivo.state.actions import (
     BeginGo,
     BeginGrepSearch,
     BeginRenameInput,
+    BeginReplaceFromSearchResults,
     CancelCommandPalette,
     CancelDeleteConfirmation,
     CancelFilterInput,

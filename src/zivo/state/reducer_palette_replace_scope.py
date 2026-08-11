@@ -42,6 +42,10 @@ def _current_file_path(state: AppState) -> str | None:
 
 
 def replace_scope_target_paths(state: AppState, scope: ReplaceScope) -> tuple[str, ...]:
+    if scope == "search_results":
+        if state.command_palette is None:
+            return ()
+        return state.command_palette.replace_preview.target_paths
     if scope == "current_file":
         return (_current_file_path(state),) if _current_file_path(state) else ()
     if scope == "selected_files":
@@ -50,6 +54,14 @@ def replace_scope_target_paths(state: AppState, scope: ReplaceScope) -> tuple[st
 
 
 def replace_scope_available(state: AppState, scope: ReplaceScope) -> bool:
+    if scope == "search_results":
+        palette = state.command_palette
+        return bool(
+            palette is not None
+            and palette.source == "replace_text"
+            and palette.replace_preview.result_origin is not None
+            and palette.replace_preview.target_paths
+        )
     if scope == "current_file":
         return _current_file_path(state) is not None
     if scope == "selected_files":
@@ -58,6 +70,8 @@ def replace_scope_available(state: AppState, scope: ReplaceScope) -> bool:
 
 
 def replace_scope_message(state: AppState, scope: ReplaceScope) -> str | None:
+    if scope == "search_results":
+        return "Search results scope is available only after opening Replace from results"
     if scope == "current_file" and _current_file_path(state) is None:
         return "Current file requires a file to be focused"
     if scope == "selected_files" and not _selected_file_paths(state):
@@ -80,9 +94,11 @@ def replace_scope_root_path(state: AppState) -> str:
 
 
 def replace_scope_fields(scope: ReplaceScope) -> tuple[str, ...]:
-    if scope == "found_files":
-        return ("scope", "filename", "find", "replace")
-    if scope in {"current_directory", "grep_result_files"}:
+    if scope == "search_results":
+        return ("scope", "find", "replace")
+    if scope in {"current_directory", "found_files", "grep_result_files"}:
+        if scope == "found_files":
+            return ("scope", "filename", "find", "replace")
         return ("scope", "find", "replace", "filename", "include", "exclude")
     return ("scope", "find", "replace")
 
@@ -98,6 +114,12 @@ def handle_set_replace_scope(state: AppState, action: SetReplaceScope) -> Reduce
         )
     palette = state.command_palette.replace_preview
     scope = action.scope
+    if palette.scope == "search_results" and scope != "search_results":
+        return notify(
+            state,
+            level="warning",
+            message="Search results scope is fixed to the displayed search results",
+        )
     next_palette = replace(
         palette,
         scope=scope,
@@ -190,7 +212,7 @@ def _refresh(state: AppState) -> ReduceResult:
     palette = state.command_palette.replace_preview
     if not palette.find_text.strip():
         return _clear_preview(state)
-    if palette.scope in {"current_file", "selected_files"}:
+    if palette.scope in {"current_file", "selected_files", "search_results"}:
         return _request_preview(state, palette.target_paths)
     if palette.scope == "found_files":
         if not palette.filename_filter.strip():

@@ -569,6 +569,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             has_more_items=(
                 len(state.command_palette.replace_preview.preview_results) > len(visible_results)
             ),
+            footer_message=_replace_result_context_message(state),
         )
     if state.command_palette.source == "replace_in_found_files":
         visible_results, title = _select_find_replace_preview_window(
@@ -815,6 +816,11 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
             f"Replace '{confirmation.find_text}' with '{confirmation.replacement_text}' "
             f"in {file_count} file(s) ({match_count} match(es))?"
         )
+        if confirmation.result_origin is not None:
+            origin_labels = {"find": "Find", "grep": "Grep", "workspace": "Search Workspace"}
+            origin = origin_labels[confirmation.result_origin]
+            query = f' "{confirmation.result_query}"' if confirmation.result_query else ""
+            message = f"{origin}{query}: {message}"
         title = "Replace Text Confirmation"
         return ConflictDialogState(
             title=title,
@@ -1080,6 +1086,25 @@ def _replace_text_empty_message(state: AppState) -> str:
     if state.command_palette.replace_preview.total_match_count > 0:
         return "Preview shown in right pane. Press Enter to apply."
     return "No matching files"
+
+
+def _replace_result_context_message(state: AppState) -> str | None:
+    if state.command_palette is None or state.command_palette.source != "replace_text":
+        return None
+    preview = state.command_palette.replace_preview
+    if preview.result_origin is None:
+        return None
+    origin_labels = {"find": "Find", "grep": "Grep", "workspace": "Search Workspace"}
+    origin = origin_labels[preview.result_origin]
+    query = f' "{preview.result_query}"' if preview.result_query else ""
+    file_count = preview.result_file_count or len(preview.target_paths)
+    match_count = preview.result_match_count
+    if match_count:
+        return (
+            f"{origin}{query} · {file_count} file(s) / "
+            f"{match_count} match(es) · preview before apply"
+        )
+    return f"{origin}{query} · {file_count} file(s) · preview before apply"
 
 
 def _find_replace_empty_message(state: AppState) -> str:

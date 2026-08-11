@@ -160,6 +160,8 @@ Browser tab operations are reachable from the transfer-mode command palette (`:`
 | --- | ------ |
 | Text input / `↑` / `↓` / `Ctrl+j` / `Ctrl+k` / `k` / `j` / `Enter` / `Esc` | Filter, select, run, or cancel commands. In `Find files` and `Grep search`, `j` / `k` are treated as text input and result navigation uses `↑` / `↓` or `Ctrl+j` / `Ctrl+k`. |
 
+While Find files or Grep search results are displayed, `Ctrl+r` (or the clickable `Replace results` footer) passes the displayed file results into the unified replacement preview.
+
 When the `Replace text` preview is open in the right pane, `Shift+↑` / `Shift+↓` scroll that preview.
 
 ---

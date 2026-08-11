@@ -10,6 +10,7 @@ from zivo.models import (
     CustomActionExpansionError,
     expand_custom_action,
 )
+from zivo.windows_paths import is_search_workspace_path, parse_search_workspace_path
 
 from .actions import (
     ActivateNextTab,
@@ -82,6 +83,7 @@ from .reducer_palette_shared import (
 )
 from .reducer_transfer import request_transfer_pane_snapshot
 from .selectors import (
+    select_target_file_paths,
     select_target_paths,
     select_transfer_target_paths,
     select_visible_current_entry_states,
@@ -194,7 +196,21 @@ def _run_replace_text_command(
     next_state: AppState,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
-    del state
+    if is_search_workspace_path(state.current_path):
+        target_paths = select_target_file_paths(state)
+        if not target_paths:
+            return notify(next_state, level="warning", message="Select a file result to replace")
+        params = parse_search_workspace_path(state.current_path)
+        query = str(params.get("query") or "")
+        return reduce_state(
+            next_state,
+            BeginTextReplace(
+                target_paths=target_paths,
+                result_origin="workspace",
+                result_query=query,
+                result_file_count=len(target_paths),
+            ),
+        )
     return reduce_state(next_state, BeginTextReplace())
 
 

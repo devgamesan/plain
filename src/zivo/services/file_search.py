@@ -80,7 +80,16 @@ def parse_file_search_query(query: str) -> ParsedFileSearchQuery:
 
 
 def _is_walkable_directory(path: Path) -> bool:
-    """Return whether a path should be traversed, skipping unreadable entries."""
+    """Return whether a real directory should be traversed."""
+
+    try:
+        return path.is_dir() and not path.is_symlink()
+    except OSError:
+        return False
+
+
+def _is_directory(path: Path) -> bool:
+    """Return whether a path is a directory, following symlinks for classification."""
 
     try:
         return path.is_dir()
@@ -125,8 +134,8 @@ class LiveFileSearchService:
                         return ()
                     if not show_hidden and child.name.startswith("."):
                         continue
-                    is_dir = _is_walkable_directory(child)
-                    if is_dir:
+                    is_dir = _is_directory(child)
+                    if _is_walkable_directory(child):
                         stack.append(child)
                     if search_target == "directories" and not is_dir:
                         continue

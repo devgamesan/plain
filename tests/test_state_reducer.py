@@ -95,6 +95,8 @@ from zivo.state.actions import (
     ToggleNarrowPaneView,
     ToggleSelection,
 )
+from zivo.state.models import DIRECTORY_HISTORY_LIMIT
+from zivo.state.reducer_requests import build_history_after_snapshot_load
 from zivo.windows_paths import WINDOWS_DRIVES_ROOT
 
 
@@ -2417,6 +2419,67 @@ def test_browser_snapshot_loaded_does_not_record_history_on_reload() -> None:
     assert next_state.history.back == ()
     assert next_state.history.forward == ()
 
+
+def test_directory_history_is_bounded_when_navigating_to_a_new_path() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/current",
+        history=HistoryState(
+            back=tuple(f"/back/{index}" for index in range(DIRECTORY_HISTORY_LIMIT)),
+            forward=tuple(
+                f"/forward/{index}" for index in range(DIRECTORY_HISTORY_LIMIT)
+            ),
+            visited_all=tuple(
+                f"/visited/{index}" for index in range(DIRECTORY_HISTORY_LIMIT)
+            ),
+        ),
+    )
+
+    next_history = build_history_after_snapshot_load(state, "/new")
+
+    assert len(next_history.back) == DIRECTORY_HISTORY_LIMIT
+    assert next_history.back == (
+        *(f"/back/{index}" for index in range(1, DIRECTORY_HISTORY_LIMIT)),
+        "/current",
+    )
+    assert next_history.forward == ()
+    assert len(next_history.visited_all) == DIRECTORY_HISTORY_LIMIT
+    assert next_history.visited_all[-2:] == ("/current", "/new")
+
+
+def test_back_and_forward_stacks_are_trimmed_when_history_is_already_oversized() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/current",
+        history=HistoryState(
+            back=tuple(f"/back/{index}" for index in range(120)),
+            forward=tuple(f"/forward/{index}" for index in range(120)),
+        ),
+    )
+
+    next_history = build_history_after_snapshot_load(state, "/forward/0")
+
+    assert len(next_history.back) == DIRECTORY_HISTORY_LIMIT
+    assert next_history.back == (
+        *(f"/back/{index}" for index in range(21, 120)),
+        "/current",
+    )
+    assert next_history.forward == tuple(
+        f"/forward/{index}" for index in range(1, DIRECTORY_HISTORY_LIMIT + 1)
+    )
+
+
+def test_revisiting_a_directory_moves_it_to_the_newest_history_position() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/current",
+        history=HistoryState(visited_all=("/old", "/current", "/other")),
+    )
+
+    next_history = build_history_after_snapshot_load(state, "/old")
+
+    assert next_history.visited_all == ("/other", "/current", "/old")
+
 def test_go_back_then_snapshot_loaded_updates_history_correctly() -> None:
     initial_path = "/home/tadashi"
     second_path = "/home/tadashi/develop"
@@ -2530,9 +2593,9 @@ def test_all_visited_directories_enumerable() -> None:
     assert next_state.command_palette is not None
     assert next_state.command_palette.source == "history"
     assert next_state.command_palette.history_and_navigation.history_results == (
-        initial_path,
-        "/tmp/first",
         "/tmp/second",
+        "/tmp/first",
+        initial_path,
     )
 
 def test_history_search_deduplicates_duplicates() -> None:
@@ -2592,9 +2655,9 @@ def test_history_search_deduplicates_duplicates() -> None:
     assert next_state.command_palette is not None
     assert next_state.command_palette.source == "history"
     assert next_state.command_palette.history_and_navigation.history_results == (
+        "/tmp/second",
         initial_path,
         "/tmp/first",
-        "/tmp/second",
     )
 
 def test_browser_snapshot_loaded_clears_filter_when_directory_changes() -> None:

@@ -351,10 +351,10 @@ def test_begin_history_search_enters_history_mode() -> None:
     assert next_state.command_palette is not None
     assert next_state.command_palette.source == "history"
     assert next_state.command_palette.history_and_navigation.history_results == (
-        "/home/tadashi/develop/zivo",
-        "/tmp/a",
-        "/tmp/b",
         "/tmp/c",
+        "/tmp/b",
+        "/tmp/a",
+        "/home/tadashi/develop/zivo",
     )
 
 def test_begin_history_search_with_empty_history() -> None:
@@ -364,6 +364,32 @@ def test_begin_history_search_with_empty_history() -> None:
     assert next_state.command_palette is not None
     assert next_state.command_palette.source == "history"
     assert next_state.command_palette.history_and_navigation.history_results == ()
+
+
+def test_begin_history_search_in_transfer_mode_uses_recent_order() -> None:
+    state = replace(
+        build_initial_app_state(),
+        layout_mode="transfer",
+        active_transfer_pane="left",
+        transfer_left=TransferPaneState(
+            pane=PaneState(directory_path="/tmp/a", entries=(), cursor_path="/tmp/a"),
+            current_path="/tmp/a",
+            history=HistoryState(visited_all=("/tmp/a", "/tmp/b", "/tmp/c")),
+        ),
+        transfer_right=TransferPaneState(
+            pane=PaneState(directory_path="/tmp/right", entries=(), cursor_path="/tmp/right"),
+            current_path="/tmp/right",
+        ),
+    )
+
+    next_state = _reduce_state(state, BeginHistorySearch())
+
+    assert next_state.command_palette is not None
+    assert next_state.command_palette.history_and_navigation.history_results == (
+        "/tmp/c",
+        "/tmp/b",
+        "/tmp/a",
+    )
 
 def test_begin_bookmark_search_enters_bookmarks_filtered_go_mode() -> None:
     next_state = _reduce_state(build_initial_app_state(), BeginBookmarkSearch())

@@ -45,6 +45,7 @@ from .effects import (
     RunZipCompressPreparationEffect,
 )
 from .models import (
+    DIRECTORY_HISTORY_LIMIT,
     ForegroundOperationState,
     HistoryState,
     NotificationAction,
@@ -750,44 +751,57 @@ def build_history_after_snapshot_load(
     next_path: str,
 ) -> HistoryState:
     previous_path = state.current_path
-    new_history = state.history
+    history = state.history
 
-    if not state.history.back and not state.history.forward:
-        if next_path != previous_path:
-            new_history = HistoryState(
-                back=(previous_path,),
-                forward=(),
-                visited_all=(previous_path, next_path),
-            )
-        return new_history
-
-    if next_path != previous_path:
-        history = state.history
-        if history.forward and next_path == history.forward[0]:
-            new_history = HistoryState(
-                back=(*history.back, previous_path),
-                forward=history.forward[1:],
-                visited_all=history.visited_all,
-            )
-        elif history.back and next_path == history.back[-1]:
-            new_history = HistoryState(
-                back=history.back[:-1],
-                forward=(previous_path, *history.forward),
-                visited_all=history.visited_all,
-            )
-        else:
-            visited_all = history.visited_all
-            if not visited_all or visited_all[-1] != next_path:
-                visited_all = (*visited_all, next_path)
-            new_history = HistoryState(
-                back=(*history.back, previous_path),
-                forward=(),
-                visited_all=visited_all,
-            )
-    else:
-        new_history = HistoryState(
-            back=state.history.back,
-            forward=state.history.forward,
-            visited_all=state.history.visited_all,
+    if next_path == previous_path:
+        return HistoryState(
+            back=history.back[-DIRECTORY_HISTORY_LIMIT:],
+            forward=history.forward[:DIRECTORY_HISTORY_LIMIT],
+            visited_all=_normalize_visited_history(history.visited_all),
         )
-    return new_history
+
+    visited_all = _record_visited_path(
+        _record_visited_path(history.visited_all, previous_path),
+        next_path,
+    )
+
+    if not history.back and not history.forward:
+        return HistoryState(
+            back=(previous_path,),
+            forward=(),
+            visited_all=visited_all,
+        )
+
+    if history.forward and next_path == history.forward[0]:
+        return HistoryState(
+            back=(*history.back, previous_path)[-DIRECTORY_HISTORY_LIMIT:],
+            forward=history.forward[1:][:DIRECTORY_HISTORY_LIMIT],
+            visited_all=visited_all,
+        )
+    if history.back and next_path == history.back[-1]:
+        return HistoryState(
+            back=history.back[:-1][-DIRECTORY_HISTORY_LIMIT:],
+            forward=(previous_path, *history.forward)[:DIRECTORY_HISTORY_LIMIT],
+            visited_all=visited_all,
+        )
+    return HistoryState(
+        back=(*history.back, previous_path)[-DIRECTORY_HISTORY_LIMIT:],
+        forward=(),
+        visited_all=visited_all,
+    )
+
+
+def _record_visited_path(paths: tuple[str, ...], path: str) -> tuple[str, ...]:
+    """Move a visited path to the newest position within the bounded history."""
+
+    without_path = tuple(existing for existing in paths if existing != path)
+    return (*without_path, path)[-DIRECTORY_HISTORY_LIMIT:]
+
+
+def _normalize_visited_history(paths: tuple[str, ...]) -> tuple[str, ...]:
+    """Normalize legacy or test-created history values to the current invariant."""
+
+    normalized: tuple[str, ...] = ()
+    for path in paths:
+        normalized = _record_visited_path(normalized, path)
+    return normalized

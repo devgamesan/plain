@@ -23,3 +23,4 @@ class ExternalLaunchRequest:
     line_number: int | None = None
     column_number: int | None = None
     terminal_launch_mode: TerminalLaunchMode | None = None
+    reload_config_after_exit: bool = False

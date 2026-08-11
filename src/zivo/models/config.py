@@ -144,3 +144,4 @@ class ConfigLoadResult:
     path: str = ""
     warnings: tuple[str, ...] = ()
     created: bool = False
+    fatal: bool = False

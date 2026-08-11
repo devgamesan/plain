@@ -265,6 +265,8 @@ from .actions_runtime import (
     ClipboardPasteCompleted,
     ClipboardPasteFailed,
     ClipboardPasteNeedsResolution,
+    ConfigReloadCompleted,
+    ConfigReloadFailed,
     ConfigSaveCompleted,
     ConfigSaveFailed,
     CurrentPaneSnapshotLoaded,
@@ -529,6 +531,8 @@ Action = (
     | ShellCommandFailed
     | ConfigSaveCompleted
     | ConfigSaveFailed
+    | ConfigReloadCompleted
+    | ConfigReloadFailed
     | CustomActionCompleted
     | CustomActionFailed
 )

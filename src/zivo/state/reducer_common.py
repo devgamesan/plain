@@ -6,9 +6,6 @@ from .entry_state_helpers import current_entry_for_path, single_target_entry
 from .reducer_config import (
     CONFIG_EDITOR_CATEGORIES,
     CONFIG_EDITOR_COMMANDS,
-    CONFIG_LOG_LEVELS,
-    CONFIG_PASTE_ACTIONS,
-    CONFIG_PREVIEW_MAX_KIB,
     CONFIG_PREVIEW_SYNTAX_THEMES,
     CONFIG_SORT_FIELDS,
     CONFIG_THEMES,
@@ -90,9 +87,6 @@ _is_macos = _platform_module.system() == "Darwin"
 __all__ = [
     "CONFIG_EDITOR_CATEGORIES",
     "CONFIG_EDITOR_COMMANDS",
-    "CONFIG_LOG_LEVELS",
-    "CONFIG_PASTE_ACTIONS",
-    "CONFIG_PREVIEW_MAX_KIB",
     "CONFIG_PREVIEW_SYNTAX_THEMES",
     "CONFIG_SORT_FIELDS",
     "CONFIG_THEMES",

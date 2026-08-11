@@ -6,6 +6,7 @@ from typing import Any
 from zivo.app_runtime_core import CompleteActionHandler, FailureActionHandler, find_handler
 from zivo.models import (
     BulkRenameExecutionResult,
+    ConfigLoadResult,
     CreateZipArchivePreparationResult,
     CreateZipArchiveResult,
     CustomActionResult,
@@ -38,6 +39,7 @@ from zivo.state import (
     RunAttributeInspectionEffect,
     RunBulkRenameEffect,
     RunClipboardPasteEffect,
+    RunConfigReloadEffect,
     RunConfigSaveEffect,
     RunCustomActionEffect,
     RunDeletePreparationEffect,
@@ -71,6 +73,8 @@ from zivo.state.actions import (
     ClipboardPasteCompleted,
     ClipboardPasteFailed,
     ClipboardPasteNeedsResolution,
+    ConfigReloadCompleted,
+    ConfigReloadFailed,
     ConfigSaveCompleted,
     ConfigSaveFailed,
     CurrentPaneSnapshotLoaded,
@@ -331,6 +335,18 @@ def complete_config_save(effect: RunConfigSaveEffect, result: object) -> tuple[A
     )
 
 
+def complete_config_reload(
+    effect: RunConfigReloadEffect,
+    result: ConfigLoadResult,
+) -> tuple[Any, ...]:
+    return (
+        ConfigReloadCompleted(
+            request_id=effect.request_id,
+            result=result,
+        ),
+    )
+
+
 def complete_directory_sizes(
     effect: RunDirectorySizeEffect,
     result: object,
@@ -478,6 +494,7 @@ failed_archive_extract = make_failed_handler(ArchiveExtractFailed)
 failed_zip_compress_preparation = make_failed_handler(ZipCompressPreparationFailed)
 failed_zip_compress = make_failed_handler(ZipCompressFailed)
 failed_config_save = make_failed_handler(ConfigSaveFailed)
+failed_config_reload = make_failed_handler(ConfigReloadFailed)
 failed_directory_sizes = make_failed_handler(
     DirectorySizesFailed,
     extra_field_builders={"paths": lambda e, _err, _msg: e.paths},
@@ -548,6 +565,7 @@ COMPLETE_ACTION_HANDLERS: tuple[tuple[type[Any], CompleteActionHandler], ...] = 
     (LoadParentChildEffect, complete_parent_child_snapshot),
     (LoadTransferPaneEffect, complete_transfer_pane_snapshot),
     (RunConfigSaveEffect, complete_config_save),
+    (RunConfigReloadEffect, complete_config_reload),
     (RunDirectorySizeEffect, complete_directory_sizes),
     (RunAttributeInspectionEffect, complete_attribute_inspection),
     (RunExternalLaunchEffect, complete_external_launch),
@@ -578,6 +596,7 @@ FAILED_ACTION_HANDLERS: tuple[tuple[type[Any], FailureActionHandler], ...] = (
     (RunFileMutationEffect, failed_file_mutation),
     (RunDeletePreparationEffect, failed_delete_preparation),
     (RunConfigSaveEffect, failed_config_save),
+    (RunConfigReloadEffect, failed_config_reload),
     (RunDirectorySizeEffect, failed_directory_sizes),
     (RunAttributeInspectionEffect, failed_attribute_inspection),
     (RunExternalLaunchEffect, failed_external_launch),

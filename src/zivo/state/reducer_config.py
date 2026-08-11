@@ -3,6 +3,7 @@
 from dataclasses import replace
 
 from zivo.models import AppConfig, GuiEditorConfig
+from zivo.models.config_editor import CONFIG_EDITOR_FIELDS
 from zivo.theme_support import SUPPORTED_APP_THEMES, SUPPORTED_PREVIEW_SYNTAX_THEMES
 
 from .models import SortState
@@ -10,12 +11,7 @@ from .models import SortState
 CONFIG_SORT_FIELDS = ("name", "modified", "size")
 CONFIG_THEMES = SUPPORTED_APP_THEMES
 CONFIG_PREVIEW_SYNTAX_THEMES = SUPPORTED_PREVIEW_SYNTAX_THEMES
-CONFIG_PREVIEW_MAX_KIB = (64, 128, 256, 512, 1024)
-CONFIG_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
-CONFIG_IMAGE_PREVIEW_MODES = ("auto", "kitty", "chafa")
-CONFIG_PASTE_ACTIONS = ("prompt", "overwrite", "skip", "rename")
 CONFIG_EDITOR_COMMANDS = (None, "nvim", "vim", "nano", "hx", "micro", "emacs -nw", "edit")
-CONFIG_FILE_SEARCH_MAX_RESULTS = (None, 100, 500, 1000, 5000, 10000)
 CONFIG_GUI_EDITOR_PRESETS: tuple[tuple[str, GuiEditorConfig], ...] = (
     (
         "VS Code",
@@ -107,14 +103,6 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
                 show_hidden_files=not config.display.show_hidden_files,
             ),
         )
-    if field_id == "display.show_directory_sizes":
-        return replace(
-            config,
-            display=replace(
-                config.display,
-                show_directory_sizes=not config.display.show_directory_sizes,
-            ),
-        )
     if field_id == "display.enable_text_preview":
         return replace(
             config,
@@ -131,18 +119,6 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
                 enable_image_preview=not config.display.enable_image_preview,
             ),
         )
-    if field_id == "display.image_preview_mode":
-        return replace(
-            config,
-            display=replace(
-                config.display,
-                image_preview_mode=cycle_choice(
-                    CONFIG_IMAGE_PREVIEW_MODES,
-                    config.display.image_preview_mode,
-                    delta,
-                ),
-            ),
-        )
     if field_id == "display.enable_pdf_preview":
         return replace(
             config,
@@ -157,14 +133,6 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
             display=replace(
                 config.display,
                 enable_office_preview=not config.display.enable_office_preview,
-            ),
-        )
-    if field_id == "display.show_help_bar":
-        return replace(
-            config,
-            display=replace(
-                config.display,
-                show_help_bar=not config.display.show_help_bar,
             ),
         )
     if field_id == "display.theme":
@@ -187,18 +155,6 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
                 preview_syntax_theme=cycle_choice(
                     CONFIG_PREVIEW_SYNTAX_THEMES,
                     config.display.preview_syntax_theme,
-                    delta,
-                ),
-            ),
-        )
-    if field_id == "display.preview_max_kib":
-        return replace(
-            config,
-            display=replace(
-                config.display,
-                preview_max_kib=cycle_choice(
-                    CONFIG_PREVIEW_MAX_KIB,
-                    config.display.preview_max_kib,
                     delta,
                 ),
             ),
@@ -231,24 +187,6 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
                 directories_first=not config.display.directories_first,
             ),
         )
-    if field_id == "display.grep_preview_context_lines":
-        return replace(
-            config,
-            display=replace(
-                config.display,
-                grep_preview_context_lines=max(
-                    0, config.display.grep_preview_context_lines + delta
-                ),
-            ),
-        )
-    if field_id == "display.preview_word_wrap":
-        return replace(
-            config,
-            display=replace(
-                config.display,
-                preview_word_wrap=not config.display.preview_word_wrap,
-            ),
-        )
     if field_id == "behavior.confirm_delete":
         return replace(
             config,
@@ -257,52 +195,7 @@ def cycle_config_editor_value(config: AppConfig, cursor_index: int, delta: int) 
                 confirm_delete=not config.behavior.confirm_delete,
             ),
         )
-    if field_id == "behavior.confirm_exit":
-        return replace(
-            config,
-            behavior=replace(
-                config.behavior,
-                confirm_exit=not config.behavior.confirm_exit,
-            ),
-        )
-    if field_id == "logging.level":
-        return replace(
-            config,
-            logging=replace(
-                config.logging,
-                level=cycle_choice(
-                    CONFIG_LOG_LEVELS,
-                    config.logging.level,
-                    delta,
-                ),
-            ),
-        )
-    if field_id == "file_search.max_results":
-        current = config.file_search.max_results
-        if current not in CONFIG_FILE_SEARCH_MAX_RESULTS:
-            current = None
-        current_index = CONFIG_FILE_SEARCH_MAX_RESULTS.index(current)
-        new_max_results = CONFIG_FILE_SEARCH_MAX_RESULTS[
-            (current_index + delta) % len(CONFIG_FILE_SEARCH_MAX_RESULTS)
-        ]
-        return replace(
-            config,
-            file_search=replace(
-                config.file_search,
-                max_results=new_max_results,
-            ),
-        )
-    return replace(
-        config,
-        behavior=replace(
-            config.behavior,
-            paste_conflict_action=cycle_choice(
-                CONFIG_PASTE_ACTIONS,
-                config.behavior.paste_conflict_action,
-                delta,
-            ),
-        ),
-    )
+    return config
 
 
 def cycle_choice(options: tuple[str, ...], current: str, delta: int) -> str:
@@ -328,59 +221,11 @@ def cycle_gui_editor_preset(current: GuiEditorConfig, delta: int) -> GuiEditorCo
 
 
 def config_editor_field_ids() -> tuple[str, ...]:
-    return (
-        "editor.command",
-        "gui_editor.preset",
-        "display.show_hidden_files",
-        "display.theme",
-        "display.show_directory_sizes",
-        "display.enable_text_preview",
-        "display.enable_image_preview",
-        "display.image_preview_mode",
-        "display.enable_pdf_preview",
-        "display.enable_office_preview",
-        "display.preview_syntax_theme",
-        "display.preview_max_kib",
-        "display.show_help_bar",
-        "display.default_sort_field",
-        "display.default_sort_descending",
-        "display.directories_first",
-        "display.grep_preview_context_lines",
-        "behavior.confirm_delete",
-        "behavior.confirm_exit",
-        "behavior.paste_conflict_action",
-        "logging.level",
-        "file_search.max_results",
-        "display.preview_word_wrap",
-    )
+    return tuple(field.field_id for field in CONFIG_EDITOR_FIELDS)
 
 
 def config_editor_labels() -> tuple[str, ...]:
-    return (
-        "Editor command",
-        "GUI editor",
-        "Show hidden files",
-        "Theme",
-        "Show directory sizes",
-        "Text preview",
-        "Image preview",
-        "Image preview mode",
-        "PDF preview",
-        "Office preview",
-        "Preview syntax theme",
-        "Preview max KiB",
-        "Show help bar",
-        "Default sort field",
-        "Default sort descending",
-        "Directories first",
-        "Grep preview context lines",
-        "Confirm delete",
-        "Confirm exit",
-        "Paste conflict action",
-        "Log level",
-        "File search max results",
-        "Preview word wrap",
-    )
+    return tuple(field.label for field in CONFIG_EDITOR_FIELDS)
 
 
 def config_editor_field_description(field_index: int, config: AppConfig) -> tuple[str, ...]:
@@ -428,12 +273,6 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
             "Changing this here previews the theme immediately before saving.",
             f"Current behavior: `{config.display.theme}`.",
         )
-    if field_id == "display.show_directory_sizes":
-        return (
-            "Controls whether directory rows try to show aggregated directory size labels.",
-            "Current behavior: directory size labels are "
-            f"{'shown' if config.display.show_directory_sizes else 'hidden'} when available.",
-        )
     if field_id == "display.enable_text_preview":
         return (
             "Controls text-file preview in the right pane and grep context preview windows.",
@@ -445,15 +284,6 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
             "Controls image-file preview in the right pane using `chafa` output.",
             "Current behavior: image preview is "
             f"{'enabled' if config.display.enable_image_preview else 'disabled'} on startup.",
-        )
-    if field_id == "display.image_preview_mode":
-        mode = config.display.image_preview_mode
-        return (
-            "Sets the image rendering engine.",
-            "auto probes the terminal for Kitty graphics protocol support.",
-            "kitty uses chafa with the Kitty graphics protocol (requires Kitty terminal).",
-            "chafa uses chafa with Unicode symbols (works everywhere).",
-            f"Current behavior: `{mode}`.",
         )
     if field_id == "display.enable_pdf_preview":
         return (
@@ -474,18 +304,6 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
             "Controls syntax highlighting inside the preview pane.",
             "auto follows the brightness of the selected app theme.",
             f"Current behavior: `{config.display.preview_syntax_theme}`.",
-        )
-    if field_id == "display.preview_max_kib":
-        return (
-            "Limits how much text zivo reads into the preview pane for a single file.",
-            "Higher values show more content but can make previews heavier.",
-            f"Current behavior: {config.display.preview_max_kib} KiB.",
-        )
-    if field_id == "display.show_help_bar":
-        return (
-            "Controls whether the help bar is visible at the bottom of the UI.",
-            "Current behavior: help bar is "
-            f"{'shown' if config.display.show_help_bar else 'hidden'} on startup.",
         )
     if field_id == "display.default_sort_field":
         return (
@@ -510,62 +328,25 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
             "Controls whether directories stay grouped before files in sorted lists.",
             f"Current behavior: directories are {current_behavior}",
         )
-    if field_id == "display.grep_preview_context_lines":
-        return (
-            "Sets how many surrounding lines grep search previews include around each match.",
-            "Increase this to show more context in grep preview results.",
-            f"Current behavior: {config.display.grep_preview_context_lines} context lines.",
-        )
-    if field_id == "display.preview_word_wrap":
-        return (
-            "Controls whether long lines in the preview pane wrap to fit the available width.",
-            "Current behavior: word wrap is "
-            f"{'enabled' if config.display.preview_word_wrap else 'disabled'} on startup.",
-        )
     if field_id == "behavior.confirm_delete":
         return (
             "Controls whether delete and move-to-trash actions ask for confirmation first.",
             "Current behavior: confirmations are "
             f"{'enabled' if config.behavior.confirm_delete else 'disabled'} by default.",
         )
-    if field_id == "behavior.confirm_exit":
-        return (
-            "Controls whether exit actions ask for confirmation first.",
-            "Current behavior: confirmations are "
-            f"{'enabled' if config.behavior.confirm_exit else 'disabled'} by default.",
-        )
-    if field_id == "behavior.paste_conflict_action":
-        return (
-            "Sets the default behavior when a paste target already exists.",
-            "prompt asks every time; overwrite, skip, and rename apply immediately.",
-            f"Current behavior: `{config.behavior.paste_conflict_action}`.",
-        )
-    if field_id == "logging.level":
-        return (
-            "Controls the minimum severity written to zivo's log file.",
-            "This affects runtime diagnostics, not the status bar text in the UI.",
-            f"Current behavior: `{config.logging.level}` and above are logged.",
-        )
-    if field_id == "file_search.max_results":
-        current = (
-            "unlimited"
-            if config.file_search.max_results is None
-            else str(config.file_search.max_results)
-        )
-        return (
-            "Limits how many matches recursive file search can return in the command palette.",
-            "Lower limits keep large searches responsive; unlimited returns every match found.",
-            f"Current behavior: {current}.",
-        )
     return ()
 
 
-CONFIG_EDITOR_CATEGORIES: tuple[tuple[str, tuple[int, ...]], ...] = (
-    ("Editors", (0, 1)),
-    ("Appearance", (3, 2, 10)),
-    ("Preview", (5, 6, 8, 9)),
-    ("Sorting", (13, 14, 15)),
-    ("Safety", (18,)),
+CONFIG_EDITOR_CATEGORIES: tuple[tuple[str, tuple[int, ...]], ...] = tuple(
+    (
+        category,
+        tuple(
+            index
+            for index, field in enumerate(CONFIG_EDITOR_FIELDS)
+            if field.category == category
+        ),
+    )
+    for category in dict.fromkeys(field.category for field in CONFIG_EDITOR_FIELDS)
 )
 
 
@@ -618,46 +399,24 @@ def format_config_field_value(field_index: int, config: AppConfig) -> str:
         return _format_bool(config.display.show_hidden_files)
     if field_id == "display.theme":
         return config.display.theme
-    if field_id == "display.show_directory_sizes":
-        return _format_bool(config.display.show_directory_sizes)
     if field_id == "display.enable_text_preview":
         return _format_bool(config.display.enable_text_preview)
     if field_id == "display.enable_image_preview":
         return _format_bool(config.display.enable_image_preview)
-    if field_id == "display.image_preview_mode":
-        return config.display.image_preview_mode
     if field_id == "display.enable_pdf_preview":
         return _format_bool(config.display.enable_pdf_preview)
     if field_id == "display.enable_office_preview":
         return _format_bool(config.display.enable_office_preview)
     if field_id == "display.preview_syntax_theme":
         return config.display.preview_syntax_theme
-    if field_id == "display.preview_max_kib":
-        return f"{config.display.preview_max_kib} KiB"
-    if field_id == "display.show_help_bar":
-        return _format_bool(config.display.show_help_bar)
     if field_id == "display.default_sort_field":
         return config.display.default_sort_field
     if field_id == "display.default_sort_descending":
         return _format_bool(config.display.default_sort_descending)
     if field_id == "display.directories_first":
         return _format_bool(config.display.directories_first)
-    if field_id == "display.grep_preview_context_lines":
-        return str(config.display.grep_preview_context_lines)
-    if field_id == "display.preview_word_wrap":
-        return _format_bool(config.display.preview_word_wrap)
     if field_id == "behavior.confirm_delete":
         return _format_bool(config.behavior.confirm_delete)
-    if field_id == "behavior.confirm_exit":
-        return _format_bool(config.behavior.confirm_exit)
-    if field_id == "behavior.paste_conflict_action":
-        return config.behavior.paste_conflict_action
-    if field_id == "logging.level":
-        return config.logging.level
-    if field_id == "file_search.max_results":
-        if config.file_search.max_results is None:
-            return "unlimited"
-        return str(config.file_search.max_results)
     return ""
 
 

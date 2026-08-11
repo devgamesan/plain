@@ -24,6 +24,12 @@ preview details, terminal templates, paste behavior, logging, file-search limits
 custom actions, or future settings. Saving basic settings from the UI updates only
 those settings and preserves advanced, unknown, and custom TOML values.
 
+If the Config Editor has unsaved changes, save or close them before opening the
+raw file with `e`. When the external editor exits, zivo reloads `config.toml`
+and applies the result to the running app and Config Editor. If the TOML is
+invalid, zivo keeps the current active configuration and shows a warning. Some
+settings require restarting zivo.
+
 ## Settings Reference
 
 | Section | Key | Values | Description |

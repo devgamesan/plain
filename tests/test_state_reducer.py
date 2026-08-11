@@ -5,6 +5,7 @@ from tests.state_test_helpers import reduce_state
 from zivo.models import (
     AppConfig,
     BookmarkConfig,
+    ConfigLoadResult,
     ExternalLaunchRequest,
     GuiEditorConfig,
 )
@@ -25,6 +26,7 @@ from zivo.state import (
     PaneState,
     PendingInputState,
     PendingKeySequenceState,
+    RunConfigReloadEffect,
     RunConfigSaveEffect,
     RunDirectorySizeEffect,
     RunExternalLaunchEffect,
@@ -47,6 +49,8 @@ from zivo.state.actions import (
     ClearSelection,
     CloseCurrentTab,
     CloseTabByIndex,
+    ConfigReloadCompleted,
+    ConfigReloadFailed,
     ConfigSaveCompleted,
     ConfigSaveFailed,
     ConfirmFilterInput,
@@ -835,7 +839,7 @@ def test_move_config_editor_cursor_clamps_to_visible_settings() -> None:
     next_state = _reduce_state(state, MoveConfigEditorCursor(delta=99))
 
     assert next_state.config_editor is not None
-    assert next_state.config_editor.cursor_index == 18
+    assert next_state.config_editor.cursor_index == 12
 
 
 def test_move_config_editor_cursor_reaches_preview_syntax_theme() -> None:
@@ -845,14 +849,14 @@ def test_move_config_editor_cursor_reaches_preview_syntax_theme() -> None:
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=2,
+            cursor_index=3,
         ),
     )
 
     next_state = _reduce_state(state, MoveConfigEditorCursor(delta=1))
 
     assert next_state.config_editor is not None
-    assert next_state.config_editor.cursor_index == 10
+    assert next_state.config_editor.cursor_index == 4
 
 
 def test_cycle_config_editor_editor_command_updates_draft_and_dirty_state() -> None:
@@ -976,23 +980,6 @@ def test_cycle_config_editor_theme_supports_all_builtin_themes() -> None:
     assert next_state.config_editor.draft.display.theme == "textual-ansi"
     assert next_state.config_editor.dirty is True
 
-def test_cycle_config_editor_directory_size_visibility_updates_draft_and_dirty_state() -> None:
-    state = replace(
-        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
-        ui_mode="CONFIG",
-        config_editor=ConfigEditorState(
-            path="/tmp/zivo/config.toml",
-            draft=build_initial_app_state().config,
-            cursor_index=4,
-        ),
-    )
-
-    next_state = _reduce_state(state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.display.show_directory_sizes is False
-    assert next_state.config_editor.dirty is True
-
 def test_cycle_config_editor_text_preview_updates_draft_and_dirty_state() -> None:
     state = replace(
         build_initial_app_state(config_path="/tmp/zivo/config.toml"),
@@ -1034,7 +1021,7 @@ def test_cycle_config_editor_pdf_preview_updates_draft_and_dirty_state() -> None
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=8,
+            cursor_index=7,
         ),
     )
 
@@ -1051,7 +1038,7 @@ def test_cycle_config_editor_office_preview_updates_draft_and_dirty_state() -> N
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=9,
+            cursor_index=8,
         ),
     )
 
@@ -1068,7 +1055,7 @@ def test_cycle_config_editor_preview_syntax_theme_updates_draft_and_dirty_state(
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=10,
+            cursor_index=4,
         ),
     )
 
@@ -1076,23 +1063,6 @@ def test_cycle_config_editor_preview_syntax_theme_updates_draft_and_dirty_state(
 
     assert next_state.config_editor is not None
     assert next_state.config_editor.draft.display.preview_syntax_theme == "abap"
-    assert next_state.config_editor.dirty is True
-
-def test_cycle_config_editor_preview_max_kib_updates_draft_and_dirty_state() -> None:
-    state = replace(
-        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
-        ui_mode="CONFIG",
-        config_editor=ConfigEditorState(
-            path="/tmp/zivo/config.toml",
-            draft=build_initial_app_state().config,
-            cursor_index=11,
-        ),
-    )
-
-    next_state = _reduce_state(state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.display.preview_max_kib == 128
     assert next_state.config_editor.dirty is True
 
 def test_save_config_editor_emits_config_save_effect() -> None:
@@ -1303,57 +1273,6 @@ def test_config_save_completed_requests_preview_when_enabled() -> None:
     )
 
 
-def test_cycle_config_editor_file_search_max_results_updates_draft() -> None:
-    """file_search.max_results をサイクルさせて設定を変更できることを確認."""
-    original_state = build_initial_app_state(config_path="/tmp/zivo/config.toml")
-    state = replace(
-        original_state,
-        ui_mode="CONFIG",
-            config_editor=ConfigEditorState(
-                path="/tmp/zivo/config.toml",
-                draft=original_state.config,
-                cursor_index=21,  # file_search.max_results
-            ),
-        )
-
-    # None → 100
-    next_state = _reduce_state(state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.file_search.max_results == 100
-    assert next_state.config_editor.dirty is True
-
-    # 100 → 500
-    next_state = _reduce_state(next_state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.file_search.max_results == 500
-
-    # 500 → 1000
-    next_state = _reduce_state(next_state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.file_search.max_results == 1000
-
-    # 1000 → 5000
-    next_state = _reduce_state(next_state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.file_search.max_results == 5000
-
-    # 5000 → 10000
-    next_state = _reduce_state(next_state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.file_search.max_results == 10000
-
-    # 10000 → None (制限なしに戻る)
-    next_state = _reduce_state(next_state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.file_search.max_results is None
-
-
 def test_config_save_failed_sets_error_notification() -> None:
     state = replace(
         build_initial_app_state(config_path="/tmp/zivo/config.toml"),
@@ -1366,6 +1285,135 @@ def test_config_save_failed_sets_error_notification() -> None:
     assert next_state.notification == NotificationState(
         level="error",
         message="Failed to save config: disk full",
+    )
+
+
+def test_config_editor_blocks_raw_edit_when_changes_are_pending() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/zivo/config.toml",
+            draft=replace(
+                build_initial_app_state().config,
+                display=replace(build_initial_app_state().config.display, theme="dracula"),
+            ),
+            dirty=True,
+        ),
+    )
+
+    result = reduce_app_state(state, OpenPathInEditor("/tmp/zivo/config.toml"))
+
+    assert result.effects == ()
+    assert result.state.notification == NotificationState(
+        level="warning",
+        message="Save or close pending Config Editor changes before editing config.toml",
+    )
+
+
+def test_config_editor_raw_edit_requests_reload_after_editor_exits() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/zivo/config.toml",
+            draft=build_initial_app_state().config,
+        ),
+    )
+
+    result = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="open_editor",
+                path="/tmp/zivo/config.toml",
+                reload_config_after_exit=True,
+            ),
+        ),
+    )
+
+    assert result.state.pending_config_reload_request_id == 1
+    assert result.state.next_request_id == 2
+    assert result.effects == (
+        RunConfigReloadEffect(request_id=1, path="/tmp/zivo/config.toml"),
+    )
+
+
+def test_config_reload_completed_updates_runtime_and_editor_draft() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/zivo/config.toml",
+            draft=build_initial_app_state().config,
+            dirty=True,
+        ),
+        pending_config_reload_request_id=4,
+    )
+    loaded_config = replace(
+        state.config,
+        display=replace(state.config.display, theme="dracula"),
+    )
+
+    result = reduce_app_state(
+        state,
+        ConfigReloadCompleted(
+            request_id=4,
+            result=ConfigLoadResult(
+                config=loaded_config,
+                path="/tmp/zivo/config.toml",
+            ),
+        ),
+    )
+
+    assert result.state.config.display.theme == "dracula"
+    assert result.state.config_editor is not None
+    assert result.state.config_editor.draft == loaded_config
+    assert result.state.config_editor.dirty is False
+    assert result.state.pending_config_reload_request_id is None
+
+
+def test_config_reload_fatal_result_keeps_current_runtime_config() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
+        pending_config_reload_request_id=4,
+    )
+    result = reduce_app_state(
+        state,
+        ConfigReloadCompleted(
+            request_id=4,
+            result=ConfigLoadResult(
+                config=AppConfig(),
+                path="/tmp/zivo/config.toml",
+                warnings=("Failed to parse config.toml: bad value",),
+                fatal=True,
+            ),
+        ),
+    )
+
+    assert result.state.config == state.config
+    assert result.state.pending_config_reload_request_id is None
+    assert result.state.notification == NotificationState(
+        level="error",
+        message="Failed to parse config.toml: bad value",
+    )
+
+
+def test_config_reload_failed_sets_error_notification() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
+        pending_config_reload_request_id=4,
+    )
+
+    result = reduce_app_state(
+        state,
+        ConfigReloadFailed(request_id=4, message="permission denied"),
+    )
+
+    assert result.state.notification == NotificationState(
+        level="error",
+        message="Failed to reload config.toml: permission denied",
     )
 
 def test_dismiss_config_editor_returns_to_browsing() -> None:

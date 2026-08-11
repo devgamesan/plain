@@ -14,12 +14,14 @@ from zivo.models import (
     LoggingConfig,
     TerminalConfig,
 )
+from zivo.models.config_editor import CONFIG_EDITOR_FIELDS
 from zivo.services.config import (
     AppConfigLoader,
     LiveConfigSaveService,
     render_app_config,
     resolve_config_path,
 )
+from zivo.services.config.save import CONFIG_EDITOR_MANAGED_SETTINGS
 from zivo.theme_support import SUPPORTED_APP_THEMES, SUPPORTED_PREVIEW_SYNTAX_THEMES
 
 
@@ -74,6 +76,42 @@ def test_loader_creates_default_config_when_missing(tmp_path) -> None:
     assert 'path = ""' in written
     assert '# paths = ["/home/user/src", "/home/user/docs"]' in written
     assert "grep_preview_context_lines = 3" in written
+
+
+def test_loader_marks_invalid_toml_as_fatal(tmp_path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text("[display\ntheme = 'dracula'", encoding="utf-8")
+
+    result = AppConfigLoader(config_path_resolver=lambda: config_path).load()
+
+    assert result.fatal is True
+    assert result.config == AppConfig()
+    assert result.warnings and result.warnings[0].startswith("Failed to parse config.toml:")
+
+
+def test_config_editor_metadata_is_the_save_source_of_truth() -> None:
+    expected_settings = tuple(
+        setting
+        for field in CONFIG_EDITOR_FIELDS
+        for setting in field.managed_settings
+    )
+
+    assert CONFIG_EDITOR_MANAGED_SETTINGS == expected_settings
+    assert tuple(field.field_id for field in CONFIG_EDITOR_FIELDS) == (
+        "editor.command",
+        "gui_editor.preset",
+        "display.show_hidden_files",
+        "display.theme",
+        "display.preview_syntax_theme",
+        "display.enable_text_preview",
+        "display.enable_image_preview",
+        "display.enable_pdf_preview",
+        "display.enable_office_preview",
+        "display.default_sort_field",
+        "display.default_sort_descending",
+        "display.directories_first",
+        "behavior.confirm_delete",
+    )
 
 
 def test_loader_reads_valid_config_values(tmp_path) -> None:

@@ -12,6 +12,8 @@ from .actions import (
     BeginConfigEditor,
     BeginShellCommandInput,
     CancelShellCommandInput,
+    ConfigReloadCompleted,
+    ConfigReloadFailed,
     ConfigSaveCompleted,
     ConfigSaveFailed,
     CopyPathsToClipboard,
@@ -39,6 +41,7 @@ from .actions import (
 )
 from .effects import (
     ReduceResult,
+    RunConfigReloadEffect,
     RunConfigSaveEffect,
     RunShellCommandEffect,
 )
@@ -467,12 +470,31 @@ def _handle_open_path_in_editor(
     action: OpenPathInEditor,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
+    editing_config = (
+        state.ui_mode == "CONFIG"
+        and state.config_editor is not None
+        and action.path == state.config_editor.path
+    )
+    if editing_config and state.config_editor.dirty:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        "Save or close pending Config Editor changes before editing "
+                        "config.toml"
+                    ),
+                ),
+            )
+        )
     return run_external_launch_request(
         replace(state, notification=None),
         ExternalLaunchRequest(
             kind="open_editor",
             path=action.path,
             line_number=action.line_number,
+            reload_config_after_exit=editing_config,
         ),
     )
 
@@ -540,10 +562,96 @@ def _handle_external_launch_completed(
     action: ExternalLaunchCompleted,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
+    if action.request.reload_config_after_exit:
+        request_id = state.next_request_id
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="info",
+                    message="Reloading config.toml...",
+                ),
+                pending_config_reload_request_id=request_id,
+                next_request_id=request_id + 1,
+            ),
+            RunConfigReloadEffect(
+                request_id=request_id,
+                path=action.request.path or state.config_path,
+            ),
+        )
     notification = notification_for_external_launch(action.request)
     if notification is None:
         return finalize(state)
     return finalize(replace(state, notification=notification))
+
+
+def _handle_config_reload_completed(
+    state: AppState,
+    action: ConfigReloadCompleted,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    if state.pending_config_reload_request_id != action.request_id:
+        return finalize(state)
+    if action.result.fatal:
+        message = (
+            action.result.warnings[0]
+            if action.result.warnings
+            else "Failed to reload config.toml"
+        )
+        return finalize(
+            replace(
+                state,
+                pending_config_reload_request_id=None,
+                notification=NotificationState(level="error", message=message),
+            )
+        )
+
+    next_config_editor = state.config_editor
+    if next_config_editor is not None:
+        next_config_editor = replace(
+            next_config_editor,
+            path=action.result.path,
+            draft=action.result.config,
+            dirty=False,
+        )
+    next_state = apply_config_to_runtime_state(
+        replace(
+            state,
+            config=action.result.config,
+            config_path=action.result.path,
+            config_editor=next_config_editor,
+            pending_config_reload_request_id=None,
+            notification=NotificationState(
+                level="warning" if action.result.warnings else "info",
+                message=(
+                    action.result.warnings[0]
+                    if action.result.warnings
+                    else f"Config reloaded: {action.result.path}"
+                ),
+            ),
+        ),
+        action.result.config,
+    )
+    return sync_child_pane(next_state, next_state.current_pane.cursor_path, reduce_state)
+
+
+def _handle_config_reload_failed(
+    state: AppState,
+    action: ConfigReloadFailed,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    if state.pending_config_reload_request_id != action.request_id:
+        return finalize(state)
+    return finalize(
+        replace(
+            state,
+            pending_config_reload_request_id=None,
+            notification=NotificationState(
+                level="error",
+                message=f"Failed to reload config.toml: {action.message}",
+            ),
+        )
+    )
 
 
 def _handle_external_launch_failed(
@@ -724,6 +832,8 @@ _TERMINAL_CONFIG_HANDLERS: dict[type[Action], _TerminalConfigHandler] = {
     OpenTerminalAtPath: _handle_open_terminal_at_path,
     CopyPathsToClipboard: _handle_copy_paths_to_clipboard,
     ExternalLaunchCompleted: _handle_external_launch_completed,
+    ConfigReloadCompleted: _handle_config_reload_completed,
+    ConfigReloadFailed: _handle_config_reload_failed,
     ExternalLaunchFailed: _handle_external_launch_failed,
     ShellCommandCompleted: _handle_shell_command_completed,
     ShellCommandFailed: _handle_shell_command_failed,

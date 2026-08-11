@@ -31,6 +31,7 @@ from zivo.app_runtime import (
 )
 from zivo.models import (
     AppConfig,
+    ConfigLoadResult,
     ExternalLaunchRequest,
     GrepSearchConfig,
     UndoDeletePathStep,
@@ -47,6 +48,7 @@ from zivo.state import (
     LoadChildPaneSnapshotEffect,
     LoadTransferPaneEffect,
     PaneState,
+    RunConfigReloadEffect,
     RunConfigSaveEffect,
     RunDirectorySizeEffect,
     RunExternalLaunchEffect,
@@ -58,6 +60,7 @@ from zivo.state import (
 from zivo.state.actions import (
     BrowserSnapshotLoaded,
     ChildPaneSnapshotLoaded,
+    ConfigReloadCompleted,
     ConfigSaveCompleted,
     DirectorySizesLoaded,
     ExitCurrentPath,
@@ -369,6 +372,22 @@ def test_complete_worker_actions_maps_config_save_result() -> None:
             path="/tmp/config.toml",
             config=config,
         ),
+    )
+
+
+def test_complete_worker_actions_maps_config_reload_result() -> None:
+    result = ConfigLoadResult(
+        config=AppConfig(),
+        path="/tmp/zivo/config.toml",
+    )
+
+    actions = complete_worker_actions(
+        RunConfigReloadEffect(request_id=3, path="/tmp/zivo/config.toml"),
+        result,
+    )
+
+    assert actions == (
+        ConfigReloadCompleted(request_id=3, result=result),
     )
 
 

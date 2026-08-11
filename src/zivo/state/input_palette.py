@@ -131,7 +131,7 @@ def dispatch_command_palette_input(
     if (
         key == "tab"
         and state.command_palette is not None
-        and state.command_palette.source in {"go_to_path", "go"}
+        and state.command_palette.source == "go"
     ):
         if state.command_palette.source == "go":
             candidates = tuple(
@@ -139,18 +139,25 @@ def dispatch_command_palette_input(
                 for item in get_command_palette_items(state)
                 if item.path is not None
             )
-        else:
-            candidates = state.command_palette.history_and_navigation.go_to_path_candidates
         if not candidates:
             return warn("No matching directory to complete")
 
         selected_path = candidates[
             normalize_command_palette_cursor(state, state.command_palette.cursor_index)
         ]
+        completion_base_path = state.current_path
+        if state.layout_mode == "transfer":
+            transfer = (
+                state.transfer_left
+                if state.active_transfer_pane == "left"
+                else state.transfer_right
+            )
+            if transfer is not None:
+                completion_base_path = transfer.current_path
         completed_query = format_go_to_path_completion(
             selected_path,
             state.command_palette.query,
-            state.current_path,
+            completion_base_path,
             append_separator=len(candidates) == 1,
         )
         if len(candidates) == 1 and completed_query != os.sep:

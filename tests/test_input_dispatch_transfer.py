@@ -6,6 +6,7 @@ from zivo.state.actions import (
     BeginCommandPalette,
     BeginDeleteTargets,
     BeginExitCurrentPath,
+    BeginGo,
     BeginRenameInput,
     ClearTransferSelection,
     FocusTransferPane,
@@ -149,6 +150,14 @@ def test_transfer_mode_c_copies_to_opposite_pane() -> None:
     )
 
 
+def test_transfer_mode_uppercase_g_begins_unified_go_search() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+
+    actions = dispatch_key_input(state, key="G")
+
+    assert actions == (SetNotification(None), BeginGo())
+
+
 def test_transfer_mode_m_moves_to_opposite_pane() -> None:
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
 
@@ -205,7 +214,7 @@ def test_transfer_mode_colon_preserves_actionable_notification() -> None:
 def test_removed_direct_shortcuts_are_unbound_in_transfer_mode() -> None:
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
 
-    for key in ("i", "C", "B", "G", "M", "O", "T", "H", "R"):
+    for key in ("i", "C", "B", "M", "O", "T", "H", "R"):
         assert dispatch_key_input(state, key=key) == ()
 
 

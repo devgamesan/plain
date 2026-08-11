@@ -119,6 +119,7 @@ You can also press `:` to open the command palette and search for available acti
 | `/` | Filter entries |
 | `f` | Find files |
 | `g` | Grep search |
+| `G` | Open unified Go destination search |
 | `p` | Toggle Transfer mode |
 | `Tab` (below 80 columns) | Toggle current file list / Details view |
 | `q` | Quit |
@@ -148,7 +149,7 @@ Long-running Copy, Move, Compress, Extract, and Replace operations show their op
 - **Tabs**: open multiple directories and switch between them
 - **Directory history**: go back / forward through visited directories
 - **Bookmarks**: save directories and open them from the bookmark-filtered Go view with `b`
-- **Go**: search bookmarks, recent history, open tabs, Home, or a direct path in one view; use `@bookmark`, `@history`, `@tab`, or `@home` prefixes to filter the source
+- **Go**: press `G` to search bookmarks, recent history, open tabs, Home, or a direct path in one view; use `@bookmark`, `@history`, `@tab`, or `@home` prefixes to filter the source
 - **Direct UI controls**: click breadcrumb segments, Back/Forward (normal browsing), tabs, and sortable column headers; Search Workspace uses a dedicated non-breadcrumb label
 
 ### File operations
@@ -180,7 +181,7 @@ Empty directories and zero-result filters show their reason and an available nex
 
 ### Command palette
 - Press `:` to search and execute any action via incremental search. No need to memorize keybindings
-- Lower-frequency attribute, path-copy, bookmark-edit, external-launch, and reload actions live in the palette; Go combines destination search while `~`, `[`, `]`, and `b` remain quick paths
+- Lower-frequency attribute, path-copy, bookmark-edit, external-launch, and reload actions live in the palette; `G` opens the unified Go destination search while `~`, `[`, `]`, and `b` remain quick paths
 
 ### Customization
 - **Settings overlay**: interactively edit and save startup configuration

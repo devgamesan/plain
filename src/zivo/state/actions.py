@@ -206,11 +206,9 @@ from .actions_palette import (
     BeginFileSearch,
     BeginFindAndReplace,
     BeginGo,
-    BeginGoToPath,
     BeginGrepReplace,
     BeginGrepReplaceSelected,
     BeginGrepSearch,
-    BeginHistorySearch,
     BeginTextReplace,
     CancelCommandPalette,
     CycleFileSearchField,
@@ -333,9 +331,7 @@ Action = (
     | SaveGrepResults
     | GrepExportCompleted
     | GrepExportFailed
-    | BeginHistorySearch
     | BeginBookmarkSearch
-    | BeginGoToPath
     | BeginGo
     | BeginTextReplace
     | BeginFindAndReplace

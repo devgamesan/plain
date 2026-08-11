@@ -233,7 +233,6 @@ def enter_palette(
     state: AppState,
     *,
     source: str = "commands",
-    history_results: tuple[str, ...] = (),
     preserve_notification: bool = False,
 ) -> AppState:
     return replace(
@@ -243,9 +242,7 @@ def enter_palette(
         pending_input=None,
         command_palette=CommandPaletteState(
             source=source,
-            history_and_navigation=HistoryAndNavigationPaletteState(
-                history_results=history_results,
-            ),
+            history_and_navigation=HistoryAndNavigationPaletteState(),
         ),
         pending_file_search_request_id=None,
         pending_grep_search_request_id=None,

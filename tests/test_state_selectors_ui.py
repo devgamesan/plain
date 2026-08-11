@@ -50,9 +50,6 @@ test_select_help_bar_for_paste_conflict_uses_generic_guidance = (
 test_select_help_bar_for_permanent_delete_confirmation = (
     cases.test_select_help_bar_for_permanent_delete_confirmation
 )
-test_select_help_bar_state_for_bookmarks_palette = (
-    cases.test_select_help_bar_state_for_bookmarks_palette
-)
 test_select_help_bar_state_for_command_palette = (
     cases.test_select_help_bar_state_for_command_palette
 )
@@ -65,14 +62,8 @@ test_select_help_bar_state_for_file_search_palette = (
 test_select_help_bar_state_for_filter_mode = (
     cases.test_select_help_bar_state_for_filter_mode
 )
-test_select_help_bar_state_for_go_to_path_palette_mentions_tab_completion = (
-    cases.test_select_help_bar_state_for_go_to_path_palette_mentions_tab_completion
-)
 test_select_help_bar_state_for_grep_search_palette = (
     cases.test_select_help_bar_state_for_grep_search_palette
-)
-test_select_help_bar_state_for_history_palette = (
-    cases.test_select_help_bar_state_for_history_palette
 )
 test_select_input_bar_state_for_create_mode = (
     cases.test_select_input_bar_state_for_create_mode

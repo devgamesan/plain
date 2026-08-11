@@ -11,7 +11,6 @@ from zivo.state import (
     ForegroundOperationState,
     GrepSearchPaletteState,
     GrepSearchResultState,
-    HistoryAndNavigationPaletteState,
     NameConflictState,
     NotificationAction,
     NotificationState,
@@ -38,9 +37,8 @@ from zivo.state.actions import (
     BeginExitCurrentPath,
     BeginFileSearch,
     BeginFilterInput,
-    BeginGoToPath,
+    BeginGo,
     BeginGrepSearch,
-    BeginHistorySearch,
     BeginRenameInput,
     CancelCommandPalette,
     CancelDeleteConfirmation,
@@ -108,32 +106,5 @@ from zivo.state.actions import (
     ToggleTransferMode,
     UndoLastOperation,
 )
-
-
-def _reduce_go_to_path_state(
-    *,
-    query: str,
-    candidates: tuple[str, ...],
-    current_path: str,
-    cursor_index: int = 0,
-):
-    state = replace(
-        build_initial_app_state(),
-        current_path=current_path,
-    )
-    state = replace(
-        state,
-        ui_mode="PALETTE",
-        command_palette=CommandPaletteState(
-            source="go_to_path",
-            query=query,
-            cursor_index=cursor_index,
-            history_and_navigation=HistoryAndNavigationPaletteState(
-                go_to_path_candidates=candidates,
-            ),
-        ),
-    )
-    return state
-
 
 __all__ = [name for name in globals() if not name.startswith("__")]

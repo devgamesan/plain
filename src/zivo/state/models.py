@@ -52,9 +52,6 @@ CommandPaletteSource = Literal[
     "commands",
     "file_search",
     "grep_search",
-    "history",
-    "bookmarks",
-    "go_to_path",
     "go",
     "replace_text",
     "replace_in_found_files",
@@ -533,10 +530,6 @@ class ReplacePreviewResultState:
 
 @dataclass(frozen=True)
 class HistoryAndNavigationPaletteState:
-    history_results: tuple[str, ...] = ()
-    go_to_path_candidates: tuple[str, ...] = ()
-    go_to_path_selection_active: bool = True
-    go_candidates: tuple["GoCandidateState", ...] = ()
     go_source_filter: GoSourceFilter = "all"
 
 

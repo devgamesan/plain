@@ -208,7 +208,7 @@ Copy・Move・Compress・Extract・Replace は、1つの一時的な `Foreground
 ### `src/zivo/state/reducer_palette.py`
 
 - コマンドパレットの開閉、query 更新、候補カーソル移動、実行を担当する
-- `Find files`、`Grep search`、`History search`、`Show bookmarks`、`Go to path`、bookmark add/remove、`Show attributes`、`Extract archive` などの派生フローを起動する
+- `Find files`、`Grep search`、統合 `Go`、bookmark add/remove、`Show attributes`、`Extract archive` などの派生フローを起動する
 - 属性ダイアログの開閉や file search / grep search の結果反映もここで扱う
 
 ### `src/zivo/state/reducer_terminal_config.py`
@@ -235,11 +235,9 @@ Copy・Move・Compress・Extract・Replace は、1つの一時的な `Foreground
 - 通常 palette には次の候補がある
   - `Find files`
   - `Grep search`
-  - `History search`
-  - `Show bookmarks`
   - `Go back`
   - `Go forward`
-  - `Go to path`
+  - `Go`（Home、bookmark、recent history、open tab、direct path）
   - `Go to home directory`
   - `Reload directory`
   - `Toggle split terminal`
@@ -259,8 +257,8 @@ Copy・Move・Compress・Extract・Replace は、1つの一時的な `Foreground
   - `Edit config`
   - `Create file`
   - `Create directory`
-- palette source は `commands` / `file_search` / `grep_search` / `history` / `bookmarks` / `go_to_path` を持つ
-- `go_to_path` は入力中に一致するディレクトリ候補を複数表示し、`Tab` で選択候補を補完できる
+- palette source は `commands` / `file_search` / `grep_search` / `go` / `replace` などを持つ
+- 統合 `Go` は入力中に Home、bookmark、recent history、open tab、direct path の候補を表示し、`Tab` で direct path 候補を補完できる
 - `grep_search` は keyword / filename filter / include extensions / exclude extensions の 4 フィールドを持ち、`Tab` / `Shift+Tab` で入力欄を移動する
 
 ### `src/zivo/services/`

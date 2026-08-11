@@ -16,9 +16,8 @@ from .actions import (
     BeginExitCurrentPath,
     BeginFileSearch,
     BeginFilterInput,
-    BeginGoToPath,
+    BeginGo,
     BeginGrepSearch,
-    BeginHistorySearch,
     BeginRenameInput,
     BeginShellCommandInput,
     CancelFilterInput,
@@ -101,6 +100,7 @@ BROWSING_KEYMAP = {
     "t": "open_terminal",
     "f": "begin_file_search",
     "g": "begin_grep_search",
+    "G": "begin_go",
     "a": "select_all",
     "c": "copy_targets",
     "x": "cut_targets",
@@ -145,6 +145,7 @@ BROWSING_HELP_LINES = (
     (
         ("f", "find"),
         ("g", "grep"),
+        ("G", "go"),
         ("n", "new-file"),
         ("N", "new-dir"),
         (":", "palette"),
@@ -177,7 +178,7 @@ SEARCH_WORKSPACE_HELP_LINES = (
         ("c", "copy"),
         ("z", "undo"),
     ),
-    ((":", "palette"),),
+    (("G", "go"), (":", "palette")),
 )
 
 SEARCH_WORKSPACE_BLOCKED_COMMANDS = frozenset(
@@ -565,8 +566,7 @@ BROWSING_SIMPLE_DISPATCH: dict[str, type[Action]] = {
     "begin_command_palette": BeginCommandPalette,
     "begin_file_search": BeginFileSearch,
     "begin_grep_search": BeginGrepSearch,
-    "begin_history_search": BeginHistorySearch,
-    "begin_go_to_path": BeginGoToPath,
+    "begin_go": BeginGo,
     "go_to_home_directory": GoToHomeDirectory,
     "reload_directory": ReloadDirectory,
     "go_back": GoBack,

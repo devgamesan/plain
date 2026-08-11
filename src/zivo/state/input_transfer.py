@@ -11,6 +11,7 @@ from .actions import (
     BeginCreateInput,
     BeginDeleteTargets,
     BeginExitCurrentPath,
+    BeginGo,
     BeginRenameInput,
     ClearTransferSelection,
     EnterTransferDirectory,
@@ -72,6 +73,7 @@ TRANSFER_KEYMAP = {
     ".",
     "z",
     "b",
+    "G",
     "tab",
     "shift+tab",
     ":",
@@ -95,10 +97,10 @@ TRANSFER_HELP_LINES = (
         ("r", "rename"),
         ("z", "undo"),
     ),
-    (("n", "new-file"), ("N", "new-dir"), (":", "palette")),
+    (("n", "new-file"), ("N", "new-dir"), ("G", "go"), (":", "palette")),
 )
 
-REMOVED_DIRECT_KEYS = frozenset({"i", "C", "B", "G", "M", "O", "T", "H", "R"})
+REMOVED_DIRECT_KEYS = frozenset({"i", "C", "B", "M", "O", "T", "H", "R"})
 
 # Keys removed from transfer-mode direct operation, consolidated into Tab/c/m.
 # Kept separate from REMOVED_DIRECT_KEYS because x/v stay valid in browsing mode.
@@ -180,6 +182,8 @@ def dispatch_transfer_input(
         return supported(GoToTransferParent())
     if key == "~":
         return supported(GoToTransferHome())
+    if key == "G":
+        return supported(BeginGo())
     if key == "c":
         return supported(TransferCopyToOppositePane())
     if key == "m":

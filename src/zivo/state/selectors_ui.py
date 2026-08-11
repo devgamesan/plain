@@ -261,14 +261,6 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
                     "Ctrl+x export | esc cancel",
                 )
             )
-        if state.command_palette is not None and state.command_palette.source == "history":
-            return HelpBarState(("type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",))
-        if state.command_palette is not None and state.command_palette.source == "bookmarks":
-            return HelpBarState(("type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",))
-        if state.command_palette is not None and state.command_palette.source == "go_to_path":
-            return HelpBarState(
-                ("type path | ↑↓ or Ctrl+j/k select | tab complete | enter jump | esc cancel",)
-            )
         return HelpBarState(("type command | ↑↓ or Ctrl+j/k select | enter run | esc cancel",))
     if state.ui_mode == "BUSY":
         operation = state.foreground_operation
@@ -650,14 +642,6 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
                 len(state.command_palette.grs.preview_results) > len(visible_results)
             ),
         )
-    if state.command_palette.source == "history":
-        return _build_command_palette_items_view(
-            state,
-            cursor_index,
-            title="Directory History",
-            empty_message="No directory history",
-        )
-
     if state.command_palette.source == "go":
         source_filter = state.command_palette.history_and_navigation.go_source_filter
         source_filter, _ = parse_go_query(state.command_palette.query, source_filter)
@@ -685,29 +669,6 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
                 else "Type a path or destination"
             ),
             footer_message=footer_message,
-        )
-
-    if state.command_palette.source == "bookmarks":
-        return _build_command_palette_items_view(
-            state,
-            cursor_index,
-            title="Bookmarks",
-            empty_message="No bookmarks",
-        )
-
-    if state.command_palette.source == "go_to_path":
-        selection_active = state.command_palette.history_and_navigation.go_to_path_selection_active
-        empty_message = (
-            "Type a path to jump to"
-            if not state.command_palette.query.strip()
-            else "No matching directories"
-        )
-        return _build_command_palette_items_view(
-            state,
-            cursor_index,
-            title="Go to path",
-            empty_message=empty_message,
-            selected_override=selection_active or False,
         )
 
     items = get_command_palette_items(state)

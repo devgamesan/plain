@@ -8,13 +8,13 @@ The three-row help bar keeps a stable order. Browsing uses these groups:
 
 1. `enter open`, `e edit`, `/ filter`, `s sort`, `. hidden`, `[ ] bk/fwd`, `q quit`
 2. `space select`, `c copy`, `x cut`, `v paste`, `d delete`, `r rename`, `z undo`
-3. `f find`, `g grep`, `n new-file`, `N new-dir`, `t term`, `: palette`
+3. `f find`, `g grep`, `G go`, `n new-file`, `N new-dir`, `t term`, `: palette`
 
 Search Workspace shows `enter open`, `e edit`, `/ filter`, `s sort`, `. hidden`, `[ ] bk/fwd`, `q quit`, then `space select`, `c copy`, `z undo`, and `: palette`.
 
 On terminals narrower than 80 columns, normal browsing uses `Tab` to toggle the details view (preview/results) and the current file list. The current cursor, selection, filter, and preview identity are preserved; `j` / `k` still move the underlying current-list cursor. Search Workspace keeps `Tab` for moving between its input fields.
 
-Transfer shows `enter dir`, `. hidden`, `Tab switch-pane`, `p/Esc close`, `q quit`, then `space select`, `c copy-to-pane`, `m move-to-pane`, `d delete`, `r rename`, `z undo`, and finally `N new-dir`, `: palette`. `D` remains documented below but is intentionally omitted from the help bar.
+Transfer shows `enter dir`, `. hidden`, `Tab switch-pane`, `p/Esc close`, `q quit`, then `space select`, `c copy-to-pane`, `m move-to-pane`, `d delete`, `r rename`, `z undo`, and finally `G go`, `N new-dir`, `: palette`. `D` remains documented below but is intentionally omitted from the help bar.
 
 When a right-pane preview is active, its footer shows `Ctrl+J/K scroll preview`. Replace previews use `Shift+↑/↓ scroll preview`. `Ctrl+↑/↓` are aliases for normal preview scrolling. Narrow terminals keep three rows and elide lower-frequency items from the right.
 
@@ -54,6 +54,7 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 | `!` | Run a short non-interactive shell command in the current directory; the dialog shows cwd and retains output/error details |
 | `f` | Find files (recursive search) |
 | `g` | Grep search |
+| `G` | Open the unified Go view |
 | `/` | Filter files |
 | `b` | Open the Go view filtered to bookmarks |
 | `~` | Go to home directory |
@@ -103,6 +104,7 @@ The active pane is the source and the opposite pane is the destination; the dire
 | `.` | Toggle hidden files |
 | `N` | Create new directory in the focused pane |
 | `b` | Open the Go view filtered to bookmarks |
+| `G` | Open the unified Go view for the active pane |
 | `:` | Open a transfer-mode command palette (new/rename/delete/tabs/etc.) |
 | `p` | Return to normal mode |
 | `q` | Exit the application |
@@ -203,7 +205,7 @@ There is only one keyboard input field in this mode, so `Tab` / `Shift+Tab` do n
 | `Enter` then `D` | Two-step confirmation for multiple targets or directories |
 | `o` / `s` / `r` / `Esc` | Resolve a paste conflict with overwrite / skip / rename / cancel |
 
-The direct keys `i`, `C`, `B`, `G`, `M`, `O`, `T`, `H`, and `R` are intentionally unbound. Their attribute, path-copy, bookmark, navigation, external-launch, history, and reload commands remain available from the command palette.
+The direct keys `i`, `C`, `B`, `M`, `O`, `T`, `H`, and `R` are intentionally unbound. Their attribute, path-copy, bookmark, navigation, external-launch, history, and reload commands remain available from the command palette. `G` is reserved for the unified Go view.
 
 ## Long-running Operation Mode
 

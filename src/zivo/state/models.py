@@ -736,6 +736,7 @@ class AppState:
     paste_conflict: PasteConflictState | None = None
     delete_confirmation: DeleteConfirmationState | None = None
     exit_confirmation: ExitConfirmationState | None = None
+    pending_exit_after_operation: bool = False
     name_conflict: NameConflictState | None = None
     archive_extract_confirmation: ArchiveExtractConfirmationState | None = None
     archive_extract_progress: ArchiveExtractProgressState | None = None

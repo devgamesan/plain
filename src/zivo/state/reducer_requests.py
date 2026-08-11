@@ -94,6 +94,7 @@ def run_paste_request(
     request_id = state.next_request_id
     next_state = replace(
         state,
+        command_palette=None,
         notification=None,
         paste_conflict=None,
         delete_confirmation=None,
@@ -101,7 +102,10 @@ def run_paste_request(
         pending_paste_request=request,
         pending_paste_retry_requires_confirmation=force_conflict_prompt,
         next_request_id=request_id + 1,
-        ui_mode="BUSY",
+        # The confirmed file transfer continues in a worker while the user
+        # keeps browsing.  Conflict resolution is still handled in the
+        # foreground by the worker result reducer.
+        ui_mode="BROWSING",
         foreground_operation=ForegroundOperationState(
             operation_id=request_id,
             kind="copy" if request.mode == "copy" else "move",
@@ -119,6 +123,23 @@ def run_external_launch_request(
     state,
     request: ExternalLaunchRequest,
 ) -> ReduceResult:
+    if state.foreground_operation is not None and request.kind in {
+        "open_file",
+        "open_editor",
+        "open_gui_editor",
+        "open_terminal",
+    }:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     request_id = state.next_request_id
     next_state = replace(
         state,
@@ -221,6 +242,18 @@ def run_archive_prepare_request(
     state,
     request: ExtractArchiveRequest,
 ) -> ReduceResult:
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     request_id = state.next_request_id
     next_state = replace(
         state,
@@ -261,10 +294,11 @@ def run_archive_extract_request(
         notification=NotificationState(level="info", message="Extracting archive..."),
         archive_extract_confirmation=None,
         archive_extract_progress=None,
+        pending_input=None,
         pending_archive_prepare_request=None,
         pending_archive_extract_request_id=request_id,
         next_request_id=request_id + 1,
-        ui_mode="BUSY",
+        ui_mode="BROWSING",
         foreground_operation=ForegroundOperationState(
             operation_id=request_id,
             kind="extract",
@@ -281,6 +315,18 @@ def run_zip_compress_prepare_request(
     state,
     request: CreateZipArchiveRequest,
 ) -> ReduceResult:
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     request_id = state.next_request_id
     next_state = replace(
         state,
@@ -323,10 +369,11 @@ def run_zip_compress_request(
         notification=NotificationState(level="info", message="Compressing as zip..."),
         zip_compress_confirmation=None,
         zip_compress_progress=None,
+        pending_input=None,
         pending_zip_compress_prepare_request=None,
         pending_zip_compress_request_id=request_id,
         next_request_id=request_id + 1,
-        ui_mode="BUSY",
+        ui_mode="BROWSING",
         foreground_operation=ForegroundOperationState(
             operation_id=request_id,
             kind="compress",

@@ -27,12 +27,14 @@ from zivo.app_runtime import (
     start_child_pane_snapshot,
     start_file_search_worker,
     start_grep_search_worker,
+    sync_runtime_state,
 )
 from zivo.models import AppConfig, ExternalLaunchRequest, UndoDeletePathStep, UndoEntry, UndoResult
 from zivo.services import InvalidFileSearchQueryError
 from zivo.state import (
     BrowserSnapshot,
     DirectoryEntryState,
+    ForegroundOperationState,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
     LoadTransferPaneEffect,
@@ -50,6 +52,7 @@ from zivo.state.actions import (
     ChildPaneSnapshotLoaded,
     ConfigSaveCompleted,
     DirectorySizesLoaded,
+    ExitCurrentPath,
     ExternalLaunchFailed,
     FileSearchCompleted,
     FileSearchFailed,
@@ -207,6 +210,23 @@ class _FailingExternalLaunchService:
 
     def execute(self, request: ExternalLaunchRequest) -> None:
         raise OSError(self.message)
+
+
+def test_sync_runtime_state_queues_exit_after_operation_reaches_terminal_state() -> None:
+    previous_state = replace(
+        build_initial_app_state(),
+        foreground_operation=ForegroundOperationState(operation_id=4, kind="copy"),
+    )
+    next_state = replace(
+        previous_state,
+        foreground_operation=None,
+        pending_exit_after_operation=True,
+    )
+    app = _RecordingApp(_app_state=next_state)
+
+    sync_runtime_state(app, previous_state, next_state)
+
+    assert app.call_next_calls == [(app.dispatch_actions, ((ExitCurrentPath(),),))]
 
 
 @dataclass(frozen=True)
@@ -841,4 +861,3 @@ def test_run_foreground_external_launch_maps_os_errors_to_failure_actions() -> N
             message="editor failed",
         ),
     )
-

@@ -136,7 +136,7 @@ zivo-cd
 
 操作通知に表示する次アクションは最大1つです。優先順位は `Undo`、移動先の `Open`、安全な `Retry`、`Details` です。5秒後に自動消去するのは最終成功通知だけで、処理中・warning/error・partial success は自動消去タイマーを持たず、新しい通知または関連する次アクションで状態が進むまで表示されます。StatusBar とコマンドパレットの条件付き `Suggested` は同じ stable action ID と reducer 経路を使い、既存キーボードの意味は変更しません。
 
-時間のかかる Copy・Move・Compress・Extract・Replace は、StatusBarに操作名、進捗、現在対象を表示します。安全に停止できる操作だけ `Cancel` と `Esc` を表示し、キャンセル要求後は現在の対象を完了してから停止します。部分完了時は成功・skip・failure・未処理件数を示し、対象パスとUndo可能範囲は `Details` で確認できます。
+時間のかかる Copy・Move・Compress・Extract・Replace は、StatusBarに操作名、進捗、現在対象を表示します。実行中も通常のブラウズ、ディレクトリ移動、ファイル検索、プレビュー、属性表示を継続できます。安全に停止できる操作だけ `Cancel` と `Esc` を表示し、キャンセル要求後は現在の対象を完了してから停止します。別のファイル変更、Undo、エディタ・シェル起動、変更を伴うカスタムアクションは、進行中の操作名を示して拒否します。部分完了時は成功・skip・failure・未処理件数を示し、対象パスとUndo可能範囲は `Details` で確認できます。
 
 ---
 

@@ -10,6 +10,7 @@ from .actions import (
     BeginExitCurrentPath,
     CancelDeleteConfirmation,
     CancelExitConfirmation,
+    CancelForegroundOperation,
     ConfirmDeleteTargets,
     ConfirmExitCurrentPath,
     DeletePreparationCompleted,
@@ -167,6 +168,8 @@ def _handle_cancel_delete_confirmation(state, action, reduce_state):
 
 
 def _handle_begin_exit_current_path(state, action, reduce_state):
+    if state.foreground_operation is not None and not state.confirm_exit:
+        return _request_exit_after_operation(state, reduce_state)
     if state.confirm_exit:
         return finalize(
             replace(
@@ -194,10 +197,36 @@ def _handle_begin_exit_current_path(state, action, reduce_state):
 def _handle_confirm_exit_current_path(state, action, reduce_state):
     if state.exit_confirmation is None:
         return finalize(state)
+    if state.foreground_operation is not None:
+        return _request_exit_after_operation(
+            replace(
+                state,
+                exit_confirmation=None,
+                ui_mode="BROWSING",
+                notification=NotificationState(
+                    level="info",
+                    message=(
+                        f"Cancelling {state.foreground_operation.kind.title()}; "
+                        "exiting after the current item finishes"
+                    ),
+                ),
+            ),
+            reduce_state,
+        )
     return finalize(
         replace(state, exit_confirmation=None),
         ExitCurrentPathEffect()
     )
+
+
+def _request_exit_after_operation(state, reduce_state):
+    next_state = replace(
+        state,
+        pending_exit_after_operation=True,
+        exit_confirmation=None,
+        ui_mode="BROWSING",
+    )
+    return reduce_state(next_state, CancelForegroundOperation())
 
 
 def _handle_cancel_exit_confirmation(state, action, reduce_state):

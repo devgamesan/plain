@@ -11,7 +11,7 @@ from zivo.state import (
     DirectoryEntryState,
     FileSearchResultState,
     GrepSearchResultState,
-    LoadBrowserSnapshotEffect,
+    LoadCurrentPaneEffect,
     NotificationState,
     PaneState,
     ReplacePreviewPaletteState,
@@ -372,11 +372,10 @@ def test_text_replace_applied_refreshes_current_directory() -> None:
         auto_dismiss=True,
     )
     assert result.effects == (
-        LoadBrowserSnapshotEffect(
+        LoadCurrentPaneEffect(
             request_id=1,
             path="/home/tadashi/develop/zivo",
             cursor_path="/home/tadashi/develop/zivo/README.md",
-            blocking=True,
             invalidate_paths=browser_snapshot_invalidation_paths(
                 "/home/tadashi/develop/zivo",
                 "/home/tadashi/develop/zivo/README.md",

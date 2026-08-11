@@ -15,9 +15,11 @@ from zivo.state import (
     DirectoryEntryState,
     DirectorySizeCacheEntry,
     DirectorySizeDeltaState,
+    ForegroundOperationState,
     HistoryState,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
+    LoadCurrentPaneEffect,
     NameConflictState,
     NotificationState,
     PaneState,
@@ -426,6 +428,28 @@ def test_enter_cursor_directory_requests_blocking_snapshot_when_child_pane_is_st
             path="/home/tadashi/develop/zivo/docs",
             cursor_path=None,
             blocking=True,
+        ),
+    )
+
+
+def test_blocking_navigation_snapshot_is_nonblocking_during_long_running_operation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        foreground_operation=ForegroundOperationState(operation_id=4, kind="copy"),
+    )
+
+    result = reduce_app_state(
+        state,
+        RequestBrowserSnapshot("/tmp/next", blocking=True),
+    )
+
+    assert result.state.ui_mode == "BROWSING"
+    assert result.effects == (
+        LoadCurrentPaneEffect(
+            request_id=1,
+            path="/tmp/next",
+            cursor_path=None,
+            invalidate_paths=(),
         ),
     )
 

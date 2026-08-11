@@ -125,6 +125,18 @@ def _handle_begin_shell_command_input(
     action: BeginShellCommandInput,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     return finalize(
         replace(
             state,
@@ -323,6 +335,18 @@ def _handle_submit_shell_command(
 ) -> ReduceResult:
     if state.shell_command is None:
         return finalize(state)
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     command = state.shell_command.command.strip()
     if not command:
         return finalize(

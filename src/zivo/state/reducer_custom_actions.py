@@ -27,6 +27,18 @@ def _handle_begin_custom_action_confirmation(
     action: BeginCustomActionConfirmation,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     return finalize(
         replace(
             state,
@@ -60,6 +72,20 @@ def _handle_confirm_custom_action(
 ) -> ReduceResult:
     if state.custom_action_confirmation is None:
         return finalize(state)
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                custom_action_confirmation=None,
+                ui_mode="BROWSING",
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     request = state.custom_action_confirmation.request
     request_id = state.next_request_id
     ui_mode = "BROWSING" if request.mode in ("terminal", "terminal_window") else "BUSY"

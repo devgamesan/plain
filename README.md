@@ -137,7 +137,7 @@ See [Commands](docs/commands.md) for the full command list.
 
 Operation notifications show at most one next action. The priority is `Undo`, destination `Open`, safe `Retry`, then `Details`. Only final success notifications auto-dismiss after five seconds; processing, warning/error, and partial-success notifications stay visible without an auto-dismiss timer until a newer notification or its associated action advances the flow. The status bar and the command palette's conditional `Suggested` entry use the same action ID and reducer path, while existing keyboard meanings remain unchanged.
 
-Long-running Copy, Move, Compress, Extract, and Replace operations show their operation name, progress, and current target in the status bar. Safe operations expose `Cancel` and `Esc`; cancellation finishes the current item before stopping. Partial results report succeeded, skipped, failed, and not-processed counts, with paths and Undo scope available from `Details`.
+Long-running Copy, Move, Compress, Extract, and Replace operations show their operation name, progress, and current target in the status bar. Normal browsing, directory navigation, file search, preview, and attribute inspection remain available while they run. Safe operations expose `Cancel` and `Esc`; cancellation finishes the current item before stopping. Other file mutations, Undo, editor or shell launches, and mutation-capable custom actions are rejected with the active operation name. Partial results report succeeded, skipped, failed, and not-processed counts, with paths and Undo scope available from `Details`.
 
 ---
 

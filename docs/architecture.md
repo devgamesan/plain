@@ -185,7 +185,7 @@ sequenceDiagram
 
 ### foreground file operation の進捗
 
-Copy・Move・Compress・Extract・Replace は、1つの一時的な `ForegroundOperationState` を共有する。runtime が operation ID と協調キャンセル用 event を管理し、service は安全な対象境界でだけ event を確認して progress を reducer action へ戻す。古い operation ID の progress は破棄する。StatusBar と HelpBar は専用タスク画面を追加せず state を投影し、キャンセル可能な間だけ `Cancel` と `Esc` を表示する。Compress は同一ディレクトリの一時アーカイブを原子的に公開し、Extract と Replace は一時ファイルを原子的に置換する。部分結果の件数とパスは既存 Details 経路で表示する。
+Copy・Move・Compress・Extract・Replace は、1つの一時的な `ForegroundOperationState` を共有する。確認ダイアログと事前準備は foreground で完了し、確定後の worker 実行中は `BROWSING` を維持する。runtime が operation ID と協調キャンセル用 event を管理し、service は安全な対象境界でだけ event を確認して progress を reducer action へ戻す。古い operation ID の progress は破棄する。別のファイル変更、Undo、エディタ・シェル起動、変更を伴うカスタムアクションは進行中の操作名を示して拒否し、長時間操作は常に1件へ直列化する。StatusBar と HelpBar は専用タスク画面を追加せず state を投影し、通常ブラウズまたはTransfer中にキャンセル可能な間だけ `Cancel` と `Esc` を表示する。画面終了はキャンセル要求と後始末の完了後に行う。完了時は現在の表示パスを維持し、影響を受けた可視ペインだけを progressive refresh する。Compress は同一ディレクトリの一時アーカイブを原子的に公開し、Extract と Replace は一時ファイルを原子的に置換する。部分結果の件数とパスは既存 Details 経路で表示する。
 
 ### `src/zivo/state/reducer_navigation.py`
 
@@ -307,7 +307,8 @@ stateDiagram-v2
     BROWSING --> DETAIL: Show attributes
     BROWSING --> CONFIG: Edit config
     BROWSING --> CONFIRM: delete / paste conflict / archive conflict
-    BROWSING --> BUSY: snapshot / mutation / launch / config save
+    BROWSING --> BUSY: blocking snapshot / short mutation / launch / config save
+    BROWSING --> BROWSING: confirmed long-running worker starts
     BROWSING --> BROWSING: Alt+← / Alt+→ / Alt+Home / reload / sort / hidden toggle
     PALETTE --> BROWSING: Enter on command / Esc
     PALETTE --> PALETTE: query 更新 / search mode 継続
@@ -315,7 +316,7 @@ stateDiagram-v2
     RENAME --> BUSY: Enter
     CREATE --> BUSY: Enter
     EXTRACT --> CONFIRM: Enter with conflicts
-    EXTRACT --> BUSY: Enter without conflicts
+    EXTRACT --> BROWSING: Enter without conflicts (worker)
     EXTRACT --> BROWSING: Esc
     DETAIL --> BROWSING: Enter / Esc
     CONFIG --> BUSY: s save

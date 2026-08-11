@@ -206,4 +206,4 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 
 ## 長時間操作モード
 
-Copy・Move・Compress・Extract・Replaceの実行中は通常ブラウズをモーダルに停止します。サービスが安全なキャンセルを提供する場合は、`Esc` またはStatusBarの `Cancel` を使用できます。現在の対象を完了してから停止し、Cancel要求後の重複要求は無視します。
+Copy・Move・Compress・Extract・Replaceの実行中も通常ブラウズ、ディレクトリ移動、ファイル検索、プレビュー、属性表示を継続できます。サービスが安全なキャンセルを提供する場合は、通常ブラウズまたはTransfer中の `Esc`、またはStatusBarの `Cancel` を使用できます。ダイアログ、コマンドパレット、入力フォームの `Esc` はそれぞれの画面を閉じる既存の意味を保ちます。別のファイル変更、Undo、エディタ・シェル起動、変更を伴うカスタムアクションは、進行中の操作名を示して拒否されます。現在の対象を完了してから停止し、Cancel要求後の重複要求は無視します。

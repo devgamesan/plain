@@ -18,6 +18,7 @@ from zivo.state import (
 )
 from zivo.state.actions import BeginCommandPalette
 from zivo.state.command_palette import get_command_palette_items
+from zivo.state.models import ForegroundOperationState
 from zivo.ui.command_palette import CommandPalette
 
 
@@ -82,6 +83,27 @@ def test_duplicate_command_is_disabled_in_search_workspace() -> None:
 
     assert item.enabled is False
     assert item.disabled_reason == "Unavailable in Search Workspace"
+
+
+def test_mutating_commands_are_disabled_while_long_running_operation_is_active() -> None:
+    state = reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = replace(
+        state,
+        foreground_operation=ForegroundOperationState(operation_id=9, kind="move"),
+    )
+
+    items = {item.id: item for item in get_command_palette_items(state)}
+
+    assert items["rename"].enabled is False
+    assert items["rename"].disabled_reason == "Move is in progress"
+    assert items["paste_clipboard"].enabled is False
+    assert items["paste_clipboard"].disabled_reason == "Move is in progress"
+    assert items["replace_text"].enabled is False
+    assert items["replace_text"].disabled_reason == "Move is in progress"
+    assert items["open"].enabled is False
+    assert items["open"].disabled_reason == "Move is in progress"
+    assert items["file_search"].enabled is True
+    assert items["show_attributes"].enabled is True
 
 
 def test_disabled_command_reason_is_shared_by_selector_and_submit_path() -> None:

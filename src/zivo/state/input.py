@@ -63,6 +63,19 @@ def dispatch_key_input(
     """データドリブンなキーディスパッチ."""
     character = _normalize_input_character(state, key=key, character=character)
 
+    # While a long-running mutation is active, Esc cancels it from the normal
+    # browsing surface.  Dialogs and palettes keep their local Esc semantics.
+    if (
+        state.ui_mode == "BROWSING"
+        and key in {"escape", "esc"}
+        and state.foreground_operation is not None
+        and state.foreground_operation.cancelable
+        and not state.foreground_operation.cancel_requested
+    ):
+        from .actions_mutations import CancelForegroundOperation
+
+        return (CancelForegroundOperation(),)
+
     if state.ui_mode == "ABOUT":
         return dispatch_about_input(state, key=key, character=character)
     if state.ui_mode == "FILTER":

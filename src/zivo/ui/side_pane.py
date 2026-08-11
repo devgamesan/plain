@@ -18,6 +18,7 @@ from .pane_rendering import (
     _render_file_entries,
     _resolve_component_styles,
 )
+from .resize_debounce import ResizeDebouncer
 
 
 class SidePane(Vertical):
@@ -52,6 +53,11 @@ class SidePane(Vertical):
         self._last_clicked_path: str | None = None
         self._hovered_path: str | None = None
         self._label_cache = _FileEntryLabelCache()
+        self._resize_debouncer = ResizeDebouncer(
+            self,
+            self._refresh_after_resize,
+            name="side-pane-resize-debounce",
+        )
 
     @property
     def list_view_id(self) -> str | None:
@@ -88,6 +94,12 @@ class SidePane(Vertical):
         self.call_after_refresh(self._refresh_rendered_labels)
 
     def on_resize(self, _event: events.Resize) -> None:
+        self._resize_debouncer.schedule()
+
+    def on_unmount(self) -> None:
+        self._resize_debouncer.stop()
+
+    def _refresh_after_resize(self) -> None:
         self._refresh_rendered_labels()
 
     def on_click(self, event: events.Click) -> None:

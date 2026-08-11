@@ -28,6 +28,7 @@ from .pane_rendering import (
     truncate_middle,
 )
 from .pane_status import render_pane_status
+from .resize_debounce import ResizeDebouncer
 from .side_pane import SidePane
 
 _SGR_SEQUENCE_RE = re.compile(r"\x1b\[([0-9;]*)m")
@@ -87,6 +88,11 @@ class ChildPane(Vertical):
         self._chafa_resize_request_id = 0
         self._pending_chafa_resize_key: tuple[str, int, str] | None = None
         self._image_preview_loader = image_preview_loader or ChafaImagePreviewLoader()
+        self._resize_debouncer = ResizeDebouncer(
+            self,
+            self._refresh_after_resize,
+            name="child-pane-resize-debounce",
+        )
 
     @property
     def list_view_id(self) -> str | None:
@@ -160,6 +166,9 @@ class ChildPane(Vertical):
         self.call_after_refresh(self._refresh_rendered_content)
 
     def on_resize(self, _event: events.Resize) -> None:
+        self._resize_debouncer.schedule()
+
+    def _refresh_after_resize(self) -> None:
         self._refresh_metadata_bar()
         self._refresh_rendered_content()
 
@@ -262,6 +271,7 @@ class ChildPane(Vertical):
                 self.call_after_refresh(lambda: scroll_widget.scroll_home(animate=False))
 
     def on_unmount(self) -> None:
+        self._resize_debouncer.stop()
         self._invalidate_chafa_resize_requests()
         if self._state.is_preview and self._state.preview_kind == "kitty":
             self._clear_kitty_content()

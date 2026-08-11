@@ -140,6 +140,87 @@ def test_live_grep_search_service_skips_sort_for_ordered_stdout_lines(
     assert sorted_calls == 0
 
 
+def test_live_grep_search_service_builds_target_and_filename_filters(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    target = root / "docs"
+    target.mkdir()
+    process = _FakeGrepProcess(())
+    commands: list[list[str]] = []
+
+    def fake_popen(command, **kwargs):
+        commands.append(command)
+        return process
+
+    monkeypatch.setattr("zivo.services.grep_search.subprocess.Popen", fake_popen)
+
+    LiveGrepSearchService().search(
+        str(root),
+        "todo",
+        show_hidden=False,
+        target_paths=(str(target),),
+        filename_filter="readme",
+    )
+
+    assert commands == [
+        [
+            "rg",
+            "--json",
+            "--line-number",
+            "--color",
+            "never",
+            "--no-heading",
+            "--no-ignore",
+            "--no-messages",
+            "--glob-case-insensitive",
+            "-g",
+            "*readme*",
+            "--fixed-strings",
+            "--ignore-case",
+            "-e",
+            "todo",
+            "--",
+            "docs",
+        ]
+    ]
+    assert process.stdout.closed
+    assert process.stderr.closed
+
+
+def test_live_grep_search_service_stops_process_at_max_results(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    process = _FakeGrepProcess(
+        (
+            _rg_match_line("a.txt", line_number=1, text="TODO a\n"),
+            _rg_match_line("b.txt", line_number=1, text="TODO b\n"),
+            _rg_match_line("c.txt", line_number=1, text="TODO c\n"),
+        )
+    )
+    monkeypatch.setattr(
+        "zivo.services.grep_search.subprocess.Popen",
+        lambda *args, **kwargs: process,
+    )
+
+    results = LiveGrepSearchService().search(
+        str(root),
+        "todo",
+        show_hidden=False,
+        max_results=2,
+    )
+
+    assert [result.display_path for result in results] == ["a.txt", "b.txt"]
+    assert process.killed is True
+    assert process.stdout.closed
+    assert process.stderr.closed
+
+
 def test_live_grep_search_service_sorts_when_stdout_order_regresses(
     tmp_path,
     monkeypatch,
@@ -211,6 +292,27 @@ def test_live_grep_search_service_matches_file_contents_recursively(tmp_path) ->
 
     assert [result.display_label for result in results] == ["docs/README.md:1: TODO: update docs"]
     assert [result.column_number for result in results] == [1]
+
+
+@skip_if_no_rg
+def test_live_grep_search_service_restricts_targets_and_filename_filter(tmp_path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    docs = root / "docs"
+    docs.mkdir()
+    (docs / "README.md").write_text("TODO: docs\n", encoding="utf-8")
+    (docs / "guide.md").write_text("TODO: guide\n", encoding="utf-8")
+    (root / "README.md").write_text("TODO: root\n", encoding="utf-8")
+
+    results = LiveGrepSearchService().search(
+        str(root),
+        "todo",
+        show_hidden=False,
+        target_paths=(str(docs),),
+        filename_filter="readme",
+    )
+
+    assert [result.display_path for result in results] == ["docs/README.md"]
 
 
 @skip_if_no_rg

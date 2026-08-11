@@ -16,6 +16,7 @@ from zivo.models import (
     DisplayConfig,
     EditorConfig,
     FileSearchConfig,
+    GrepSearchConfig,
     GuiEditorConfig,
     LoggingConfig,
     TerminalConfig,
@@ -95,6 +96,7 @@ class AppConfigLoader:
                 logging=load_logging_config(document.get("logging"), warnings),
                 bookmarks=load_bookmark_config(document.get("bookmarks"), warnings),
                 file_search=load_file_search_config(document.get("file_search"), warnings),
+                grep_search=load_grep_search_config(document.get("grep_search"), warnings),
                 actions=load_actions_config(document.get("actions"), warnings),
             )
         if "help_bar" in document:
@@ -412,6 +414,27 @@ def load_file_search_config(section: object, warnings: list[str]) -> FileSearchC
         return config
 
     return FileSearchConfig(max_results=max_results)
+
+
+def load_grep_search_config(section: object, warnings: list[str]) -> GrepSearchConfig:
+    config = GrepSearchConfig()
+    validated = validate_section_dict(section, "grep_search", warnings)
+    if validated is None:
+        return config
+
+    max_results = validated.get("max_results")
+    if max_results is None:
+        return config
+
+    if not isinstance(max_results, int):
+        warnings.append("grep_search.max_results must be an integer or null; using default.")
+        return config
+
+    if max_results < 0:
+        warnings.append("grep_search.max_results must be 0 or greater; using default.")
+        return config
+
+    return GrepSearchConfig(max_results=max_results)
 
 
 def load_actions_config(section: object, warnings: list[str]) -> ActionsConfig:

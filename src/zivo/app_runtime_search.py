@@ -431,6 +431,11 @@ def start_search_worker(
     if isinstance(effect, RunGrepSearchEffect):
         search_kwargs["include_globs"] = effect.include_globs
         search_kwargs["exclude_globs"] = effect.exclude_globs
+        search_kwargs["target_paths"] = effect.target_paths
+        search_kwargs["filename_filter"] = effect.filename_filter
+        palette = getattr(app._app_state, "command_palette", None)
+        if palette is not None and palette.source == "grep_search":
+            search_kwargs["max_results"] = app._app_state.config.grep_search.max_results
     run_worker(
         app,
         effect,

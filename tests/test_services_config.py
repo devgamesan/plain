@@ -9,6 +9,7 @@ from zivo.models import (
     DisplayConfig,
     EditorConfig,
     FileSearchConfig,
+    GrepSearchConfig,
     GuiEditorConfig,
     LoggingConfig,
     TerminalConfig,
@@ -616,6 +617,38 @@ def test_file_search_config_default_is_unlimited() -> None:
     """file_search.max_results のデフォルト値が None であることを確認."""
     config = AppConfig()
     assert config.file_search.max_results is None
+
+
+def test_grep_search_config_default_is_unlimited() -> None:
+    """grep_search.max_results のデフォルト値が None であることを確認."""
+    config = AppConfig()
+    assert config.grep_search.max_results is None
+
+
+def test_loader_reads_grep_search_max_results(tmp_path) -> None:
+    """config.toml から grep_search.max_results を読み込めることを確認."""
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+        [grep_search]
+        max_results = 500
+        """,
+        encoding="utf-8",
+    )
+
+    result = AppConfigLoader(config_path_resolver=lambda: config_path).load()
+
+    assert result.warnings == ()
+    assert result.config.grep_search.max_results == 500
+
+
+def test_render_app_config_includes_grep_search_section() -> None:
+    """render_app_config が grep_search セクションを出力することを確認."""
+    config = AppConfig(grep_search=GrepSearchConfig(max_results=1000))
+    rendered = render_app_config(config)
+
+    assert "[grep_search]" in rendered
+    assert "max_results = 1000" in rendered
 
 
 def test_file_search_config_custom_max_results() -> None:

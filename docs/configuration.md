@@ -55,6 +55,7 @@ those settings and preserves advanced, unknown, and custom TOML values.
 | `logging` | `path` | Path string | Optional log file path. Leave empty to use `zivo.log` next to `config.toml`. Default log file locations: Linux: `~/.config/zivo/zivo.log`, macOS: `~/Library/Application Support/zivo/zivo.log`. |
 | `bookmarks` | `paths` | Array of absolute path strings | Bookmarked directories shown by `b` and the `Go` command's `@bookmark` filter. Duplicate paths are removed when the config is loaded. |
 | `file_search` | `max_results` | Integer or empty | Maximum number of file search results. Leave empty for unlimited (default). Set to reduce memory usage on large repositories. |
+| `grep_search` | `max_results` | Integer or empty | Maximum number of recursive grep results. Leave empty for unlimited (default). When set, the search process stops after reaching the limit. |
 | `actions` | `custom` | Array of action tables | Custom command palette actions. See [Custom Actions](custom-actions.md). |
 
 ## Example
@@ -92,6 +93,10 @@ directories_first = true
 [behavior]
 confirm_delete = true
 paste_conflict_action = "prompt"
+
+[grep_search]
+# Leave empty for unlimited results (default).
+# max_results = 1000
 
 [logging]
 enabled = true

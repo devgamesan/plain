@@ -229,6 +229,8 @@ class RunGrepSearchEffect:
     show_hidden: bool
     include_globs: tuple[str, ...] = ()
     exclude_globs: tuple[str, ...] = ()
+    target_paths: tuple[str, ...] = ()
+    filename_filter: str = ""
 
 
 @dataclass(frozen=True)

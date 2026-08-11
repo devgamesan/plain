@@ -513,6 +513,7 @@ class BlockingGrepSearchService:
         self.executed_requests: list[
             tuple[str, str, tuple[str, ...], tuple[str, ...], bool]
         ] = []
+        self.executed_search_options: list[tuple[tuple[str, ...], str, int | None]] = []
         self.cancelled_queries: list[str] = []
         self.release_event = threading.Event()
 
@@ -524,10 +525,14 @@ class BlockingGrepSearchService:
         show_hidden: bool,
         include_globs: tuple[str, ...] = (),
         exclude_globs: tuple[str, ...] = (),
+        target_paths: tuple[str, ...] = (),
+        filename_filter: str = "",
+        max_results: int | None = None,
         is_cancelled=None,
     ) -> tuple[GrepSearchResultState, ...]:
         key = (root_path, query, include_globs, exclude_globs, show_hidden)
         self.executed_requests.append(key)
+        self.executed_search_options.append((target_paths, filename_filter, max_results))
         if query in self.blocked_queries:
             while not self.release_event.is_set():
                 if is_cancelled is not None and is_cancelled():
@@ -4333,6 +4338,12 @@ async def test_app_grep_search_filters_results_by_filename(tmp_path) -> None:
         assert [
             result.display_label for result in app.app_state.command_palette.grep_search.results
         ] == expected_labels
+        assert any(
+            filename_filter.casefold() == "read"
+            for _targets, filename_filter, _max_results in (
+                grep_search_service.executed_search_options
+            )
+        )
 
 
 @pytest.mark.asyncio

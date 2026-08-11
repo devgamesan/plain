@@ -104,8 +104,7 @@ from zivo.state.actions import (
     RequestBrowserSnapshot,
     SetCursorPath,
     SetSort,
-    SetTerminalHeight,
-    SetTerminalWidth,
+    SetTerminalSize,
     SetTransferCursorPath,
     ShowAttributes,
 )
@@ -338,8 +337,7 @@ class zivoApp(App[None]):
         """Load the initial directory snapshot after the UI mounts."""
 
         await self.dispatch_actions((
-            SetTerminalHeight(height=self.size.height),
-            SetTerminalWidth(width=self.size.width),
+            SetTerminalSize(height=self.size.height, width=self.size.width),
             RequestBrowserSnapshot(self._initial_path, blocking=True),
         ))
         self.call_after_refresh(lambda: sync_overlay_layout(self))
@@ -697,8 +695,7 @@ class zivoApp(App[None]):
         """Update terminal dimensions and responsive pane layout on resize."""
 
         await self.dispatch_actions((
-            SetTerminalHeight(height=event.size.height),
-            SetTerminalWidth(width=event.size.width),
+            SetTerminalSize(height=event.size.height, width=event.size.width),
         ))
         sync_overlay_layout(self, event.size.width)
 

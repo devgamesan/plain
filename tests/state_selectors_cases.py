@@ -1082,6 +1082,7 @@ def test_select_shell_data_exposes_visible_cursor_index() -> None:
 
     assert shell.current_path == "/home/tadashi/develop/zivo"
     assert shell.current_cursor_index == 2
+    assert shell.current_heading.status_label == "3/5"
     assert shell.current_cursor_visible is True
 
 
@@ -1249,7 +1250,24 @@ def test_select_shell_data_reuses_pane_entries_when_only_notification_changes() 
 
     assert updated_shell.parent_entries is initial_shell.parent_entries
     assert updated_shell.current_entries is initial_shell.current_entries
-    assert updated_shell.child_pane is initial_shell.child_pane
+    assert updated_shell.child_pane == initial_shell.child_pane
+
+
+def test_select_shell_data_selects_parent_entries_once(monkeypatch) -> None:
+    state = build_initial_app_state()
+    original = selectors_module.select_parent_entries
+    calls = 0
+
+    def wrapped(current_state):
+        nonlocal calls
+        calls += 1
+        return original(current_state)
+
+    monkeypatch.setattr(selectors_module, "select_parent_entries", wrapped)
+
+    select_shell_data(state)
+
+    assert calls == 1
 
 
 def test_select_shell_data_reuses_current_entries_when_only_cursor_changes() -> None:
@@ -1417,7 +1435,7 @@ def test_select_shell_data_rebuilds_only_current_entries_when_selection_changes(
     )
 
     assert updated_shell.parent_entries is initial_shell.parent_entries
-    assert updated_shell.child_pane is initial_shell.child_pane
+    assert updated_shell.child_pane == initial_shell.child_pane
     assert updated_shell.current_entries is not initial_shell.current_entries
 
 
@@ -1527,6 +1545,24 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
         "space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
         f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
+
+
+def test_select_help_bar_narrow_view_uses_prebuilt_view_hint_lines() -> None:
+    initial = build_initial_app_state()
+    state = replace(
+        initial,
+        terminal_width=79,
+        current_pane=replace(
+            initial.current_pane,
+            cursor_path="/home/tadashi/develop/zivo/README.md",
+        ),
+    )
+
+    current = select_help_bar_state(state)
+    details = select_help_bar_state(replace(state, narrow_pane_view="details"))
+
+    assert current.lines[-1].endswith("tab details")
+    assert details.lines[-1].endswith("tab file-list")
 
 
 def test_select_help_bar_for_search_workspace_shows_available_actions_only() -> None:

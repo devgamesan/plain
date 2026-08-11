@@ -151,6 +151,17 @@ BROWSING_HELP_LINES = (
     ),
 )
 
+BROWSING_HELP_LINES_WITH_DETAILS = (
+    BROWSING_HELP_LINES[0],
+    BROWSING_HELP_LINES[1],
+    (*BROWSING_HELP_LINES[2], ("tab", "details")),
+)
+BROWSING_HELP_LINES_WITH_FILE_LIST = (
+    BROWSING_HELP_LINES[0],
+    BROWSING_HELP_LINES[1],
+    (*BROWSING_HELP_LINES[2], ("tab", "file-list")),
+)
+
 SEARCH_WORKSPACE_HELP_LINES = (
     (
         ("enter", "open"),

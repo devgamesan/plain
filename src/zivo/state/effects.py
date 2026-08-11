@@ -260,6 +260,14 @@ class RunConfigSaveEffect:
 
 
 @dataclass(frozen=True)
+class RunConfigReloadEffect:
+    """Reload an existing config file after external editing."""
+
+    request_id: int
+    path: str
+
+
+@dataclass(frozen=True)
 class RunShellCommandEffect:
     """Execute a shell command in the supplied directory."""
 
@@ -318,6 +326,7 @@ Effect = (
     | RunTextReplacePreviewEffect
     | RunTextReplaceApplyEffect
     | RunConfigSaveEffect
+    | RunConfigReloadEffect
     | RunShellCommandEffect
     | RunCustomActionEffect
     | ExitCurrentPathEffect

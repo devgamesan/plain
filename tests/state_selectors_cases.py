@@ -2581,7 +2581,7 @@ def test_select_config_dialog_state_formats_directories_first_detail() -> None:
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=AppConfig(display=DisplayConfig(directories_first=False)),
-            cursor_index=15,
+            cursor_index=11,
         ),
     )
 

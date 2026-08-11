@@ -168,7 +168,7 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 | `↑` / `↓` / `Ctrl+j` / `Ctrl+k` | 設定項目を移動 |
 | `←` / `→` / `Enter` | 選択中の値を変更 |
 | `s` | `config.toml` を保存 |
-| `e` | 高度設定を編集するため `config.toml` をターミナルエディタで開く |
+| `e` | 高度設定を編集するため `config.toml` をターミナルエディタで開く（未保存の変更は先に保存または終了） |
 | `Esc` | 設定エディタを閉じる |
 
 ---

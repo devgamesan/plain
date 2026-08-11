@@ -4852,7 +4852,7 @@ async def test_app_config_dialog_save_updates_theme(monkeypatch) -> None:
 
         assert app.theme == "textual-dark"
 
-        for _ in range(2):
+        for _ in range(3):
             await pilot.press("down")
         await pilot.press("enter")
         await _wait_for_app_theme(app, "textual-light")
@@ -4915,7 +4915,7 @@ async def test_app_config_dialog_dismiss_restores_theme_preview() -> None:
         await pilot.press("enter")
         await _wait_for_config_dialog(app)
 
-        for _ in range(2):
+        for _ in range(3):
             await pilot.press("down")
         await pilot.press("enter")
         await _wait_for_app_theme(app, "textual-light")
@@ -4979,7 +4979,7 @@ async def test_app_config_dialog_theme_preview_updates_auto_syntax_theme() -> No
         await pilot.press("c", "o", "n", "f", "i", "g")
         await pilot.press("enter")
         await _wait_for_config_dialog(app)
-        for _ in range(2):
+        for _ in range(3):
             await pilot.press("down")
         await pilot.press("enter")
         await _wait_for_app_theme(app, "textual-light")
@@ -5026,7 +5026,11 @@ async def test_app_config_dialog_e_opens_config_file_in_editor() -> None:
         await _wait_for_external_launch_count(app, 1)
 
         assert launch_service.executed_requests == [
-            ExternalLaunchRequest(kind="open_editor", path="/tmp/zivo/config.toml")
+            ExternalLaunchRequest(
+                kind="open_editor",
+                path="/tmp/zivo/config.toml",
+                reload_config_after_exit=True,
+            )
         ]
 
 

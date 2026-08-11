@@ -200,7 +200,7 @@ Empty directories and zero-result filters show their reason and an available nex
 ## Configuration
 
 zivo automatically creates `config.toml` on first launch.
-The Config Editor covers commonly changed themes, previews, sorting, editor integration, and delete confirmation. Press `e` there to edit advanced settings in `config.toml`; saving from the UI preserves advanced and unknown settings.
+The Config Editor covers commonly changed themes, previews, sorting, editor integration, and delete confirmation. Press `e` there to edit advanced settings in `config.toml`; saving from the UI preserves advanced and unknown settings, and zivo reloads the file when the external editor exits.
 You can also add custom command palette actions for external tools.
 Help text itself is generated from the current state and standard keybindings.
 

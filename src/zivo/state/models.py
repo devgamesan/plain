@@ -775,6 +775,7 @@ class AppState:
     pending_directory_size_request_id: int | None = None
     pending_attribute_inspection_request_id: int | None = None
     pending_config_save_request_id: int | None = None
+    pending_config_reload_request_id: int | None = None
     pending_shell_command_request_id: int | None = None
     pending_grep_export_request_id: int | None = None
     pending_custom_action_request_id: int | None = None

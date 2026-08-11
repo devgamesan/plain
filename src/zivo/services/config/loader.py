@@ -71,12 +71,14 @@ class AppConfigLoader:
                 config=config,
                 path=str(path),
                 warnings=(f"Failed to read config: {error}",),
+                fatal=True,
             )
         except tomllib.TOMLDecodeError as error:
             return ConfigLoadResult(
                 config=config,
                 path=str(path),
                 warnings=(f"Failed to parse config.toml: {error}",),
+                fatal=True,
             )
 
         warnings: list[str] = []
@@ -85,6 +87,7 @@ class AppConfigLoader:
                 config=config,
                 path=str(path),
                 warnings=("Config root must be a TOML table; using defaults.",),
+                fatal=True,
             )
 
         config = AppConfig(

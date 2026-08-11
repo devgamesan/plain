@@ -13,6 +13,7 @@ from textual.app import SuspendNotSupported
 
 from zivo.app_runtime_core import WorkerSpec, run_worker, start_foreground_operation
 from zivo.models import CustomActionResult
+from zivo.services.config import AppConfigLoader
 from zivo.state import (
     ExitCurrentPathEffect,
     RunArchiveExtractEffect,
@@ -20,6 +21,7 @@ from zivo.state import (
     RunAttributeInspectionEffect,
     RunBulkRenameEffect,
     RunClipboardPasteEffect,
+    RunConfigReloadEffect,
     RunConfigSaveEffect,
     RunCustomActionEffect,
     RunDeletePreparationEffect,
@@ -114,6 +116,23 @@ def schedule_config_save(app: Any, effect: RunConfigSaveEffect) -> None:
         WorkerSpec(
             name=f"config-save:{effect.request_id}",
             group="config-save",
+            description=effect.path,
+            exclusive=True,
+        ),
+    )
+
+
+def schedule_config_reload(app: Any, effect: RunConfigReloadEffect) -> None:
+    """Reload config.toml after the external editor exits."""
+
+    loader = AppConfigLoader(config_path_resolver=lambda: Path(effect.path))
+    run_worker(
+        app,
+        effect,
+        loader.load,
+        WorkerSpec(
+            name=f"config-reload:{effect.request_id}",
+            group="config-reload",
             description=effect.path,
             exclusive=True,
         ),

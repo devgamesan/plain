@@ -22,6 +22,58 @@ def test_live_file_search_service_matches_files_recursively(tmp_path) -> None:
     assert [result.display_path for result in results] == ["docs/README.md"]
 
 
+def test_live_file_search_service_filters_extensions_case_insensitively(tmp_path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "main.PY").write_text("print()\n", encoding="utf-8")
+    (root / "app.js").write_text("console.log()\n", encoding="utf-8")
+    (root / "README.md").write_text("readme\n", encoding="utf-8")
+
+    results = LiveFileSearchService().search(
+        str(root),
+        "",
+        show_hidden=False,
+        include_extensions=("*.py", "*.js"),
+    )
+
+    assert [result.display_path for result in results] == ["app.js", "main.PY"]
+
+
+def test_live_file_search_service_combines_keyword_and_exclude_extension_filters(
+    tmp_path,
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "README.md").write_text("readme\n", encoding="utf-8")
+    (root / "README.txt").write_text("readme\n", encoding="utf-8")
+    (root / "guide.md").write_text("guide\n", encoding="utf-8")
+
+    results = LiveFileSearchService().search(
+        str(root),
+        "read",
+        show_hidden=False,
+        exclude_extensions=("*.txt",),
+    )
+
+    assert [result.display_path for result in results] == ["README.md"]
+
+
+def test_live_file_search_service_returns_no_directories_with_extension_filters(tmp_path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "docs.py").mkdir()
+
+    results = LiveFileSearchService().search(
+        str(root),
+        "",
+        show_hidden=False,
+        search_target="directories",
+        include_extensions=("*.py",),
+    )
+
+    assert results == ()
+
+
 def test_live_file_search_service_skips_hidden_paths_when_disabled(tmp_path) -> None:
     root = tmp_path / "project"
     root.mkdir()

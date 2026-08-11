@@ -9,6 +9,7 @@ from .effects import ReduceResult
 from .models import (
     AppState,
     CommandPaletteState,
+    FileSearchFieldId,
     FindReplaceFieldId,
     GrepReplaceFieldId,
     GrepReplaceSelectedFieldId,
@@ -42,6 +43,13 @@ GREP_REPLACE_SELECTED_FIELDS: tuple[GrepReplaceSelectedFieldId, ...] = ("keyword
 
 _EXTENSION_SEPARATOR_RE = re.compile(r"[\s,]+")
 _VALID_EXTENSION_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*")
+
+FILE_SEARCH_FIELDS: tuple[FileSearchFieldId, ...] = (
+    "keyword",
+    "target",
+    "include",
+    "exclude",
+)
 
 
 def grep_field_value(
@@ -163,7 +171,7 @@ def replace_grs_field(
     return replace(palette, grs=replace(palette.grs, replacement_text=value))
 
 
-def normalize_grep_extension_filters(
+def normalize_extension_filters(
     raw_value: str,
     *,
     label: str,
@@ -181,6 +189,16 @@ def normalize_grep_extension_filters(
             seen.add(glob)
             normalized_globs.append(glob)
     return tuple(normalized_globs)
+
+
+def normalize_grep_extension_filters(
+    raw_value: str,
+    *,
+    label: str,
+) -> tuple[str, ...]:
+    """Normalize extension filters used by grep and file search."""
+
+    return normalize_extension_filters(raw_value, label=label)
 
 
 def validate_filename_filter(filename_query: str) -> str | None:

@@ -357,7 +357,12 @@ def schedule_text_replace_apply(app: Any, effect: RunTextReplaceApplyEffect) -> 
 
 def describe_search_effect(effect: RunFileSearchEffect | RunGrepSearchEffect) -> str:
     if isinstance(effect, RunFileSearchEffect):
-        return effect.query
+        parts = [effect.query]
+        if effect.include_extensions:
+            parts.append(f"include={','.join(effect.include_extensions)}")
+        if effect.exclude_extensions:
+            parts.append(f"exclude={','.join(effect.exclude_extensions)}")
+        return " | ".join(part for part in parts if part)
     parts = [effect.query]
     if effect.include_globs:
         parts.append(f"include={','.join(effect.include_globs)}")
@@ -448,6 +453,9 @@ def start_search_worker(
 
     if isinstance(effect, RunFileSearchEffect):
         search_kwargs["search_target"] = effect.search_target
+        if effect.include_extensions or effect.exclude_extensions:
+            search_kwargs["include_extensions"] = effect.include_extensions
+            search_kwargs["exclude_extensions"] = effect.exclude_extensions
 
     if direct_file_search:
         configured_limit = app._app_state.config.file_search.max_results

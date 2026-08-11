@@ -157,6 +157,17 @@ def test_display_path_for_search_workspace_with_query_and_root():
     assert result == "search:filename:py (root:/home)"
 
 
+def test_display_path_for_search_workspace_includes_extension_filters():
+    path = (
+        "search://?target=all&hidden=false&include=%2A.py%2C%2A.js&"
+        "exclude=%2A.log&root=%2Fhome"
+    )
+
+    assert display_path(path) == (
+        "search:all (include:*.py,*.js) (exclude:*.log) (root:/home)"
+    )
+
+
 def test_display_path_for_search_workspace_without_root():
     """root がない search workspace パスが正しく表示されること"""
     path = "search://?target=all&hidden=false"

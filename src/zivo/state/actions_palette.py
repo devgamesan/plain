@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from zivo.models import TextReplacePreviewResult, TextReplaceResult
 
 from .models import (
+    FileSearchFieldId,
     FileSearchResultState,
     FindReplaceFieldId,
     GoSourceFilter,
@@ -86,6 +87,14 @@ class SetFileSearchTarget:
     """Change the file-search target scope."""
 
     target: str
+
+
+@dataclass(frozen=True)
+class SetFileSearchField:
+    """Update one file-search input field."""
+
+    field: FileSearchFieldId
+    value: str
 
 
 @dataclass(frozen=True)

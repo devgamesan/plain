@@ -477,6 +477,8 @@ class BlockingFileSearchService:
         *,
         show_hidden: bool,
         search_target: str = "all",
+        include_extensions: tuple[str, ...] = (),
+        exclude_extensions: tuple[str, ...] = (),
         max_results: int | None = None,
         is_cancelled=None,
     ) -> tuple[FileSearchResultState, ...]:

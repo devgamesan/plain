@@ -233,6 +233,7 @@ from .actions_palette import (
     OpenSearchWorkspace,
     SaveGrepResults,
     SetCommandPaletteQuery,
+    SetFileSearchField,
     SetFileSearchTarget,
     SetFindReplaceField,
     SetGrepReplaceField,
@@ -338,6 +339,7 @@ Action = (
     | BeginGrepReplace
     | BeginGrepReplaceSelected
     | CycleFileSearchField
+    | SetFileSearchField
     | SetFileSearchTarget
     | BeginCommandPalette
     | CancelCommandPalette

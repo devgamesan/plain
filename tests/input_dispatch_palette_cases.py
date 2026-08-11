@@ -218,6 +218,33 @@ def test_palette_printable_key_updates_query() -> None:
     assert actions == (SetNotification(None), SetCommandPaletteQuery("f"))
 
 
+def test_file_search_tab_cycles_through_extension_fields() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(source="file_search"),
+    )
+
+    actions = dispatch_key_input(state, key="tab")
+
+    assert actions == (SetNotification(None), CycleFileSearchField(delta=1))
+
+
+def test_file_search_printable_key_updates_include_field() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="file_search",
+            file_search=FileSearchPaletteState(active_field="include"),
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="p", character="p")
+
+    assert actions == (SetNotification(None), SetFileSearchField(field="include", value="p"))
+
+
 def test_go_palette_j_and_k_are_query_input() -> None:
     from zivo.state.models import CommandPaletteState
 

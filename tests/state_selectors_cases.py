@@ -2600,6 +2600,44 @@ def test_select_command_palette_state_for_file_search_results() -> None:
     assert [item.label for item in palette_state.items] == ["README.md"]
 
 
+def test_select_command_palette_state_for_file_search_includes_extension_fields() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = replace(
+        state,
+        command_palette=CommandPaletteState(
+            source="file_search",
+            query="",
+            file_search=FileSearchPaletteState(
+                include_extensions="py, js",
+                exclude_extensions="log",
+                active_field="exclude",
+            ),
+        ),
+    )
+
+    palette_state = select_command_palette_state(state)
+
+    assert palette_state is not None
+    assert [field.label for field in palette_state.input_fields] == [
+        "Keyword",
+        "Target",
+        "Include extensions",
+        "Exclude extensions",
+    ]
+    assert [field.value for field in palette_state.input_fields] == [
+        "",
+        "all",
+        "py, js",
+        "log",
+    ]
+    assert [field.active for field in palette_state.input_fields] == [
+        False,
+        False,
+        False,
+        True,
+    ]
+
+
 def test_select_command_palette_state_reports_truncated_file_search_results() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
     state = replace(
@@ -2690,9 +2728,8 @@ def test_select_command_palette_state_windows_large_file_search_results() -> Non
     palette_state = select_command_palette_state(state)
 
     assert palette_state is not None
-    assert palette_state.title == "Find All (5-17 / 20)"
+    assert palette_state.title == "Find All (6-16 / 20)"
     assert [item.label for item in palette_state.items] == [
-        "src/module_4.py",
         "src/module_5.py",
         "src/module_6.py",
         "src/module_7.py",
@@ -2704,9 +2741,8 @@ def test_select_command_palette_state_windows_large_file_search_results() -> Non
         "src/module_13.py",
         "src/module_14.py",
         "src/module_15.py",
-        "src/module_16.py",
     ]
-    assert palette_state.items[6].selected is True
+    assert palette_state.items[5].selected is True
     assert palette_state.has_more_items is True
 
 

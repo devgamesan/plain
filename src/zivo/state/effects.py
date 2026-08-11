@@ -217,6 +217,8 @@ class RunFileSearchEffect:
     query: str
     show_hidden: bool
     search_target: str = "all"
+    include_extensions: tuple[str, ...] = ()
+    exclude_extensions: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -19,6 +19,7 @@ from .actions import (
     OpenGrepResultInGuiEditor,
     SaveGrepResults,
     SetCommandPaletteQuery,
+    SetFileSearchField,
     SetFileSearchTarget,
     SetFindReplaceField,
     SetGrepReplaceField,
@@ -33,6 +34,7 @@ from .command_palette import get_command_palette_items, normalize_command_palett
 from .input_common import DispatchedActions, supported, warn
 from .models import (
     AppState,
+    FileSearchFieldId,
     FindReplaceFieldId,
     GrepReplaceFieldId,
     GrepReplaceSelectedFieldId,
@@ -56,6 +58,17 @@ def active_grep_field_value(state: AppState) -> str:
     if field == "include":
         return state.command_palette.grep_search.include_extensions
     return state.command_palette.grep_search.exclude_extensions
+
+
+def active_file_search_field_value(state: AppState) -> str:
+    if state.command_palette is None:
+        return ""
+    field = state.command_palette.file_search.active_field
+    if field == "keyword":
+        return state.command_palette.query
+    if field == "include":
+        return state.command_palette.file_search.include_extensions
+    return state.command_palette.file_search.exclude_extensions
 
 
 def active_replace_field_value(state: AppState) -> str:
@@ -115,7 +128,7 @@ def palette_extra_rows(palette_source: str | None) -> int:
     if palette_source == "replace_text":
         return 2
     if palette_source == "file_search":
-        return 1
+        return 3
     return 0
 
 
@@ -284,8 +297,11 @@ def dispatch_command_palette_input(
                 and state.command_palette.file_search.active_field == "target"
             ):
                 return warn("Use left/right arrows on the target field to change scope")
-            current_query = state.command_palette.query if state.command_palette is not None else ""
-            return supported(SetCommandPaletteQuery(current_query[:-1]))
+            active_field: FileSearchFieldId = state.command_palette.file_search.active_field
+            next_value = active_file_search_field_value(state)[:-1]
+            if active_field == "keyword":
+                return supported(SetCommandPaletteQuery(next_value))
+            return supported(SetFileSearchField(field=active_field, value=next_value))
         if palette_source == "grep_search":
             if state.command_palette.grep_search.active_field == "scope":
                 return warn("Use left/right arrows to change scope")
@@ -356,6 +372,16 @@ def dispatch_command_palette_input(
                 and state.command_palette.file_search.active_field == "target"
             ):
                 return warn("Use left/right arrows on the target field to change scope")
+            active_field: FileSearchFieldId = state.command_palette.file_search.active_field
+            if active_field == "keyword":
+                current_query = state.command_palette.query
+                return supported(SetCommandPaletteQuery(f"{current_query}{character}"))
+            return supported(
+                SetFileSearchField(
+                    field=active_field,
+                    value=f"{active_file_search_field_value(state)}{character}",
+                )
+            )
         if palette_source == "grep_search":
             active_field: GrepSearchFieldId = state.command_palette.grep_search.active_field
             if active_field == "scope":

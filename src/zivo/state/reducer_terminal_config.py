@@ -33,6 +33,7 @@ from .actions import (
     SetShellCommandCursor,
     SetShellCommandValue,
     SetTerminalHeight,
+    SetTerminalSize,
     SetTerminalWidth,
     ShellCommandCompleted,
     ShellCommandFailed,
@@ -788,6 +789,32 @@ def _handle_set_terminal_width(
     return finalize(replace(state, terminal_width=width, narrow_pane_view=next_view))
 
 
+def _handle_set_terminal_size(
+    state: AppState,
+    action: SetTerminalSize,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del reduce_state
+    width = max(0, action.width)
+    next_view = state.narrow_pane_view
+    if (state.terminal_width < 80) != (width < 80):
+        next_view = "current"
+    if (
+        action.height == state.terminal_height
+        and width == state.terminal_width
+        and next_view == state.narrow_pane_view
+    ):
+        return finalize(state)
+    return finalize(
+        replace(
+            state,
+            terminal_height=action.height,
+            terminal_width=width,
+            narrow_pane_view=next_view,
+        )
+    )
+
+
 def _handle_toggle_narrow_pane_view(
     state: AppState,
     action: ToggleNarrowPaneView,
@@ -840,6 +867,7 @@ _TERMINAL_CONFIG_HANDLERS: dict[type[Action], _TerminalConfigHandler] = {
     ConfigSaveCompleted: _handle_config_save_completed,
     ConfigSaveFailed: _handle_config_save_failed,
     SetTerminalHeight: _handle_set_terminal_height,
+    SetTerminalSize: _handle_set_terminal_size,
     SetTerminalWidth: _handle_set_terminal_width,
     ToggleNarrowPaneView: _handle_toggle_narrow_pane_view,
 }

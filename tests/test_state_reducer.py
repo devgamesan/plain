@@ -89,6 +89,7 @@ from zivo.state.actions import (
     SetPendingKeySequence,
     SetSort,
     SetTerminalHeight,
+    SetTerminalSize,
     SetTerminalWidth,
     SetUiMode,
     ToggleHiddenFiles,
@@ -2094,6 +2095,28 @@ class TestSetTerminalHeight:
 
 
 class TestResponsivePaneState:
+    def test_set_terminal_size_updates_both_dimensions_once(self) -> None:
+        state = replace(
+            build_initial_app_state(),
+            terminal_height=24,
+            terminal_width=72,
+            narrow_pane_view="details",
+        )
+
+        next_state = _reduce_state(state, SetTerminalSize(height=30, width=80))
+
+        assert next_state.terminal_height == 30
+        assert next_state.terminal_width == 80
+        assert next_state.narrow_pane_view == "current"
+
+    def test_set_terminal_size_no_change_returns_same_state(self) -> None:
+        state = build_initial_app_state()
+
+        assert _reduce_state(
+            state,
+            SetTerminalSize(height=state.terminal_height, width=state.terminal_width),
+        ) is state
+
     def test_updates_terminal_width_and_resets_narrow_view_at_breakpoint(self) -> None:
         state = replace(
             build_initial_app_state(),

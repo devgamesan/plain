@@ -65,6 +65,7 @@ class CurrentPaneProjection:
     visible_entries: tuple[DirectoryEntryState, ...]
     projected_entries: tuple[DirectoryEntryState, ...]
     cursor_index: int | None
+    global_cursor_index: int | None
     cursor_entry: DirectoryEntryState | None
     summary: CurrentSummaryState
 
@@ -185,6 +186,7 @@ def select_current_pane_projection(state: AppState) -> CurrentPaneProjection:
         visible_entries=visible_entries,
         projected_entries=projected_entries,
         cursor_index=cursor_index,
+        global_cursor_index=global_cursor_index,
         cursor_entry=cursor_entry,
         summary=_build_current_summary(
             len(visible_entries),
@@ -371,10 +373,7 @@ def select_child_pane_for_cursor(
     return _with_child_header(view, _format_child_semantic_title(state, view, cursor_entry))
 
 
-@lru_cache(maxsize=4096)
 def _with_child_header(view: ChildPaneViewState, title: str) -> ChildPaneViewState:
-    if view.header_title == title:
-        return view
     return replace(view, header_title=title)
 
 

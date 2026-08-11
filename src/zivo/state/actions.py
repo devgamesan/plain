@@ -308,6 +308,7 @@ from .actions_ui import (
     SetNotification,
     SetPendingKeySequence,
     SetTerminalHeight,
+    SetTerminalSize,
     SetTerminalWidth,
     SetUiMode,
     ToggleNarrowPaneView,
@@ -322,6 +323,7 @@ Action = (
     | ActivateNotificationAction
     | DismissNotification
     | SetTerminalHeight
+    | SetTerminalSize
     | SetTerminalWidth
     | ToggleNarrowPaneView
     | BeginFileSearch

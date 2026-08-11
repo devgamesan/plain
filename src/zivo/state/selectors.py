@@ -133,11 +133,12 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
     )
     responsive_layout = select_responsive_pane_layout(state)
     current_status_label = _current_cursor_status_label(current_pane)
+    parent_entries = select_parent_entries(state)
     shell = ThreePaneShellData(
         tab_bar=select_tab_bar_state(state),
         current_path=state.current_pane.directory_path,
         path_bar=select_path_bar_state(state),
-        parent_entries=select_parent_entries(state),
+        parent_entries=parent_entries,
         current_entries=(
             _select_current_pane_entries(
                 current_pane.projected_entries,
@@ -165,7 +166,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         parent_heading=_format_directory_heading(
             "Parent",
             state.parent_pane.directory_path,
-            len(select_parent_entries(state)),
+            len(parent_entries),
         ),
         current_context_input=select_input_bar_state(state),
         current_pane_status=_select_current_pane_status(state, current_pane.visible_entries),
@@ -267,13 +268,9 @@ def _pane_width_class(width: int) -> str:
 
 
 def _current_cursor_status_label(projection: _CurrentPaneProjection) -> str | None:
-    if projection.cursor_entry is None:
+    if projection.global_cursor_index is None:
         return None
-    try:
-        index = projection.visible_entries.index(projection.cursor_entry)
-    except ValueError:
-        return None
-    return f"{index + 1}/{len(projection.visible_entries)}"
+    return f"{projection.global_cursor_index + 1}/{len(projection.visible_entries)}"
 
 
 def _format_directory_heading(role: str, path: str, item_count: int) -> str:
@@ -418,6 +415,7 @@ def _select_current_pane_projection(state: AppState) -> _CurrentPaneProjection:
         visible_entries=visible_entries,
         projected_entries=projected_entries,
         cursor_index=cursor_index,
+        global_cursor_index=global_cursor_index,
         cursor_entry=cursor_entry,
         summary=select_current_summary_state(state),
     )

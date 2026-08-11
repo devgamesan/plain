@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -35,6 +36,62 @@ def test_live_file_search_service_skips_hidden_paths_when_disabled(tmp_path) -> 
 
     assert hidden_off == ()
     assert [result.display_path for result in hidden_on] == [".secret/README.md"]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation requires extra Windows privileges")
+def test_live_file_search_service_does_not_follow_directory_symlink_cycle(tmp_path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    nested = root / "nested"
+    nested.mkdir()
+    (nested / "README.md").write_text("readme\n", encoding="utf-8")
+    (nested / "parent").symlink_to(root, target_is_directory=True)
+
+    service = LiveFileSearchService()
+    cancellation_checks = 0
+
+    def is_cancelled() -> bool:
+        nonlocal cancellation_checks
+        cancellation_checks += 1
+        return cancellation_checks > 32
+
+    results = service.search(
+        str(root),
+        "readme",
+        show_hidden=False,
+        is_cancelled=is_cancelled,
+    )
+
+    assert [result.display_path for result in results] == ["nested/README.md"]
+    assert cancellation_checks < 32
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation requires extra Windows privileges")
+def test_live_file_search_service_reports_but_does_not_follow_directory_symlink(
+    tmp_path,
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    target = tmp_path / "target"
+    target.mkdir()
+    (target / "nested.txt").write_text("nested\n", encoding="utf-8")
+    link = root / "linked-target"
+    link.symlink_to(target, target_is_directory=True)
+
+    service = LiveFileSearchService()
+
+    directory_results = service.search(
+        str(root),
+        "linked",
+        show_hidden=False,
+        search_target="directories",
+    )
+    all_results = service.search(str(root), "nested", show_hidden=False)
+
+    assert [(result.display_path, result.entry_type) for result in directory_results] == [
+        ("linked-target", "directory")
+    ]
+    assert all_results == ()
 
 
 def test_live_file_search_service_matches_case_insensitively_and_includes_directories(

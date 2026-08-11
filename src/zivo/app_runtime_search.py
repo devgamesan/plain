@@ -1,6 +1,7 @@
 """Runtime scheduling helpers for search and preview effects."""
 
 import threading
+from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -17,7 +18,8 @@ from zivo.app_runtime_core import (
     set_active_tracking,
     start_foreground_operation,
 )
-from zivo.app_runtime_execution import report_foreground_operation_progress
+from zivo.app_runtime_execution import report_foreground_operation_progress, report_search_results
+from zivo.models.config import DEFAULT_SEARCH_MAX_RESULTS
 from zivo.state import (
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
@@ -36,6 +38,14 @@ DOCUMENT_PREVIEW_DEBOUNCE_SECONDS = 0.35
 FILE_SEARCH_DEBOUNCE_SECONDS = 0.2
 GREP_SEARCH_DEBOUNCE_SECONDS = 0.2
 DOCUMENT_PREVIEW_EXTENSIONS = frozenset({".pdf", ".docx", ".xlsx", ".pptx"})
+
+
+@dataclass(frozen=True)
+class SearchWorkerResult:
+    """Terminal search payload including whether the result list was capped."""
+
+    results: tuple[Any, ...]
+    truncated: bool = False
 
 FILE_SEARCH_RUNTIME = SearchRuntimeConfig(
     debounce_seconds=FILE_SEARCH_DEBOUNCE_SECONDS,
@@ -424,27 +434,97 @@ def start_search_worker(
         "is_cancelled": cancel_event.is_set,
     }
 
+    palette = getattr(app._app_state, "command_palette", None)
+    direct_file_search = (
+        isinstance(effect, RunFileSearchEffect)
+        and palette is not None
+        and palette.source == "file_search"
+    )
+    direct_grep_search = (
+        isinstance(effect, RunGrepSearchEffect)
+        and palette is not None
+        and palette.source == "grep_search"
+    )
+
     if isinstance(effect, RunFileSearchEffect):
-        search_kwargs["max_results"] = app._app_state.config.file_search.max_results
         search_kwargs["search_target"] = effect.search_target
 
+    if direct_file_search:
+        configured_limit = app._app_state.config.file_search.max_results
+        search_kwargs["max_results"] = (
+            DEFAULT_SEARCH_MAX_RESULTS if configured_limit is None else configured_limit
+        )
+        search_kwargs["on_results"] = partial(
+            report_search_results,
+            app,
+            effect.request_id,
+            effect.query,
+            "file_search",
+        )
     if isinstance(effect, RunGrepSearchEffect):
         search_kwargs["include_globs"] = effect.include_globs
         search_kwargs["exclude_globs"] = effect.exclude_globs
         search_kwargs["target_paths"] = effect.target_paths
         search_kwargs["filename_filter"] = effect.filename_filter
-        palette = getattr(app._app_state, "command_palette", None)
-        if palette is not None and palette.source == "grep_search":
-            search_kwargs["max_results"] = app._app_state.config.grep_search.max_results
+        if direct_grep_search:
+            configured_limit = app._app_state.config.grep_search.max_results
+            search_kwargs["max_results"] = (
+                DEFAULT_SEARCH_MAX_RESULTS if configured_limit is None else configured_limit
+            )
+            search_kwargs["on_results"] = partial(
+                report_search_results,
+                app,
+                effect.request_id,
+                effect.query,
+                "grep_search",
+            )
+    truncated = False
+    progress_callback = search_kwargs.get("on_results")
+
+    def on_results(results: tuple[Any, ...], batch_truncated: bool) -> None:
+        nonlocal truncated
+        truncated = truncated or batch_truncated
+        if progress_callback is not None:
+            progress_callback(results, batch_truncated)
+
+    if "on_results" in search_kwargs:
+        search_kwargs["on_results"] = on_results
+
+    def run_search() -> SearchWorkerResult | tuple[Any, ...]:
+        used_progress_callback = True
+        try:
+            result = service.search(
+                effect.root_path,
+                effect.query,
+                **search_kwargs,
+            )
+        except TypeError as error:
+            # Keep older/custom service implementations working while the
+            # optional progress callback is adopted.
+            if "on_results" not in search_kwargs or "on_results" not in str(error):
+                raise
+            used_progress_callback = False
+            fallback_kwargs = dict(search_kwargs)
+            fallback_kwargs.pop("on_results")
+            result = service.search(
+                effect.root_path,
+                effect.query,
+                **fallback_kwargs,
+            )
+        if not direct_file_search and not direct_grep_search:
+            return result
+        result_tuple = tuple(result)
+        if not used_progress_callback:
+            limit = search_kwargs.get("max_results")
+            if isinstance(limit, int) and limit >= 0 and len(result_tuple) > limit:
+                result_tuple = result_tuple[:limit]
+                on_results(result_tuple, True)
+        return SearchWorkerResult(result_tuple, truncated)
+
     run_worker(
         app,
         effect,
-        partial(
-            service.search,
-            effect.root_path,
-            effect.query,
-            **search_kwargs,
-        ),
+        run_search,
         WorkerSpec(
             name=f"{config.worker_key}:{effect.request_id}",
             group=config.worker_key,

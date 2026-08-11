@@ -258,6 +258,33 @@ def test_live_file_search_service_respects_max_results(tmp_path) -> None:
     assert display_paths == sorted(display_paths, key=natural_sort_key)
 
 
+def test_live_file_search_service_emits_first_batch_and_truncation(tmp_path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    for name in ("a.txt", "b.txt", "c.txt"):
+        (root / name).write_text("content\n", encoding="utf-8")
+
+    batches: list[tuple[tuple[str, ...], bool]] = []
+
+    results = LiveFileSearchService().search(
+        str(root),
+        ".txt",
+        show_hidden=False,
+        max_results=2,
+        on_results=lambda batch, truncated: batches.append(
+            (tuple(result.display_path for result in batch), truncated)
+        ),
+    )
+
+    assert len(results) == 2
+    assert [result.display_path for result in results] == sorted(
+        result.display_path for result in results
+    )
+    assert batches[0][0]
+    assert batches[0][1] is False
+    assert batches[-1][1] is True
+
+
 def test_live_file_search_service_no_limit_when_max_results_is_none(tmp_path) -> None:
     """max_results=None の場合、全結果が返されることを確認."""
     root = tmp_path / "project"

@@ -4,6 +4,7 @@ from collections.abc import Callable
 from typing import Any
 
 from zivo.app_runtime_core import CompleteActionHandler, FailureActionHandler, find_handler
+from zivo.app_runtime_search import SearchWorkerResult
 from zivo.models import (
     BulkRenameExecutionResult,
     ConfigLoadResult,
@@ -411,21 +412,35 @@ def complete_custom_action(
 
 
 def complete_file_search(effect: RunFileSearchEffect, result: object) -> tuple[Any, ...]:
+    if isinstance(result, SearchWorkerResult):
+        results = result.results
+        truncated = result.truncated
+    else:
+        results = result
+        truncated = False
     return (
         FileSearchCompleted(
             request_id=effect.request_id,
             query=effect.query,
-            results=result,
+            results=results,
+            truncated=truncated,
         ),
     )
 
 
 def complete_grep_search(effect: RunGrepSearchEffect, result: object) -> tuple[Any, ...]:
+    if isinstance(result, SearchWorkerResult):
+        results = result.results
+        truncated = result.truncated
+    else:
+        results = result
+        truncated = False
     return (
         GrepSearchCompleted(
             request_id=effect.request_id,
             query=effect.query,
-            results=result,
+            results=results,
+            truncated=truncated,
         ),
     )
 

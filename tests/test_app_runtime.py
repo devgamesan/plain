@@ -529,20 +529,71 @@ def test_start_grep_search_worker_passes_scope_filter_and_max_results() -> None:
 
     assert len(app.run_worker_calls) == 1
     app.run_worker_calls[0]["worker_fn"]()
-    assert calls == [
-        (
-            ("/tmp/project", "TODO"),
-            {
-                "show_hidden": False,
-                "is_cancelled": app._active_grep_search_cancel_event.is_set,
-                "include_globs": (),
-                "exclude_globs": (),
-                "target_paths": ("/tmp/project/docs",),
-                "filename_filter": "readme",
-                "max_results": 25,
-            },
-        )
-    ]
+    assert len(calls) == 1
+    assert calls[0][0] == ("/tmp/project", "TODO")
+    assert calls[0][1]["show_hidden"] is False
+    assert calls[0][1]["is_cancelled"] == app._active_grep_search_cancel_event.is_set
+    assert calls[0][1]["include_globs"] == ()
+    assert calls[0][1]["exclude_globs"] == ()
+    assert calls[0][1]["target_paths"] == ("/tmp/project/docs",)
+    assert calls[0][1]["filename_filter"] == "readme"
+    assert calls[0][1]["max_results"] == 25
+    assert callable(calls[0][1]["on_results"])
+
+
+def test_start_file_search_worker_uses_default_limit_for_direct_palette() -> None:
+    calls: list[dict[str, Any]] = []
+    app_state = replace(
+        build_initial_app_state(),
+        pending_file_search_request_id=7,
+        command_palette=CommandPaletteState(source="file_search"),
+    )
+    app = _RecordingApp(_app_state=app_state)
+    app._file_search_service = SimpleNamespace(
+        search=lambda *args, **kwargs: calls.append(kwargs) or (),
+    )
+
+    start_file_search_worker(
+        app,
+        RunFileSearchEffect(
+            request_id=7,
+            root_path="/tmp/project",
+            query="README",
+            show_hidden=False,
+        ),
+    )
+    app.run_worker_calls[0]["worker_fn"]()
+
+    assert calls[0]["max_results"] == 1000
+    assert callable(calls[0]["on_results"])
+
+
+def test_start_file_search_worker_keeps_replace_search_unbounded() -> None:
+    calls: list[dict[str, Any]] = []
+    app_state = replace(
+        build_initial_app_state(),
+        pending_file_search_request_id=7,
+        command_palette=CommandPaletteState(source="replace_in_found_files"),
+    )
+    app = _RecordingApp(_app_state=app_state)
+    app._file_search_service = SimpleNamespace(
+        search=lambda *args, **kwargs: calls.append(kwargs) or (),
+    )
+
+    start_file_search_worker(
+        app,
+        RunFileSearchEffect(
+            request_id=7,
+            root_path="/tmp/project",
+            query="README",
+            show_hidden=False,
+        ),
+    )
+    app.run_worker_calls[0]["worker_fn"]()
+
+    assert calls[0]["search_target"] == "all"
+    assert "max_results" not in calls[0]
+    assert "on_results" not in calls[0]
 
 
 def test_schedule_file_search_replaces_existing_timer() -> None:

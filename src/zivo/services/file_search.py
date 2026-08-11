@@ -9,6 +9,9 @@ from typing import Literal, Protocol
 from zivo.state.models import FileSearchResultState, FileSearchTarget
 from zivo.state.natural_sort import natural_sort_key
 
+FileSearchProgressCallback = Callable[[tuple[FileSearchResultState, ...], bool], None]
+_SEARCH_BATCH_SIZE = 32
+
 
 class FileSearchService(Protocol):
     """Boundary for recursive filename searches."""
@@ -22,6 +25,7 @@ class FileSearchService(Protocol):
         search_target: FileSearchTarget = "all",
         max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
+        on_results: FileSearchProgressCallback | None = None,
     ) -> tuple[FileSearchResultState, ...]: ...
 
 
@@ -110,6 +114,7 @@ class LiveFileSearchService:
         search_target: FileSearchTarget = "all",
         max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
+        on_results: FileSearchProgressCallback | None = None,
     ) -> tuple[FileSearchResultState, ...]:
         parsed_query = parse_file_search_query(query)
         if not parsed_query.raw_query:
@@ -122,7 +127,14 @@ class LiveFileSearchService:
             raise OSError(f"Not a directory: {root}")
 
         results: list[FileSearchResultState] = []
+        pending_results: list[FileSearchResultState] = []
         stack = [root]
+
+        def emit_results(*, truncated: bool = False) -> None:
+            if on_results is None or (not pending_results and not truncated):
+                return
+            on_results(tuple(pending_results), truncated)
+            pending_results.clear()
 
         while stack:
             if is_cancelled is not None and is_cancelled():
@@ -143,6 +155,14 @@ class LiveFileSearchService:
                         continue
                     if not parsed_query.matches(child.name):
                         continue
+                    if max_results is not None and len(results) >= max_results:
+                        emit_results(truncated=True)
+                        return tuple(
+                            sorted(
+                                results,
+                                key=lambda result: natural_sort_key(result.display_path),
+                            )
+                        )
                     results.append(
                         FileSearchResultState(
                             path=str(child),
@@ -150,13 +170,13 @@ class LiveFileSearchService:
                             entry_type="directory" if is_dir else "file",
                         )
                     )
-
-                    if max_results is not None and len(results) >= max_results:
-                        results.sort(key=lambda result: natural_sort_key(result.display_path))
-                        return tuple(results)
+                    pending_results.append(results[-1])
+                    if len(results) == 1 or len(pending_results) >= _SEARCH_BATCH_SIZE:
+                        emit_results()
             except (FileNotFoundError, PermissionError):
                 continue
 
+        emit_results()
         results.sort(key=lambda result: natural_sort_key(result.display_path))
         return tuple(results)
 
@@ -181,6 +201,7 @@ class FakeFileSearchService:
         search_target: FileSearchTarget = "all",
         max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
+        on_results: FileSearchProgressCallback | None = None,
     ) -> tuple[FileSearchResultState, ...]:
         key = (
             (root_path, query, show_hidden)
@@ -202,9 +223,13 @@ class FakeFileSearchService:
             if max_results <= 0:
                 return ()
             if len(results) > max_results:
+                if on_results is not None:
+                    on_results(tuple(results[:max_results]), True)
                 limited_results = tuple(
                     sorted(results, key=lambda r: natural_sort_key(r.display_path))[:max_results]
                 )
                 return limited_results
 
+        if on_results is not None and results:
+            on_results(results, False)
         return results

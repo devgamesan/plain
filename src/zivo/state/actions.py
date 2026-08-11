@@ -221,10 +221,12 @@ from .actions_palette import (
     CycleReplaceField,
     FileSearchCompleted,
     FileSearchFailed,
+    FileSearchResultsUpdated,
     GrepExportCompleted,
     GrepExportFailed,
     GrepSearchCompleted,
     GrepSearchFailed,
+    GrepSearchResultsUpdated,
     MoveCommandPaletteCursor,
     OpenFindResultInEditor,
     OpenFindResultInGuiEditor,
@@ -360,8 +362,10 @@ Action = (
     | SubmitCommandPalette
     | FileSearchCompleted
     | FileSearchFailed
+    | FileSearchResultsUpdated
     | GrepSearchCompleted
     | GrepSearchFailed
+    | GrepSearchResultsUpdated
     | TextReplacePreviewCompleted
     | TextReplacePreviewFailed
     | TextReplaceApplied

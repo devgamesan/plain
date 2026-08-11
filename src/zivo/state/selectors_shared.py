@@ -13,6 +13,7 @@ from zivo.models import (
     CommandPaletteViewState,
     PaneEntry,
 )
+from zivo.models.config import DEFAULT_SEARCH_MAX_RESULTS
 from zivo.theme_support import preview_syntax_theme_for_app_theme
 
 from .entry_state_helpers import _sort_key, _sort_size_key
@@ -296,6 +297,9 @@ def _select_file_search_window(
         "directories": "Find Directory",
         "all": "Find All",
     }.get(target, "Find All")
+    if state.command_palette is not None and state.command_palette.file_search.results_truncated:
+        limit = state.config.file_search.max_results or DEFAULT_SEARCH_MAX_RESULTS
+        title = f"{title} ({limit:,}+ results)"
     return _select_search_window(
         results, cursor_index, title=title, visible_window=visible_window,
     )
@@ -310,8 +314,12 @@ def _select_grep_search_window(
         state.terminal_height,
         extra_rows=_GREP_SEARCH_EXTRA_INPUT_ROWS,
     )
+    title = "Grep"
+    if state.command_palette is not None and state.command_palette.grep_search.results_truncated:
+        limit = state.config.grep_search.max_results or DEFAULT_SEARCH_MAX_RESULTS
+        title = f"{title} ({limit:,}+ results)"
     return _select_search_window(
-        results, cursor_index, title="Grep", visible_window=visible_window,
+        results, cursor_index, title=title, visible_window=visible_window,
     )
 
 

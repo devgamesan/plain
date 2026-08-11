@@ -32,8 +32,10 @@ from zivo.state.actions import (
     CancelCommandPalette,
     FileSearchCompleted,
     FileSearchFailed,
+    FileSearchResultsUpdated,
     GrepSearchCompleted,
     GrepSearchFailed,
+    GrepSearchResultsUpdated,
     OpenFindResultInEditor,
     OpenFindResultInGuiEditor,
     OpenGrepResultInEditor,
@@ -799,6 +801,149 @@ def test_file_search_completed_updates_palette_results() -> None:
     assert next_state.command_palette.file_search.cache_root_path == "/home/tadashi/develop/zivo"
     assert next_state.command_palette.file_search.cache_show_hidden is False
     assert next_state.pending_file_search_request_id is None
+
+
+def test_file_search_partial_results_are_applied_and_keep_request_pending() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
+    state = _reduce_state(state, SetCommandPaletteQuery("read"))
+
+    result = reduce_app_state(
+        state,
+        FileSearchResultsUpdated(
+            request_id=1,
+            query="read",
+            results=(
+                FileSearchResultState(
+                    path="/home/tadashi/develop/zivo/README.md",
+                    display_path="README.md",
+                ),
+            ),
+        ),
+    )
+
+    assert result.state.command_palette.file_search.results[0].display_path == "README.md"
+    assert result.state.pending_file_search_request_id == 1
+    assert result.state.command_palette.file_search.results_truncated is False
+
+
+def test_file_search_partial_results_preserve_selected_path_when_sorted_order_changes() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            query="read",
+            cursor_index=0,
+            file_search=replace(
+                state.command_palette.file_search,
+                results=(
+                    FileSearchResultState(path="/tmp/b.txt", display_path="b.txt"),
+                ),
+            ),
+        ),
+        pending_file_search_request_id=1,
+    )
+
+    result = reduce_app_state(
+        state,
+        FileSearchResultsUpdated(
+            request_id=1,
+            query="read",
+            results=(FileSearchResultState(path="/tmp/a.txt", display_path="a.txt"),),
+        ),
+    )
+
+    assert [item.display_path for item in result.state.command_palette.file_search.results] == [
+        "a.txt",
+        "b.txt",
+    ]
+    assert result.state.command_palette.cursor_index == 1
+
+
+def test_file_search_truncation_is_visible_and_not_cached() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
+    state = replace(
+        state,
+        command_palette=replace(state.command_palette, query="read"),
+        pending_file_search_request_id=1,
+    )
+
+    next_state = _reduce_state(
+        state,
+        FileSearchCompleted(
+            request_id=1,
+            query="read",
+            results=(FileSearchResultState(path="/tmp/README.md", display_path="README.md"),),
+            truncated=True,
+        ),
+    )
+
+    assert next_state.command_palette.file_search.results_truncated is True
+    assert next_state.command_palette.file_search.cache_query == ""
+    assert next_state.command_palette.file_search.cache_results == ()
+
+
+def test_grep_search_partial_results_are_applied_while_search_is_pending() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginGrepSearch())
+    state = _reduce_state(state, SetCommandPaletteQuery("todo"))
+
+    result = reduce_app_state(
+        state,
+        GrepSearchResultsUpdated(
+            request_id=1,
+            query="todo",
+            results=(
+                GrepSearchResultState(
+                    path="/tmp/README.md",
+                    display_path="README.md",
+                    line_number=1,
+                    line_text="TODO",
+                ),
+            ),
+        ),
+    )
+
+    assert result.state.command_palette.grep_search.results[0].display_path == "README.md"
+    assert result.state.pending_grep_search_request_id == 1
+
+
+def test_grep_search_partial_results_filter_selected_scope() -> None:
+    selected = "/tmp/docs"
+    state = _reduce_state(
+        build_initial_app_state(),
+        BeginGrepSearch(scope="selected_entries", target_paths=(selected,)),
+    )
+    state = replace(
+        state,
+        command_palette=replace(state.command_palette, query="todo"),
+        pending_grep_search_request_id=1,
+    )
+
+    result = reduce_app_state(
+        state,
+        GrepSearchResultsUpdated(
+            request_id=1,
+            query="todo",
+            results=(
+                GrepSearchResultState(
+                    path=f"{selected}/guide.md",
+                    display_path="docs/guide.md",
+                    line_number=1,
+                    line_text="TODO",
+                ),
+                GrepSearchResultState(
+                    path="/tmp/README.md",
+                    display_path="README.md",
+                    line_number=1,
+                    line_text="TODO",
+                ),
+            ),
+        ),
+    )
+
+    assert [item.path for item in result.state.command_palette.grep_search.results] == [
+        f"{selected}/guide.md"
+    ]
 
 def test_file_search_completed_does_not_cache_regex_queries() -> None:
     state = _reduce_state(build_initial_app_state(), BeginFileSearch())

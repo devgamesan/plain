@@ -14,6 +14,7 @@ PasteConflictAction = Literal["overwrite", "skip", "rename", "prompt"]
 ImagePreviewMode = Literal["auto", "kitty", "chafa"]
 CustomActionWhen = Literal["always", "single_file", "selection"]
 CustomActionMode = Literal["background", "terminal", "terminal_window"]
+DEFAULT_SEARCH_MAX_RESULTS = 1000
 
 
 @dataclass(frozen=True)

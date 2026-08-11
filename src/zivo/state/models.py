@@ -560,6 +560,7 @@ class FileSearchPaletteState:
     cache_target: FileSearchTarget | None = None
     target: FileSearchTarget = "all"
     active_field: FileSearchFieldId = "keyword"
+    results_truncated: bool = False
 
 
 @dataclass(frozen=True)
@@ -574,6 +575,7 @@ class GrepSearchPaletteState:
     scope_message: str | None = None
     results: tuple[GrepSearchResultState, ...] = ()
     error_message: str | None = None
+    results_truncated: bool = False
 
 
 @dataclass(frozen=True)

@@ -42,9 +42,38 @@ from zivo.state.actions import (
     DuplicateProgress,
     ExternalLaunchCompleted,
     ExternalLaunchFailed,
+    FileSearchResultsUpdated,
     ForegroundOperationProgress,
+    GrepSearchResultsUpdated,
     ZipCompressProgress,
 )
+
+
+def report_search_results(
+    app: Any,
+    request_id: int,
+    query: str,
+    source: str,
+    results: tuple[Any, ...],
+    truncated: bool,
+) -> None:
+    """Forward one search-result batch from a worker to the reducer."""
+
+    action = (
+        FileSearchResultsUpdated(request_id, query, results, truncated)
+        if source == "file_search"
+        else GrepSearchResultsUpdated(request_id, query, results, truncated)
+    )
+    try:
+        if getattr(app, "_thread_id", None) == threading.get_ident():
+            app.call_next(app.dispatch_actions, (action,))
+            return
+        if not hasattr(app, "call_from_thread"):
+            app.call_next(app.dispatch_actions, (action,))
+            return
+        app.call_from_thread(app.call_next, app.dispatch_actions, (action,))
+    except (RuntimeError, FutureCancelledError):
+        return
 
 
 def schedule_clipboard_paste(app: Any, effect: RunClipboardPasteEffect) -> None:

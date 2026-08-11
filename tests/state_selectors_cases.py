@@ -2721,6 +2721,32 @@ def test_select_command_palette_state_for_file_search_results() -> None:
     assert [item.label for item in palette_state.items] == ["README.md"]
 
 
+def test_select_command_palette_state_reports_truncated_file_search_results() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = replace(
+        state,
+        command_palette=CommandPaletteState(
+            source="file_search",
+            query="read",
+            file_search=FileSearchPaletteState(
+                results=(
+                    FileSearchResultState(path="/tmp/README.md", display_path="README.md"),
+                ),
+                results_truncated=True,
+            ),
+        ),
+    )
+
+    palette_state = select_command_palette_state(state)
+
+    assert palette_state is not None
+    assert palette_state.title == "Find All (1,000+ results) (1-1 / 1)"
+    assert palette_state.footer_message == (
+        "Showing first 1,000 results — more results omitted. "
+        "Refine the query or change max_results."
+    )
+
+
 def test_select_command_palette_state_shows_searching_message_while_file_search_is_pending(
 ) -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
@@ -2832,6 +2858,37 @@ def test_select_command_palette_state_for_grep_search_results() -> None:
     assert [item.label for item in palette_state.items] == [
         "src/zivo/app.py:42: TODO: update palette"
     ]
+
+
+def test_select_command_palette_state_reports_truncated_grep_results() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = replace(
+        state,
+        command_palette=CommandPaletteState(
+            source="grep_search",
+            query="todo",
+            grep_search=GrepSearchPaletteState(
+                results=(
+                    GrepSearchResultState(
+                        path="/tmp/README.md",
+                        display_path="README.md",
+                        line_number=1,
+                        line_text="TODO",
+                    ),
+                ),
+                results_truncated=True,
+            ),
+        ),
+    )
+
+    palette_state = select_command_palette_state(state)
+
+    assert palette_state is not None
+    assert palette_state.title == "Grep (1,000+ results) (1-1 / 1)"
+    assert palette_state.footer_message == (
+        "Showing first 1,000 results — more results omitted. "
+        "Refine the query or change max_results."
+    )
 
 
 def test_select_command_palette_state_windows_large_grep_search_results() -> None:

@@ -191,6 +191,24 @@ SEARCH_WORKSPACE_BLOCKED_COMMANDS = frozenset(
     }
 )
 
+BACKGROUND_OPERATION_BLOCKED_COMMANDS = frozenset(
+    {
+        "begin_rename",
+        "begin_shell_command",
+        "open_terminal",
+        "open_terminal_window",
+        "open_file_manager",
+        "delete_targets",
+        "permanent_delete_targets",
+        "open_in_editor",
+        "open_in_gui_editor",
+        "paste_clipboard",
+        "undo_last_operation",
+        "create_file",
+        "create_dir",
+    }
+)
+
 
 def dispatch_browsing_input(
     state: AppState,
@@ -226,6 +244,13 @@ def dispatch_browsing_input(
         ):
             return warn("Unavailable in search workspace")
         if (
+            state.foreground_operation is not None
+            and command in BACKGROUND_OPERATION_BLOCKED_COMMANDS
+        ):
+            return warn(
+                f"{state.foreground_operation.kind.title()} is in progress"
+            )
+        if (
             is_search_workspace_path(state.current_path)
             and command == "toggle_narrow_pane_view"
         ):
@@ -238,6 +263,10 @@ def dispatch_browsing_input(
         if ctx.cursor_entry is not None and ctx.cursor_entry.kind == "dir":
             return supported(EnterCursorDirectory())
         if ctx.cursor_entry is not None and ctx.cursor_entry.kind == "file":
+            if state.foreground_operation is not None:
+                return warn(
+                    f"{state.foreground_operation.kind.title()} is in progress"
+                )
             return supported(OpenPathWithDefaultApp(ctx.cursor_entry.path))
 
     pending = start_multi_key_sequence_if_supported(key, multi_key_command_dispatch)

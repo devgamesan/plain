@@ -1,5 +1,6 @@
 """Shared helpers for mutation reducer handlers."""
 
+from dataclasses import replace
 from typing import Callable
 
 from zivo.models import (
@@ -10,9 +11,14 @@ from zivo.models import (
     UndoRestoreTrashStep,
 )
 
-from .actions import Action, CancelForegroundOperation, ForegroundOperationProgress
+from .actions import (
+    Action,
+    CancelForegroundOperation,
+    ForegroundOperationAborted,
+    ForegroundOperationProgress,
+)
 from .effects import ReduceResult
-from .models import AppState
+from .models import AppState, NotificationState
 from .reducer_common import ReducerFn
 
 MutationHandler = Callable[[AppState, Action, ReducerFn], ReduceResult | None]
@@ -32,8 +38,6 @@ def handle_cancel_foreground_operation(
         from .reducer_common import finalize
 
         return finalize(state)
-
-    from dataclasses import replace
 
     from .reducer_common import finalize
 
@@ -64,8 +68,6 @@ def handle_foreground_operation_progress(
 
         return finalize(state)
 
-    from dataclasses import replace
-
     from .reducer_common import finalize
 
     total = action.total
@@ -88,6 +90,46 @@ def handle_foreground_operation_progress(
                     else f"{operation.kind.title()} {completed}"
                 ),
             ),
+        )
+    )
+
+
+def handle_foreground_operation_aborted(
+    state: AppState,
+    action: ForegroundOperationAborted,
+    _reduce_state: ReducerFn,
+) -> ReduceResult:
+    """Release state when the worker itself was externally cancelled."""
+
+    operation = state.foreground_operation
+    if operation is None or operation.operation_id != action.request_id:
+        from .reducer_common import finalize
+
+        return finalize(state)
+
+    from .reducer_common import finalize
+
+    return finalize(
+        replace(
+            state,
+            foreground_operation=None,
+            pending_paste_request_id=(
+                None if operation.kind in {"copy", "move"} else state.pending_paste_request_id
+            ),
+            pending_paste_request=(
+                None if operation.kind in {"copy", "move"} else state.pending_paste_request
+            ),
+            pending_archive_extract_request_id=(
+                None if operation.kind == "extract" else state.pending_archive_extract_request_id
+            ),
+            pending_zip_compress_request_id=(
+                None if operation.kind == "compress" else state.pending_zip_compress_request_id
+            ),
+            pending_replace_apply_request_id=(
+                None if operation.kind == "replace" else state.pending_replace_apply_request_id
+            ),
+            notification=NotificationState(level="warning", message=action.message),
+            ui_mode=("BROWSING" if state.ui_mode == "BUSY" else state.ui_mode),
         )
     )
 

@@ -92,6 +92,7 @@ from zivo.state import (
     RunZipCompressEffect,
     RunZipCompressPreparationEffect,
 )
+from zivo.state.actions import ExitCurrentPath, ForegroundOperationAborted
 
 TRACKING_CONFIGS: tuple[TrackingConfig, ...] = (
     CHILD_PANE_TRACKING,
@@ -147,6 +148,15 @@ def sync_runtime_state(app: Any, previous_state: Any, next_state: Any) -> None:
         request_foreground_operation_cancel(app, next_operation.operation_id)
     if next_operation is None and previous_operation is not None:
         clear_foreground_operation(app, previous_operation.operation_id)
+        if (
+            getattr(next_state, "pending_exit_after_operation", False)
+            and hasattr(app, "call_next")
+            and hasattr(app, "dispatch_actions")
+        ):
+            # The worker has reached a safe terminal point.  Queue the real
+            # exit action only after the operation's terminal reducer action
+            # has been applied, so no worker is force-stopped.
+            app.call_next(app.dispatch_actions, (ExitCurrentPath(),))
     if previous_state.pending_child_pane_request_id != next_state.pending_child_pane_request_id:
         cancel_pending_child_pane(app)
     if previous_state.pending_file_search_request_id != next_state.pending_file_search_request_id:
@@ -239,6 +249,22 @@ async def handle_worker_state_changed(app: Any, event: Worker.StateChanged) -> N
     clear_effect_tracking(app, effect)
 
     if event.state == WorkerState.CANCELLED:
+        if isinstance(
+            effect,
+            (
+                RunClipboardPasteEffect,
+                RunArchiveExtractEffect,
+                RunZipCompressEffect,
+                RunTextReplaceApplyEffect,
+            ),
+        ):
+            await app.dispatch_actions(
+                (
+                    ForegroundOperationAborted(
+                        request_id=effect.request_id,
+                    ),
+                )
+            )
         return
 
     if event.state == WorkerState.SUCCESS:

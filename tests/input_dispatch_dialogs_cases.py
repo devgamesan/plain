@@ -547,3 +547,32 @@ def test_busy_escape_requests_foreground_operation_cancel() -> None:
     )
 
     assert dispatch_key_input(state, key="escape") == (CancelForegroundOperation(),)
+
+
+def test_browsing_escape_requests_foreground_operation_cancel() -> None:
+    state = replace(
+        build_initial_app_state(),
+        foreground_operation=ForegroundOperationState(
+            operation_id=4,
+            kind="copy",
+            cancelable=True,
+        ),
+    )
+
+    assert dispatch_key_input(state, key="escape") == (CancelForegroundOperation(),)
+
+
+def test_browsing_mutation_key_is_rejected_during_foreground_operation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        foreground_operation=ForegroundOperationState(
+            operation_id=4,
+            kind="extract",
+        ),
+    )
+
+    assert dispatch_key_input(state, key="d") == (
+        SetNotification(
+            NotificationState(level="warning", message="Extract is in progress")
+        ),
+    )

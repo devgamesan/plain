@@ -1490,6 +1490,27 @@ def test_select_status_bar_exposes_foreground_progress_and_cancel() -> None:
     assert help_state.lines == ("Esc cancel",)
 
 
+def test_select_status_bar_and_help_bar_keep_operation_visible_while_browsing() -> None:
+    state = replace(
+        build_initial_app_state(),
+        foreground_operation=ForegroundOperationState(
+            operation_id=3,
+            kind="copy",
+            completed=1,
+            total=4,
+            current_path="/tmp/current.txt",
+        ),
+    )
+
+    status = select_status_bar_state(state)
+    help_state = select_help_bar_state(state)
+
+    assert "Copy 1/4" in (status.message or "")
+    assert status.action == StatusBarActionState(action_id="operation.cancel", label="Cancel")
+    assert help_state.lines[0].startswith("Esc cancel | ")
+    assert len(help_state.lines) == 3
+
+
 def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
     state = build_initial_app_state()
 

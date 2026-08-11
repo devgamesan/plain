@@ -299,7 +299,7 @@ def _handle_clipboard_paste_completed(state, action, reduce_state):
         pending_paste_request=None,
         pending_paste_retry_requires_confirmation=False,
         foreground_operation=None,
-        ui_mode="BROWSING",
+        ui_mode=("BROWSING" if state.ui_mode == "BUSY" else state.ui_mode),
     )
     if origin == "transfer" and next_state.layout_mode == "transfer":
         next_state = apply_transfer_paste_result(
@@ -325,7 +325,7 @@ def _handle_clipboard_paste_failed(state, action, reduce_state):
             pending_paste_request=None,
             pending_paste_retry_requires_confirmation=False,
             foreground_operation=None,
-            ui_mode="BROWSING",
+            ui_mode=("BROWSING" if state.ui_mode == "BUSY" else state.ui_mode),
         )
     )
 

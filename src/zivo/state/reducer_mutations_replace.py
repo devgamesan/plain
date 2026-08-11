@@ -75,9 +75,12 @@ def _handle_confirm_replace_targets(
     return finalize(
         replace(
             state,
-            ui_mode="BUSY",
+            # The confirmation is the foreground step; the confirmed
+            # replacement itself runs while browsing remains available.
+            ui_mode="BROWSING",
             replace_confirmation=None,
             command_palette=None,
+            pending_input=None,
             pending_replace_apply_request_id=request_id,
             next_request_id=request_id + 1,
             notification=NotificationState(level="info", message="Applying replacement..."),

@@ -1145,7 +1145,7 @@ def handle_text_replace_applied(
         RequestBrowserSnapshot(
             path=state.current_path,
             cursor_path=state.current_pane.cursor_path,
-            blocking=True,
+            blocking=False,
             invalidate_paths=browser_snapshot_invalidation_paths(
                 state.current_path,
                 *action.result.changed_paths,

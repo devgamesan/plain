@@ -207,4 +207,4 @@ The direct keys `i`, `C`, `B`, `G`, `M`, `O`, `T`, `H`, and `R` are intentionall
 
 ## Long-running Operation Mode
 
-While Copy, Move, Compress, Extract, or Replace is running, normal browsing remains modal. When the active service supports safe cancellation, press `Esc` or click `Cancel` in the status bar. The current item finishes before the operation stops; after a cancel request, repeated cancellation is ignored.
+While Copy, Move, Compress, Extract, or Replace is running, normal browsing, directory navigation, file search, preview, and attribute inspection remain available. When the active service supports safe cancellation, press `Esc` in normal browsing or Transfer mode, or click `Cancel` in the status bar. `Esc` in dialogs, the command palette, and input forms keeps its existing local meaning. Other file mutations, Undo, editor or shell launches, and mutation-capable custom actions are rejected with the active operation name. The current item finishes before the operation stops; after a cancel request, repeated cancellation is ignored.

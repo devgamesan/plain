@@ -67,6 +67,7 @@ from .actions_mutations import (
     CopyTargets,
     CutTargets,
     DuplicateTargets,
+    ForegroundOperationAborted,
     PasteClipboard,
     ResolvePasteConflict,
     SelectAllVisibleEntries,
@@ -127,6 +128,7 @@ __all__ = [
     "CancelDeleteConfirmation",
     "CancelExitConfirmation",
     "CancelForegroundOperation",
+    "ForegroundOperationAborted",
     "CancelPasteConflict",
     "CancelReplaceConfirmation",
     "CancelSymlinkOverwriteConfirmation",
@@ -466,6 +468,7 @@ Action = (
     | ResolvePasteConflict
     | CancelPasteConflict
     | CancelForegroundOperation
+    | ForegroundOperationAborted
     | ConfirmDeleteTargets
     | CancelDeleteConfirmation
     | BeginExitCurrentPath

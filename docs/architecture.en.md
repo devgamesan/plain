@@ -185,7 +185,7 @@ sequenceDiagram
 
 ### Foreground file-operation progress
 
-Copy, Move, Compress, Extract, and Replace share one transient `ForegroundOperationState`. The runtime owns the operation ID and cooperative cancel event; services check the event only at safe item boundaries and report progress back as reducer actions. Stale progress is discarded by operation ID. StatusBar and HelpBar project the state without adding a task screen; `Cancel` and `Esc` are available only while cancellation is safe. Compression publishes a same-directory temporary archive atomically, while extraction and replacement publish temporary files atomically. Terminal partial results retain counts and paths for the existing Details flow.
+Copy, Move, Compress, Extract, and Replace share one transient `ForegroundOperationState`. Confirmation and preflight stay in the foreground; once confirmed, the worker runs while the app remains in `BROWSING`. The runtime owns the operation ID and cooperative cancel event; services check the event only at safe item boundaries and report progress back as reducer actions. Stale progress is discarded by operation ID. Other file mutations, Undo, editor or shell launches, and mutation-capable custom actions are rejected with the active operation name, and long-running operations are serialized. StatusBar and HelpBar project the state without adding a task screen; `Cancel` and `Esc` are available only in normal browsing or Transfer mode while cancellation is safe. Exit waits for cancellation and cleanup. Completion preserves the current display path and progressively refreshes only affected visible panes. Compression publishes a same-directory temporary archive atomically, while extraction and replacement publish temporary files atomically. Terminal partial results retain counts and paths for the existing Details flow.
 
 ### `src/zivo/state/reducer_navigation.py`
 
@@ -307,7 +307,8 @@ stateDiagram-v2
     BROWSING --> DETAIL: Show attributes
     BROWSING --> CONFIG: Edit config
     BROWSING --> CONFIRM: delete / paste conflict / archive conflict
-    BROWSING --> BUSY: snapshot / mutation / launch / config save
+    BROWSING --> BUSY: blocking snapshot / short mutation / launch / config save
+    BROWSING --> BROWSING: confirmed long-running worker starts
     BROWSING --> BROWSING: Alt+Left / Alt+Right / Alt+Home / reload / sort / hidden toggle
     PALETTE --> BROWSING: Enter on command / Esc
     PALETTE --> PALETTE: query updates / search mode
@@ -315,7 +316,7 @@ stateDiagram-v2
     RENAME --> BUSY: Enter
     CREATE --> BUSY: Enter
     EXTRACT --> CONFIRM: Enter with conflicts
-    EXTRACT --> BUSY: Enter without conflicts
+    EXTRACT --> BROWSING: Enter without conflicts (worker)
     EXTRACT --> BROWSING: Esc
     DETAIL --> BROWSING: Enter / Esc
     CONFIG --> BUSY: s save

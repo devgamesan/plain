@@ -51,6 +51,10 @@ def _handle_request_browser_snapshot(
     reduce_state: ReducerFn,
 ) -> ReduceResult:
     request_id = state.next_request_id
+    # A foreground snapshot load blocks input during explicit navigation.
+    # Once a long-running mutation is active, navigation is deliberately
+    # non-blocking so the operation status remains visible and usable.
+    blocking = action.blocking and state.foreground_operation is None
     next_state = replace(
         state,
         notification=None,
@@ -61,11 +65,11 @@ def _handle_request_browser_snapshot(
         pending_child_pane_request_id=None,
         pending_directory_size_request_id=None,
         next_request_id=request_id + 1,
-        ui_mode="BUSY" if action.blocking else state.ui_mode,
+        ui_mode="BUSY" if blocking else state.ui_mode,
         narrow_pane_view="current",
     )
 
-    if getattr(action, "progressive", True) and not action.blocking:
+    if getattr(action, "progressive", True) and not blocking:
         return finalize(
             next_state,
             LoadCurrentPaneEffect(
@@ -82,7 +86,7 @@ def _handle_request_browser_snapshot(
             request_id=request_id,
             path=action.path,
             cursor_path=action.cursor_path,
-            blocking=action.blocking,
+            blocking=blocking,
             invalidate_paths=action.invalidate_paths,
             enable_image_preview=state.config.display.enable_image_preview,
             enable_pdf_preview=state.config.display.enable_pdf_preview,
@@ -211,7 +215,9 @@ def _handle_parent_child_loaded(
 
     next_state = replace(
         next_state,
-        notification=state.post_reload_notification,
+        # Progressive pane loading may have already promoted the completion
+        # notification while the parent/child preview worker is still running.
+        notification=state.post_reload_notification or state.notification,
         post_reload_notification=None,
         pending_browser_snapshot_request_id=None,
     )

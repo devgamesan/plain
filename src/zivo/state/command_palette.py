@@ -67,6 +67,31 @@ NOTIFICATION_ACTION_IDS = frozenset(
     }
 )
 
+BACKGROUND_OPERATION_BLOCKED_COMMAND_IDS = frozenset(
+    {
+        "undo_last_operation",
+        "replace_text",
+        "rename",
+        "change_permissions",
+        "change_owner",
+        "create_symlink",
+        "compress_as_zip",
+        "extract_archive",
+        "edit_with_terminal_editor",
+        "edit_with_gui_editor",
+        "open",
+        "duplicate_targets",
+        "paste_clipboard",
+        "delete_targets",
+        "transfer_copy_to_opposite_pane",
+        "transfer_move_to_opposite_pane",
+        "open_current_directory_with_file_manager",
+        "open_current_directory_with_terminal",
+        "run_shell_command",
+        "create",
+    }
+)
+
 
 _COMMAND_METADATA: dict[str, CommandPaletteMetadata] = {
     "notification.undo": CommandPaletteMetadata("Suggested", ("undo", "notification"), 0),
@@ -824,7 +849,15 @@ def _prepare_command_palette_items(
         )
         enabled = item.enabled
         reason = item.disabled_reason
-        if search_workspace and item.id not in SEARCH_WORKSPACE_COMMAND_IDS:
+        operation = state.foreground_operation
+        operation_blocked = operation is not None and (
+            item.id in BACKGROUND_OPERATION_BLOCKED_COMMAND_IDS
+            or item.id.startswith("custom_action:")
+        )
+        if operation_blocked:
+            enabled = False
+            reason = f"{operation.kind.title()} is in progress"
+        elif search_workspace and item.id not in SEARCH_WORKSPACE_COMMAND_IDS:
             enabled = False
             reason = "Unavailable in Search Workspace"
         elif not enabled and reason is None:

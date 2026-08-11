@@ -167,6 +167,28 @@ def _format_help_line(shortcuts: tuple[tuple[str, str], ...]) -> str:
 def select_help_bar_state(state: AppState) -> HelpBarState:
     """Return the help content for the active mode."""
 
+    if state.foreground_operation is not None and state.ui_mode == "BROWSING":
+        if state.layout_mode == "transfer":
+            from .input_transfer import TRANSFER_HELP_LINES
+
+            lines = tuple(_format_help_line(line) for line in TRANSFER_HELP_LINES)
+        elif is_search_workspace_path(state.current_path):
+            from .input_browsing import SEARCH_WORKSPACE_HELP_LINES
+
+            lines = tuple(_format_help_line(line) for line in SEARCH_WORKSPACE_HELP_LINES)
+        else:
+            from .input_browsing import BROWSING_HELP_LINES
+
+            lines = tuple(_format_help_line(line) for line in BROWSING_HELP_LINES)
+        if (
+            state.foreground_operation.cancelable
+            and not state.foreground_operation.cancel_requested
+        ):
+            cancel_hint = "Esc cancel"
+        else:
+            cancel_hint = "finishing current item"
+        return HelpBarState((f"{cancel_hint} | {lines[0]}", *lines[1:]))
+
     if state.ui_mode == "CONFIRM":
         if state.delete_confirmation is not None:
             confirmation = state.delete_confirmation
@@ -178,6 +200,8 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
                 return HelpBarState(("enter confirm permanent delete | esc cancel",))
             return HelpBarState(("enter confirm delete | esc cancel",))
         if state.exit_confirmation is not None:
+            if state.foreground_operation is not None:
+                return HelpBarState(("enter cancel and exit | esc cancel",))
             return HelpBarState(("enter confirm exit | esc cancel",))
         if state.archive_extract_confirmation is not None:
             return HelpBarState(("enter continue extraction | esc return to input",))
@@ -780,10 +804,20 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
         )
 
     if state.exit_confirmation is not None:
+        if state.foreground_operation is not None:
+            operation_name = state.foreground_operation.kind.title()
+            message = (
+                f"{operation_name} is in progress. "
+                "Cancel and exit when the current item finishes?"
+            )
+            options = ("enter cancel and exit", "esc cancel")
+        else:
+            message = "Exit the application?"
+            options = ("enter confirm", "esc cancel")
         return ConflictDialogState(
             title="Exit Confirmation",
-            message="Exit the application?",
-            options=("enter confirm", "esc cancel"),
+            message=message,
+            options=options,
         )
 
     if state.zip_compress_confirmation is not None:

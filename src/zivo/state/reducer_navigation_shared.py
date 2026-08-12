@@ -10,6 +10,7 @@ from .models import (
     AppState,
     BrowserTabState,
     CurrentPaneDeltaState,
+    DirectoryEntryState,
     FilterState,
     HistoryState,
     PaneState,
@@ -55,6 +56,8 @@ def load_browser_tab_from_tabs(
         parent_pane=tab.parent_pane,
         current_pane=tab.current_pane,
         child_pane=tab.child_pane,
+        parent_pane_loading=tab.parent_pane_loading,
+        child_pane_loading=tab.child_pane_loading,
         history=tab.history,
         filter=tab.filter,
         current_pane_window_start=tab.current_pane_window_start,
@@ -213,7 +216,21 @@ def can_promote_child_pane(
         and state.pending_child_pane_request_id is None
         and state.child_pane.mode == "entries"
         and state.child_pane.directory_path == entry_path
+        and _child_pane_entries_have_current_metadata(state.child_pane.entries)
     )
+
+
+def _child_pane_entries_have_current_metadata(
+    entries: tuple[DirectoryEntryState, ...],
+) -> bool:
+    """Return whether child entries can safely become the detailed current pane."""
+
+    for entry in entries:
+        if entry.modified_at is None or entry.permissions_mode is None:
+            return False
+        if entry.kind == "file" and entry.size_bytes is None:
+            return False
+    return True
 
 
 def promote_child_pane_to_current(

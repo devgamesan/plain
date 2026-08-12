@@ -3,6 +3,8 @@ from dataclasses import replace
 from zivo.app_runtime import complete_worker_actions, failed_worker_actions
 from zivo.models import ShellCommandResult
 from zivo.state import (
+    BackgroundCommandState,
+    NotificationAction,
     NotificationState,
     RunShellCommandEffect,
     ShellCommandState,
@@ -13,8 +15,10 @@ from zivo.state import (
     select_shell_command_dialog_state,
 )
 from zivo.state.actions import (
+    ActivateNotificationAction,
     BeginCommandPalette,
     BeginShellCommandInput,
+    CancelBackgroundCommand,
     CancelShellCommandInput,
     OpenTerminalAtPath,
     SetCommandPaletteQuery,
@@ -25,6 +29,7 @@ from zivo.state.actions import (
     SubmitCommandPalette,
     SubmitShellCommand,
 )
+from zivo.ui import ShellCommandDialog
 
 
 def test_dispatch_shell_command_input_updates_value() -> None:
@@ -98,6 +103,10 @@ def test_submit_shell_command_emits_worker_effect() -> None:
 
     assert result.state.ui_mode == "BUSY"
     assert result.state.pending_shell_command_request_id == 1
+    assert result.state.background_command == BackgroundCommandState(
+        request_id=1,
+        label="Shell command",
+    )
     assert result.effects == (
         RunShellCommandEffect(
             request_id=1,
@@ -150,6 +159,124 @@ def test_shell_command_completed_shows_result_in_dialog() -> None:
     assert failure.notification is None
 
 
+def test_shell_command_completion_refreshes_its_current_directory() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/tmp/project",
+        ui_mode="BUSY",
+        shell_command=ShellCommandState(cwd="/tmp/project", command="touch created"),
+        pending_shell_command_request_id=4,
+        background_command=BackgroundCommandState(4, "Shell command"),
+    )
+
+    result = reduce_app_state(
+        state,
+        ShellCommandCompleted(
+            request_id=4,
+            result=ShellCommandResult(exit_code=0),
+        ),
+    )
+
+    assert result.state.ui_mode == "SHELL"
+    assert result.state.pending_browser_snapshot_request_id == 1
+    assert len(result.effects) == 1
+    assert result.effects[0].path == "/tmp/project"
+    assert result.effects[0].blocking is False
+
+
+def test_shell_command_completion_keeps_timeout_result_notification_through_refresh() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/tmp/project",
+        ui_mode="BUSY",
+        shell_command=ShellCommandState(cwd="/tmp/project", command="slow"),
+        pending_shell_command_request_id=4,
+        background_command=BackgroundCommandState(4, "Shell command"),
+    )
+    result = reduce_app_state(
+        state,
+        ShellCommandCompleted(
+            request_id=4,
+            result=ShellCommandResult(
+                exit_code=-15,
+                termination_reason="timed_out",
+                timeout_seconds=300,
+            ),
+        ),
+    )
+
+    assert result.state.notification is None
+    assert result.state.post_reload_notification is not None
+    assert result.state.post_reload_notification.message == "Command stopped after 300 seconds"
+
+
+def test_shell_timeout_returns_to_browsing_with_result_action() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        shell_command=ShellCommandState(cwd="/tmp/project", command="slow"),
+        pending_shell_command_request_id=4,
+        background_command=BackgroundCommandState(4, "Shell command"),
+    )
+    timed_out = ShellCommandResult(
+        exit_code=-15,
+        stdout="started\n",
+        termination_reason="timed_out",
+        timeout_seconds=300,
+    )
+
+    result = reduce_app_state(
+        state,
+        ShellCommandCompleted(request_id=4, result=timed_out),
+    ).state
+
+    assert result.ui_mode == "BROWSING"
+    assert result.background_command is None
+    assert result.shell_command is not None
+    assert result.shell_command.result == timed_out
+    assert result.notification == NotificationState(
+        level="warning",
+        message="Command stopped after 300 seconds",
+        action=NotificationAction(
+            action_id="notification.shell_result",
+            label="Result",
+        ),
+    )
+
+    reopened = reduce_app_state(
+        result,
+        ActivateNotificationAction(
+            action_id="notification.shell_result",
+            revision=result.notification_revision,
+        ),
+    ).state
+    assert reopened.ui_mode == "SHELL"
+    assert reopened.notification is None
+    assert reopened.shell_command is not None
+    assert reopened.shell_command.result == timed_out
+
+
+def test_busy_escape_requests_background_command_cancel() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BUSY",
+        background_command=BackgroundCommandState(8, "Shell command"),
+    )
+
+    assert dispatch_key_input(state, key="escape") == (CancelBackgroundCommand(),)
+
+    next_state = reduce_app_state(state, CancelBackgroundCommand()).state
+    assert next_state.background_command == BackgroundCommandState(
+        8,
+        "Shell command",
+        cancel_requested=True,
+    )
+    assert next_state.notification == NotificationState(
+        level="info",
+        message="Stopping command...",
+    )
+
+
 def test_select_shell_command_dialog_state_and_help() -> None:
     state = replace(
         build_initial_app_state(),
@@ -191,6 +318,26 @@ def test_select_shell_command_dialog_state_with_result() -> None:
     assert dialog.result.stdout == "/tmp/project\n"
     assert dialog.options == ("r rerun", "t terminal", "esc close")
     assert help_bar.lines == ("r rerun | t terminal | esc close",)
+
+
+def test_shell_command_dialog_renders_timeout_and_stream_truncation() -> None:
+    rendered = ShellCommandDialog._render_result(
+        ShellCommandResult(
+            exit_code=-15,
+            stdout="prefix\n[... middle output omitted ...]\nsuffix",
+            stderr="error",
+            stdout_truncated=True,
+            stderr_truncated=True,
+            termination_reason="timed_out",
+            output_limit_bytes=1024 * 1024,
+            timeout_seconds=300,
+        )
+    ).plain
+
+    assert "[Timed out after 300 seconds]" in rendered
+    assert "(exit code -15)" in rendered
+    assert "stdout: middle output omitted after 1 MiB" in rendered
+    assert "stderr: middle output omitted after 1 MiB" in rendered
 
 
 def test_shell_command_result_shortcuts_rerun_or_open_terminal() -> None:

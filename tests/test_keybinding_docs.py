@@ -1,6 +1,6 @@
 from pathlib import Path
 
-REMOVED_DIRECT_KEYS = ("i", "C", "B", "G", "M", "O", "T", "H", "R")
+REMOVED_DIRECT_KEYS = ("i", "C", "B", "M", "O", "T", "H", "R")
 
 
 def test_keybinding_docs_do_not_advertise_removed_direct_keys() -> None:

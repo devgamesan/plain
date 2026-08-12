@@ -1,7 +1,5 @@
 # ruff: noqa: F403,F405
 
-import os
-
 from .input_dispatch_helpers import *
 from .state_test_helpers import entry, pane, reduce_state
 
@@ -56,6 +54,7 @@ def test_iter_bound_keys_includes_printable_text_input_keys() -> None:
     assert "space" in keys
     assert "a" in keys
     assert "g" in keys
+    assert "G" in keys
     assert "b" in keys
     assert "." in keys
     assert "enter" in keys
@@ -117,6 +116,10 @@ def test_search_workspace_keeps_allowed_browsing_shortcuts() -> None:
         SetNotification(None),
         BeginCommandPalette(),
     )
+    assert dispatch_key_input(state, key="G") == (
+        SetNotification(None),
+        BeginGo(),
+    )
 
 
 def test_colon_preserves_actionable_notification_for_command_palette() -> None:
@@ -167,7 +170,7 @@ def test_search_workspace_blocks_unavailable_browsing_shortcuts() -> None:
 
 def test_removed_direct_shortcuts_are_unbound_in_browsing_and_search_workspace() -> None:
     for state in (build_initial_app_state(), build_search_workspace_state()):
-        for key in ("i", "C", "B", "G", "M", "O", "T", "H", "R"):
+        for key in ("i", "C", "B", "M", "O", "T", "H", "R"):
             assert dispatch_key_input(state, key=key, character=key) == ()
 
 
@@ -403,6 +406,16 @@ def test_browsing_lowercase_g_begins_grep_search() -> None:
 
     assert len(actions) == 2
     assert isinstance(actions[1], BeginGrepSearch)
+
+
+def test_browsing_uppercase_g_begins_unified_go_search() -> None:
+    state = build_initial_app_state()
+
+    actions = dispatch_key_input(state, key="G")
+
+    assert len(actions) == 2
+    assert isinstance(actions[1], BeginGo)
+    assert actions[1].source_filter == "all"
 
 
 def test_browsing_lowercase_b_begins_bookmark_search() -> None:
@@ -810,50 +823,6 @@ def test_search_palette_down_moves_cursor() -> None:
     actions = dispatch_key_input(state, key="down")
 
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=1))
-
-
-def test_go_to_path_palette_tab_completes_selected_candidate() -> None:
-    state = _reduce_go_to_path_state(
-        query="do",
-        candidates=("/tmp/project/docs", "/tmp/project/downloads"),
-        cursor_index=1,
-        current_path="/tmp/project",
-    )
-
-    actions = dispatch_key_input(state, key="tab")
-
-    assert actions == (SetNotification(None), SetCommandPaletteQuery("downloads"))
-
-
-def test_go_to_path_palette_tab_appends_separator_for_single_candidate() -> None:
-    state = _reduce_go_to_path_state(
-        query="do",
-        candidates=("/tmp/project/docs",),
-        current_path="/tmp/project",
-    )
-
-    actions = dispatch_key_input(state, key="tab")
-
-    assert actions == (SetNotification(None), SetCommandPaletteQuery(f"docs{os.sep}"))
-
-
-def test_go_to_path_palette_tab_warns_without_candidates() -> None:
-    state = _reduce_go_to_path_state(
-        query="missing",
-        candidates=(),
-        current_path="/tmp/project",
-    )
-
-    actions = dispatch_key_input(state, key="tab")
-
-    assert actions == (
-        SetNotification(
-            NotificationState(
-                level="warning",
-                message="No matching directory to complete",
-            )
-        ),
-    )
 
 
 def test_grep_palette_pageup_accounts_for_extra_input_rows() -> None:

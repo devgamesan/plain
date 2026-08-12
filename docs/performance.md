@@ -8,7 +8,8 @@
 2. [Issue #304 viewport-aware projection スパイク](#issue-304-viewport-aware-projection-スパイク)
 3. [Issue #646 ディレクトリ一覧メタデータ遅延取得](#issue-646-ディレクトリ一覧メタデータ遅延取得)
 4. [Issue #647 ブラウザスナップショット段階ロード](#issue-647-ブラウザスナップショット段階ロード)
-5. [現在の方針](#現在の方針)
+5. [Issue #281 Go パス補完](#issue-281-go-パス補完)
+6. [現在の方針](#現在の方針)
 
 ---
 
@@ -220,6 +221,20 @@ uv run python scripts/benchmark_progressive_loading.py --files 100 --dirs 100 --
 
 ---
 
+## Issue #281 Go パス補完
+
+Go の direct path 補完は query ごとの同期 directory listing を避け、短い debounce と worker、親ディレクトリ listing の短時間 cache を使う。候補は最大 500 件まで返し、打ち切り時は入力をさらに絞るよう footer で案内する。
+
+### 手動ベンチマーク
+
+```bash
+uv run python scripts/benchmark_go_completion.py --dirs 5000 --iterations 10
+```
+
+この計測では cold listing と cache hit 後の prefix filtering を分け、reducer/UI event loop の計測と合わせて回帰確認する。CI の自動 benchmark には含めない。
+
+2026-08-12 のローカル実測（macOS、5,000 directory、10 iterations）では、cold listing が平均 14.26 ms / p95 18.41 ms、cache hit 後の絞り込み（`directory_000`）が平均 0.31 ms / p95 0.37 ms だった。
+
 ## 現在の方針
 
 - 自動ベンチマークは削除した
@@ -237,4 +252,5 @@ uv run pytest tests/test_state_selectors.py -q
 uv run python scripts/benchmark_current_pane_projection.py --entries 10000 --iterations 200
 uv run python scripts/benchmark_directory_listing.py --files 8000 --dirs 2000 --iterations 10
 uv run python scripts/benchmark_progressive_loading.py --files 100 --dirs 100 --iterations 10
+uv run python scripts/benchmark_go_completion.py --dirs 5000 --iterations 10
 ```

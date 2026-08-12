@@ -8,13 +8,13 @@ zivo の全モードにおけるキーバインディング一覧です。
 
 1. `enter open`、`e edit`、`/ filter`、`s sort`、`. hidden`、`[ ] bk/fwd`、`q quit`
 2. `space select`、`c copy`、`x cut`、`v paste`、`d delete`、`r rename`、`z undo`
-3. `f find`、`g grep`、`n new-file`、`N new-dir`、`t term`、`: palette`
+3. `f find`、`g grep`、`G go`、`n new-file`、`N new-dir`、`t term`、`: palette`
 
 Search Workspace は `enter open`、`e edit`、`/ filter`、`s sort`、`. hidden`、`[ ] bk/fwd`、`q quit`、続いて `space select`、`c copy`、`z undo`、`: palette` を表示します。
 
 80 列未満の通常ブラウズでは `Tab` で詳細ビュー（プレビュー／検索結果）と current のファイル一覧を切り替えます。カーソル、選択、フィルタ、プレビュー対象は保持し、`j` / `k` は underlying current 一覧のカーソルを移動します。Search Workspace では従来どおり `Tab` を入力欄の移動に使用します。
 
-Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q quit`、続いて `space select`、`c copy-to-pane`、`m move-to-pane`、`d delete`、`r rename`、`z undo`、最後に `N new-dir`、`: palette` を表示します。`D` は下記のキーバインディングには残しますが、ヘルプバーには表示しません。
+Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q quit`、続いて `space select`、`c copy-to-pane`、`m move-to-pane`、`d delete`、`r rename`、`z undo`、最後に `G go`、`N new-dir`、`: palette` を表示します。`D` は下記のキーバインディングには残しますが、ヘルプバーには表示しません。
 
 右ペインでプレビュー中は、ペイン下部に `Ctrl+J/K scroll preview` を表示します。置換プレビューでは `Shift+↑/↓ scroll preview` を使用します。通常プレビューでは `Ctrl+↑/↓` も別名として使えます。狭い端末でも3行を維持し、各行の右端から低頻度の項目を省略します。
 
@@ -54,6 +54,7 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 | `!` | 現在ディレクトリで短い非対話シェルコマンドを実行（ダイアログで cwd と出力・エラー詳細を確認可能） |
 | `f` | ファイル検索（再帰検索） |
 | `g` | Grep検索 |
+| `G` | 統合 Go 画面を開く |
 | `/` | ファイルをフィルタ |
 | `b` | Go画面をブックマークに絞って開く |
 | `~` | ホームディレクトリに移動 |
@@ -103,6 +104,7 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 | `.` | 隠しファイル表示を切り替え |
 | `N` | フォーカス中ペインで新規ディレクトリ作成 |
 | `b` | Go画面をブックマークに絞って開く |
+| `G` | アクティブペインの統合 Go 画面を開く |
 | `:` | 転送モード用コマンドパレット（新規/リネーム/削除/タブ操作など）を開く |
 | `p` | 通常モードに戻る |
 | `q` | アプリを終了 |
@@ -155,7 +157,9 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 
 | キー | 動作 |
 | --- | ------ |
-| 文字入力 / `↑` / `↓` / `Ctrl+j` / `Ctrl+k` / `k` / `j` / `Enter` / `Esc` | コマンドを絞り込み、選択、実行、キャンセル。`Find files` と `Grep search` では `j` / `k` は文字入力として扱われ、結果のナビゲーションには `↑` / `↓` または `Ctrl+j` / `Ctrl+k` を使用します。 |
+| 文字入力 / `↑` / `↓` / `Ctrl+j` / `Ctrl+k` / `k` / `j` / `Enter` / `Esc` | コマンドを絞り込み、選択、実行、キャンセル。`Find files`、`Grep search`、`Replace text` では `j` / `k` は文字入力として扱われ、結果のナビゲーションには `↑` / `↓` または `Ctrl+j` / `Ctrl+k` を使用します。 |
+
+Find files または Grep search の結果表示中は、`Ctrl+r`（またはクリック可能な `Replace results` フッター）で表示中のファイル結果を統一Replaceプレビューへ渡せます。
 
 `Replace text` のプレビューが右ペインに表示されている間は、`Shift+↑` / `Shift+↓` でそのプレビューをスクロールできます。Scope にかかわらず適用されます。
 
@@ -168,7 +172,7 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 | `↑` / `↓` / `Ctrl+j` / `Ctrl+k` | 設定項目を移動 |
 | `←` / `→` / `Enter` | 選択中の値を変更 |
 | `s` | `config.toml` を保存 |
-| `e` | 高度設定を編集するため `config.toml` をターミナルエディタで開く |
+| `e` | 高度設定を編集するため `config.toml` をターミナルエディタで開く（未保存の変更は先に保存または終了） |
 | `Esc` | 設定エディタを閉じる |
 
 ---
@@ -202,8 +206,8 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 | `Enter` → `D` | 複数対象またはディレクトリを含む完全削除を二段階で確認 |
 | `o` / `s` / `r` / `Esc` | 貼り付け競合を overwrite / skip / rename / cancel |
 
-`i`、`C`、`B`、`G`、`M`、`O`、`T`、`H`、`R` の直接キーは割り当てません。対応する属性表示、パスコピー、ブックマーク変更、パス移動、外部アプリ起動、履歴検索、再読み込みはコマンドパレットから利用できます。
+`i`、`C`、`B`、`M`、`O`、`T`、`H`、`R` の直接キーは割り当てません。対応する属性表示、パスコピー、ブックマーク変更、パス移動、外部アプリ起動、履歴検索、再読み込みはコマンドパレットから利用できます。`G` は統合 Go 画面に割り当てています。
 
 ## 長時間操作モード
 
-Copy・Move・Compress・Extract・Replaceの実行中は通常ブラウズをモーダルに停止します。サービスが安全なキャンセルを提供する場合は、`Esc` またはStatusBarの `Cancel` を使用できます。現在の対象を完了してから停止し、Cancel要求後の重複要求は無視します。
+Copy・Move・Compress・Extract・Replaceの実行中も通常ブラウズ、ディレクトリ移動、ファイル検索、プレビュー、属性表示を継続できます。サービスが安全なキャンセルを提供する場合は、通常ブラウズまたはTransfer中の `Esc`、またはStatusBarの `Cancel` を使用できます。ダイアログ、コマンドパレット、入力フォームの `Esc` はそれぞれの画面を閉じる既存の意味を保ちます。別のファイル変更、Undo、エディタ・シェル起動、変更を伴うカスタムアクションは、進行中の操作名を示して拒否されます。現在の対象を完了してから停止し、Cancel要求後の重複要求は無視します。

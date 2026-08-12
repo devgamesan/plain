@@ -3,8 +3,6 @@
 from dataclasses import replace
 from typing import Callable
 
-from zivo.windows_paths import list_windows_drive_paths
-
 from .actions import (
     Action,
     AttributeInspectionFailed,
@@ -14,11 +12,10 @@ from .actions import (
     BeginFileSearch,
     BeginFindAndReplace,
     BeginGo,
-    BeginGoToPath,
     BeginGrepReplace,
     BeginGrepReplaceSelected,
     BeginGrepSearch,
-    BeginHistorySearch,
+    BeginReplaceFromSearchResults,
     BeginTextReplace,
     CancelCommandPalette,
     CycleFileSearchField,
@@ -31,10 +28,14 @@ from .actions import (
     DismissAttributeDialog,
     FileSearchCompleted,
     FileSearchFailed,
+    FileSearchResultsUpdated,
+    GoPathCompletionCompleted,
+    GoPathCompletionFailed,
     GrepExportCompleted,
     GrepExportFailed,
     GrepSearchCompleted,
     GrepSearchFailed,
+    GrepSearchResultsUpdated,
     MoveCommandPaletteCursor,
     OpenFindResultInEditor,
     OpenFindResultInGuiEditor,
@@ -42,6 +43,7 @@ from .actions import (
     OpenGrepResultInGuiEditor,
     SaveGrepResults,
     SetCommandPaletteQuery,
+    SetFileSearchField,
     SetFileSearchTarget,
     SetFindReplaceField,
     SetGrepReplaceField,
@@ -59,8 +61,14 @@ from .actions import (
     TextReplacePreviewFailed,
 )
 from .actions_palette import OpenSearchWorkspace
-from .command_palette import normalize_command_palette_cursor
-from .effects import ReduceResult
+from .command_palette import (
+    _go_base_path,
+    _go_direct_path,
+    _go_query_has_trailing_separator,
+    normalize_command_palette_cursor,
+    parse_go_query,
+)
+from .effects import ReduceResult, RunGoPathCompletionEffect
 from .models import AppState, NotificationState
 from .reducer_common import (
     ReducerFn,
@@ -79,13 +87,7 @@ from .reducer_palette_export import (
 from .reducer_palette_navigation import (
     handle_begin_bookmark_search,
     handle_begin_go,
-    handle_begin_go_to_path,
-    handle_begin_history_search,
-    handle_set_go_to_path_query,
-    handle_submit_bookmarks_palette,
     handle_submit_go_palette,
-    handle_submit_go_to_path_palette,
-    handle_submit_history_palette,
 )
 from .reducer_palette_replace import (
     handle_cycle_find_replace_field,
@@ -122,13 +124,16 @@ from .reducer_palette_search import (
     handle_cycle_file_search_field,
     handle_file_search_completed,
     handle_file_search_failed,
+    handle_file_search_results_updated,
     handle_grep_search_completed,
     handle_grep_search_failed,
+    handle_grep_search_results_updated,
     handle_open_find_result_in_editor,
     handle_open_find_result_in_gui_editor,
     handle_open_grep_result_in_editor,
     handle_open_grep_result_in_gui_editor,
     handle_open_search_workspace,
+    handle_set_file_search_field,
     handle_set_file_search_query,
     handle_set_file_search_target,
     handle_set_grep_search_field,
@@ -142,6 +147,7 @@ from .reducer_palette_shared import (
     GREP_SEARCH_FIELDS,
     enter_palette,
     restore_browsing_from_palette,
+    unique_search_result_paths,
 )
 
 
@@ -155,14 +161,6 @@ def _handle_move_palette_cursor(state: AppState, action: MoveCommandPaletteCurso
             state.command_palette.cursor_index + action.delta,
         ),
     )
-    if state.command_palette.source == "go_to_path":
-        next_palette = replace(
-            next_palette,
-            history_and_navigation=replace(
-                next_palette.history_and_navigation,
-                go_to_path_selection_active=True,
-            ),
-        )
     next_state = replace(state, command_palette=next_palette)
     if state.command_palette.source == "file_search":
         return sync_file_search_preview(next_state)
@@ -194,17 +192,130 @@ def _next_palette_query_state(state: AppState, query: str):
         ),
     )
 
+
+def _handle_set_go_query(state: AppState, next_palette, query: str) -> ReduceResult:
+    """Update static Go candidates immediately and schedule direct completion."""
+
+    source_filter, search_query = parse_go_query(
+        query,
+        state.command_palette.history_and_navigation.go_source_filter,
+    )
+    completion = replace(
+        next_palette.go_completion,
+        query=search_query,
+        base_path=_go_base_path(state),
+        paths=(),
+        loading=False,
+        results_truncated=False,
+        error_message=None,
+    )
+    next_palette = replace(next_palette, go_completion=completion)
+    base_path = _go_base_path(state)
+    direct_path = _go_direct_path(search_query, base_path)
+    has_trailing_separator = _go_query_has_trailing_separator(search_query, base_path)
+    if (
+        source_filter != "all"
+        or not search_query.strip()
+        or (direct_path is not None and not has_trailing_separator)
+    ):
+        return finalize(
+            replace(
+                state,
+                command_palette=next_palette,
+                pending_go_completion_request_id=None,
+            )
+        )
+    request_id = state.next_request_id
+    next_state = replace(
+        state,
+        command_palette=replace(
+            next_palette,
+            go_completion=replace(completion, loading=True),
+        ),
+        pending_go_completion_request_id=request_id,
+        next_request_id=request_id + 1,
+    )
+    return finalize(
+        next_state,
+        RunGoPathCompletionEffect(
+            request_id=request_id,
+            query=search_query,
+            base_path=base_path,
+        ),
+    )
+
 def _handle_set_palette_query(state: AppState, action: SetCommandPaletteQuery) -> ReduceResult:
     if state.command_palette is None:
         return finalize(state)
     next_palette = _next_palette_query_state(state, action.query)
+    if state.command_palette.source == "go":
+        return _handle_set_go_query(state, next_palette, action.query)
     if state.command_palette.source == "file_search":
         return handle_set_file_search_query(state, next_palette, action.query)
     if state.command_palette.source == "grep_search":
         return handle_set_grep_search_field(state, "keyword", action.query)
-    if state.command_palette.source == "go_to_path":
-        return handle_set_go_to_path_query(state, next_palette, action.query)
     return finalize(replace(state, command_palette=next_palette))
+
+
+def handle_go_path_completion_completed(
+    state: AppState,
+    action: GoPathCompletionCompleted,
+) -> ReduceResult:
+    """Apply only the completion result belonging to the active query."""
+
+    palette = state.command_palette
+    if (
+        palette is None
+        or palette.source != "go"
+        or state.pending_go_completion_request_id != action.request_id
+        or palette.go_completion.query.strip() != action.query.strip()
+    ):
+        return finalize(state)
+    next_completion = replace(
+        palette.go_completion,
+        query=action.query,
+        paths=action.paths,
+        loading=False,
+        results_truncated=action.truncated,
+        error_message=None,
+    )
+    return finalize(
+        replace(
+            state,
+            command_palette=replace(palette, go_completion=next_completion),
+            pending_go_completion_request_id=None,
+        )
+    )
+
+
+def handle_go_path_completion_failed(
+    state: AppState,
+    action: GoPathCompletionFailed,
+) -> ReduceResult:
+    """Show a completion error only while its query is still active."""
+
+    palette = state.command_palette
+    if (
+        palette is None
+        or palette.source != "go"
+        or state.pending_go_completion_request_id != action.request_id
+        or palette.go_completion.query.strip() != action.query.strip()
+    ):
+        return finalize(state)
+    next_completion = replace(
+        palette.go_completion,
+        loading=False,
+        paths=(),
+        results_truncated=False,
+        error_message=action.message,
+    )
+    return finalize(
+        replace(
+            state,
+            command_palette=replace(palette, go_completion=next_completion),
+            pending_go_completion_request_id=None,
+        )
+    )
 
 
 def _handle_cycle_grep_search_field(state: AppState, action: CycleGrepSearchField) -> ReduceResult:
@@ -240,12 +351,6 @@ def _handle_submit_palette(state: AppState, reduce_state: ReducerFn) -> ReduceRe
         return handle_submit_grep_replace_palette(state)
     if state.command_palette.source == "grep_replace_selected":
         return handle_submit_grep_replace_selected_palette(state)
-    if state.command_palette.source == "history":
-        return handle_submit_history_palette(state, reduce_state)
-    if state.command_palette.source == "bookmarks":
-        return handle_submit_bookmarks_palette(state, reduce_state)
-    if state.command_palette.source == "go_to_path":
-        return handle_submit_go_to_path_palette(state, reduce_state)
     if state.command_palette.source == "go":
         return handle_submit_go_palette(state, reduce_state)
     return handle_submit_commands_palette(state, reduce_state)
@@ -307,7 +412,13 @@ def _handle_begin_text_replace(
     reduce_state: ReducerFn,
 ) -> ReduceResult:
     del reduce_state
-    scope = "selected_files" if action.target_paths else default_replace_scope(state)
+    scope = (
+        "search_results"
+        if action.result_origin is not None
+        else "selected_files"
+        if action.target_paths
+        else default_replace_scope(state)
+    )
     next_state = enter_palette(state, source="replace_text")
     return finalize(
         replace(
@@ -316,21 +427,74 @@ def _handle_begin_text_replace(
                 next_state.command_palette,
                 replace_preview=replace(
                     next_state.command_palette.replace_preview,
+                    find_text=action.result_query if action.result_origin is not None else "",
                     scope=scope,
                     target_paths=action.target_paths or replace_scope_target_paths(state, scope),
+                    result_origin=action.result_origin,
+                    result_query=action.result_query,
+                    result_file_count=action.result_file_count or len(action.target_paths),
+                    result_match_count=action.result_match_count,
                 ),
             ),
         )
     )
 
 
-def _dispatch_begin_history_search(
+def _handle_begin_replace_from_search_results(
     state: AppState,
-    action: BeginHistorySearch,
+    action: BeginReplaceFromSearchResults,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
-    del action, reduce_state
-    return handle_begin_history_search(state)
+    del action
+    if state.command_palette is None:
+        return finalize(state)
+
+    source = state.command_palette.source
+    if source == "file_search":
+        file_results = state.command_palette.file_search.results
+        paths = unique_search_result_paths(file_results)
+        origin = "find"
+        query = state.command_palette.query.strip()
+        match_count = 0
+    elif source == "grep_search":
+        grep_results = state.command_palette.grep_search.results
+        paths = unique_search_result_paths(grep_results)
+        origin = "grep"
+        query = state.command_palette.grep_search.keyword.strip()
+        match_count = len(grep_results)
+    else:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message="Replace results is available from Find files or Grep search",
+                ),
+            )
+        )
+
+    if not paths:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message="No file results are available to replace",
+                ),
+            )
+        )
+
+    return _handle_begin_text_replace(
+        state,
+        BeginTextReplace(
+            target_paths=paths,
+            result_origin=origin,
+            result_query=query,
+            result_file_count=len(paths),
+            result_match_count=match_count,
+        ),
+        reduce_state,
+    )
 
 
 def _handle_begin_legacy_replace(state: AppState, source: str) -> ReduceResult:
@@ -360,15 +524,6 @@ def _dispatch_begin_bookmark_search(
 ) -> ReduceResult:
     del action, reduce_state
     return handle_begin_bookmark_search(state)
-
-
-def _handle_begin_go_to_path(
-    state: AppState,
-    action: BeginGoToPath,
-    reduce_state: ReducerFn,
-) -> ReduceResult:
-    del action, reduce_state
-    return handle_begin_go_to_path(state, list_windows_drive_paths)
 
 
 def _handle_cancel_command_palette(
@@ -505,12 +660,11 @@ _PALETTE_HANDLERS: dict[type[Action], _PaletteHandler] = {
     BeginFileSearch: _handle_begin_file_search,
     BeginGrepSearch: _handle_begin_grep_search,
     BeginTextReplace: _handle_begin_text_replace,
+    BeginReplaceFromSearchResults: _handle_begin_replace_from_search_results,
     BeginFindAndReplace: lambda s, a, r: _handle_begin_legacy_replace(s, "replace_in_found_files"),
     BeginGrepReplace: lambda s, a, r: _handle_begin_legacy_replace(s, "replace_in_grep_files"),
     BeginGrepReplaceSelected: _handle_begin_grep_replace_selected,
-    BeginHistorySearch: _dispatch_begin_history_search,
     BeginBookmarkSearch: _dispatch_begin_bookmark_search,
-    BeginGoToPath: _handle_begin_go_to_path,
     BeginGo: _handle_begin_go,
     CancelCommandPalette: _handle_cancel_command_palette,
     DismissAboutDialog: _handle_dismiss_about_dialog,
@@ -519,6 +673,7 @@ _PALETTE_HANDLERS: dict[type[Action], _PaletteHandler] = {
     ShowAttributes: _handle_show_attributes,
     MoveCommandPaletteCursor: lambda s, a, r: _handle_move_palette_cursor(s, a),
     SetCommandPaletteQuery: lambda s, a, r: _handle_set_palette_query(s, a),
+    SetFileSearchField: lambda s, a, r: handle_set_file_search_field(s, a),
     SetGrepSearchField: lambda s, a, r: handle_set_grep_search_field(s, a.field, a.value),
     SetGrepSearchScope: lambda s, a, r: handle_set_grep_search_scope(s, a),
     SetReplaceField: lambda s, a, r: handle_set_unified_replace_field(s, a.field, a.value),
@@ -538,8 +693,12 @@ _PALETTE_HANDLERS: dict[type[Action], _PaletteHandler] = {
     SubmitCommandPalette: lambda s, a, r: _handle_submit_palette(s, r),
     FileSearchCompleted: lambda s, a, r: handle_file_search_completed(s, a),
     FileSearchFailed: lambda s, a, r: handle_file_search_failed(s, a),
+    FileSearchResultsUpdated: lambda s, a, r: handle_file_search_results_updated(s, a),
     GrepSearchCompleted: lambda s, a, r: handle_grep_search_completed(s, a),
     GrepSearchFailed: lambda s, a, r: handle_grep_search_failed(s, a),
+    GrepSearchResultsUpdated: lambda s, a, r: handle_grep_search_results_updated(s, a),
+    GoPathCompletionCompleted: lambda s, a, r: handle_go_path_completion_completed(s, a),
+    GoPathCompletionFailed: lambda s, a, r: handle_go_path_completion_failed(s, a),
     TextReplacePreviewCompleted: lambda s, a, r: handle_text_replace_preview_completed(s, a),
     TextReplacePreviewFailed: lambda s, a, r: handle_text_replace_preview_failed(s, a),
     TextReplaceApplied: lambda s, a, r: handle_text_replace_applied(s, a, r),

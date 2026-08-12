@@ -12,6 +12,8 @@ from .actions import (
     BeginConfigEditor,
     BeginShellCommandInput,
     CancelShellCommandInput,
+    ConfigReloadCompleted,
+    ConfigReloadFailed,
     ConfigSaveCompleted,
     ConfigSaveFailed,
     CopyPathsToClipboard,
@@ -31,6 +33,7 @@ from .actions import (
     SetShellCommandCursor,
     SetShellCommandValue,
     SetTerminalHeight,
+    SetTerminalSize,
     SetTerminalWidth,
     ShellCommandCompleted,
     ShellCommandFailed,
@@ -39,10 +42,18 @@ from .actions import (
 )
 from .effects import (
     ReduceResult,
+    RunConfigReloadEffect,
     RunConfigSaveEffect,
     RunShellCommandEffect,
 )
-from .models import AppState, ConfigEditorState, NotificationState, ShellCommandState
+from .models import (
+    AppState,
+    BackgroundCommandState,
+    ConfigEditorState,
+    NotificationAction,
+    NotificationState,
+    ShellCommandState,
+)
 from .reducer_common import (
     ReducerFn,
     apply_config_to_runtime_state,
@@ -50,6 +61,7 @@ from .reducer_common import (
     finalize,
     move_config_cursor_visual,
     notification_for_external_launch,
+    request_external_directory_refresh,
     run_external_launch_request,
     sync_child_pane,
 )
@@ -125,6 +137,18 @@ def _handle_begin_shell_command_input(
     action: BeginShellCommandInput,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     return finalize(
         replace(
             state,
@@ -323,6 +347,18 @@ def _handle_submit_shell_command(
 ) -> ReduceResult:
     if state.shell_command is None:
         return finalize(state)
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     command = state.shell_command.command.strip()
     if not command:
         return finalize(
@@ -335,20 +371,29 @@ def _handle_submit_shell_command(
             )
         )
     request_id = state.next_request_id
+    limits = state.config.background_commands
     # shell_commandを保持したままにして、完了時に結果を設定できるようにする
     return finalize(
         replace(
             state,
             ui_mode="BUSY",
-            notification=NotificationState(level="info", message="Running shell command..."),
+            notification=NotificationState(
+                level="info", message="Running command — Esc cancel"
+            ),
             # shell_command=None,  # 削除：shell_commandを保持
             pending_shell_command_request_id=request_id,
+            background_command=BackgroundCommandState(
+                request_id=request_id,
+                label="Shell command",
+            ),
             next_request_id=request_id + 1,
         ),
         RunShellCommandEffect(
             request_id=request_id,
             cwd=state.current_path,
             command=command,
+            max_output_bytes=limits.max_output_kib * 1024,
+            timeout_seconds=limits.timeout_seconds,
         ),
     )
 
@@ -443,12 +488,31 @@ def _handle_open_path_in_editor(
     action: OpenPathInEditor,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
+    editing_config = (
+        state.ui_mode == "CONFIG"
+        and state.config_editor is not None
+        and action.path == state.config_editor.path
+    )
+    if editing_config and state.config_editor.dirty:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        "Save or close pending Config Editor changes before editing "
+                        "config.toml"
+                    ),
+                ),
+            )
+        )
     return run_external_launch_request(
         replace(state, notification=None),
         ExternalLaunchRequest(
             kind="open_editor",
             path=action.path,
             line_number=action.line_number,
+            reload_config_after_exit=editing_config,
         ),
     )
 
@@ -516,10 +580,120 @@ def _handle_external_launch_completed(
     action: ExternalLaunchCompleted,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
+    if action.request.reload_config_after_exit:
+        request_id = state.next_request_id
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="info",
+                    message="Reloading config.toml...",
+                ),
+                pending_config_reload_request_id=request_id,
+                next_request_id=request_id + 1,
+            ),
+            RunConfigReloadEffect(
+                request_id=request_id,
+                path=action.request.path or state.config_path,
+            ),
+        )
     notification = notification_for_external_launch(action.request)
-    if notification is None:
+    reload_target = _external_reload_target(action.request)
+    if reload_target is None:
+        if notification is None:
+            return finalize(state)
+        return finalize(replace(state, notification=notification))
+
+    next_state = replace(state, ui_mode="BROWSING")
+    return request_external_directory_refresh(
+        next_state,
+        directory_path=reload_target[0],
+        path_is_directory=reload_target[1],
+        notification=notification,
+    )
+
+
+def _external_reload_target(request: ExternalLaunchRequest) -> tuple[str, bool] | None:
+    """Return the waited external launch path eligible for a directory refresh."""
+
+    if request.kind == "open_editor" and request.path:
+        return request.path, False
+    if (
+        request.kind == "open_terminal"
+        and request.terminal_launch_mode == "foreground"
+        and request.path
+    ):
+        return request.path, True
+    return None
+
+
+def _handle_config_reload_completed(
+    state: AppState,
+    action: ConfigReloadCompleted,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    if state.pending_config_reload_request_id != action.request_id:
         return finalize(state)
-    return finalize(replace(state, notification=notification))
+    if action.result.fatal:
+        message = (
+            action.result.warnings[0]
+            if action.result.warnings
+            else "Failed to reload config.toml"
+        )
+        return finalize(
+            replace(
+                state,
+                pending_config_reload_request_id=None,
+                notification=NotificationState(level="error", message=message),
+            )
+        )
+
+    next_config_editor = state.config_editor
+    if next_config_editor is not None:
+        next_config_editor = replace(
+            next_config_editor,
+            path=action.result.path,
+            draft=action.result.config,
+            dirty=False,
+        )
+    next_state = apply_config_to_runtime_state(
+        replace(
+            state,
+            config=action.result.config,
+            config_path=action.result.path,
+            config_editor=next_config_editor,
+            pending_config_reload_request_id=None,
+            notification=NotificationState(
+                level="warning" if action.result.warnings else "info",
+                message=(
+                    action.result.warnings[0]
+                    if action.result.warnings
+                    else f"Config reloaded: {action.result.path}"
+                ),
+            ),
+        ),
+        action.result.config,
+    )
+    return sync_child_pane(next_state, next_state.current_pane.cursor_path, reduce_state)
+
+
+def _handle_config_reload_failed(
+    state: AppState,
+    action: ConfigReloadFailed,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    if state.pending_config_reload_request_id != action.request_id:
+        return finalize(state)
+    return finalize(
+        replace(
+            state,
+            pending_config_reload_request_id=None,
+            notification=NotificationState(
+                level="error",
+                message=f"Failed to reload config.toml: {action.message}",
+            ),
+        )
+    )
 
 
 def _handle_external_launch_failed(
@@ -542,6 +716,40 @@ def _handle_shell_command_completed(
 ) -> ReduceResult:
     if state.pending_shell_command_request_id != action.request_id:
         return finalize(state)
+    if action.result.termination_reason != "completed":
+        timed_out = action.result.termination_reason == "timed_out"
+        timeout = action.result.timeout_seconds or 0
+        message = (
+            f"Command stopped after {timeout} seconds"
+            if timed_out
+            else "Command cancelled"
+        )
+        next_shell = (
+            replace(state.shell_command, result=action.result)
+            if state.shell_command is not None
+            else None
+        )
+        notification = NotificationState(
+            level="warning",
+            message=message,
+            action=NotificationAction(
+                action_id="notification.shell_result",
+                label="Result",
+            ),
+        )
+        next_state = replace(
+            state,
+            ui_mode="BROWSING",
+            shell_command=next_shell,
+            pending_shell_command_request_id=None,
+            background_command=None,
+            notification=notification,
+        )
+        return request_external_directory_refresh(
+            next_state,
+            directory_path=state.shell_command.cwd if state.shell_command else None,
+            notification=notification,
+        )
     # UIモードをSHELLのままにし、実行結果をShellCommandStateに保持する
     # shell_commandがNoneの場合（キャンセルされた場合など）はBROWSINGに戻る
     if state.shell_command is None:
@@ -550,15 +758,21 @@ def _handle_shell_command_completed(
                 state,
                 ui_mode="BROWSING",
                 pending_shell_command_request_id=None,
+                background_command=None,
             )
         )
-    return finalize(
-        replace(
-            state,
-            ui_mode="SHELL",
-            shell_command=replace(state.shell_command, result=action.result),
-            pending_shell_command_request_id=None,
-        )
+    next_state = replace(
+        state,
+        ui_mode="SHELL",
+        shell_command=replace(state.shell_command, result=action.result),
+        pending_shell_command_request_id=None,
+        background_command=None,
+        notification=None,
+    )
+    return request_external_directory_refresh(
+        next_state,
+        directory_path=state.shell_command.cwd,
+        notification=None,
     )
 
 
@@ -575,6 +789,7 @@ def _handle_shell_command_failed(
             ui_mode="BROWSING",
             notification=NotificationState(level="error", message=action.message),
             pending_shell_command_request_id=None,
+            background_command=None,
         )
     )
 
@@ -656,6 +871,32 @@ def _handle_set_terminal_width(
     return finalize(replace(state, terminal_width=width, narrow_pane_view=next_view))
 
 
+def _handle_set_terminal_size(
+    state: AppState,
+    action: SetTerminalSize,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del reduce_state
+    width = max(0, action.width)
+    next_view = state.narrow_pane_view
+    if (state.terminal_width < 80) != (width < 80):
+        next_view = "current"
+    if (
+        action.height == state.terminal_height
+        and width == state.terminal_width
+        and next_view == state.narrow_pane_view
+    ):
+        return finalize(state)
+    return finalize(
+        replace(
+            state,
+            terminal_height=action.height,
+            terminal_width=width,
+            narrow_pane_view=next_view,
+        )
+    )
+
+
 def _handle_toggle_narrow_pane_view(
     state: AppState,
     action: ToggleNarrowPaneView,
@@ -700,12 +941,15 @@ _TERMINAL_CONFIG_HANDLERS: dict[type[Action], _TerminalConfigHandler] = {
     OpenTerminalAtPath: _handle_open_terminal_at_path,
     CopyPathsToClipboard: _handle_copy_paths_to_clipboard,
     ExternalLaunchCompleted: _handle_external_launch_completed,
+    ConfigReloadCompleted: _handle_config_reload_completed,
+    ConfigReloadFailed: _handle_config_reload_failed,
     ExternalLaunchFailed: _handle_external_launch_failed,
     ShellCommandCompleted: _handle_shell_command_completed,
     ShellCommandFailed: _handle_shell_command_failed,
     ConfigSaveCompleted: _handle_config_save_completed,
     ConfigSaveFailed: _handle_config_save_failed,
     SetTerminalHeight: _handle_set_terminal_height,
+    SetTerminalSize: _handle_set_terminal_size,
     SetTerminalWidth: _handle_set_terminal_width,
     ToggleNarrowPaneView: _handle_toggle_narrow_pane_view,
 }

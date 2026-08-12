@@ -16,9 +16,8 @@ from .actions import (
     BeginExitCurrentPath,
     BeginFileSearch,
     BeginFilterInput,
-    BeginGoToPath,
+    BeginGo,
     BeginGrepSearch,
-    BeginHistorySearch,
     BeginRenameInput,
     BeginShellCommandInput,
     CancelFilterInput,
@@ -101,6 +100,7 @@ BROWSING_KEYMAP = {
     "t": "open_terminal",
     "f": "begin_file_search",
     "g": "begin_grep_search",
+    "G": "begin_go",
     "a": "select_all",
     "c": "copy_targets",
     "x": "cut_targets",
@@ -145,10 +145,22 @@ BROWSING_HELP_LINES = (
     (
         ("f", "find"),
         ("g", "grep"),
+        ("G", "go"),
         ("n", "new-file"),
         ("N", "new-dir"),
         (":", "palette"),
     ),
+)
+
+BROWSING_HELP_LINES_WITH_DETAILS = (
+    BROWSING_HELP_LINES[0],
+    BROWSING_HELP_LINES[1],
+    (*BROWSING_HELP_LINES[2], ("tab", "details")),
+)
+BROWSING_HELP_LINES_WITH_FILE_LIST = (
+    BROWSING_HELP_LINES[0],
+    BROWSING_HELP_LINES[1],
+    (*BROWSING_HELP_LINES[2], ("tab", "file-list")),
 )
 
 SEARCH_WORKSPACE_HELP_LINES = (
@@ -166,7 +178,7 @@ SEARCH_WORKSPACE_HELP_LINES = (
         ("c", "copy"),
         ("z", "undo"),
     ),
-    ((":", "palette"),),
+    (("G", "go"), (":", "palette")),
 )
 
 SEARCH_WORKSPACE_BLOCKED_COMMANDS = frozenset(
@@ -186,6 +198,24 @@ SEARCH_WORKSPACE_BLOCKED_COMMANDS = frozenset(
         "duplicate_targets",
         "paste_clipboard",
         "toggle_bookmark",
+        "create_file",
+        "create_dir",
+    }
+)
+
+BACKGROUND_OPERATION_BLOCKED_COMMANDS = frozenset(
+    {
+        "begin_rename",
+        "begin_shell_command",
+        "open_terminal",
+        "open_terminal_window",
+        "open_file_manager",
+        "delete_targets",
+        "permanent_delete_targets",
+        "open_in_editor",
+        "open_in_gui_editor",
+        "paste_clipboard",
+        "undo_last_operation",
         "create_file",
         "create_dir",
     }
@@ -226,6 +256,13 @@ def dispatch_browsing_input(
         ):
             return warn("Unavailable in search workspace")
         if (
+            state.foreground_operation is not None
+            and command in BACKGROUND_OPERATION_BLOCKED_COMMANDS
+        ):
+            return warn(
+                f"{state.foreground_operation.kind.title()} is in progress"
+            )
+        if (
             is_search_workspace_path(state.current_path)
             and command == "toggle_narrow_pane_view"
         ):
@@ -238,6 +275,10 @@ def dispatch_browsing_input(
         if ctx.cursor_entry is not None and ctx.cursor_entry.kind == "dir":
             return supported(EnterCursorDirectory())
         if ctx.cursor_entry is not None and ctx.cursor_entry.kind == "file":
+            if state.foreground_operation is not None:
+                return warn(
+                    f"{state.foreground_operation.kind.title()} is in progress"
+                )
             return supported(OpenPathWithDefaultApp(ctx.cursor_entry.path))
 
     pending = start_multi_key_sequence_if_supported(key, multi_key_command_dispatch)
@@ -525,8 +566,7 @@ BROWSING_SIMPLE_DISPATCH: dict[str, type[Action]] = {
     "begin_command_palette": BeginCommandPalette,
     "begin_file_search": BeginFileSearch,
     "begin_grep_search": BeginGrepSearch,
-    "begin_history_search": BeginHistorySearch,
-    "begin_go_to_path": BeginGoToPath,
+    "begin_go": BeginGo,
     "go_to_home_directory": GoToHomeDirectory,
     "reload_directory": ReloadDirectory,
     "go_back": GoBack,

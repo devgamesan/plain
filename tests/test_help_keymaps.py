@@ -7,7 +7,7 @@ from zivo.state.input_browsing import (
 )
 from zivo.state.input_transfer import TRANSFER_HELP_LINES, TRANSFER_KEYMAP
 
-REMOVED_DIRECT_KEYS = {"i", "C", "B", "G", "M", "O", "T", "H", "R"}
+REMOVED_DIRECT_KEYS = {"i", "C", "B", "M", "O", "T", "H", "R"}
 
 
 def test_browsing_help_shortcuts_are_backed_by_the_browsing_keymap() -> None:
@@ -45,6 +45,7 @@ def test_transfer_help_shortcuts_are_backed_by_the_transfer_keymap() -> None:
     assert {"tab", "shift+tab", "p", "escape", "c", "m"} <= TRANSFER_KEYMAP
     # n (new-file) / N (new-dir) are both bound so transfer matches browsing.
     assert {"n", "N"} <= TRANSFER_KEYMAP
+    assert "G" in TRANSFER_KEYMAP
     assert {"[", "]", "y", "x", "v"}.isdisjoint(TRANSFER_KEYMAP)
 
 

@@ -23,6 +23,8 @@ def render_app_config(config: AppConfig) -> str:
         render_logging_section(config),
         render_bookmarks_section(config),
         render_file_search_section(config),
+        render_grep_search_section(config),
+        render_background_commands_section(config),
         render_actions_section(config),
     ]
     return "\n\n".join(sections) + "\n"
@@ -140,11 +142,39 @@ def render_file_search_section(config: AppConfig) -> str:
     return (
         "[file_search]\n"
         "# Optional file search behavior settings.\n"
-        "# Leave max_results empty (null) for no limit (default).\n"
-        "# Set to a positive integer to limit the number of results.\n"
+        "# Leave max_results unset to use the default limit of 1000.\n"
+        "# Set to a non-negative integer to change the limit (0 disables results).\n"
         "# Example:\n"
         "# max_results = 1000\n"
         f"{max_results_line}"
+    )
+
+
+def render_grep_search_section(config: AppConfig) -> str:
+    max_results = config.grep_search.max_results
+    if max_results is None:
+        max_results_line = "# max_results = 1000  # Optional: limit grep results"
+    else:
+        max_results_line = f"max_results = {max_results}"
+    return (
+        "[grep_search]\n"
+        "# Optional recursive content-search behavior settings.\n"
+        "# Leave max_results unset to use the default limit of 1000.\n"
+        "# Set to a non-negative integer to limit the number of results.\n"
+        "# Example:\n"
+        "# max_results = 1000\n"
+        f"{max_results_line}"
+    )
+
+
+def render_background_commands_section(config: AppConfig) -> str:
+    limits = config.background_commands
+    return (
+        "[background_commands]\n"
+        "# Limits for `!` commands and background custom actions.\n"
+        "# stdout and stderr are limited independently.\n"
+        f"max_output_kib = {limits.max_output_kib}\n"
+        f"timeout_seconds = {limits.timeout_seconds}"
     )
 
 

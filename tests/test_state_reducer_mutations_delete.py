@@ -4,6 +4,8 @@ from tests.test_state_reducer import _reduce_state
 from zivo.models import DeleteRequest
 from zivo.state import (
     DeleteConfirmationState,
+    ExitConfirmationState,
+    ForegroundOperationState,
     NotificationState,
     RunDeletePreparationEffect,
     RunFileMutationEffect,
@@ -15,6 +17,7 @@ from zivo.state.actions import (
     BeginDeleteTargets,
     CancelDeleteConfirmation,
     ConfirmDeleteTargets,
+    ConfirmExitCurrentPath,
     DeletePreparationCompleted,
 )
 
@@ -123,6 +126,23 @@ def test_cancel_delete_confirmation_returns_to_browsing_with_warning() -> None:
 
     assert next_state.ui_mode == "BROWSING"
     assert next_state.notification == NotificationState(level="warning", message="Delete cancelled")
+
+
+def test_confirm_exit_requests_cancel_and_waits_for_active_operation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="CONFIRM",
+        exit_confirmation=ExitConfirmationState(),
+        foreground_operation=ForegroundOperationState(operation_id=8, kind="copy"),
+    )
+
+    result = reduce_app_state(state, ConfirmExitCurrentPath())
+
+    assert result.state.pending_exit_after_operation is True
+    assert result.state.ui_mode == "BROWSING"
+    assert result.state.foreground_operation is not None
+    assert result.state.foreground_operation.cancel_requested is True
+    assert result.state.foreground_operation.cancelable is False
 
 
 def test_begin_permanent_delete_targets_prepares_confirmation_when_delete_confirmation_disabled(

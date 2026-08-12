@@ -1,0 +1,246 @@
+from dataclasses import replace
+
+import zivo.state.command_palette as command_palette_module
+from zivo.services import GoPathCompletionService
+from zivo.services.go_completion import _CachedDirectoryListing
+from zivo.state import (
+    GoCompletionState,
+    RunGoPathCompletionEffect,
+    build_initial_app_state,
+    reduce_app_state,
+    select_command_palette_state,
+)
+from zivo.state.actions import (
+    BeginGo,
+    GoPathCompletionCompleted,
+    GoPathCompletionFailed,
+    SetCommandPaletteQuery,
+)
+
+
+def test_go_completion_service_uses_cached_listing_and_caps_results(tmp_path) -> None:
+    for name in ("docs", "downloads", "drafts"):
+        (tmp_path / name).mkdir()
+    (tmp_path / "notes.txt").write_text("notes")
+    service = GoPathCompletionService(cache_ttl_seconds=60, max_results=2)
+
+    first = service.complete("d", str(tmp_path))
+    second = service.complete("do", str(tmp_path))
+
+    assert first.paths == (
+        str(tmp_path / "docs"),
+        str(tmp_path / "downloads"),
+    )
+    assert first.truncated is True
+    assert second.paths == (str(tmp_path / "docs"), str(tmp_path / "downloads"))
+    assert second.truncated is False
+
+
+def test_go_completion_service_honors_cancellation(tmp_path) -> None:
+    (tmp_path / "directory").mkdir()
+    service = GoPathCompletionService()
+
+    result = service.complete("d", str(tmp_path), is_cancelled=lambda: True)
+
+    assert result.paths == ()
+    assert result.truncated is False
+
+
+def test_go_completion_service_lists_children_after_trailing_separator(tmp_path) -> None:
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "zeta").mkdir()
+    (docs / "alpha").mkdir()
+    (docs / "alpha-notes.txt").write_text("notes")
+    service = GoPathCompletionService()
+
+    result = service.complete("docs/", str(tmp_path))
+    prefixed = service.complete("docs/a", str(tmp_path))
+
+    assert result.paths == (str(docs / "alpha"), str(docs / "zeta"))
+    assert prefixed.paths == (str(docs / "alpha"),)
+
+
+def test_go_completion_service_lists_posix_root_candidates(monkeypatch, tmp_path) -> None:
+    service = GoPathCompletionService()
+    listing = _CachedDirectoryListing(
+        expires_at=999,
+        entries=(("etc", True), ("notes.txt", False), ("var", True)),
+        names=("etc", "notes.txt", "var"),
+    )
+    monkeypatch.setattr(service, "_listing", lambda parent, windows: listing)
+
+    result = service.complete("/", str(tmp_path))
+
+    assert result.paths == ("/etc", "/var")
+
+
+def test_go_completion_service_supports_windows_separators(monkeypatch) -> None:
+    service = GoPathCompletionService()
+    listing = _CachedDirectoryListing(
+        expires_at=999,
+        entries=(("alpha", True), ("notes.txt", False)),
+        names=("alpha", "notes.txt"),
+    )
+    monkeypatch.setattr(service, "_listing", lambda parent, windows: listing)
+
+    slash = service.complete("docs/", r"C:\workspace")
+    backslash = service.complete("docs\\", r"C:\workspace")
+
+    assert slash.paths == (r"C:\workspace\docs\alpha",)
+    assert backslash.paths == (r"C:\workspace\docs\alpha",)
+
+
+def test_go_query_schedules_async_completion_and_clears_stale_paths(tmp_path) -> None:
+    state = reduce_app_state(build_initial_app_state(), BeginGo()).state
+    first = reduce_app_state(state, SetCommandPaletteQuery("do"))
+
+    assert first.effects == (
+        RunGoPathCompletionEffect(
+            request_id=1,
+            query="do",
+            base_path=state.current_path,
+        ),
+    )
+    assert first.state.command_palette is not None
+    assert first.state.command_palette.go_completion.loading is True
+    assert first.state.pending_go_completion_request_id == 1
+
+    completed = reduce_app_state(
+        first.state,
+        GoPathCompletionCompleted(
+            request_id=1,
+            query="do",
+            paths=(str(tmp_path / "docs"),),
+        ),
+    ).state
+    next_query = reduce_app_state(completed, SetCommandPaletteQuery("dr"))
+
+    assert next_query.state.command_palette is not None
+    assert next_query.state.command_palette.go_completion.paths == ()
+    assert next_query.state.command_palette.go_completion.loading is True
+
+    stale = reduce_app_state(
+        next_query.state,
+        GoPathCompletionCompleted(
+            request_id=1,
+            query="do",
+            paths=(str(tmp_path / "stale"),),
+        ),
+    ).state
+    assert stale == next_query.state
+
+
+def test_go_query_separator_starts_completion_and_keeps_direct_candidate_first(tmp_path) -> None:
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "alpha").mkdir()
+    (docs / "zeta").mkdir()
+    state = replace(build_initial_app_state(), current_path=str(tmp_path))
+    state = reduce_app_state(state, BeginGo()).state
+
+    pending = reduce_app_state(state, SetCommandPaletteQuery("docs/"))
+
+    assert pending.effects == (
+        RunGoPathCompletionEffect(
+            request_id=1,
+            query="docs/",
+            base_path=str(tmp_path),
+        ),
+    )
+    assert pending.state.command_palette is not None
+    assert pending.state.command_palette.go_completion.loading is True
+    loading_items = command_palette_module.get_command_palette_items(pending.state)
+    assert loading_items[0].id == "go_direct"
+    assert loading_items[0].path == str(docs.resolve())
+
+    completed = reduce_app_state(
+        pending.state,
+        GoPathCompletionCompleted(
+            request_id=1,
+            query="docs/",
+            paths=(str(docs / "alpha"), str(docs / "zeta")),
+        ),
+    ).state
+    completed_items = command_palette_module.get_command_palette_items(completed)
+
+    assert completed.command_palette is not None
+    assert completed.command_palette.cursor_index == 0
+    assert completed_items[0].id == "go_direct"
+    assert completed_items[0].path == str(docs.resolve())
+    assert tuple(item.path for item in completed_items[1:]) == (
+        str(docs / "alpha"),
+        str(docs / "zeta"),
+    )
+
+
+def test_go_query_separator_keeps_direct_candidate_when_no_children_exist(tmp_path) -> None:
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    state = replace(build_initial_app_state(), current_path=str(tmp_path))
+    state = reduce_app_state(state, BeginGo()).state
+    pending = reduce_app_state(state, SetCommandPaletteQuery("docs/"))
+
+    completed = reduce_app_state(
+        pending.state,
+        GoPathCompletionCompleted(request_id=1, query="docs/", paths=()),
+    ).state
+
+    items = command_palette_module.get_command_palette_items(completed)
+    assert tuple(item.path for item in items) == (str(docs.resolve()),)
+
+
+def test_go_query_separator_does_not_complete_source_filtered_paths(tmp_path) -> None:
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    state = replace(build_initial_app_state(), current_path=str(tmp_path))
+    state = reduce_app_state(state, BeginGo()).state
+
+    result = reduce_app_state(state, SetCommandPaletteQuery("@home docs/"))
+
+    assert result.effects == ()
+    assert result.state.pending_go_completion_request_id is None
+    assert result.state.command_palette is not None
+    assert result.state.command_palette.go_completion.loading is False
+
+
+def test_go_completion_error_is_visible_with_direct_candidate(tmp_path) -> None:
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    state = replace(build_initial_app_state(), current_path=str(tmp_path))
+    state = reduce_app_state(state, BeginGo()).state
+    pending = reduce_app_state(state, SetCommandPaletteQuery("docs/"))
+    failed = reduce_app_state(
+        pending.state,
+        GoPathCompletionFailed(
+            request_id=1,
+            query="docs/",
+            message="Unable to read directory: Permission denied",
+        ),
+    ).state
+
+    view = select_command_palette_state(failed)
+    items = command_palette_module.get_command_palette_items(failed)
+
+    assert view is not None
+    assert items and items[0].id == "go_direct"
+    assert view.footer_message is not None
+    assert "Permission denied" in view.footer_message
+
+
+def test_go_view_distinguishes_loading_from_empty_results() -> None:
+    state = reduce_app_state(build_initial_app_state(), BeginGo()).state
+    state = replace(
+        state,
+        command_palette=replace(
+            state.command_palette,
+            go_completion=GoCompletionState(query="docs", loading=True),
+        ),
+    )
+
+    view = select_command_palette_state(state)
+
+    assert view is not None
+    assert view.empty_message == "Searching directories…"
+    assert view.footer_message is not None
+    assert "Searching directories…" in view.footer_message

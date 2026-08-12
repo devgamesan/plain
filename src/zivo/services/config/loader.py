@@ -10,12 +10,14 @@ from pathlib import Path
 from zivo.models import (
     ActionsConfig,
     AppConfig,
+    BackgroundCommandConfig,
     BookmarkConfig,
     ConfigLoadResult,
     CustomActionConfig,
     DisplayConfig,
     EditorConfig,
     FileSearchConfig,
+    GrepSearchConfig,
     GuiEditorConfig,
     LoggingConfig,
     TerminalConfig,
@@ -70,12 +72,14 @@ class AppConfigLoader:
                 config=config,
                 path=str(path),
                 warnings=(f"Failed to read config: {error}",),
+                fatal=True,
             )
         except tomllib.TOMLDecodeError as error:
             return ConfigLoadResult(
                 config=config,
                 path=str(path),
                 warnings=(f"Failed to parse config.toml: {error}",),
+                fatal=True,
             )
 
         warnings: list[str] = []
@@ -84,6 +88,7 @@ class AppConfigLoader:
                 config=config,
                 path=str(path),
                 warnings=("Config root must be a TOML table; using defaults.",),
+                fatal=True,
             )
 
         config = AppConfig(
@@ -95,6 +100,10 @@ class AppConfigLoader:
                 logging=load_logging_config(document.get("logging"), warnings),
                 bookmarks=load_bookmark_config(document.get("bookmarks"), warnings),
                 file_search=load_file_search_config(document.get("file_search"), warnings),
+                grep_search=load_grep_search_config(document.get("grep_search"), warnings),
+                background_commands=load_background_command_config(
+                    document.get("background_commands"), warnings
+                ),
                 actions=load_actions_config(document.get("actions"), warnings),
             )
         if "help_bar" in document:
@@ -412,6 +421,57 @@ def load_file_search_config(section: object, warnings: list[str]) -> FileSearchC
         return config
 
     return FileSearchConfig(max_results=max_results)
+
+
+def load_grep_search_config(section: object, warnings: list[str]) -> GrepSearchConfig:
+    config = GrepSearchConfig()
+    validated = validate_section_dict(section, "grep_search", warnings)
+    if validated is None:
+        return config
+
+    max_results = validated.get("max_results")
+    if max_results is None:
+        return config
+
+    if not isinstance(max_results, int):
+        warnings.append("grep_search.max_results must be an integer or null; using default.")
+        return config
+
+    if max_results < 0:
+        warnings.append("grep_search.max_results must be 0 or greater; using default.")
+        return config
+
+    return GrepSearchConfig(max_results=max_results)
+
+
+def load_background_command_config(
+    section: object,
+    warnings: list[str],
+) -> BackgroundCommandConfig:
+    config = BackgroundCommandConfig()
+    validated = validate_section_dict(section, "background_commands", warnings)
+    if validated is None:
+        return config
+    return BackgroundCommandConfig(
+        max_output_kib=read_int(
+            validated,
+            key="max_output_kib",
+            default=config.max_output_kib,
+            minimum=1,
+            maximum=4096,
+            warnings=warnings,
+            section_name="background_commands",
+        ),
+        timeout_seconds=read_int(
+            validated,
+            key="timeout_seconds",
+            default=config.timeout_seconds,
+            minimum=1,
+            maximum=86400,
+            warnings=warnings,
+            section_name="background_commands",
+        ),
+    )
 
 
 def load_actions_config(section: object, warnings: list[str]) -> ActionsConfig:

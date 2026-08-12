@@ -1,10 +1,12 @@
 from dataclasses import replace
+from datetime import datetime
 from pathlib import Path
 
 from tests.state_test_helpers import reduce_state
 from zivo.models import (
     AppConfig,
     BookmarkConfig,
+    ConfigLoadResult,
     ExternalLaunchRequest,
     GuiEditorConfig,
 )
@@ -15,17 +17,22 @@ from zivo.state import (
     DirectoryEntryState,
     DirectorySizeCacheEntry,
     DirectorySizeDeltaState,
+    FilterState,
+    ForegroundOperationState,
     HistoryState,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
+    LoadCurrentPaneEffect,
     NameConflictState,
     NotificationState,
     PaneState,
     PendingInputState,
     PendingKeySequenceState,
+    RunConfigReloadEffect,
     RunConfigSaveEffect,
     RunDirectorySizeEffect,
     RunExternalLaunchEffect,
+    SortState,
     build_initial_app_state,
     reduce_app_state,
     select_browser_tabs,
@@ -36,7 +43,6 @@ from zivo.state.actions import (
     ActivateTabByIndex,
     AddBookmark,
     BeginFilterInput,
-    BeginHistorySearch,
     BrowserSnapshotFailed,
     BrowserSnapshotLoaded,
     CancelFilterInput,
@@ -45,6 +51,8 @@ from zivo.state.actions import (
     ClearSelection,
     CloseCurrentTab,
     CloseTabByIndex,
+    ConfigReloadCompleted,
+    ConfigReloadFailed,
     ConfigSaveCompleted,
     ConfigSaveFailed,
     ConfirmFilterInput,
@@ -83,12 +91,15 @@ from zivo.state.actions import (
     SetPendingKeySequence,
     SetSort,
     SetTerminalHeight,
+    SetTerminalSize,
     SetTerminalWidth,
     SetUiMode,
     ToggleHiddenFiles,
     ToggleNarrowPaneView,
     ToggleSelection,
 )
+from zivo.state.models import DIRECTORY_HISTORY_LIMIT
+from zivo.state.reducer_requests import build_history_after_snapshot_load
 from zivo.windows_paths import WINDOWS_DRIVES_ROOT
 
 
@@ -429,6 +440,28 @@ def test_enter_cursor_directory_requests_blocking_snapshot_when_child_pane_is_st
         ),
     )
 
+
+def test_blocking_navigation_snapshot_is_nonblocking_during_long_running_operation() -> None:
+    state = replace(
+        build_initial_app_state(),
+        foreground_operation=ForegroundOperationState(operation_id=4, kind="copy"),
+    )
+
+    result = reduce_app_state(
+        state,
+        RequestBrowserSnapshot("/tmp/next", blocking=True),
+    )
+
+    assert result.state.ui_mode == "BROWSING"
+    assert result.effects == (
+        LoadCurrentPaneEffect(
+            request_id=1,
+            path="/tmp/next",
+            cursor_path=None,
+            invalidate_paths=(),
+        ),
+    )
+
 def test_enter_cursor_directory_promotes_matching_child_pane() -> None:
     state = replace(
         build_initial_app_state(),
@@ -444,8 +477,21 @@ def test_enter_cursor_directory_promotes_matching_child_pane() -> None:
         child_pane=PaneState(
             directory_path="/tmp/project/docs",
             entries=(
-                DirectoryEntryState("/tmp/project/docs/api", "api", "dir"),
-                DirectoryEntryState("/tmp/project/docs/guide.md", "guide.md", "file"),
+                DirectoryEntryState(
+                    "/tmp/project/docs/api",
+                    "api",
+                    "dir",
+                    modified_at=datetime(2026, 1, 1),
+                    permissions_mode=0o40755,
+                ),
+                DirectoryEntryState(
+                    "/tmp/project/docs/guide.md",
+                    "guide.md",
+                    "file",
+                    size_bytes=42,
+                    modified_at=datetime(2026, 1, 1),
+                    permissions_mode=0o100644,
+                ),
             ),
         ),
         directory_size_cache=(
@@ -492,6 +538,36 @@ def test_enter_cursor_directory_promotes_matching_child_pane() -> None:
         RunDirectorySizeEffect(
             request_id=2,
             paths=("/tmp/project/docs/api",),
+        ),
+    )
+
+
+def test_enter_cursor_directory_does_not_promote_lightweight_child_entries() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/tmp/project",
+        current_pane=PaneState(
+            directory_path="/tmp/project",
+            entries=(DirectoryEntryState("/tmp/project/docs", "docs", "dir"),),
+            cursor_path="/tmp/project/docs",
+        ),
+        child_pane=PaneState(
+            directory_path="/tmp/project/docs",
+            entries=(
+                DirectoryEntryState("/tmp/project/docs/guide.md", "guide.md", "file"),
+            ),
+        ),
+    )
+
+    result = reduce_app_state(state, EnterCursorDirectory())
+
+    assert result.state.pending_browser_snapshot_request_id == 1
+    assert result.effects == (
+        LoadBrowserSnapshotEffect(
+            request_id=1,
+            path="/tmp/project/docs",
+            cursor_path=None,
+            blocking=True,
         ),
     )
 
@@ -743,6 +819,232 @@ def test_open_path_in_editor_with_line_number_emits_external_launch_effect() -> 
     )
 
 
+def test_completed_foreground_editor_refreshes_matching_current_directory() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/tmp/project",
+        current_pane=PaneState(
+            directory_path="/tmp/project",
+            entries=(DirectoryEntryState("/tmp/project/README.md", "README.md", "file"),),
+            cursor_path="/tmp/project/README.md",
+        ),
+    )
+
+    result = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=4,
+            request=ExternalLaunchRequest(
+                kind="open_editor",
+                path="/tmp/project/README.md",
+            ),
+        ),
+    )
+
+    assert result.state.pending_browser_snapshot_request_id == 1
+    assert result.state.ui_mode == "BROWSING"
+    assert result.effects == (
+        LoadBrowserSnapshotEffect(
+            request_id=1,
+            path="/tmp/project",
+            cursor_path="/tmp/project/README.md",
+            blocking=False,
+            invalidate_paths=tuple(
+                str(Path(path).resolve())
+                for path in ("/tmp/project", "/tmp", "/tmp/project/README.md")
+            ),
+            enable_image_preview=True,
+            enable_pdf_preview=True,
+            enable_office_preview=True,
+        ),
+    )
+
+
+def test_completed_external_launch_excludes_gui_editor_and_terminal_window() -> None:
+    state = replace(build_initial_app_state(), current_path="/tmp/project")
+
+    gui_result = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="open_gui_editor",
+                path="/tmp/project/README.md",
+            ),
+        ),
+    )
+    window_result = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=2,
+            request=ExternalLaunchRequest(
+                kind="open_terminal",
+                path="/tmp/project",
+                terminal_launch_mode="window",
+            ),
+        ),
+    )
+
+    assert gui_result.effects == ()
+    assert window_result.effects == ()
+
+
+def test_completed_foreground_terminal_refreshes_matching_current_directory() -> None:
+    state = replace(build_initial_app_state(), current_path="/tmp/project")
+
+    result = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="open_terminal",
+                path="/tmp/project",
+                terminal_launch_mode="foreground",
+            ),
+        ),
+    )
+
+    assert result.state.pending_browser_snapshot_request_id == 1
+    assert result.effects[0].path == "/tmp/project"
+
+
+def test_external_refresh_skips_virtual_search_workspace() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="search://query?root=%2Ftmp%2Fproject",
+    )
+
+    result = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="open_editor",
+                path="/tmp/project/README.md",
+            ),
+        ),
+    )
+
+    assert result.effects == ()
+
+
+def test_external_refresh_skips_archive_virtual_path() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/tmp/project/archive.zip/src",
+    )
+
+    result = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="open_editor",
+                path="/tmp/project/archive.zip/src/README.md",
+            ),
+        ),
+    )
+
+    assert result.effects == ()
+
+
+def test_external_refresh_completion_wins_over_manual_reload_without_busy_mode() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/tmp/project",
+        ui_mode="BUSY",
+        pending_browser_snapshot_request_id=9,
+        next_request_id=10,
+    )
+
+    result = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=8,
+            request=ExternalLaunchRequest(
+                kind="open_editor",
+                path="/tmp/project/README.md",
+            ),
+        ),
+    )
+
+    assert result.state.pending_browser_snapshot_request_id == 10
+    assert result.state.ui_mode == "BROWSING"
+    assert result.effects[0].request_id == 10
+
+    stale = reduce_app_state(
+        result.state,
+        BrowserSnapshotLoaded(
+            request_id=9,
+            snapshot=BrowserSnapshot(
+                current_path="/tmp/project",
+                parent_pane=PaneState(directory_path="/tmp", entries=()),
+                current_pane=PaneState(directory_path="/tmp/project", entries=()),
+                child_pane=PaneState(directory_path="/tmp/project", entries=()),
+            ),
+        ),
+    )
+    assert stale.state.pending_browser_snapshot_request_id == 10
+
+
+def test_external_refresh_applies_new_entries_while_preserving_view_state() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/tmp/project",
+        filter=FilterState(query="read", active=True),
+        sort=SortState(field="modified", descending=True, directories_first=False),
+        current_pane=PaneState(
+            directory_path="/tmp/project",
+            entries=(DirectoryEntryState("/tmp/project/README.md", "README.md", "file"),),
+            cursor_path="/tmp/project/README.md",
+            selected_paths=frozenset({"/tmp/project/README.md"}),
+            selection_anchor_path="/tmp/project/README.md",
+        ),
+    )
+    started = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="open_editor",
+                path="/tmp/project/README.md",
+            ),
+        ),
+    )
+    loaded = reduce_app_state(
+        started.state,
+        BrowserSnapshotLoaded(
+            request_id=started.state.pending_browser_snapshot_request_id or 0,
+            snapshot=BrowserSnapshot(
+                current_path="/tmp/project",
+                parent_pane=PaneState(directory_path="/tmp", entries=()),
+                current_pane=PaneState(
+                    directory_path="/tmp/project",
+                    entries=(
+                        DirectoryEntryState(
+                            "/tmp/project/README.md",
+                            "README.md",
+                            "file",
+                        ),
+                        DirectoryEntryState("/tmp/project/new.txt", "new.txt", "file"),
+                    ),
+                    cursor_path="/tmp/project/README.md",
+                ),
+                child_pane=PaneState(directory_path="/tmp/project", entries=()),
+            ),
+        ),
+    )
+
+    assert loaded.state.current_pane.cursor_path == "/tmp/project/README.md"
+    assert loaded.state.current_pane.selected_paths == frozenset({"/tmp/project/README.md"})
+    assert loaded.state.filter == FilterState(query="read", active=True)
+    assert loaded.state.sort == SortState(
+        field="modified",
+        descending=True,
+        directories_first=False,
+    )
+
+
 def test_open_path_in_gui_editor_emits_external_launch_effect() -> None:
     state = build_initial_app_state()
 
@@ -811,7 +1113,7 @@ def test_move_config_editor_cursor_clamps_to_visible_settings() -> None:
     next_state = _reduce_state(state, MoveConfigEditorCursor(delta=99))
 
     assert next_state.config_editor is not None
-    assert next_state.config_editor.cursor_index == 18
+    assert next_state.config_editor.cursor_index == 12
 
 
 def test_move_config_editor_cursor_reaches_preview_syntax_theme() -> None:
@@ -821,14 +1123,14 @@ def test_move_config_editor_cursor_reaches_preview_syntax_theme() -> None:
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=2,
+            cursor_index=3,
         ),
     )
 
     next_state = _reduce_state(state, MoveConfigEditorCursor(delta=1))
 
     assert next_state.config_editor is not None
-    assert next_state.config_editor.cursor_index == 10
+    assert next_state.config_editor.cursor_index == 4
 
 
 def test_cycle_config_editor_editor_command_updates_draft_and_dirty_state() -> None:
@@ -952,23 +1254,6 @@ def test_cycle_config_editor_theme_supports_all_builtin_themes() -> None:
     assert next_state.config_editor.draft.display.theme == "textual-ansi"
     assert next_state.config_editor.dirty is True
 
-def test_cycle_config_editor_directory_size_visibility_updates_draft_and_dirty_state() -> None:
-    state = replace(
-        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
-        ui_mode="CONFIG",
-        config_editor=ConfigEditorState(
-            path="/tmp/zivo/config.toml",
-            draft=build_initial_app_state().config,
-            cursor_index=4,
-        ),
-    )
-
-    next_state = _reduce_state(state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.display.show_directory_sizes is False
-    assert next_state.config_editor.dirty is True
-
 def test_cycle_config_editor_text_preview_updates_draft_and_dirty_state() -> None:
     state = replace(
         build_initial_app_state(config_path="/tmp/zivo/config.toml"),
@@ -1010,7 +1295,7 @@ def test_cycle_config_editor_pdf_preview_updates_draft_and_dirty_state() -> None
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=8,
+            cursor_index=7,
         ),
     )
 
@@ -1027,7 +1312,7 @@ def test_cycle_config_editor_office_preview_updates_draft_and_dirty_state() -> N
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=9,
+            cursor_index=8,
         ),
     )
 
@@ -1044,7 +1329,7 @@ def test_cycle_config_editor_preview_syntax_theme_updates_draft_and_dirty_state(
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=build_initial_app_state().config,
-            cursor_index=10,
+            cursor_index=4,
         ),
     )
 
@@ -1052,23 +1337,6 @@ def test_cycle_config_editor_preview_syntax_theme_updates_draft_and_dirty_state(
 
     assert next_state.config_editor is not None
     assert next_state.config_editor.draft.display.preview_syntax_theme == "abap"
-    assert next_state.config_editor.dirty is True
-
-def test_cycle_config_editor_preview_max_kib_updates_draft_and_dirty_state() -> None:
-    state = replace(
-        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
-        ui_mode="CONFIG",
-        config_editor=ConfigEditorState(
-            path="/tmp/zivo/config.toml",
-            draft=build_initial_app_state().config,
-            cursor_index=11,
-        ),
-    )
-
-    next_state = _reduce_state(state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.display.preview_max_kib == 128
     assert next_state.config_editor.dirty is True
 
 def test_save_config_editor_emits_config_save_effect() -> None:
@@ -1279,57 +1547,6 @@ def test_config_save_completed_requests_preview_when_enabled() -> None:
     )
 
 
-def test_cycle_config_editor_file_search_max_results_updates_draft() -> None:
-    """file_search.max_results をサイクルさせて設定を変更できることを確認."""
-    original_state = build_initial_app_state(config_path="/tmp/zivo/config.toml")
-    state = replace(
-        original_state,
-        ui_mode="CONFIG",
-            config_editor=ConfigEditorState(
-                path="/tmp/zivo/config.toml",
-                draft=original_state.config,
-                cursor_index=21,  # file_search.max_results
-            ),
-        )
-
-    # None → 100
-    next_state = _reduce_state(state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.file_search.max_results == 100
-    assert next_state.config_editor.dirty is True
-
-    # 100 → 500
-    next_state = _reduce_state(next_state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.file_search.max_results == 500
-
-    # 500 → 1000
-    next_state = _reduce_state(next_state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.file_search.max_results == 1000
-
-    # 1000 → 5000
-    next_state = _reduce_state(next_state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.file_search.max_results == 5000
-
-    # 5000 → 10000
-    next_state = _reduce_state(next_state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.file_search.max_results == 10000
-
-    # 10000 → None (制限なしに戻る)
-    next_state = _reduce_state(next_state, CycleConfigEditorValue(delta=1))
-
-    assert next_state.config_editor is not None
-    assert next_state.config_editor.draft.file_search.max_results is None
-
-
 def test_config_save_failed_sets_error_notification() -> None:
     state = replace(
         build_initial_app_state(config_path="/tmp/zivo/config.toml"),
@@ -1342,6 +1559,135 @@ def test_config_save_failed_sets_error_notification() -> None:
     assert next_state.notification == NotificationState(
         level="error",
         message="Failed to save config: disk full",
+    )
+
+
+def test_config_editor_blocks_raw_edit_when_changes_are_pending() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/zivo/config.toml",
+            draft=replace(
+                build_initial_app_state().config,
+                display=replace(build_initial_app_state().config.display, theme="dracula"),
+            ),
+            dirty=True,
+        ),
+    )
+
+    result = reduce_app_state(state, OpenPathInEditor("/tmp/zivo/config.toml"))
+
+    assert result.effects == ()
+    assert result.state.notification == NotificationState(
+        level="warning",
+        message="Save or close pending Config Editor changes before editing config.toml",
+    )
+
+
+def test_config_editor_raw_edit_requests_reload_after_editor_exits() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/zivo/config.toml",
+            draft=build_initial_app_state().config,
+        ),
+    )
+
+    result = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="open_editor",
+                path="/tmp/zivo/config.toml",
+                reload_config_after_exit=True,
+            ),
+        ),
+    )
+
+    assert result.state.pending_config_reload_request_id == 1
+    assert result.state.next_request_id == 2
+    assert result.effects == (
+        RunConfigReloadEffect(request_id=1, path="/tmp/zivo/config.toml"),
+    )
+
+
+def test_config_reload_completed_updates_runtime_and_editor_draft() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
+        ui_mode="CONFIG",
+        config_editor=ConfigEditorState(
+            path="/tmp/zivo/config.toml",
+            draft=build_initial_app_state().config,
+            dirty=True,
+        ),
+        pending_config_reload_request_id=4,
+    )
+    loaded_config = replace(
+        state.config,
+        display=replace(state.config.display, theme="dracula"),
+    )
+
+    result = reduce_app_state(
+        state,
+        ConfigReloadCompleted(
+            request_id=4,
+            result=ConfigLoadResult(
+                config=loaded_config,
+                path="/tmp/zivo/config.toml",
+            ),
+        ),
+    )
+
+    assert result.state.config.display.theme == "dracula"
+    assert result.state.config_editor is not None
+    assert result.state.config_editor.draft == loaded_config
+    assert result.state.config_editor.dirty is False
+    assert result.state.pending_config_reload_request_id is None
+
+
+def test_config_reload_fatal_result_keeps_current_runtime_config() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
+        pending_config_reload_request_id=4,
+    )
+    result = reduce_app_state(
+        state,
+        ConfigReloadCompleted(
+            request_id=4,
+            result=ConfigLoadResult(
+                config=AppConfig(),
+                path="/tmp/zivo/config.toml",
+                warnings=("Failed to parse config.toml: bad value",),
+                fatal=True,
+            ),
+        ),
+    )
+
+    assert result.state.config == state.config
+    assert result.state.pending_config_reload_request_id is None
+    assert result.state.notification == NotificationState(
+        level="error",
+        message="Failed to parse config.toml: bad value",
+    )
+
+
+def test_config_reload_failed_sets_error_notification() -> None:
+    state = replace(
+        build_initial_app_state(config_path="/tmp/zivo/config.toml"),
+        pending_config_reload_request_id=4,
+    )
+
+    result = reduce_app_state(
+        state,
+        ConfigReloadFailed(request_id=4, message="permission denied"),
+    )
+
+    assert result.state.notification == NotificationState(
+        level="error",
+        message="Failed to reload config.toml: permission denied",
     )
 
 def test_dismiss_config_editor_returns_to_browsing() -> None:
@@ -2020,6 +2366,28 @@ class TestSetTerminalHeight:
 
 
 class TestResponsivePaneState:
+    def test_set_terminal_size_updates_both_dimensions_once(self) -> None:
+        state = replace(
+            build_initial_app_state(),
+            terminal_height=24,
+            terminal_width=72,
+            narrow_pane_view="details",
+        )
+
+        next_state = _reduce_state(state, SetTerminalSize(height=30, width=80))
+
+        assert next_state.terminal_height == 30
+        assert next_state.terminal_width == 80
+        assert next_state.narrow_pane_view == "current"
+
+    def test_set_terminal_size_no_change_returns_same_state(self) -> None:
+        state = build_initial_app_state()
+
+        assert _reduce_state(
+            state,
+            SetTerminalSize(height=state.terminal_height, width=state.terminal_width),
+        ) is state
+
     def test_updates_terminal_width_and_resets_narrow_view_at_breakpoint(self) -> None:
         state = replace(
             build_initial_app_state(),
@@ -2345,6 +2713,67 @@ def test_browser_snapshot_loaded_does_not_record_history_on_reload() -> None:
     assert next_state.history.back == ()
     assert next_state.history.forward == ()
 
+
+def test_directory_history_is_bounded_when_navigating_to_a_new_path() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/current",
+        history=HistoryState(
+            back=tuple(f"/back/{index}" for index in range(DIRECTORY_HISTORY_LIMIT)),
+            forward=tuple(
+                f"/forward/{index}" for index in range(DIRECTORY_HISTORY_LIMIT)
+            ),
+            visited_all=tuple(
+                f"/visited/{index}" for index in range(DIRECTORY_HISTORY_LIMIT)
+            ),
+        ),
+    )
+
+    next_history = build_history_after_snapshot_load(state, "/new")
+
+    assert len(next_history.back) == DIRECTORY_HISTORY_LIMIT
+    assert next_history.back == (
+        *(f"/back/{index}" for index in range(1, DIRECTORY_HISTORY_LIMIT)),
+        "/current",
+    )
+    assert next_history.forward == ()
+    assert len(next_history.visited_all) == DIRECTORY_HISTORY_LIMIT
+    assert next_history.visited_all[-2:] == ("/current", "/new")
+
+
+def test_back_and_forward_stacks_are_trimmed_when_history_is_already_oversized() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/current",
+        history=HistoryState(
+            back=tuple(f"/back/{index}" for index in range(120)),
+            forward=tuple(f"/forward/{index}" for index in range(120)),
+        ),
+    )
+
+    next_history = build_history_after_snapshot_load(state, "/forward/0")
+
+    assert len(next_history.back) == DIRECTORY_HISTORY_LIMIT
+    assert next_history.back == (
+        *(f"/back/{index}" for index in range(21, 120)),
+        "/current",
+    )
+    assert next_history.forward == tuple(
+        f"/forward/{index}" for index in range(1, DIRECTORY_HISTORY_LIMIT + 1)
+    )
+
+
+def test_revisiting_a_directory_moves_it_to_the_newest_history_position() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/current",
+        history=HistoryState(visited_all=("/old", "/current", "/other")),
+    )
+
+    next_history = build_history_after_snapshot_load(state, "/old")
+
+    assert next_history.visited_all == ("/other", "/current", "/old")
+
 def test_go_back_then_snapshot_loaded_updates_history_correctly() -> None:
     initial_path = "/home/tadashi"
     second_path = "/home/tadashi/develop"
@@ -2416,114 +2845,6 @@ def test_go_forward_then_snapshot_loaded_updates_history_correctly() -> None:
     assert loaded_result.current_path == forward_path
     assert loaded_result.history.back == (initial_path,)
     assert loaded_result.history.forward == ()
-
-def test_all_visited_directories_enumerable() -> None:
-    state = build_initial_app_state()
-    initial_path = state.current_path
-
-    state = _reduce_state(state, RequestBrowserSnapshot("/tmp/first"))
-    snapshot1 = BrowserSnapshot(
-        current_path="/tmp/first",
-        parent_pane=state.parent_pane,
-        current_pane=state.current_pane,
-        child_pane=state.child_pane,
-    )
-    state = _reduce_state(
-        state,
-        BrowserSnapshotLoaded(
-            request_id=state.pending_browser_snapshot_request_id,
-            snapshot=snapshot1,
-            blocking=True,
-        ),
-    )
-
-    state = _reduce_state(state, RequestBrowserSnapshot("/tmp/second"))
-    snapshot2 = BrowserSnapshot(
-        current_path="/tmp/second",
-        parent_pane=state.parent_pane,
-        current_pane=state.current_pane,
-        child_pane=state.child_pane,
-    )
-    state = _reduce_state(
-        state,
-        BrowserSnapshotLoaded(
-            request_id=state.pending_browser_snapshot_request_id,
-            snapshot=snapshot2,
-            blocking=True,
-        ),
-    )
-
-    next_state = _reduce_state(state, BeginHistorySearch())
-
-    assert next_state.command_palette is not None
-    assert next_state.command_palette.source == "history"
-    assert next_state.command_palette.history_and_navigation.history_results == (
-        initial_path,
-        "/tmp/first",
-        "/tmp/second",
-    )
-
-def test_history_search_deduplicates_duplicates() -> None:
-    state = build_initial_app_state()
-    initial_path = state.current_path
-
-    state = _reduce_state(state, RequestBrowserSnapshot("/tmp/first"))
-    snapshot1 = BrowserSnapshot(
-        current_path="/tmp/first",
-        parent_pane=state.parent_pane,
-        current_pane=state.current_pane,
-        child_pane=state.child_pane,
-    )
-    state = _reduce_state(
-        state,
-        BrowserSnapshotLoaded(
-            request_id=state.pending_browser_snapshot_request_id,
-            snapshot=snapshot1,
-            blocking=True,
-        ),
-    )
-
-    state = _reduce_state(state, RequestBrowserSnapshot(initial_path))
-    snapshot2 = BrowserSnapshot(
-        current_path=initial_path,
-        parent_pane=state.parent_pane,
-        current_pane=state.current_pane,
-        child_pane=state.child_pane,
-    )
-    state = _reduce_state(
-        state,
-        BrowserSnapshotLoaded(
-            request_id=state.pending_browser_snapshot_request_id,
-            snapshot=snapshot2,
-            blocking=True,
-        ),
-    )
-
-    state = _reduce_state(state, RequestBrowserSnapshot("/tmp/second"))
-    snapshot3 = BrowserSnapshot(
-        current_path="/tmp/second",
-        parent_pane=state.parent_pane,
-        current_pane=state.current_pane,
-        child_pane=state.child_pane,
-    )
-    state = _reduce_state(
-        state,
-        BrowserSnapshotLoaded(
-            request_id=state.pending_browser_snapshot_request_id,
-            snapshot=snapshot3,
-            blocking=True,
-        ),
-    )
-
-    next_state = _reduce_state(state, BeginHistorySearch())
-
-    assert next_state.command_palette is not None
-    assert next_state.command_palette.source == "history"
-    assert next_state.command_palette.history_and_navigation.history_results == (
-        initial_path,
-        "/tmp/first",
-        "/tmp/second",
-    )
 
 def test_browser_snapshot_loaded_clears_filter_when_directory_changes() -> None:
     state = build_initial_app_state()

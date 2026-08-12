@@ -87,6 +87,14 @@ class CancelForegroundOperation:
 
 
 @dataclass(frozen=True)
+class ForegroundOperationAborted:
+    """Clear an operation whose worker was externally cancelled."""
+
+    request_id: int
+    message: str = "Operation worker cancelled"
+
+
+@dataclass(frozen=True)
 class ConfirmDeleteTargets:
     """Confirm the pending delete request."""
 
@@ -171,3 +179,8 @@ class ConfirmCustomAction:
 @dataclass(frozen=True)
 class CancelCustomActionConfirmation:
     """Cancel the pending custom action."""
+
+
+@dataclass(frozen=True)
+class CancelBackgroundCommand:
+    """Request termination of the active non-interactive command."""

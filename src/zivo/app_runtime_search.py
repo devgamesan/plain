@@ -1,6 +1,7 @@
 """Runtime scheduling helpers for search and preview effects."""
 
 import threading
+from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -17,7 +18,9 @@ from zivo.app_runtime_core import (
     set_active_tracking,
     start_foreground_operation,
 )
-from zivo.app_runtime_execution import report_foreground_operation_progress
+from zivo.app_runtime_execution import report_foreground_operation_progress, report_search_results
+from zivo.models.config import DEFAULT_SEARCH_MAX_RESULTS
+from zivo.services import GoPathCompletionResult
 from zivo.state import (
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
@@ -26,6 +29,7 @@ from zivo.state import (
     LoadTransferPaneEffect,
     RunDirectorySizeEffect,
     RunFileSearchEffect,
+    RunGoPathCompletionEffect,
     RunGrepSearchEffect,
     RunTextReplaceApplyEffect,
     RunTextReplacePreviewEffect,
@@ -35,7 +39,16 @@ CHILD_PANE_DEBOUNCE_SECONDS = 0.03
 DOCUMENT_PREVIEW_DEBOUNCE_SECONDS = 0.35
 FILE_SEARCH_DEBOUNCE_SECONDS = 0.2
 GREP_SEARCH_DEBOUNCE_SECONDS = 0.2
+GO_COMPLETION_DEBOUNCE_SECONDS = 0.06
 DOCUMENT_PREVIEW_EXTENSIONS = frozenset({".pdf", ".docx", ".xlsx", ".pptx"})
+
+
+@dataclass(frozen=True)
+class SearchWorkerResult:
+    """Terminal search payload including whether the result list was capped."""
+
+    results: tuple[Any, ...]
+    truncated: bool = False
 
 FILE_SEARCH_RUNTIME = SearchRuntimeConfig(
     debounce_seconds=FILE_SEARCH_DEBOUNCE_SECONDS,
@@ -63,6 +76,12 @@ GREP_SEARCH_RUNTIME = SearchRuntimeConfig(
     ),
 )
 
+GO_COMPLETION_TRACKING = TrackingConfig(
+    effect_type=RunGoPathCompletionEffect,
+    cancel_event_attr="_active_go_completion_cancel_event",
+    request_id_attr="_active_go_completion_request_id",
+)
+
 DIRECTORY_SIZE_TRACKING = TrackingConfig(
     effect_type=RunDirectorySizeEffect,
     cancel_event_attr="_active_directory_size_cancel_event",
@@ -79,6 +98,8 @@ CHILD_PANE_TRACKING = TrackingConfig(
 def schedule_browser_snapshot(app: Any, effect: LoadBrowserSnapshotEffect) -> None:
     if effect.invalidate_paths:
         app._snapshot_loader.invalidate_directory_listing_cache(effect.invalidate_paths)
+        if hasattr(app, "_go_completion_service"):
+            app._go_completion_service.invalidate(effect.invalidate_paths)
     run_worker(
         app,
         effect,
@@ -262,6 +283,52 @@ def schedule_grep_search(app: Any, effect: RunGrepSearchEffect) -> None:
     schedule_search_effect(app, effect, GREP_SEARCH_RUNTIME)
 
 
+def schedule_go_path_completion(app: Any, effect: RunGoPathCompletionEffect) -> None:
+    """Debounce and run direct Go completion off the UI thread."""
+
+    cancel_timer(app, "_go_completion_timer")
+    timer = app.set_timer(
+        GO_COMPLETION_DEBOUNCE_SECONDS,
+        partial(start_go_path_completion_worker, app, effect),
+        name=f"go-completion-debounce:{effect.request_id}",
+    )
+    app._go_completion_timer = timer
+
+
+def start_go_path_completion_worker(app: Any, effect: RunGoPathCompletionEffect) -> None:
+    app._go_completion_timer = None
+    if app._app_state.pending_go_completion_request_id != effect.request_id:
+        return
+    cancel_event = threading.Event()
+    set_active_tracking(app, GO_COMPLETION_TRACKING, effect.request_id, cancel_event)
+
+    def run_completion() -> GoPathCompletionResult:
+        return app._go_completion_service.complete(
+            effect.query,
+            effect.base_path,
+            is_cancelled=cancel_event.is_set,
+        )
+
+    run_worker(
+        app,
+        effect,
+        run_completion,
+        WorkerSpec(
+            name=f"go-completion:{effect.request_id}",
+            group="go-completion",
+            description=effect.query,
+            exclusive=True,
+        ),
+    )
+
+
+def cancel_pending_go_completion(app: Any) -> None:
+    if hasattr(app, "_go_completion_timer"):
+        cancel_timer(app, "_go_completion_timer")
+    if hasattr(app, "_active_go_completion_cancel_event"):
+        cancel_active_tracking(app, GO_COMPLETION_TRACKING)
+
+
 def start_grep_search_worker(app: Any, effect: RunGrepSearchEffect) -> None:
     start_search_worker(app, effect, GREP_SEARCH_RUNTIME)
 
@@ -347,7 +414,12 @@ def schedule_text_replace_apply(app: Any, effect: RunTextReplaceApplyEffect) -> 
 
 def describe_search_effect(effect: RunFileSearchEffect | RunGrepSearchEffect) -> str:
     if isinstance(effect, RunFileSearchEffect):
-        return effect.query
+        parts = [effect.query]
+        if effect.include_extensions:
+            parts.append(f"include={','.join(effect.include_extensions)}")
+        if effect.exclude_extensions:
+            parts.append(f"exclude={','.join(effect.exclude_extensions)}")
+        return " | ".join(part for part in parts if part)
     parts = [effect.query]
     if effect.include_globs:
         parts.append(f"include={','.join(effect.include_globs)}")
@@ -424,22 +496,100 @@ def start_search_worker(
         "is_cancelled": cancel_event.is_set,
     }
 
-    if isinstance(effect, RunFileSearchEffect):
-        search_kwargs["max_results"] = app._app_state.config.file_search.max_results
-        search_kwargs["search_target"] = effect.search_target
+    palette = getattr(app._app_state, "command_palette", None)
+    direct_file_search = (
+        isinstance(effect, RunFileSearchEffect)
+        and palette is not None
+        and palette.source == "file_search"
+    )
+    direct_grep_search = (
+        isinstance(effect, RunGrepSearchEffect)
+        and palette is not None
+        and palette.source == "grep_search"
+    )
 
+    if isinstance(effect, RunFileSearchEffect):
+        search_kwargs["search_target"] = effect.search_target
+        if effect.include_extensions or effect.exclude_extensions:
+            search_kwargs["include_extensions"] = effect.include_extensions
+            search_kwargs["exclude_extensions"] = effect.exclude_extensions
+
+    if direct_file_search:
+        configured_limit = app._app_state.config.file_search.max_results
+        search_kwargs["max_results"] = (
+            DEFAULT_SEARCH_MAX_RESULTS if configured_limit is None else configured_limit
+        )
+        search_kwargs["on_results"] = partial(
+            report_search_results,
+            app,
+            effect.request_id,
+            effect.query,
+            "file_search",
+        )
     if isinstance(effect, RunGrepSearchEffect):
         search_kwargs["include_globs"] = effect.include_globs
         search_kwargs["exclude_globs"] = effect.exclude_globs
+        search_kwargs["target_paths"] = effect.target_paths
+        search_kwargs["filename_filter"] = effect.filename_filter
+        if direct_grep_search:
+            configured_limit = app._app_state.config.grep_search.max_results
+            search_kwargs["max_results"] = (
+                DEFAULT_SEARCH_MAX_RESULTS if configured_limit is None else configured_limit
+            )
+            search_kwargs["on_results"] = partial(
+                report_search_results,
+                app,
+                effect.request_id,
+                effect.query,
+                "grep_search",
+            )
+    truncated = False
+    progress_callback = search_kwargs.get("on_results")
+
+    def on_results(results: tuple[Any, ...], batch_truncated: bool) -> None:
+        nonlocal truncated
+        truncated = truncated or batch_truncated
+        if progress_callback is not None:
+            progress_callback(results, batch_truncated)
+
+    if "on_results" in search_kwargs:
+        search_kwargs["on_results"] = on_results
+
+    def run_search() -> SearchWorkerResult | tuple[Any, ...]:
+        used_progress_callback = True
+        try:
+            result = service.search(
+                effect.root_path,
+                effect.query,
+                **search_kwargs,
+            )
+        except TypeError as error:
+            # Keep older/custom service implementations working while the
+            # optional progress callback is adopted.
+            if "on_results" not in search_kwargs or "on_results" not in str(error):
+                raise
+            used_progress_callback = False
+            fallback_kwargs = dict(search_kwargs)
+            fallback_kwargs.pop("on_results")
+            result = service.search(
+                effect.root_path,
+                effect.query,
+                **fallback_kwargs,
+            )
+        if not direct_file_search and not direct_grep_search:
+            return result
+        result_tuple = tuple(result)
+        if not used_progress_callback:
+            limit = search_kwargs.get("max_results")
+            if isinstance(limit, int) and limit >= 0 and len(result_tuple) > limit:
+                result_tuple = result_tuple[:limit]
+                on_results(result_tuple, True)
+        return SearchWorkerResult(result_tuple, truncated)
+
     run_worker(
         app,
         effect,
-        partial(
-            service.search,
-            effect.root_path,
-            effect.query,
-            **search_kwargs,
-        ),
+        run_search,
         WorkerSpec(
             name=f"{config.worker_key}:{effect.request_id}",
             group=config.worker_key,

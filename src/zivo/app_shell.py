@@ -72,6 +72,7 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
             SidePane(
                 shell.parent_heading,
                 shell.parent_entries,
+                status=shell.parent_pane_status,
                 id="parent-pane",
                 classes="pane side-pane",
             ),
@@ -343,13 +344,16 @@ async def refresh_shell(
         )
         current_pane.set_context_input(shell.current_context_input)
         current_pane.set_status(shell.current_pane_status)
-    await parent_pane.set_entries(shell.parent_entries)
-    parent_pane.set_title(shell.parent_heading)
-    await child_pane.set_state(shell.child_pane)
     if app_state.layout_mode == "transfer":
         parent_pane.display = False
         child_pane.display = False
     else:
+        if shell.responsive_layout.show_parent:
+            await parent_pane.set_entries(shell.parent_entries)
+            parent_pane.set_title(shell.parent_heading)
+            parent_pane.set_status(shell.parent_pane_status)
+        if shell.responsive_layout.show_child:
+            await child_pane.set_state(shell.child_pane)
         parent_pane.display = shell.responsive_layout.show_parent
         current_pane.display = shell.responsive_layout.show_current
         child_pane.display = shell.responsive_layout.show_child

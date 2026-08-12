@@ -69,5 +69,13 @@ class SetTerminalWidth:
 
 
 @dataclass(frozen=True)
+class SetTerminalSize:
+    """Update the stored terminal dimensions in one state transition."""
+
+    height: int
+    width: int
+
+
+@dataclass(frozen=True)
 class ToggleNarrowPaneView:
     """Toggle the Current/Details presentation used below the narrow breakpoint."""

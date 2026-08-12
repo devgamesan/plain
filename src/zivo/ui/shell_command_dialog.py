@@ -88,13 +88,22 @@ class ShellCommandDialog(Container):
             return text
 
         # 終了コードの表示
-        exit_style = "green" if result.exit_code == 0 else "red"
-        exit_label = (
-            "Success"
-            if result.exit_code == 0
-            else f"Failed (exit code {result.exit_code})"
-        )
+        if result.termination_reason == "timed_out":
+            exit_style = "yellow"
+            exit_label = f"Timed out after {result.timeout_seconds or 0} seconds"
+        elif result.termination_reason == "cancelled":
+            exit_style = "yellow"
+            exit_label = "Cancelled"
+        else:
+            exit_style = "green" if result.exit_code == 0 else "red"
+            exit_label = (
+                "Success"
+                if result.exit_code == 0
+                else f"Failed (exit code {result.exit_code})"
+            )
         text.append(f"[{exit_label}] ", style=exit_style)
+        if result.termination_reason != "completed":
+            text.append(f"(exit code {result.exit_code})", style="dim")
         text.append("\n")
 
         # 標準出力の表示
@@ -103,6 +112,11 @@ class ShellCommandDialog(Container):
             text.append(result.stdout, style="default")
             if not result.stdout.endswith("\n"):
                 text.append("\n")
+            if result.stdout_truncated:
+                text.append(
+                    f"stdout: middle output omitted after {_format_limit(result)}\n",
+                    style="yellow",
+                )
 
         # 標準エラーの表示
         if result.stderr:
@@ -110,5 +124,19 @@ class ShellCommandDialog(Container):
             text.append(result.stderr, style="red")
             if not result.stderr.endswith("\n"):
                 text.append("\n")
+            if result.stderr_truncated:
+                text.append(
+                    f"stderr: middle output omitted after {_format_limit(result)}\n",
+                    style="yellow",
+                )
 
         return text
+
+
+def _format_limit(result) -> str:
+    limit = result.output_limit_bytes
+    if limit is None:
+        return "the configured limit"
+    if limit % (1024 * 1024) == 0:
+        return f"{limit // (1024 * 1024)} MiB"
+    return f"{limit // 1024} KiB"

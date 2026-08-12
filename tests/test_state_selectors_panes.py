@@ -136,6 +136,12 @@ test_select_shell_data_reuses_pane_entries_when_only_notification_changes = (
 test_select_shell_data_viewport_projection_limits_rendered_entries = (
     cases.test_select_shell_data_viewport_projection_limits_rendered_entries
 )
+test_select_shell_data_limits_parent_and_child_panes_to_visible_window = (
+    cases.test_select_shell_data_limits_parent_and_child_panes_to_visible_window
+)
+test_select_shell_data_skips_hidden_side_pane_projection = (
+    cases.test_select_shell_data_skips_hidden_side_pane_projection
+)
 test_select_shell_data_viewport_projection_reuses_window_for_cursor_move_inside_window = (
     cases.test_select_shell_data_viewport_projection_reuses_window_for_cursor_move_inside_window
 )

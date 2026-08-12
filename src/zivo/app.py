@@ -46,6 +46,7 @@ from zivo.services import (
     ExternalLaunchService,
     FileMutationService,
     FileSearchService,
+    GoPathCompletionService,
     GrepExportService,
     GrepSearchService,
     LiveArchiveExtractService,
@@ -104,10 +105,10 @@ from zivo.state.actions import (
     RequestBrowserSnapshot,
     SetCursorPath,
     SetSort,
-    SetTerminalHeight,
-    SetTerminalWidth,
+    SetTerminalSize,
     SetTransferCursorPath,
     ShowAttributes,
+    ToggleHiddenFiles,
 )
 from zivo.ui import (
     AttributeDialog,
@@ -201,6 +202,7 @@ class zivoApp(App[None]):
         zip_compress_service: ZipCompressService | None = None,
         external_launch_service: ExternalLaunchService | None = None,
         file_search_service: FileSearchService | None = None,
+        go_completion_service: GoPathCompletionService | None = None,
         grep_search_service: GrepSearchService | None = None,
         grep_export_service: GrepExportService | None = None,
         text_replace_service: TextReplaceService | None = None,
@@ -249,6 +251,7 @@ class zivoApp(App[None]):
             external_launch_service or self._build_external_launch_service(self._app_config)
         )
         self._file_search_service = file_search_service or LiveFileSearchService()
+        self._go_completion_service = go_completion_service or GoPathCompletionService()
         self._grep_search_service = grep_search_service or LiveGrepSearchService()
         self._grep_export_service = grep_export_service or LiveGrepExportService()
         self._text_replace_service = text_replace_service or LiveTextReplaceService()
@@ -258,12 +261,17 @@ class zivoApp(App[None]):
         self._pending_workers: dict[str, Effect] = {}
         self._foreground_operation_cancel_event: threading.Event | None = None
         self._foreground_operation_id: int | None = None
+        self._background_command_cancel_event: threading.Event | None = None
+        self._background_command_request_id: int | None = None
         self._child_pane_timer: Timer | None = None
         self._active_child_pane_cancel_event: threading.Event | None = None
         self._active_child_pane_request_id: int | None = None
         self._file_search_timer: Timer | None = None
         self._active_file_search_cancel_event: threading.Event | None = None
         self._active_file_search_request_id: int | None = None
+        self._go_completion_timer: Timer | None = None
+        self._active_go_completion_cancel_event: threading.Event | None = None
+        self._active_go_completion_request_id: int | None = None
         self._grep_search_timer: Timer | None = None
         self._active_grep_search_cancel_event: threading.Event | None = None
         self._active_grep_search_request_id: int | None = None
@@ -338,8 +346,7 @@ class zivoApp(App[None]):
         """Load the initial directory snapshot after the UI mounts."""
 
         await self.dispatch_actions((
-            SetTerminalHeight(height=self.size.height),
-            SetTerminalWidth(width=self.size.width),
+            SetTerminalSize(height=self.size.height, width=self.size.width),
             RequestBrowserSnapshot(self._initial_path, blocking=True),
         ))
         self.call_after_refresh(lambda: sync_overlay_layout(self))
@@ -554,6 +561,18 @@ class zivoApp(App[None]):
             (ActivateNotificationAction(message.action_id, message.revision),)
         )
 
+    async def on_notification_details_action_clicked(
+        self,
+        message: NotificationDetailsDialog.ActionClicked,
+    ) -> None:
+        """Run a safe recovery action exposed by the Details overlay."""
+
+        from zivo.state.actions import ActivateNotificationAction
+
+        await self.dispatch_actions(
+            (ActivateNotificationAction(message.action_id, message.revision),)
+        )
+
     async def on_status_bar_auto_dismiss(self, message: StatusBar.AutoDismiss) -> None:
         """Request revision-checked auto-dismissal from the status timer."""
 
@@ -697,8 +716,7 @@ class zivoApp(App[None]):
         """Update terminal dimensions and responsive pane layout on resize."""
 
         await self.dispatch_actions((
-            SetTerminalHeight(height=event.size.height),
-            SetTerminalWidth(width=event.size.width),
+            SetTerminalSize(height=event.size.height, width=event.size.width),
         ))
         sync_overlay_layout(self, event.size.width)
 
@@ -786,6 +804,7 @@ class zivoApp(App[None]):
             "clear_filter": CancelFilterInput(),
             "create_file": BeginCreateInput("file"),
             "create_dir": BeginCreateInput("dir"),
+            "toggle_hidden": ToggleHiddenFiles(),
             "show_attributes": ShowAttributes(),
             "edit_config": BeginConfigEditor(),
         }

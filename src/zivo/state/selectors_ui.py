@@ -22,7 +22,7 @@ from zivo.models import (
 from zivo.platform_support import is_split_terminal_supported
 from zivo.windows_paths import is_search_workspace_path
 
-from .command_palette import parse_go_query
+from .command_palette import _go_direct_path, parse_go_query
 from .models import AppState
 from .reducer_config import (
     CONFIG_EDITOR_CATEGORIES,
@@ -154,9 +154,26 @@ def select_notification_details_dialog_state(
         lines.append(f"Skipped path: {path}")
     for path in details.unprocessed_paths:
         lines.append(f"Not processed path: {path}")
+    recovery_action = details.recovery_action
+    shortcut = (
+        {
+            "notification.undo": "z",
+            "notification.retry": "r",
+        }.get(recovery_action.action_id)
+        if recovery_action is not None
+        else None
+    )
+    options = ("enter close", "esc close")
+    if recovery_action is not None and shortcut is not None:
+        options = (f"{shortcut} {recovery_action.label}", *options)
     return NotificationDetailsDialogState(
         title="Notification details",
         lines=tuple(lines),
+        options=options,
+        recovery_action_id=recovery_action.action_id if recovery_action else None,
+        recovery_action_label=recovery_action.label if recovery_action else None,
+        recovery_action_shortcut=shortcut,
+        recovery_action_revision=state.notification_revision,
     )
 
 
@@ -166,6 +183,28 @@ def _format_help_line(shortcuts: tuple[tuple[str, str], ...]) -> str:
 
 def select_help_bar_state(state: AppState) -> HelpBarState:
     """Return the help content for the active mode."""
+
+    if state.foreground_operation is not None and state.ui_mode == "BROWSING":
+        if state.layout_mode == "transfer":
+            from .input_transfer import TRANSFER_HELP_LINES
+
+            lines = tuple(_format_help_line(line) for line in TRANSFER_HELP_LINES)
+        elif is_search_workspace_path(state.current_path):
+            from .input_browsing import SEARCH_WORKSPACE_HELP_LINES
+
+            lines = tuple(_format_help_line(line) for line in SEARCH_WORKSPACE_HELP_LINES)
+        else:
+            from .input_browsing import BROWSING_HELP_LINES
+
+            lines = tuple(_format_help_line(line) for line in BROWSING_HELP_LINES)
+        if (
+            state.foreground_operation.cancelable
+            and not state.foreground_operation.cancel_requested
+        ):
+            cancel_hint = "Esc cancel"
+        else:
+            cancel_hint = "finishing current item"
+        return HelpBarState((f"{cancel_hint} | {lines[0]}", *lines[1:]))
 
     if state.ui_mode == "CONFIRM":
         if state.delete_confirmation is not None:
@@ -178,6 +217,8 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
                 return HelpBarState(("enter confirm permanent delete | esc cancel",))
             return HelpBarState(("enter confirm delete | esc cancel",))
         if state.exit_confirmation is not None:
+            if state.foreground_operation is not None:
+                return HelpBarState(("enter cancel and exit | esc cancel",))
             return HelpBarState(("enter confirm exit | esc cancel",))
         if state.archive_extract_confirmation is not None:
             return HelpBarState(("enter continue extraction | esc return to input",))
@@ -237,16 +278,13 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
                     "Ctrl+x export | esc cancel",
                 )
             )
-        if state.command_palette is not None and state.command_palette.source == "history":
-            return HelpBarState(("type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",))
-        if state.command_palette is not None and state.command_palette.source == "bookmarks":
-            return HelpBarState(("type path | ↑↓ or Ctrl+j/k select | enter jump | esc cancel",))
-        if state.command_palette is not None and state.command_palette.source == "go_to_path":
-            return HelpBarState(
-                ("type path | ↑↓ or Ctrl+j/k select | tab complete | enter jump | esc cancel",)
-            )
         return HelpBarState(("type command | ↑↓ or Ctrl+j/k select | enter run | esc cancel",))
     if state.ui_mode == "BUSY":
+        command = state.background_command
+        if command is not None:
+            if command.cancel_requested:
+                return HelpBarState(("Stopping command...",))
+            return HelpBarState(("Esc cancel",))
         operation = state.foreground_operation
         if operation is not None:
             if operation.cancel_requested:
@@ -265,15 +303,18 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             tuple(_format_help_line(line) for line in SEARCH_WORKSPACE_HELP_LINES)
         )
     split_terminal_hint = " | t term" if is_split_terminal_supported() else ""
-    from .input_browsing import BROWSING_HELP_LINES
+    from .input_browsing import (
+        BROWSING_HELP_LINES,
+        BROWSING_HELP_LINES_WITH_DETAILS,
+        BROWSING_HELP_LINES_WITH_FILE_LIST,
+    )
 
     browsing_lines = BROWSING_HELP_LINES
     if state.terminal_width < 80 and state.current_pane.cursor_path is not None:
-        view_hint = "file-list" if state.narrow_pane_view == "details" else "details"
         browsing_lines = (
-            BROWSING_HELP_LINES[0],
-            BROWSING_HELP_LINES[1],
-            (*BROWSING_HELP_LINES[2], ("tab", view_hint)),
+            BROWSING_HELP_LINES_WITH_FILE_LIST
+            if state.narrow_pane_view == "details"
+            else BROWSING_HELP_LINES_WITH_DETAILS
         )
 
     return HelpBarState(
@@ -502,6 +543,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             empty_message=_file_search_empty_message(state),
             has_more_items=len(state.command_palette.file_search.results) > len(visible_results),
             input_fields=_build_file_search_input_fields(state.command_palette),
+            footer_message=_search_truncation_message(state, "file_search"),
         )
     if state.command_palette.source == "grep_search":
         visible_results, title = _select_grep_search_window(
@@ -524,6 +566,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             empty_message=_grep_search_empty_message(state),
             input_fields=_build_grep_search_input_fields(state.command_palette),
             has_more_items=len(state.command_palette.grep_search.results) > len(visible_results),
+            footer_message=_search_truncation_message(state, "grep_search"),
         )
     if state.command_palette.source == "replace_text":
         visible_results, title = _select_replace_preview_window(
@@ -548,6 +591,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             has_more_items=(
                 len(state.command_palette.replace_preview.preview_results) > len(visible_results)
             ),
+            footer_message=_replace_result_context_message(state),
         )
     if state.command_palette.source == "replace_in_found_files":
         visible_results, title = _select_find_replace_preview_window(
@@ -621,14 +665,6 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
                 len(state.command_palette.grs.preview_results) > len(visible_results)
             ),
         )
-    if state.command_palette.source == "history":
-        return _build_command_palette_items_view(
-            state,
-            cursor_index,
-            title="Directory History",
-            empty_message="No directory history",
-        )
-
     if state.command_palette.source == "go":
         source_filter = state.command_palette.history_and_navigation.go_source_filter
         source_filter, _ = parse_go_query(state.command_palette.query, source_filter)
@@ -646,39 +682,36 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             "open_tabs": "Open tabs filter active | type to search, Enter go",
             "home": "Home filter active | type to search, Enter go",
         }[source_filter]
+        completion = state.command_palette.go_completion
+        if completion.loading:
+            footer_message = f"{footer_message} | Searching directories…"
+        elif completion.error_message and _go_direct_path(
+            completion.query, completion.base_path
+        ) is not None:
+            footer_message = f"{footer_message} | {completion.error_message}"
+        elif completion.results_truncated:
+            footer_message = (
+                f"{footer_message} | More matches available — type more characters"
+            )
+        empty_message = (
+            completion.error_message
+            or ("Searching directories…" if completion.loading else None)
+            or (
+                "No matching destinations"
+                if completion.query.strip()
+                else "Type a path or destination"
+            )
+        )
         return _build_command_palette_items_view(
             state,
             cursor_index,
             title=title,
             empty_message=(
                 "No bookmarks"
-                if source_filter == "bookmarks"
-                else "Type a path or destination"
+                if source_filter == "bookmarks" and not completion.query.strip()
+                else empty_message
             ),
             footer_message=footer_message,
-        )
-
-    if state.command_palette.source == "bookmarks":
-        return _build_command_palette_items_view(
-            state,
-            cursor_index,
-            title="Bookmarks",
-            empty_message="No bookmarks",
-        )
-
-    if state.command_palette.source == "go_to_path":
-        selection_active = state.command_palette.history_and_navigation.go_to_path_selection_active
-        empty_message = (
-            "Type a path to jump to"
-            if not state.command_palette.query.strip()
-            else "No matching directories"
-        )
-        return _build_command_palette_items_view(
-            state,
-            cursor_index,
-            title="Go to path",
-            empty_message=empty_message,
-            selected_override=selection_active or False,
         )
 
     items = get_command_palette_items(state)
@@ -780,10 +813,20 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
         )
 
     if state.exit_confirmation is not None:
+        if state.foreground_operation is not None:
+            operation_name = state.foreground_operation.kind.title()
+            message = (
+                f"{operation_name} is in progress. "
+                "Cancel and exit when the current item finishes?"
+            )
+            options = ("enter cancel and exit", "esc cancel")
+        else:
+            message = "Exit the application?"
+            options = ("enter confirm", "esc cancel")
         return ConflictDialogState(
             title="Exit Confirmation",
-            message="Exit the application?",
-            options=("enter confirm", "esc cancel"),
+            message=message,
+            options=options,
         )
 
     if state.zip_compress_confirmation is not None:
@@ -815,6 +858,11 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
             f"Replace '{confirmation.find_text}' with '{confirmation.replacement_text}' "
             f"in {file_count} file(s) ({match_count} match(es))?"
         )
+        if confirmation.result_origin is not None:
+            origin_labels = {"find": "Find", "grep": "Grep", "workspace": "Search Workspace"}
+            origin = origin_labels[confirmation.result_origin]
+            query = f' "{confirmation.result_query}"' if confirmation.result_query else ""
+            message = f"{origin}{query}: {message}"
         title = "Replace Text Confirmation"
         return ConflictDialogState(
             title=title,
@@ -1020,7 +1068,34 @@ def _file_search_empty_message(state: AppState) -> str:
         and state.command_palette.file_search.error_message is not None
     ):
         return state.command_palette.file_search.error_message
+    file_search = state.command_palette.file_search if state.command_palette else None
+    if file_search is not None and (
+        file_search.include_extensions or file_search.exclude_extensions
+    ):
+        return "No matching files for the current extension filters"
     return "No matching files"
+
+
+def _search_truncation_message(state: AppState, source: str) -> str | None:
+    if state.command_palette is None:
+        return None
+    if source == "file_search":
+        truncated = state.command_palette.file_search.results_truncated
+        configured_limit = state.config.file_search.max_results
+    else:
+        truncated = state.command_palette.grep_search.results_truncated
+        configured_limit = state.config.grep_search.max_results
+    if not truncated:
+        return None
+    from zivo.models.config import DEFAULT_SEARCH_MAX_RESULTS
+
+    limit = configured_limit or DEFAULT_SEARCH_MAX_RESULTS
+    return (
+        f"Showing first {limit:,} results — more results omitted. "
+        "Refine the query or change max_results."
+    )
+
+
 def _grep_search_empty_message(state: AppState) -> str:
     if state.pending_grep_search_request_id is not None:
         return "Searching matches..."
@@ -1053,6 +1128,25 @@ def _replace_text_empty_message(state: AppState) -> str:
     if state.command_palette.replace_preview.total_match_count > 0:
         return "Preview shown in right pane. Press Enter to apply."
     return "No matching files"
+
+
+def _replace_result_context_message(state: AppState) -> str | None:
+    if state.command_palette is None or state.command_palette.source != "replace_text":
+        return None
+    preview = state.command_palette.replace_preview
+    if preview.result_origin is None:
+        return None
+    origin_labels = {"find": "Find", "grep": "Grep", "workspace": "Search Workspace"}
+    origin = origin_labels[preview.result_origin]
+    query = f' "{preview.result_query}"' if preview.result_query else ""
+    file_count = preview.result_file_count or len(preview.target_paths)
+    match_count = preview.result_match_count
+    if match_count:
+        return (
+            f"{origin}{query} · {file_count} file(s) / "
+            f"{match_count} match(es) · preview before apply"
+        )
+    return f"{origin}{query} · {file_count} file(s) · preview before apply"
 
 
 def _find_replace_empty_message(state: AppState) -> str:

@@ -34,6 +34,7 @@ from zivo.state.actions import (
     ClipboardPasteNeedsResolution,
     CopyTargets,
     CutTargets,
+    ForegroundOperationAborted,
     PasteClipboard,
     ResolvePasteConflict,
     SelectAllVisibleEntries,
@@ -107,7 +108,7 @@ def test_cut_targets_warns_when_empty() -> None:
     assert next_state.clipboard.mode == "none"
 
 
-def test_paste_clipboard_emits_paste_effect_and_sets_busy() -> None:
+def test_paste_clipboard_emits_paste_effect_without_blocking_browsing() -> None:
     state = _reduce_state(
         build_initial_app_state(),
         CopyTargets(("/home/tadashi/develop/zivo/docs",)),
@@ -115,7 +116,7 @@ def test_paste_clipboard_emits_paste_effect_and_sets_busy() -> None:
 
     result = reduce_app_state(state, PasteClipboard())
 
-    assert result.state.ui_mode == "BUSY"
+    assert result.state.ui_mode == "BROWSING"
     assert result.state.foreground_operation is not None
     assert result.state.foreground_operation.kind == "copy"
     assert result.state.pending_paste_request_id == 1
@@ -149,6 +150,34 @@ def test_cancel_foreground_operation_marks_active_operation_once() -> None:
     )
     repeated = reduce_app_state(result.state, CancelForegroundOperation())
     assert repeated.state == result.state
+
+
+def test_worker_abort_releases_foreground_operation_and_pending_paste() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="BROWSING",
+        foreground_operation=ForegroundOperationState(
+            operation_id=7,
+            kind="copy",
+            total=1,
+        ),
+        pending_paste_request_id=7,
+        pending_paste_request=PasteRequest(
+            mode="copy",
+            source_paths=("/tmp/source",),
+            destination_dir="/tmp/destination",
+        ),
+    )
+
+    result = reduce_app_state(state, ForegroundOperationAborted(request_id=7))
+
+    assert result.state.foreground_operation is None
+    assert result.state.pending_paste_request_id is None
+    assert result.state.pending_paste_request is None
+    assert result.state.notification == NotificationState(
+        level="warning",
+        message="Operation worker cancelled",
+    )
 
 
 def test_paste_clipboard_warns_when_empty() -> None:
@@ -216,7 +245,7 @@ def test_paste_needs_resolution_uses_configured_default_resolution() -> None:
         ),
     )
 
-    assert result.state.ui_mode == "BUSY"
+    assert result.state.ui_mode == "BROWSING"
     assert result.effects == (
         RunClipboardPasteEffect(
             request_id=2,
@@ -280,7 +309,7 @@ def test_resolve_paste_conflict_restarts_paste_with_resolution() -> None:
 
     result = reduce_app_state(state, ResolvePasteConflict("rename"))
 
-    assert result.state.ui_mode == "BUSY"
+    assert result.state.ui_mode == "BROWSING"
     assert result.effects == (
         RunClipboardPasteEffect(
             request_id=2,

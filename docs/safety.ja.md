@@ -57,6 +57,7 @@ zivo は、ファイル操作における事故を防ぐためのさまざまな
 ## 文字列置換のプレビュー
 
 - 文字列置換は実行前に右ペインに diff プレビューが表示されます。
+- Find / Grep / Search Workspace の結果は明示的に `Search results` 対象へ渡され、プレビューには検索元とファイル数・match数が表示されます。
 - 置換内容を確認してから `Enter` で実行するため、誤った一括置換を防げます。
 - プレビュー中は `Shift+↑` / `Shift+↓` で diff をスクロールできます。
 
@@ -66,12 +67,17 @@ zivo は、ファイル操作における事故を防ぐためのさまざまな
 
 - 展開先に既存のディレクトリやファイルがある場合は事前に確認ダイアログを表示します。
 - 展開中は status bar にエントリ件数ベースの進捗が表示されます。
+- zivoは書き込み前に展開先をリンク先へ追従せず正規化し、展開先ルートと各対象パス要素を `lstat()` で検査します。
+- 展開先ルート、その親、展開対象に既存のsymlinkまたはWindowsのreparse pointがある場合はunsafe pathエラーで拒否します。アーカイブ内の絶対パスと `..` も拒否します。
+- 全対象を最初の書き込み前に検証し、ディレクトリ作成とファイルのatomic replace直前にもcontainmentを再検証します。ZIP・TAR・GZ・BZ2に適用されます。
 
 ## 長時間ファイル操作
 
-- Copy・Move・Compress・Extract・Replaceは、UIをモーダルに保ったまま操作名、進捗、現在対象を表示します。
+- Copy・Move・Compress・Extract・Replaceは、通常ブラウズを止めずに操作名、進捗、現在対象を表示します。ディレクトリ移動、ファイル検索、プレビュー、属性表示は継続できます。
+- 同時に実行する長時間ファイル操作は1件に直列化します。別のファイル変更、Undo、エディタ・シェル起動、変更を伴うカスタムアクションは、進行中の操作名を示して拒否します。
 - `Cancel` と `Esc` は安全な対象境界でのみ協調キャンセルを要求します。現在の対象は完了させ、workerを強制停止しません。
-- 部分結果では成功・skip・failure・未処理対象を明示します。Undoに登録するのは完了済みのCopy/Move対象だけです。
+- 終了要求はキャンセルを要求したあと、現在の対象と後始末が完了してからアプリケーションを終了します。
+- 部分結果では成功・skip・failure・未処理対象を明示します。Undoに登録するのは完了済みのCopy/Move対象だけで、有効な場合に限りDetailsからそのUndoを復旧Actionとして1件だけ提示します。適用済み変更、overwrite、skipを含む部分結果ではRetryを提示しません。
 - Compressは同一ディレクトリの一時アーカイブを成功時に原子的に公開します。ExtractとReplaceも一時ファイル経由で原子的に置換し、キャンセル・失敗時は一時ファイルを削除します。
 
 ---
@@ -81,6 +87,9 @@ zivo は、ファイル操作における事故を防ぐためのさまざまな
 - `!` キーで 1 行シェルコマンドを実行できます。
 - コマンドは zivo のプロセスとは別にバックグラウンド実行されるため、意図しない終了を防ぎます。プロンプトや TUI など対話入力が必要なコマンドには使わず、`t` の foreground shell を使います。
 - ダイアログには作業ディレクトリを表示し、完了後も exit code、stdout、stderr を確認できます。`r` で再実行、`t` で同じディレクトリの外部ターミナルを開けます。
+- 非対話commandにはterminal入力を渡しません。stdout/stderrはそれぞれ既定で1 MiBまで先頭と末尾を保持し、既定timeoutは5分です。どちらもadvancedな`[background_commands]`設定で変更できます。
+- 実行中の非対話commandは`Esc`で停止できます。timeout/cancel後はBROWSINGへ戻り、Shell Commandでは`Result`から取得済み出力を確認できます。停止前にcommandが行った副作用はrollbackされません。
+- TUI、prompt、password入力にはforeground shell、または`terminal`/`terminal_window` modeのcustom actionを使用してください。interactive modeにはこれらの制限を適用しません。
 
 ---
 

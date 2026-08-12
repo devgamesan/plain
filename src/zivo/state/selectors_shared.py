@@ -13,6 +13,7 @@ from zivo.models import (
     CommandPaletteViewState,
     PaneEntry,
 )
+from zivo.models.config import DEFAULT_SEARCH_MAX_RESULTS
 from zivo.theme_support import preview_syntax_theme_for_app_theme
 
 from .entry_state_helpers import _sort_key, _sort_size_key
@@ -60,7 +61,7 @@ COMMAND_PALETTE_VISIBLE_WINDOW = 8
 MIN_SEARCH_VISIBLE_WINDOW = 3
 _SEARCH_OVERHEAD_ROWS = 10
 _GREP_SEARCH_EXTRA_INPUT_ROWS = 3
-_FILE_SEARCH_EXTRA_INPUT_ROWS = 1
+_FILE_SEARCH_EXTRA_INPUT_ROWS = 3
 MIN_CURRENT_PANE_VISIBLE_WINDOW = 5
 _CURRENT_PANE_OVERHEAD_ROWS = 9
 
@@ -296,6 +297,9 @@ def _select_file_search_window(
         "directories": "Find Directory",
         "all": "Find All",
     }.get(target, "Find All")
+    if state.command_palette is not None and state.command_palette.file_search.results_truncated:
+        limit = state.config.file_search.max_results or DEFAULT_SEARCH_MAX_RESULTS
+        title = f"{title} ({limit:,}+ results)"
     return _select_search_window(
         results, cursor_index, title=title, visible_window=visible_window,
     )
@@ -310,8 +314,12 @@ def _select_grep_search_window(
         state.terminal_height,
         extra_rows=_GREP_SEARCH_EXTRA_INPUT_ROWS,
     )
+    title = "Grep"
+    if state.command_palette is not None and state.command_palette.grep_search.results_truncated:
+        limit = state.config.grep_search.max_results or DEFAULT_SEARCH_MAX_RESULTS
+        title = f"{title} ({limit:,}+ results)"
     return _select_search_window(
-        results, cursor_index, title="Grep", visible_window=visible_window,
+        results, cursor_index, title=title, visible_window=visible_window,
     )
 
 
@@ -325,10 +333,18 @@ def _select_replace_preview_window(
         extra_rows=_GREP_SEARCH_EXTRA_INPUT_ROWS,
     )
     title = "Replace Text"
-    if state.command_palette is not None and state.command_palette.replace_preview.preview_results:
-        file_count = len(state.command_palette.replace_preview.preview_results)
-        total_matches = state.command_palette.replace_preview.total_match_count
-        title = f"Replace Text ({file_count} file(s), {total_matches} match(es))"
+    if state.command_palette is not None:
+        preview = state.command_palette.replace_preview
+        if preview.result_origin is not None:
+            origin_labels = {"find": "Find", "grep": "Grep", "workspace": "Workspace"}
+            origin = origin_labels[preview.result_origin]
+            title = f"Replace Search Results · {origin}"
+            if preview.result_query:
+                title = f'{title} "{preview.result_query}"'
+        if preview.preview_results:
+            file_count = len(preview.preview_results)
+            total_matches = preview.total_match_count
+            title = f"{title} ({file_count} file(s), {total_matches} match(es))"
     return _select_search_window(results, cursor_index, title=title, visible_window=visible_window)
 
 
@@ -436,6 +452,18 @@ def _build_file_search_input_fields(
             placeholder="files/dirs/all",
             active=palette.file_search.active_field == "target",
         ),
+        CommandPaletteInputFieldViewState(
+            label="Include extensions",
+            value=palette.file_search.include_extensions,
+            placeholder="e.g. py, js",
+            active=palette.file_search.active_field == "include",
+        ),
+        CommandPaletteInputFieldViewState(
+            label="Exclude extensions",
+            value=palette.file_search.exclude_extensions,
+            placeholder="e.g. log, tmp",
+            active=palette.file_search.active_field == "exclude",
+        ),
     )
 
 
@@ -446,6 +474,7 @@ def _build_replace_input_fields(
         "current_file": "Current file",
         "selected_files": "Selected files",
         "current_directory": "Current directory",
+        "search_results": "Search results",
         "found_files": "Found files",
         "grep_result_files": "Grep result files",
     }

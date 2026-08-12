@@ -9,9 +9,13 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 
 クエリが空の場合は、`Navigate`、`File`、`Search`、`View`、`System`、`Custom actions` の固定カテゴリを表示します。カテゴリ順とコマンド順位は決定的で、利用履歴やテレメトリは使用しません。
 
-最新の操作に次アクションがある場合、通常の `commands` パレットの先頭に条件付きで `Suggested` を1件だけ表示します。表示優先順位は `Undo`、`Open destination`、安全な `Retry`、`Details` です。StatusBar と条件付き `Suggested` は同じ stable action ID と reducer 経路を共有し、既存キーボード経路は現在の意味を維持します。新しいグローバルキーは追加せず、既存の `Enter` / `r` の意味も変更しません。表示開始から5秒で自動消去するのは最終成功通知だけで、処理中・warning/error・partial success は自動消去しません。
+Directory History と Go の最近の履歴は、最後に訪問したディレクトリから新しい順に表示します。各タブと Transfer の各ペインは、最新の重複しないディレクトリパスを100件までメモリに保持し、古い項目を自動的に破棄します。
 
-`Retry` は、成功・skip・overwrite がなく、元の `PasteRequest` の conflict resolution が未指定である貼り付け失敗、成功・適用済み変更がない Duplicate 失敗、archive/zip 準備失敗に限定します。Retry は毎回 fresh preparation/preflight を行い、競合や対象変更があれば既存の競合確認・再確認経路へ戻ります。`Details` は失敗件数、対象パス、理由を表示し、`Enter` または `Esc` で閉じます。
+待機する terminal editor、foreground terminal、shell command、`terminal` / `background` のカスタムアクションが完了したとき、実行 cwd または編集対象ファイルの親が表示中の実ディレクトリと一致すれば、そのディレクトリを1回だけ再読込します。既存のカーソル、選択、filter、sort は再読込後も適用されます。GUI editor、新しい terminal window、既定アプリ起動、configだけを更新するoverlay完了、Search Workspace、archive 専用表示はこの完了時再読込の対象外です。
+
+最新の操作に次アクションがある場合、通常の `commands` パレットの先頭に条件付きで `Suggested` を1件だけ表示します。表示優先順位は `Undo`、`Open destination`、安全な `Retry`、`Details` です。Detailsには安全な復旧Actionを最大1件だけ表示し、`[z] Undo completed items` または `[r] Retry` として実行できます。`Enter` / `Esc` はDetailsを閉じます。StatusBar、Details、条件付き `Suggested` は同じ stable action ID と reducer 経路を共有し、既存のグローバルキーボード経路は現在の意味を維持します。新しいグローバルキーは追加しません。表示開始から5秒で自動消去するのは最終成功通知だけで、処理中・warning/error・partial success は自動消去しません。
+
+`Retry` は、成功・skip・overwrite がなく、元の `PasteRequest` の conflict resolution が未指定である貼り付け失敗、成功・適用済み変更がない Duplicate 失敗、archive/zip 準備失敗に限定します。Retry は毎回 fresh preparation/preflight を行い、競合や対象変更があれば既存の競合確認・再確認経路へ戻ります。`Details` は失敗件数、対象パス、理由を表示し、有効なUndoエントリがある場合だけ完了済みCopy/Move対象のUndoを提示します。`Enter` または `Esc` で閉じます。
 
 コマンド一覧全体はマウスホイールでスクロールできます。キーボードのカーソル移動（`↑` / `↓` または `Ctrl+j` / `Ctrl+k`）では、選択行が自動的に表示範囲へ追従します。
 
@@ -23,9 +27,9 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 | `Next tab` | 2 タブ以上開いているとき | 次のブラウズタブへ切り替えます。 |
 | `Previous tab` | 2 タブ以上開いているとき | 前のブラウズタブへ切り替えます。 |
 | `Close current tab` | 2 タブ以上開いているとき | アクティブなブラウズタブを閉じます。最後の 1 タブは閉じられません。 |
-| `Find files` | 常に表示 | 再帰ファイル検索を開きます。 |
+| `Find files` | 常に表示 | `Keyword`、`Target`、`Include extensions`、`Exclude extensions` の入力欄を持つ再帰ファイル名検索を開きます。拡張子は `py, js` のようなカンマ/空白区切り（先頭の `.` は任意、大文字小文字を区別しない）で入力できます。キーワードと拡張子フィルターは AND で評価し、拡張子を指定した場合はキーワードを空にできます。`Target=files` は一致するファイル、`Target=all` は拡張子指定中は一致するファイルだけを返し、ディレクトリ検索では拡張子フィルターを解除する必要があります。 |
 | `Grep search` | 常に表示 | 共通の再帰コンテンツ検索を開きます（`ripgrep` / `rg` が `PATH` 上に必要）。従来の `search contents` も検索用 alias として利用できます。current directory / selected files/directories / Search Workspace（Search Workspace を開いているときだけ選択可能）の scope を選択でき、keyword / filename / include extension / exclude extension の各フィルタを共通で利用できます。選択したディレクトリは再帰的に検索します。 |
-| `Go` | 常に表示 | Home、ブックマーク、最近の履歴、開いているタブ、直接パスを 1 画面で検索します。入力先頭に `@bookmark`、`@history` / `@recent`、`@tab`、`@home` を付けると source を絞れます。`b` は同じ画面をブックマーク限定で開きます。`j` / `k` は通常の入力文字で、選択移動には矢印キーまたは `Ctrl+j` / `Ctrl+k` を使います。 |
+| `Go` | 常に表示 | `G` で Home、ブックマーク、最近の履歴、開いているタブ、直接パスを 1 画面で検索します。入力先頭に `@bookmark`、`@history` / `@recent`、`@tab`、`@home` を付けると source を絞れます。`b` は同じ画面をブックマーク限定で開きます。`/`（Windowsでは `/` または `\\`）の入力直後は、入力中のディレクトリを Enter 用の先頭候補に残したまま、直下の子ディレクトリを非同期で表示します。`j` / `k` は通常の入力文字で、選択移動には矢印キーまたは `Ctrl+j` / `Ctrl+k` を使います。 |
 | `Go back` | ディレクトリ履歴に戻り先があるとき | 履歴を一つ戻ります。 |
 | `Go forward` | ディレクトリ履歴に進み先があるとき | 履歴を一つ進みます。 |
 | `Go to home directory` | 常に表示 | ホームディレクトリへ移動します。 |
@@ -35,7 +39,7 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 | `Undo last file operation` | Undo 履歴があるとき | 直前の Undo 対象リネーム、貼り付け、複製、ゴミ箱移動を取り消します。 |
 | `Select all` | 現在ディレクトリに表示中の項目が 1 件以上あるとき | 現在ディレクトリで表示中の項目をすべて選択します。 |
 | `Save results` | grep 検索結果を表示中 | 現在の grep 結果を現在のディレクトリの `grep_results.txt` へ保存します。設定済みの grep プレビュー context 行を含み、既存ファイルは変更しません。 |
-| `Replace text` | 常に表示 | Scope を選べる単一の置換パレットを開きます。初期 Scope は選択状態に応じて Selected files、Current file、Current directory になります。Current file、Selected files、Current directory、Found files、Grep result files を選択でき、利用できない Scope は理由を表示します。Find/Replace は常に表示し、再帰検索する Scope では filename と拡張子フィルターも表示します。右ペインに diff をプレビューしてから確認・適用します。 |
+| `Replace text` | 常に表示 | Scope を選べる単一の置換パレットを開きます。初期 Scope は選択状態に応じて Selected files、Current file、Current directory になります。Find/Grep の結果画面では `Replace results`（`Ctrl+r`でも実行）、Search Workspace では `Replace selected results` を選べます。表示中のファイルが固定 `Search results` Scope として渡され、右ペインで diff をプレビューしてから確認・適用します。 |
 | `Show attributes` | 単一対象が選択中またはフォーカス中のとき | 読み取り専用の属性ダイアログを開きます。 |
 | `Rename` / `Rename N items` | 対象が 1 件以上あるとき（Search Workspace を除く） | 1 件なら従来の単一対象リネーム、2 件以上なら Old Name / New Name / Status を確認できる一括リネームオーバーレイを開きます。Base name を入力すると、元の拡張子を保った連番の New Name を自動生成します。`Rename items` は全行を再検証してから実行し、衝突・不正名・対象消失などがあれば適用しません。通常ブラウズと Transfer の両方で利用できます。 |
 | `Change permissions` | Linux / macOS / WSL の実ファイルシステム上の 1 件以上の対象が選択中またはフォーカス中のとき | 選択中の全対象、または未選択時はフォーカス対象の permission 変更入力を開始します。`755` や `644` のような 3 桁 octal mode を入力します。ダイアログには対象数・種別と、symlink をスキップしてリンク先を辿らない方針が表示されます。`Recursive` の既定値は `No` で、`Tab` により `Yes` を選ぶとディレクトリ配下にも適用します。検索ワークスペースと native Windows では表示しません。Windows は `chmod` 経由で POSIX permission bit を表現できないため対象外です。 |
@@ -56,5 +60,5 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 | `Show hidden files` / `Hide hidden files` | 常に表示 | ブラウザ 3 ペインの隠しファイル表示を切り替えます。ラベルは現在状態を反映します。 |
 | `Edit config` | 常に表示 | 起動時設定を編集するオーバーレイを開きます。優先ターミナルエディタ、GUI エディタプリセット、外部ターミナル起動モード、隠しファイル表示、ディレクトリサイズ表示、テキストプレビュー表示、画像プレビュー表示、画像プレビュー方式、PDF プレビュー表示、Office プレビュー表示、テーマ、ソート、貼り付け競合時の既定動作、削除確認の有無などを編集できます。オーバーレイ内には選択中の設定が何を変えるかの説明も表示されるため、README を見返さなくても挙動を判断できます。テーマ変更はその場で即時プレビューされます。 |
 
-空・フォールバック状態のペインには、実行可能なローカルActionだけを表示します。空の現在ディレクトリでは `Create`、フィルタ0件では `Clear filter`、内容プレビュー不能時は `Show attributes`、設定で無効な場合は `Edit config` を表示します。フォールバックActionにはコマンドパレット経由のキーボード導線 `:`（`:` → 表示されたコマンド）を示し、クリックも補助操作として利用できます。クリック時も既存コマンドと同じreducer経路を使用します。
+空・フォールバック状態のペインには、実行可能なローカルActionだけを表示します。空の現在ディレクトリでは `Create`、フィルタ0件では `Clear filter`、隠し項目だけの場合は `[.] Show hidden files`、内容プレビュー不能時は `Show attributes`、設定で無効な場合は `Edit config` を表示します。クリック時も既存コマンドと同じreducer経路を使用します。左ペインは読込中、権限不足、親なし、表示項目なしを区別し、再読込中もキャッシュ済み一覧を維持します。
 | `Create` | 常に表示 | ファイル／ディレクトリを一つのフローで作成します。Type を明示的に選び、必要なら不足したサブディレクトリを含む相対パスを入力して、親ディレクトリと最終対象のプレビューを確認して実行します。`n` は File、`N` は Directory を初期選択します。 |

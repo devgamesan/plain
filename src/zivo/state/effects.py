@@ -217,6 +217,8 @@ class RunFileSearchEffect:
     query: str
     show_hidden: bool
     search_target: str = "all"
+    include_extensions: tuple[str, ...] = ()
+    exclude_extensions: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -229,6 +231,17 @@ class RunGrepSearchEffect:
     show_hidden: bool
     include_globs: tuple[str, ...] = ()
     exclude_globs: tuple[str, ...] = ()
+    target_paths: tuple[str, ...] = ()
+    filename_filter: str = ""
+
+
+@dataclass(frozen=True)
+class RunGoPathCompletionEffect:
+    """Complete direct Go destinations outside the reducer."""
+
+    request_id: int
+    query: str
+    base_path: str
 
 
 @dataclass(frozen=True)
@@ -258,12 +271,22 @@ class RunConfigSaveEffect:
 
 
 @dataclass(frozen=True)
+class RunConfigReloadEffect:
+    """Reload an existing config file after external editing."""
+
+    request_id: int
+    path: str
+
+
+@dataclass(frozen=True)
 class RunShellCommandEffect:
     """Execute a shell command in the supplied directory."""
 
     request_id: int
     cwd: str
     command: str
+    max_output_bytes: int = 1024 * 1024
+    timeout_seconds: int = 300
 
 
 @dataclass(frozen=True)
@@ -272,6 +295,8 @@ class RunCustomActionEffect:
 
     request_id: int
     request: CustomActionExecutionRequest
+    max_output_bytes: int = 1024 * 1024
+    timeout_seconds: int = 300
 
 
 @dataclass(frozen=True)
@@ -312,10 +337,12 @@ Effect = (
     | RunExternalLaunchEffect
     | RunFileSearchEffect
     | RunGrepSearchEffect
+    | RunGoPathCompletionEffect
     | RunGrepExportEffect
     | RunTextReplacePreviewEffect
     | RunTextReplaceApplyEffect
     | RunConfigSaveEffect
+    | RunConfigReloadEffect
     | RunShellCommandEffect
     | RunCustomActionEffect
     | ExitCurrentPathEffect

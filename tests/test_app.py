@@ -477,6 +477,8 @@ class BlockingFileSearchService:
         *,
         show_hidden: bool,
         search_target: str = "all",
+        include_extensions: tuple[str, ...] = (),
+        exclude_extensions: tuple[str, ...] = (),
         max_results: int | None = None,
         is_cancelled=None,
     ) -> tuple[FileSearchResultState, ...]:
@@ -513,6 +515,7 @@ class BlockingGrepSearchService:
         self.executed_requests: list[
             tuple[str, str, tuple[str, ...], tuple[str, ...], bool]
         ] = []
+        self.executed_search_options: list[tuple[tuple[str, ...], str, int | None]] = []
         self.cancelled_queries: list[str] = []
         self.release_event = threading.Event()
 
@@ -524,10 +527,14 @@ class BlockingGrepSearchService:
         show_hidden: bool,
         include_globs: tuple[str, ...] = (),
         exclude_globs: tuple[str, ...] = (),
+        target_paths: tuple[str, ...] = (),
+        filename_filter: str = "",
+        max_results: int | None = None,
         is_cancelled=None,
     ) -> tuple[GrepSearchResultState, ...]:
         key = (root_path, query, include_globs, exclude_globs, show_hidden)
         self.executed_requests.append(key)
+        self.executed_search_options.append((target_paths, filename_filter, max_results))
         if query in self.blocked_queries:
             while not self.release_event.is_set():
                 if is_cancelled is not None and is_cancelled():
@@ -987,7 +994,7 @@ async def test_app_live_snapshot_highlights_current_directory_in_parent_pane(tmp
     (tmp_path / "README.md").write_text("readme\n", encoding="utf-8")
     app = create_app(initial_path=tmp_path)
 
-    async with app.run_test():
+    async with app.run_test(size=(240, 20)):
         await _wait_for_snapshot_loaded(app, str(tmp_path))
         await _wait_for_row_count(app, 2)
 
@@ -997,7 +1004,10 @@ async def test_app_live_snapshot_highlights_current_directory_in_parent_pane(tmp
 
         assert app.app_state.parent_pane.cursor_path == str(tmp_path)
         assert isinstance(parent_renderable, Text)
-        assert tmp_path.name in parent_renderable.plain.splitlines()
+        assert any(
+            line.startswith(tmp_path.name[:12])
+            for line in parent_renderable.plain.splitlines()
+        )
         assert _text_has_style(
             parent_renderable,
             _style_without_background(parent_pane.get_component_rich_style("ft-directory-sel")),
@@ -3219,7 +3229,7 @@ async def test_app_displays_browsing_help_bar() -> None:
     expected_help = (
         "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
         "space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
-        f"f find | g grep | n new-file | N new-dir{split_terminal_hint} | : palette"
+            f"f find | g grep | G go | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
 
     async with app.run_test():
@@ -3325,7 +3335,7 @@ async def test_app_displays_transfer_help_bar() -> None:
     expected_help = (
         "enter dir | . hidden | Tab switch-pane | p/Esc close | q quit\n"
         "space select | c copy-to-pane | m move-to-pane | d delete | r rename | z undo\n"
-        "n new-file | N new-dir | : palette"
+            "n new-file | N new-dir | G go | : palette"
     )
 
     async with app.run_test() as pilot:
@@ -3618,7 +3628,7 @@ async def test_app_command_palette_create_opens_context_input() -> None:
 
 
 @pytest.mark.asyncio
-async def test_app_go_to_path_shows_candidates_and_tabs_to_selected_directory(tmp_path) -> None:
+async def test_app_go_shows_candidates_and_tabs_to_selected_directory(tmp_path) -> None:
     path = str(tmp_path)
     docs_path = str(tmp_path / "docs")
     downloads_path = str(tmp_path / "downloads")
@@ -3650,9 +3660,7 @@ async def test_app_go_to_path_shows_candidates_and_tabs_to_selected_directory(tm
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press(":")
-        await pilot.press("g", "o")
-        await pilot.press("enter")
+        await pilot.press("G")
         await pilot.press("d", "o")
         await asyncio.sleep(0.05)
 
@@ -3673,7 +3681,7 @@ async def test_app_go_to_path_shows_candidates_and_tabs_to_selected_directory(tm
 
 
 @pytest.mark.asyncio
-async def test_app_go_to_path_submit_after_completion_stays_on_completed_directory(
+async def test_app_go_submit_after_completion_stays_on_completed_directory(
     tmp_path,
 ) -> None:
     path = str(tmp_path)
@@ -3703,9 +3711,7 @@ async def test_app_go_to_path_submit_after_completion_stays_on_completed_directo
 
     async with app.run_test() as pilot:
         await _wait_for_snapshot_loaded(app, path)
-        await pilot.press(":")
-        await pilot.press("g", "o")
-        await pilot.press("enter")
+        await pilot.press("G")
         await pilot.press("d", "o", "tab", "enter")
         await _wait_for_snapshot_loaded(app, docs_path)
 
@@ -4333,6 +4339,12 @@ async def test_app_grep_search_filters_results_by_filename(tmp_path) -> None:
         assert [
             result.display_label for result in app.app_state.command_palette.grep_search.results
         ] == expected_labels
+        assert any(
+            filename_filter.casefold() == "read"
+            for _targets, filename_filter, _max_results in (
+                grep_search_service.executed_search_options
+            )
+        )
 
 
 @pytest.mark.asyncio
@@ -4806,7 +4818,7 @@ async def test_app_config_dialog_save_updates_theme(monkeypatch) -> None:
         initial_path=path,
     )
 
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(240, 24)) as pilot:
         await _wait_for_snapshot_loaded(app, path)
         parent_pane = app.query_one("#parent-pane", SidePane)
         child_pane = app.query_one("#child-pane", ChildPane)
@@ -4841,7 +4853,7 @@ async def test_app_config_dialog_save_updates_theme(monkeypatch) -> None:
 
         assert app.theme == "textual-dark"
 
-        for _ in range(2):
+        for _ in range(3):
             await pilot.press("down")
         await pilot.press("enter")
         await _wait_for_app_theme(app, "textual-light")
@@ -4904,7 +4916,7 @@ async def test_app_config_dialog_dismiss_restores_theme_preview() -> None:
         await pilot.press("enter")
         await _wait_for_config_dialog(app)
 
-        for _ in range(2):
+        for _ in range(3):
             await pilot.press("down")
         await pilot.press("enter")
         await _wait_for_app_theme(app, "textual-light")
@@ -4968,7 +4980,7 @@ async def test_app_config_dialog_theme_preview_updates_auto_syntax_theme() -> No
         await pilot.press("c", "o", "n", "f", "i", "g")
         await pilot.press("enter")
         await _wait_for_config_dialog(app)
-        for _ in range(2):
+        for _ in range(3):
             await pilot.press("down")
         await pilot.press("enter")
         await _wait_for_app_theme(app, "textual-light")
@@ -5015,7 +5027,11 @@ async def test_app_config_dialog_e_opens_config_file_in_editor() -> None:
         await _wait_for_external_launch_count(app, 1)
 
         assert launch_service.executed_requests == [
-            ExternalLaunchRequest(kind="open_editor", path="/tmp/zivo/config.toml")
+            ExternalLaunchRequest(
+                kind="open_editor",
+                path="/tmp/zivo/config.toml",
+                reload_config_after_exit=True,
+            )
         ]
 
 
@@ -5607,7 +5623,7 @@ async def test_app_sort_shortcuts_keep_side_panes_fixed_and_update_status_bar() 
         ),
     )
 
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(240, 24)) as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 3)
 
@@ -6326,10 +6342,16 @@ async def test_app_cursor_move_refreshes_large_child_pane_without_remount(
     )
     app = create_app(snapshot_loader=loader, initial_path=path)
 
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(80, 24)) as pilot:
         await _wait_for_snapshot_loaded(app, path)
         await _wait_for_row_count(app, 2)
-        await _wait_for_child_list_label(app, "child-0999.txt", index=999, timeout=2.0)
+        visible_window = compute_current_pane_visible_window(app.app_state.terminal_height)
+        await _wait_for_child_list_label(
+            app,
+            f"child-{visible_window - 1:04d}.txt",
+            index=visible_window - 1,
+            timeout=2.0,
+        )
 
         child_list = app.query_one("#child-pane-list", Static)
         original_update = Static.update
@@ -6344,10 +6366,15 @@ async def test_app_cursor_move_refreshes_large_child_pane_without_remount(
         monkeypatch.setattr(Static, "update", counting_update)
 
         await pilot.press("down")
-        await _wait_for_child_list_label(app, "module-0999.py", index=999, timeout=2.0)
+        await _wait_for_child_list_label(
+            app,
+            f"module-{visible_window - 1:04d}.py",
+            index=visible_window - 1,
+            timeout=2.0,
+        )
 
         assert app.query_one("#child-pane-list", Static) is child_list
-        assert len(_side_pane_lines(child_list)) == 1000
+        assert len(_side_pane_lines(child_list)) == visible_window
         assert update_calls == 1
 
 

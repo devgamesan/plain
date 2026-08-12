@@ -185,7 +185,7 @@ sequenceDiagram
 
 ### Foreground file-operation progress
 
-Copy, Move, Compress, Extract, and Replace share one transient `ForegroundOperationState`. The runtime owns the operation ID and cooperative cancel event; services check the event only at safe item boundaries and report progress back as reducer actions. Stale progress is discarded by operation ID. StatusBar and HelpBar project the state without adding a task screen; `Cancel` and `Esc` are available only while cancellation is safe. Compression publishes a same-directory temporary archive atomically, while extraction and replacement publish temporary files atomically. Terminal partial results retain counts and paths for the existing Details flow.
+Copy, Move, Compress, Extract, and Replace share one transient `ForegroundOperationState`. Confirmation and preflight stay in the foreground; once confirmed, the worker runs while the app remains in `BROWSING`. The runtime owns the operation ID and cooperative cancel event; services check the event only at safe item boundaries and report progress back as reducer actions. Stale progress is discarded by operation ID. Other file mutations, Undo, editor or shell launches, and mutation-capable custom actions are rejected with the active operation name, and long-running operations are serialized. StatusBar and HelpBar project the state without adding a task screen; `Cancel` and `Esc` are available only in normal browsing or Transfer mode while cancellation is safe. Exit waits for cancellation and cleanup. Completion preserves the current display path and progressively refreshes only affected visible panes. Compression publishes a same-directory temporary archive atomically, while extraction and replacement publish temporary files atomically. Terminal partial results retain counts and paths for the existing Details flow.
 
 ### `src/zivo/state/reducer_navigation.py`
 
@@ -208,7 +208,7 @@ Copy, Move, Compress, Extract, and Replace share one transient `ForegroundOperat
 ### `src/zivo/state/reducer_palette.py`
 
 - Handles command-palette open / close, query updates, cursor movement, and execution
-- Starts derived flows such as `Find files`, `Grep search`, `History search`, `Show bookmarks`, `Go to path`, bookmark add/remove, `Show attributes`, and `Extract archive`
+- Starts derived flows such as `Find files`, `Grep search`, unified `Go`, bookmark add/remove, `Show attributes`, and `Extract archive`
 - Also owns attribute-dialog dismissal and file-search / grep-search result application
 
 ### `src/zivo/state/reducer_terminal_config.py`
@@ -232,14 +232,14 @@ Copy, Move, Compress, Extract, and Replace share one transient `ForegroundOperat
 - Owns shared metadata for stable command IDs, categories, keywords, shortcuts, context priority, and disabled reasons
 - Applies deterministic category and match ranking to the command list
 - Keeps disabled candidates searchable so selectors and reducers can reuse the same reason text
+- Search result palettes expose one explicit `Replace results` action. It dispatches the same `BeginTextReplace` path as the Search Workspace `Replace selected results` command, with a transient `Search results` target context; result sets are not persisted globally.
+- The unified replacement selector displays the result origin, query, unique file count, and Grep match count, while ordinary replacement keeps Current file / Selected files / Current directory scopes.
 - The default command palette includes:
   - `Find files`
   - `Grep search`
-  - `History search`
-  - `Show bookmarks`
   - `Go back`
   - `Go forward`
-  - `Go to path`
+  - `Go` (Home, bookmarks, recent history, open tabs, and direct paths)
   - `Go to home directory`
   - `Reload directory`
   - `Toggle split terminal`
@@ -259,8 +259,9 @@ Copy, Move, Compress, Extract, and Replace share one transient `ForegroundOperat
   - `Edit config`
   - `Create file`
   - `Create directory`
-- Palette sources are `commands`, `file_search`, `grep_search`, `history`, `bookmarks`, and `go_to_path`
-- `go_to_path` shows matching directory candidates while the user types and lets `Tab` complete the selected one
+- Palette sources include `commands`, `file_search`, `grep_search`, `go`, and `replace`
+- Unified `Go` shows Home, bookmark, recent-history, open-tab, and direct-path candidates while the user types, and lets `Tab` complete a direct-path candidate. After a path separator, it keeps the typed existing directory as the first candidate while showing its child directories.
+- Direct-path directory listings run in a debounced worker with a short-lived parent-directory cache; mismatched query/request results are discarded and the Go view exposes loading, empty, permission-error, and truncated states
 - `grep_search` uses separate keyword / filename-filter / include-extensions / exclude-extensions fields and moves focus with `Tab` / `Shift+Tab`
 
 ### `src/zivo/services/`
@@ -307,7 +308,8 @@ stateDiagram-v2
     BROWSING --> DETAIL: Show attributes
     BROWSING --> CONFIG: Edit config
     BROWSING --> CONFIRM: delete / paste conflict / archive conflict
-    BROWSING --> BUSY: snapshot / mutation / launch / config save
+    BROWSING --> BUSY: blocking snapshot / short mutation / launch / config save
+    BROWSING --> BROWSING: confirmed long-running worker starts
     BROWSING --> BROWSING: Alt+Left / Alt+Right / Alt+Home / reload / sort / hidden toggle
     PALETTE --> BROWSING: Enter on command / Esc
     PALETTE --> PALETTE: query updates / search mode
@@ -315,7 +317,7 @@ stateDiagram-v2
     RENAME --> BUSY: Enter
     CREATE --> BUSY: Enter
     EXTRACT --> CONFIRM: Enter with conflicts
-    EXTRACT --> BUSY: Enter without conflicts
+    EXTRACT --> BROWSING: Enter without conflicts (worker)
     EXTRACT --> BROWSING: Esc
     DETAIL --> BROWSING: Enter / Esc
     CONFIG --> BUSY: s save

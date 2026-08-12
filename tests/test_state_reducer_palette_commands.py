@@ -2,7 +2,6 @@ from dataclasses import replace
 from pathlib import Path
 
 import zivo.state.command_palette as command_palette_module
-import zivo.state.reducer_palette as reducer_palette_module
 from tests.state_test_helpers import reduce_state
 from zivo.models import (
     ActionsConfig,
@@ -16,7 +15,6 @@ from zivo.state import (
     CommandPaletteState,
     ConfigEditorState,
     DirectoryEntryState,
-    HistoryAndNavigationPaletteState,
     HistoryState,
     LoadBrowserSnapshotEffect,
     LoadTransferPaneEffect,
@@ -39,8 +37,6 @@ from zivo.state.actions import (
     BeginBookmarkSearch,
     BeginCommandPalette,
     BeginGo,
-    BeginGoToPath,
-    BeginHistorySearch,
     BrowserSnapshotFailed,
     CancelCommandPalette,
     ConfirmCustomAction,
@@ -54,8 +50,6 @@ from zivo.state.actions import (
     ToggleTransferMode,
 )
 from zivo.state.command_palette import parse_go_query, select_go_candidates
-from zivo.state.natural_sort import natural_sort_key
-from zivo.windows_paths import WINDOWS_DRIVES_ROOT
 
 
 def _reduce_state(state, action):
@@ -335,36 +329,6 @@ def test_submit_command_palette_begins_zip_compress_flow() -> None:
         "/home/tadashi/develop/zivo/src",
     )
 
-def test_begin_history_search_enters_history_mode() -> None:
-    state = build_initial_app_state()
-    state = replace(
-        state,
-        history=HistoryState(
-            back=("/tmp/a", "/tmp/b"),
-            forward=("/tmp/c",),
-            visited_all=("/home/tadashi/develop/zivo", "/tmp/a", "/tmp/b", "/tmp/c"),
-        ),
-    )
-    next_state = _reduce_state(state, BeginHistorySearch())
-
-    assert next_state.ui_mode == "PALETTE"
-    assert next_state.command_palette is not None
-    assert next_state.command_palette.source == "history"
-    assert next_state.command_palette.history_and_navigation.history_results == (
-        "/home/tadashi/develop/zivo",
-        "/tmp/a",
-        "/tmp/b",
-        "/tmp/c",
-    )
-
-def test_begin_history_search_with_empty_history() -> None:
-    next_state = _reduce_state(build_initial_app_state(), BeginHistorySearch())
-
-    assert next_state.ui_mode == "PALETTE"
-    assert next_state.command_palette is not None
-    assert next_state.command_palette.source == "history"
-    assert next_state.command_palette.history_and_navigation.history_results == ()
-
 def test_begin_bookmark_search_enters_bookmarks_filtered_go_mode() -> None:
     next_state = _reduce_state(build_initial_app_state(), BeginBookmarkSearch())
 
@@ -372,106 +336,6 @@ def test_begin_bookmark_search_enters_bookmarks_filtered_go_mode() -> None:
     assert next_state.command_palette is not None
     assert next_state.command_palette.source == "go"
     assert next_state.command_palette.history_and_navigation.go_source_filter == "bookmarks"
-
-def test_begin_go_to_path_enters_palette_mode() -> None:
-    next_state = _reduce_state(build_initial_app_state(), BeginGoToPath())
-
-    assert next_state.ui_mode == "PALETTE"
-    assert next_state.command_palette == CommandPaletteState(source="go_to_path")
-
-
-def test_begin_go_to_path_on_windows_prefills_drive_candidates(monkeypatch) -> None:
-    monkeypatch.setattr(
-        reducer_palette_module,
-        "list_windows_drive_paths",
-        lambda: ("C:\\", "D:\\"),
-    )
-
-    next_state = _reduce_state(
-        replace(build_initial_app_state(), current_path="C:\\"),
-        BeginGoToPath(),
-    )
-
-    assert next_state.command_palette is not None
-    nav = next_state.command_palette.history_and_navigation
-    assert nav.go_to_path_candidates == ("C:\\", "D:\\")
-
-def test_submit_history_palette_navigates_to_selected_directory() -> None:
-    state = build_initial_app_state()
-    state = replace(
-        state,
-        ui_mode="PALETTE",
-        command_palette=CommandPaletteState(
-            source="history",
-            history_and_navigation=HistoryAndNavigationPaletteState(
-                history_results=("/tmp/a", "/tmp/b", "/tmp/c"),
-            ),
-            cursor_index=1,
-        ),
-    )
-
-    result = reduce_app_state(state, SubmitCommandPalette())
-
-    assert result.state.command_palette is None
-    assert any(
-        isinstance(e, LoadBrowserSnapshotEffect) and e.path == "/tmp/b"
-        for e in result.effects
-    )
-
-def test_submit_history_palette_with_empty_history_shows_warning() -> None:
-    state = build_initial_app_state()
-    state = replace(
-        state,
-        ui_mode="PALETTE",
-        command_palette=CommandPaletteState(
-            source="history",
-            history_and_navigation=HistoryAndNavigationPaletteState(
-                history_results=(),
-            ),
-        ),
-    )
-
-    result = reduce_app_state(state, SubmitCommandPalette())
-
-    assert result.state.notification is not None
-    assert result.state.notification.message == "No directory history"
-
-
-
-def test_submit_history_palette_in_transfer_mode_navigates_active_pane() -> None:
-    state = build_initial_app_state()
-    state = replace(
-        state,
-        layout_mode="transfer",
-        active_transfer_pane="left",
-        transfer_left=TransferPaneState(
-            pane=PaneState(directory_path="/tmp/a", entries=(), cursor_path="/tmp/a"),
-            current_path="/tmp/a",
-        ),
-        transfer_right=TransferPaneState(
-            pane=PaneState(directory_path="/tmp/b", entries=(), cursor_path="/tmp/b"),
-            current_path="/tmp/b",
-        ),
-        ui_mode="PALETTE",
-        command_palette=CommandPaletteState(
-            source="history",
-            history_and_navigation=HistoryAndNavigationPaletteState(
-                history_results=("/tmp/a", "/tmp/b", "/tmp/c"),
-            ),
-            cursor_index=2,
-        ),
-    )
-
-    result = reduce_app_state(state, SubmitCommandPalette())
-
-    assert result.state.command_palette is None
-    assert any(
-        isinstance(e, LoadTransferPaneEffect)
-        and e.pane_id == "left"
-        and e.path == "/tmp/c"
-        for e in result.effects
-    )
-
 
 def test_submit_command_palette_opens_new_tab_in_transfer_mode() -> None:
     state = build_initial_app_state()
@@ -613,211 +477,6 @@ def test_submit_command_palette_begins_chmod_in_transfer_mode() -> None:
     assert next_state.pending_input.chmod_recursive is False
 
 
-def test_submit_bookmarks_palette_navigates_to_selected_directory(tmp_path) -> None:
-    bookmarked_path = tmp_path / "project"
-    bookmarked_path.mkdir()
-    state = build_initial_app_state(
-        config=AppConfig(bookmarks=BookmarkConfig(paths=(str(bookmarked_path),)))
-    )
-    state = replace(
-        state,
-        ui_mode="PALETTE",
-        command_palette=CommandPaletteState(source="bookmarks"),
-    )
-
-    result = reduce_app_state(state, SubmitCommandPalette())
-
-    assert result.state.command_palette is None
-    assert result.effects == (
-        LoadBrowserSnapshotEffect(
-            request_id=1,
-            path=str(bookmarked_path),
-            cursor_path=None,
-            blocking=True,
-        ),
-    )
-
-def test_submit_bookmarks_palette_with_invalid_path_shows_error() -> None:
-    state = build_initial_app_state(
-        config=AppConfig(bookmarks=BookmarkConfig(paths=("/tmp/does-not-exist",)))
-    )
-    state = replace(
-        state,
-        ui_mode="PALETTE",
-        command_palette=CommandPaletteState(source="bookmarks"),
-    )
-
-    next_state = _reduce_state(state, SubmitCommandPalette())
-
-    assert next_state.notification == NotificationState(
-        level="error",
-        message="Bookmarked path does not exist or is not a directory",
-    )
-
-def test_set_command_palette_query_updates_go_to_path_candidates(tmp_path) -> None:
-    state = _reduce_state(
-        replace(build_initial_app_state(), current_path=str(tmp_path)),
-        BeginGoToPath(),
-    )
-    (tmp_path / "docs").mkdir()
-    (tmp_path / "downloads").mkdir()
-
-    next_state = _reduce_state(
-        state,
-        SetCommandPaletteQuery("do"),
-    )
-
-    assert next_state.command_palette is not None
-    assert next_state.command_palette.history_and_navigation.go_to_path_candidates == (
-        str(tmp_path / "docs"),
-        str(tmp_path / "downloads"),
-    )
-
-def test_set_command_palette_query_resolves_relative_go_to_path_candidates(tmp_path) -> None:
-    state = _reduce_state(
-        replace(build_initial_app_state(), current_path=str(tmp_path)),
-        BeginGoToPath(),
-    )
-    (tmp_path / "projects").mkdir()
-    (tmp_path / "projects" / "zivo").mkdir()
-
-    next_state = _reduce_state(state, SetCommandPaletteQuery("projects/z"))
-
-    assert next_state.command_palette is not None
-    assert next_state.command_palette.history_and_navigation.go_to_path_candidates == (
-        str(tmp_path / "projects" / "zivo"),
-    )
-
-def test_set_command_palette_query_shows_root_directory_candidates_for_slash() -> None:
-    state = _reduce_state(
-        replace(build_initial_app_state(), current_path="/tmp"),
-        BeginGoToPath(),
-    )
-
-    next_state = _reduce_state(state, SetCommandPaletteQuery("/"))
-    expected_candidates = tuple(
-        sorted(
-            (
-                str(child.resolve())
-                for child in Path("/").iterdir()
-                if child.is_dir()
-            ),
-            key=lambda path: (natural_sort_key(Path(path).name), path),
-        )
-    )
-
-    assert next_state.command_palette is not None
-    nav = next_state.command_palette.history_and_navigation
-    assert nav.go_to_path_candidates == expected_candidates
-
-def test_submit_go_to_path_palette_requests_snapshot(tmp_path) -> None:
-    state = _reduce_state(
-        replace(build_initial_app_state(), current_path=str(tmp_path)),
-        BeginGoToPath(),
-    )
-    target_path = tmp_path / "docs"
-    target_path.mkdir()
-    state = _reduce_state(
-        state,
-        SetCommandPaletteQuery("do"),
-    )
-
-    result = reduce_app_state(state, SubmitCommandPalette())
-
-    assert result.state.ui_mode == "BUSY"
-    assert result.state.command_palette is None
-    assert result.effects == (
-        LoadBrowserSnapshotEffect(
-            request_id=1,
-            path=str(target_path),
-            cursor_path=None,
-            blocking=True,
-        ),
-    )
-
-def test_submit_go_to_path_palette_uses_selected_candidate(tmp_path) -> None:
-    state = _reduce_state(
-        replace(build_initial_app_state(), current_path=str(tmp_path)),
-        BeginGoToPath(),
-    )
-    (tmp_path / "alpha").mkdir()
-    (tmp_path / "beta").mkdir()
-    state = _reduce_state(state, SetCommandPaletteQuery(""))
-    state = replace(
-        state,
-        command_palette=replace(
-            state.command_palette,
-            query=str(tmp_path),
-            history_and_navigation=replace(
-                state.command_palette.history_and_navigation,
-                go_to_path_candidates=(str(tmp_path / "alpha"), str(tmp_path / "beta")),
-            ),
-            cursor_index=1,
-        ),
-    )
-
-    result = reduce_app_state(state, SubmitCommandPalette())
-
-    assert result.effects == (
-        LoadBrowserSnapshotEffect(
-            request_id=1,
-            path=str(tmp_path / "beta"),
-            cursor_path=None,
-            blocking=True,
-        ),
-    )
-
-def test_submit_go_to_path_palette_with_trailing_separator_uses_query_directory(tmp_path) -> None:
-    state = _reduce_state(
-        replace(build_initial_app_state(), current_path=str(tmp_path)),
-        BeginGoToPath(),
-    )
-    (tmp_path / "docs").mkdir()
-    (tmp_path / "docs" / "api").mkdir()
-    state = _reduce_state(state, SetCommandPaletteQuery("docs/"))
-
-    result = reduce_app_state(state, SubmitCommandPalette())
-
-    assert result.effects == (
-        LoadBrowserSnapshotEffect(
-            request_id=1,
-            path=str(tmp_path / "docs"),
-            cursor_path=None,
-            blocking=True,
-        ),
-    )
-
-def test_submit_go_to_path_palette_with_invalid_directory_shows_error() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginGoToPath())
-    state = _reduce_state(
-        state,
-        SetCommandPaletteQuery("/path/that/does/not/exist"),
-    )
-
-    next_state = _reduce_state(state, SubmitCommandPalette())
-
-    assert next_state.ui_mode == "PALETTE"
-    assert next_state.notification == NotificationState(
-        level="error",
-        message="Path does not exist or is not a directory",
-    )
-
-
-def test_set_command_palette_query_updates_windows_drive_candidates(monkeypatch) -> None:
-    monkeypatch.setattr("zivo.windows_paths.platform.system", lambda: "Windows")
-    monkeypatch.setattr(
-        "zivo.state.reducer_path_helpers.list_windows_drive_paths",
-        lambda: ("C:\\", "D:\\"),
-    )
-    state = _reduce_state(
-        replace(build_initial_app_state(), current_path=WINDOWS_DRIVES_ROOT),
-        BeginGoToPath(),
-    )
-
-    next_state = _reduce_state(state, SetCommandPaletteQuery("d"))
-
-    assert next_state.command_palette is not None
-    assert next_state.command_palette.history_and_navigation.go_to_path_candidates == ("D:\\",)
     state = _reduce_state(
         build_initial_app_state(config_path="/tmp/zivo/config.toml"),
         BeginCommandPalette(),
@@ -1004,6 +663,21 @@ def test_command_palette_exposes_one_unified_go_command() -> None:
 
     assert "go" in item_ids
     assert not item_ids.intersection({"history_search", "bookmark_search", "go_to_path"})
+
+
+def test_unified_go_command_advertises_g_shortcut_in_browser_and_transfer() -> None:
+    browser_state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    transfer_state = _reduce_state(
+        _reduce_state(build_initial_app_state(), ToggleTransferMode()),
+        BeginCommandPalette(),
+    )
+
+    for state in (browser_state, transfer_state):
+        go_item = next(
+            item for item in command_palette_module.get_command_palette_items(state)
+            if item.id == "go"
+        )
+        assert go_item.shortcut == "G"
 
 
 def test_go_candidates_merge_bookmark_and_recent_sources(tmp_path) -> None:

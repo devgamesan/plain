@@ -8,10 +8,11 @@ from zivo.models import (
     TextReplaceResult,
 )
 from zivo.state import (
+    CommandPaletteState,
     DirectoryEntryState,
     FileSearchResultState,
     GrepSearchResultState,
-    LoadBrowserSnapshotEffect,
+    LoadCurrentPaneEffect,
     NotificationState,
     PaneState,
     ReplacePreviewPaletteState,
@@ -28,6 +29,7 @@ from zivo.state.actions import (
     BeginFindAndReplace,
     BeginGrepReplace,
     BeginGrepReplaceSelected,
+    BeginReplaceFromSearchResults,
     BeginTextReplace,
     CancelCommandPalette,
     ConfirmReplaceTargets,
@@ -84,6 +86,67 @@ def test_begin_text_replace_enters_replace_mode() -> None:
     assert state.command_palette.replace_preview.target_paths == (
         "/home/tadashi/develop/zivo/README.md",
     )
+
+
+def test_begin_replace_from_find_results_uses_search_results_scope() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="file_search",
+            query="readme",
+            file_search=replace(
+                CommandPaletteState().file_search,
+                results=(
+                    FileSearchResultState("/tmp/README.md", "README.md", "file"),
+                    FileSearchResultState("/tmp/docs", "docs", "directory"),
+                ),
+            ),
+        ),
+    )
+
+    result = reduce_app_state(state, BeginReplaceFromSearchResults())
+
+    assert result.state.command_palette is not None
+    preview = result.state.command_palette.replace_preview
+    assert result.state.command_palette.source == "replace_text"
+    assert preview.scope == "search_results"
+    assert preview.find_text == "readme"
+    assert preview.target_paths == ("/tmp/README.md",)
+    assert preview.result_origin == "find"
+    assert preview.result_query == "readme"
+    assert preview.result_file_count == 1
+
+
+def test_begin_replace_from_grep_results_deduplicates_files_and_counts_matches() -> None:
+    path = "/tmp/README.md"
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="grep_search",
+            grep_search=replace(
+                CommandPaletteState().grep_search,
+                keyword="TODO",
+                results=(
+                    GrepSearchResultState(path, "README.md", 1, "TODO one"),
+                    GrepSearchResultState(path, "README.md", 4, "TODO two"),
+                    GrepSearchResultState("/tmp/src.py", "src.py", 2, "TODO three"),
+                ),
+            ),
+        ),
+    )
+
+    result = reduce_app_state(state, BeginReplaceFromSearchResults())
+
+    assert result.state.command_palette is not None
+    preview = result.state.command_palette.replace_preview
+    assert preview.scope == "search_results"
+    assert preview.find_text == "TODO"
+    assert preview.target_paths == (path, "/tmp/src.py")
+    assert preview.result_origin == "grep"
+    assert preview.result_file_count == 2
+    assert preview.result_match_count == 3
 
 
 def test_begin_text_replace_prefers_selected_files_scope() -> None:
@@ -372,11 +435,10 @@ def test_text_replace_applied_refreshes_current_directory() -> None:
         auto_dismiss=True,
     )
     assert result.effects == (
-        LoadBrowserSnapshotEffect(
+        LoadCurrentPaneEffect(
             request_id=1,
             path="/home/tadashi/develop/zivo",
             cursor_path="/home/tadashi/develop/zivo/README.md",
-            blocking=True,
             invalidate_paths=browser_snapshot_invalidation_paths(
                 "/home/tadashi/develop/zivo",
                 "/home/tadashi/develop/zivo/README.md",

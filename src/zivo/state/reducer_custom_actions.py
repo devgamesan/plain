@@ -15,10 +15,11 @@ from .actions import (
 from .effects import ReduceResult, RunCustomActionEffect
 from .models import (
     AppState,
+    BackgroundCommandState,
     CustomActionConfirmationState,
     NotificationState,
 )
-from .reducer_common import ReducerFn, finalize
+from .reducer_common import ReducerFn, finalize, request_external_directory_refresh
 from .reducer_mutations_common import MutationHandler
 
 
@@ -27,6 +28,18 @@ def _handle_begin_custom_action_confirmation(
     action: BeginCustomActionConfirmation,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     return finalize(
         replace(
             state,
@@ -60,22 +73,52 @@ def _handle_confirm_custom_action(
 ) -> ReduceResult:
     if state.custom_action_confirmation is None:
         return finalize(state)
+    if state.foreground_operation is not None:
+        return finalize(
+            replace(
+                state,
+                custom_action_confirmation=None,
+                ui_mode="BROWSING",
+                notification=NotificationState(
+                    level="warning",
+                    message=(
+                        f"{state.foreground_operation.kind.title()} is already in progress"
+                    ),
+                ),
+            )
+        )
     request = state.custom_action_confirmation.request
     request_id = state.next_request_id
     ui_mode = "BROWSING" if request.mode in ("terminal", "terminal_window") else "BUSY"
+    limits = state.config.background_commands
+    background_command = (
+        BackgroundCommandState(request_id=request_id, label=request.name)
+        if request.mode == "background"
+        else None
+    )
     return finalize(
         replace(
             state,
             ui_mode=ui_mode,
             notification=NotificationState(
                 level="info",
-                message=f"Running custom action: {request.name}",
+                message=(
+                    f"Running custom action: {request.name} — Esc cancel"
+                    if request.mode == "background"
+                    else f"Running custom action: {request.name}"
+                ),
             ),
             custom_action_confirmation=None,
             pending_custom_action_request_id=request_id,
+            background_command=background_command,
             next_request_id=request_id + 1,
         ),
-        RunCustomActionEffect(request_id=request_id, request=request),
+        RunCustomActionEffect(
+            request_id=request_id,
+            request=request,
+            max_output_bytes=limits.max_output_kib * 1024,
+            timeout_seconds=limits.timeout_seconds,
+        ),
     )
 
 
@@ -91,17 +134,24 @@ def _handle_custom_action_completed(
         action.result.result,
         mode=action.request.mode,
     )
-    return finalize(
-        replace(
-            state,
-            ui_mode="BROWSING",
-            pending_custom_action_request_id=None,
-            notification=NotificationState(
-                level=level,
-                message=message,
-                auto_dismiss=level == "info",
-            ),
-        )
+    notification = NotificationState(
+        level=level,
+        message=message,
+        auto_dismiss=level == "info",
+    )
+    next_state = replace(
+        state,
+        ui_mode="BROWSING",
+        pending_custom_action_request_id=None,
+        background_command=None,
+        notification=notification,
+    )
+    if action.request.mode == "terminal_window":
+        return finalize(next_state)
+    return request_external_directory_refresh(
+        next_state,
+        directory_path=action.request.cwd,
+        notification=notification,
     )
 
 
@@ -117,6 +167,7 @@ def _handle_custom_action_failed(
             state,
             ui_mode="BROWSING",
             pending_custom_action_request_id=None,
+            background_command=None,
             notification=NotificationState(
                 level="error",
                 message=f"{action.request.name} failed: {action.message}",
@@ -132,17 +183,32 @@ def _notification_for_custom_action(name: str, result, *, mode: str) -> tuple[st
         return ("info", f"{name} started in new terminal")
     if result is None:
         return ("info", f"{name} finished")
+    if result.termination_reason == "timed_out":
+        timeout = result.timeout_seconds or 0
+        return ("error", f"{name} stopped after {timeout} seconds")
+    if result.termination_reason == "cancelled":
+        return ("warning", f"{name} cancelled")
+    truncated = result.stdout_truncated or result.stderr_truncated
+    omitted = "; output omitted" if truncated else ""
     if result.exit_code == 0:
         detail = _first_output_line(result.stdout)
         if detail is None:
-            return ("info", f"{name} finished successfully")
-        return ("info", shorten(detail, width=120, placeholder="..."))
+            return (
+                "warning" if truncated else "info",
+                f"{name} finished successfully{omitted}",
+            )
+        message = shorten(detail, width=120, placeholder="...")
+        return ("warning" if truncated else "info", f"{message}{omitted}")
     detail = _first_output_line(result.stderr) or _first_output_line(result.stdout)
     if detail is None:
-        return ("error", f"{name} failed with exit code {result.exit_code}")
+        return ("error", f"{name} failed with exit code {result.exit_code}{omitted}")
     return (
         "error",
-        shorten(f"{name} failed ({result.exit_code}): {detail}", width=120, placeholder="..."),
+        shorten(
+            f"{name} failed ({result.exit_code}): {detail}{omitted}",
+            width=120,
+            placeholder="...",
+        ),
     )
 
 

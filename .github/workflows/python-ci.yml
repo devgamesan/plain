@@ -13,6 +13,41 @@ on:
       - feat/windows
 
 jobs:
+  dependency-audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Python with uv
+        uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Check lockfile
+        run: uv lock --check
+
+      - name: Install audit dependencies
+        run: uv sync --locked --dev --no-install-project
+
+      - name: Export production dependencies
+        run: >
+          uv export --frozen
+          --no-dev
+          --no-emit-project
+          --format requirements.txt
+          --output-file "$RUNNER_TEMP/zivo-production-requirements.txt"
+
+      - name: Audit production dependencies
+        run: >
+          uv run --locked --no-sync pip-audit
+          --no-deps
+          --disable-pip
+          --requirement "$RUNNER_TEMP/zivo-production-requirements.txt"
+
   lint-and-test:
     runs-on: ${{ matrix.os }}
 
@@ -21,9 +56,9 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - uses: astral-sh/setup-uv@v8.0.0
+      - uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
         with:
           python-version: "3.12"
 
@@ -50,7 +85,7 @@ jobs:
       - name: Lint
         run: uv run ruff check .
 
-      - name: Test (Linux/macOS)
+      - name: Test (Linux/macOS full suite)
         if: runner.os != 'Windows'
         env:
           TMPDIR: ${{ runner.temp }}/zivo-tmp
@@ -58,12 +93,17 @@ jobs:
           TEMP: ${{ runner.temp }}/zivo-tmp
         run: uv run pytest
 
-      - name: Test (Windows regression subset)
+      - name: Test (Windows supported regression scope)
         if: runner.os == 'Windows'
         env:
           TMPDIR: ${{ runner.temp }}/zivo-tmp
           TMP: ${{ runner.temp }}/zivo-tmp
           TEMP: ${{ runner.temp }}/zivo-tmp
+        # The full suite was evaluated for Issue #1160. It currently has
+        # 24 native-Windows failures (POSIX path/newline assumptions,
+        # chmod/chown semantics, and platform-specific UI timing). Keep the
+        # established file-operation/search/config regression scope explicit
+        # until those tests are ported.
         run: >
           uv run pytest
           tests/test_adapters_file_operations.py

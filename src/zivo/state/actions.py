@@ -48,6 +48,7 @@ from .actions_mutations import (
     BeginDeleteTargets,
     BeginExitCurrentPath,
     CancelArchiveExtractConfirmation,
+    CancelBackgroundCommand,
     CancelCustomActionConfirmation,
     CancelDeleteConfirmation,
     CancelExitConfirmation,
@@ -67,6 +68,7 @@ from .actions_mutations import (
     CopyTargets,
     CutTargets,
     DuplicateTargets,
+    ForegroundOperationAborted,
     PasteClipboard,
     ResolvePasteConflict,
     SelectAllVisibleEntries,
@@ -123,10 +125,12 @@ __all__ = [
     "BeginExitCurrentPath",
     "BeginCustomActionConfirmation",
     "CancelArchiveExtractConfirmation",
+    "CancelBackgroundCommand",
     "CancelCustomActionConfirmation",
     "CancelDeleteConfirmation",
     "CancelExitConfirmation",
     "CancelForegroundOperation",
+    "ForegroundOperationAborted",
     "CancelPasteConflict",
     "CancelReplaceConfirmation",
     "CancelSymlinkOverwriteConfirmation",
@@ -204,11 +208,10 @@ from .actions_palette import (
     BeginFileSearch,
     BeginFindAndReplace,
     BeginGo,
-    BeginGoToPath,
     BeginGrepReplace,
     BeginGrepReplaceSelected,
     BeginGrepSearch,
-    BeginHistorySearch,
+    BeginReplaceFromSearchResults,
     BeginTextReplace,
     CancelCommandPalette,
     CycleFileSearchField,
@@ -219,10 +222,14 @@ from .actions_palette import (
     CycleReplaceField,
     FileSearchCompleted,
     FileSearchFailed,
+    FileSearchResultsUpdated,
+    GoPathCompletionCompleted,
+    GoPathCompletionFailed,
     GrepExportCompleted,
     GrepExportFailed,
     GrepSearchCompleted,
     GrepSearchFailed,
+    GrepSearchResultsUpdated,
     MoveCommandPaletteCursor,
     OpenFindResultInEditor,
     OpenFindResultInGuiEditor,
@@ -231,6 +238,7 @@ from .actions_palette import (
     OpenSearchWorkspace,
     SaveGrepResults,
     SetCommandPaletteQuery,
+    SetFileSearchField,
     SetFileSearchTarget,
     SetFindReplaceField,
     SetGrepReplaceField,
@@ -263,6 +271,8 @@ from .actions_runtime import (
     ClipboardPasteCompleted,
     ClipboardPasteFailed,
     ClipboardPasteNeedsResolution,
+    ConfigReloadCompleted,
+    ConfigReloadFailed,
     ConfigSaveCompleted,
     ConfigSaveFailed,
     CurrentPaneSnapshotLoaded,
@@ -304,6 +314,7 @@ from .actions_ui import (
     SetNotification,
     SetPendingKeySequence,
     SetTerminalHeight,
+    SetTerminalSize,
     SetTerminalWidth,
     SetUiMode,
     ToggleNarrowPaneView,
@@ -318,6 +329,7 @@ Action = (
     | ActivateNotificationAction
     | DismissNotification
     | SetTerminalHeight
+    | SetTerminalSize
     | SetTerminalWidth
     | ToggleNarrowPaneView
     | BeginFileSearch
@@ -325,15 +337,15 @@ Action = (
     | SaveGrepResults
     | GrepExportCompleted
     | GrepExportFailed
-    | BeginHistorySearch
     | BeginBookmarkSearch
-    | BeginGoToPath
     | BeginGo
     | BeginTextReplace
     | BeginFindAndReplace
     | BeginGrepReplace
     | BeginGrepReplaceSelected
+    | BeginReplaceFromSearchResults
     | CycleFileSearchField
+    | SetFileSearchField
     | SetFileSearchTarget
     | BeginCommandPalette
     | CancelCommandPalette
@@ -354,8 +366,12 @@ Action = (
     | SubmitCommandPalette
     | FileSearchCompleted
     | FileSearchFailed
+    | FileSearchResultsUpdated
     | GrepSearchCompleted
     | GrepSearchFailed
+    | GrepSearchResultsUpdated
+    | GoPathCompletionCompleted
+    | GoPathCompletionFailed
     | TextReplacePreviewCompleted
     | TextReplacePreviewFailed
     | TextReplaceApplied
@@ -466,6 +482,8 @@ Action = (
     | ResolvePasteConflict
     | CancelPasteConflict
     | CancelForegroundOperation
+    | CancelBackgroundCommand
+    | ForegroundOperationAborted
     | ConfirmDeleteTargets
     | CancelDeleteConfirmation
     | BeginExitCurrentPath
@@ -526,6 +544,8 @@ Action = (
     | ShellCommandFailed
     | ConfigSaveCompleted
     | ConfigSaveFailed
+    | ConfigReloadCompleted
+    | ConfigReloadFailed
     | CustomActionCompleted
     | CustomActionFailed
 )

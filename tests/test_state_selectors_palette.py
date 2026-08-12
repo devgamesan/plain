@@ -37,14 +37,8 @@ test_select_command_palette_state_for_grep_search_results = (
 test_select_command_palette_state_for_text_replace_includes_input_fields = (
     cases.test_select_command_palette_state_for_text_replace_includes_input_fields
 )
-test_select_command_palette_state_go_to_path_can_show_candidates_without_selection = (
-    cases.test_select_command_palette_state_go_to_path_can_show_candidates_without_selection
-)
 test_select_command_palette_state_marks_selected_and_enabled_items = (
     cases.test_select_command_palette_state_marks_selected_and_enabled_items
-)
-test_select_command_palette_state_shows_bookmark_items = (
-    cases.test_select_command_palette_state_shows_bookmark_items
 )
 test_select_command_palette_state_shows_compress_as_zip_for_multiple_targets = (
     cases.test_select_command_palette_state_shows_compress_as_zip_for_multiple_targets
@@ -54,9 +48,6 @@ test_select_command_palette_state_shows_copy_path_shortcut = (
 )
 test_select_command_palette_state_shows_extract_archive_for_supported_file = (
     cases.test_select_command_palette_state_shows_extract_archive_for_supported_file
-)
-test_select_command_palette_state_shows_go_to_path_candidates = (
-    cases.test_select_command_palette_state_shows_go_to_path_candidates
 )
 test_select_command_palette_state_shows_grep_searching_message = (
     cases.test_select_command_palette_state_shows_grep_searching_message

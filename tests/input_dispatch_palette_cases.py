@@ -1,5 +1,13 @@
 # ruff: noqa: F403,F405
 
+import pytest
+
+from zivo.state.actions import (
+    CycleGrepReplaceField,
+    CycleGrepReplaceSelectedField,
+    CycleReplaceField,
+)
+
 from .input_dispatch_helpers import *
 
 
@@ -29,6 +37,7 @@ def test_palette_down_moves_cursor() -> None:
 
 def test_palette_ctrl_e_opens_grep_result_in_editor() -> None:
     from zivo.state.models import CommandPaletteState
+
     state = replace(
         build_initial_app_state(),
         ui_mode="PALETTE",
@@ -45,6 +54,7 @@ def test_palette_ctrl_e_opens_grep_result_in_editor() -> None:
 
 def test_palette_ctrl_e_opens_find_result_in_editor() -> None:
     from zivo.state.models import CommandPaletteState
+
     state = replace(
         build_initial_app_state(),
         ui_mode="PALETTE",
@@ -59,8 +69,23 @@ def test_palette_ctrl_e_opens_find_result_in_editor() -> None:
     assert actions == (SetNotification(None), OpenFindResultInEditor())
 
 
+def test_palette_ctrl_r_starts_replace_from_find_results() -> None:
+    from zivo.state.models import CommandPaletteState
+
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(source="file_search"),
+    )
+
+    actions = dispatch_key_input(state, key="ctrl+r")
+
+    assert actions == (SetNotification(None), BeginReplaceFromSearchResults())
+
+
 def test_palette_ctrl_o_opens_grep_result_in_gui_editor() -> None:
     from zivo.state.models import CommandPaletteState
+
     state = replace(
         build_initial_app_state(),
         ui_mode="PALETTE",
@@ -77,6 +102,7 @@ def test_palette_ctrl_o_opens_grep_result_in_gui_editor() -> None:
 
 def test_palette_ctrl_o_opens_find_result_in_gui_editor() -> None:
     from zivo.state.models import CommandPaletteState
+
     state = replace(
         build_initial_app_state(),
         ui_mode="PALETTE",
@@ -93,6 +119,7 @@ def test_palette_ctrl_o_opens_find_result_in_gui_editor() -> None:
 
 def test_palette_e_key_does_not_open_editor_for_other_sources() -> None:
     from zivo.state.models import CommandPaletteState
+
     state = replace(
         build_initial_app_state(),
         ui_mode="PALETTE",
@@ -110,6 +137,7 @@ def test_palette_e_key_does_not_open_editor_for_other_sources() -> None:
 
 def test_palette_ctrl_n_moves_cursor_down_in_grep_palette() -> None:
     from zivo.state.models import CommandPaletteState
+
     state = replace(
         build_initial_app_state(),
         ui_mode="PALETTE",
@@ -126,6 +154,7 @@ def test_palette_ctrl_n_moves_cursor_down_in_grep_palette() -> None:
 
 def test_palette_ctrl_k_moves_cursor_up_in_grep_palette() -> None:
     from zivo.state.models import CommandPaletteState
+
     state = replace(
         build_initial_app_state(),
         ui_mode="PALETTE",
@@ -142,6 +171,7 @@ def test_palette_ctrl_k_moves_cursor_up_in_grep_palette() -> None:
 
 def test_palette_ctrl_j_moves_cursor_down_in_file_search_palette() -> None:
     from zivo.state.models import CommandPaletteState
+
     state = replace(
         build_initial_app_state(),
         ui_mode="PALETTE",
@@ -158,6 +188,7 @@ def test_palette_ctrl_j_moves_cursor_down_in_file_search_palette() -> None:
 
 def test_palette_ctrl_k_moves_cursor_up_in_file_search_palette() -> None:
     from zivo.state.models import CommandPaletteState
+
     state = replace(
         build_initial_app_state(),
         ui_mode="PALETTE",
@@ -210,12 +241,61 @@ def test_palette_ctrl_k_moves_cursor_up_in_replace_palette() -> None:
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=-1))
 
 
+def test_replace_palette_j_and_k_are_text_input() -> None:
+    from zivo.state.models import CommandPaletteState
+
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="replace_text",
+            replace_preview=ReplacePreviewPaletteState(find_text="todo"),
+        ),
+    )
+
+    assert dispatch_key_input(state, key="j", character="j") == (
+        SetNotification(None),
+        SetReplaceField(field="find", value="todoj"),
+    )
+    assert dispatch_key_input(state, key="k", character="k") == (
+        SetNotification(None),
+        SetReplaceField(field="find", value="todok"),
+    )
+
+
 def test_palette_printable_key_updates_query() -> None:
     state = replace(build_initial_app_state(), ui_mode="PALETTE")
 
     actions = dispatch_key_input(state, key="f", character="f")
 
     assert actions == (SetNotification(None), SetCommandPaletteQuery("f"))
+
+
+def test_file_search_tab_cycles_through_extension_fields() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(source="file_search"),
+    )
+
+    actions = dispatch_key_input(state, key="tab")
+
+    assert actions == (SetNotification(None), CycleFileSearchField(delta=1))
+
+
+def test_file_search_printable_key_updates_include_field() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="file_search",
+            file_search=FileSearchPaletteState(active_field="include"),
+        ),
+    )
+
+    actions = dispatch_key_input(state, key="p", character="p")
+
+    assert actions == (SetNotification(None), SetFileSearchField(field="include", value="p"))
 
 
 def test_go_palette_j_and_k_are_query_input() -> None:
@@ -447,3 +527,103 @@ def test_palette_ctrl_x_works_for_grep_search_source() -> None:
     actions = dispatch_key_input(state, key="ctrl+x")
 
     assert actions == (SetNotification(None), SaveGrepResults())
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        "commands",
+        "go",
+        "file_search",
+        "grep_search",
+        "replace_text",
+        "replace_in_found_files",
+        "replace_in_grep_files",
+        "grep_replace_selected",
+    ),
+)
+def test_palette_sources_share_lifecycle_and_cursor_keys(source: str) -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(source=source),
+    )
+
+    assert dispatch_key_input(state, key="escape") == (
+        SetNotification(None),
+        CancelCommandPalette(),
+    )
+    assert dispatch_key_input(state, key="enter") == (
+        SetNotification(None),
+        SubmitCommandPalette(),
+    )
+    assert dispatch_key_input(state, key="home") == (
+        SetNotification(None),
+        MoveCommandPaletteCursor(delta=-999999),
+    )
+    assert dispatch_key_input(state, key="end") == (
+        SetNotification(None),
+        MoveCommandPaletteCursor(delta=999999),
+    )
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    (
+        ("file_search", CycleFileSearchField(delta=1)),
+        ("grep_search", CycleGrepSearchField(delta=1)),
+        ("replace_text", CycleReplaceField(delta=1)),
+        ("replace_in_found_files", CycleFindReplaceField(delta=1)),
+        ("replace_in_grep_files", CycleGrepReplaceField(delta=1)),
+        ("grep_replace_selected", CycleGrepReplaceSelectedField(delta=1)),
+    ),
+)
+def test_palette_field_sources_dispatch_tab_to_their_handler(source: str, expected) -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(source=source),
+    )
+
+    assert dispatch_key_input(state, key="tab") == (SetNotification(None), expected)
+
+
+def test_go_palette_tab_without_candidates_keeps_completion_warning() -> None:
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="go",
+            query="no-such-directory-zzzz",
+        ),
+    )
+
+    assert dispatch_key_input(state, key="tab") == (
+        SetNotification(
+            NotificationState(
+                level="warning",
+                message="No matching directory to complete",
+            )
+        ),
+    )
+
+
+def test_history_filtered_go_palette_keeps_go_input_behavior() -> None:
+    from zivo.state.models import HistoryAndNavigationPaletteState
+
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="go",
+            history_and_navigation=HistoryAndNavigationPaletteState(
+                go_source_filter="recent",
+            ),
+            query="ab",
+        ),
+    )
+
+    assert dispatch_key_input(state, key="j", character="j") == (
+        SetNotification(None),
+        SetCommandPaletteQuery("abj"),
+    )

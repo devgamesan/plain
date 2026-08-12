@@ -10,7 +10,7 @@ from textual.css.query import NoMatches
 from textual.message import Message
 from textual.widgets import Label, Static
 
-from zivo.models.shell_data import PaneEntry
+from zivo.models.shell_data import PaneEntry, PaneStatusViewState
 
 from .pane_rendering import (
     FILE_TYPE_COMPONENT_CLASSES,
@@ -18,6 +18,8 @@ from .pane_rendering import (
     _render_file_entries,
     _resolve_component_styles,
 )
+from .pane_status import render_pane_status
+from .resize_debounce import ResizeDebouncer
 
 
 class SidePane(Vertical):
@@ -41,17 +43,24 @@ class SidePane(Vertical):
         title: str,
         entries: Sequence[PaneEntry],
         *,
+        status: PaneStatusViewState | None = None,
         id: str | None = None,
         classes: str | None = None,
     ) -> None:
         super().__init__(id=id, classes=classes)
         self._title = title
         self._entries = tuple(entries)
+        self._status = status
         self._ft_styles: dict[str, Style] = {}
         self._last_render_width = 0
         self._last_clicked_path: str | None = None
         self._hovered_path: str | None = None
         self._label_cache = _FileEntryLabelCache()
+        self._resize_debouncer = ResizeDebouncer(
+            self,
+            self._refresh_after_resize,
+            name="side-pane-resize-debounce",
+        )
 
     @property
     def list_view_id(self) -> str | None:
@@ -74,6 +83,14 @@ class SidePane(Vertical):
         )
         content.can_focus = False
         yield content
+        status = Static(
+            render_pane_status(self._status),
+            id=f"{self.id}-status" if self.id else None,
+            classes="pane-status",
+        )
+        status.display = self._status is not None
+        status.can_focus = False
+        yield status
 
     def set_title(self, title: str) -> None:
         """Update the selector-owned pane title without remounting rows."""
@@ -83,11 +100,30 @@ class SidePane(Vertical):
         self._title = title
         self.query_one(".pane-title", Label).update(title)
 
+    def set_status(self, status: PaneStatusViewState | None) -> None:
+        """Update the explicit side-pane status without remounting rows."""
+
+        if status == self._status:
+            return
+        self._status = status
+        try:
+            widget = self.query_one(".pane-status", Static)
+        except NoMatches:
+            return
+        widget.display = status is not None
+        widget.update(render_pane_status(status))
+
     def on_mount(self) -> None:
         self._ft_styles = _resolve_component_styles(self)
         self.call_after_refresh(self._refresh_rendered_labels)
 
     def on_resize(self, _event: events.Resize) -> None:
+        self._resize_debouncer.schedule()
+
+    def on_unmount(self) -> None:
+        self._resize_debouncer.stop()
+
+    def _refresh_after_resize(self) -> None:
         self._refresh_rendered_labels()
 
     def on_click(self, event: events.Click) -> None:

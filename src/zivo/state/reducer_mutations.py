@@ -1,6 +1,12 @@
 """Mutation reducer dispatcher."""
 
-from .actions import Action, CancelForegroundOperation, ForegroundOperationProgress
+from .actions import (
+    Action,
+    CancelBackgroundCommand,
+    CancelForegroundOperation,
+    ForegroundOperationAborted,
+    ForegroundOperationProgress,
+)
 from .effects import ReduceResult
 from .models import AppState
 from .reducer_common import ReducerFn
@@ -9,7 +15,9 @@ from .reducer_mutations_archive import ARCHIVE_MUTATION_HANDLERS
 from .reducer_mutations_bulk_rename import BULK_RENAME_MUTATION_HANDLERS
 from .reducer_mutations_common import (
     MutationHandler,
+    handle_cancel_background_command,
     handle_cancel_foreground_operation,
+    handle_foreground_operation_aborted,
     handle_foreground_operation_progress,
 )
 from .reducer_mutations_delete import DELETE_MUTATION_HANDLERS
@@ -30,7 +38,9 @@ _MUTATION_HANDLERS: dict[type[Action], MutationHandler] = {
     **UNDO_MUTATION_HANDLERS,
     **CUSTOM_ACTION_HANDLERS,
     CancelForegroundOperation: handle_cancel_foreground_operation,
+    CancelBackgroundCommand: handle_cancel_background_command,
     ForegroundOperationProgress: handle_foreground_operation_progress,
+    ForegroundOperationAborted: handle_foreground_operation_aborted,
 }
 
 

@@ -239,16 +239,15 @@ def _handle_archive_extract_completed(state, action, reduce_state):
         zip_compress_confirmation=None,
         zip_compress_progress=None,
         post_reload_notification=result_notification,
-        ui_mode="BROWSING",
     )
     return reduce_state(
         next_state,
         RequestBrowserSnapshot(
-            path=str(Path(action.result.destination_path).parent),
-            cursor_path=action.result.destination_path,
-            blocking=True,
+            path=state.current_path,
+            cursor_path=state.current_pane.cursor_path,
+            blocking=False,
             invalidate_paths=browser_snapshot_invalidation_paths(
-                str(Path(action.result.destination_path).parent),
+                state.current_path,
                 action.result.destination_path,
             ),
         ),
@@ -301,6 +300,7 @@ def _handle_zip_compress_preparation_completed(state, action, reduce_state):
             pending_zip_compress_prepare_request=None,
             zip_compress_confirmation=None,
             zip_compress_progress=None,
+            ui_mode=restore_ui_mode_after_pending_input(state),
         ),
         action.request,
     )
@@ -400,16 +400,15 @@ def _handle_zip_compress_completed(state, action, reduce_state):
         pending_zip_compress_prepare_request=None,
         pending_zip_compress_request_id=None,
         post_reload_notification=result_notification,
-        ui_mode="BROWSING",
     )
     return reduce_state(
         next_state,
         RequestBrowserSnapshot(
-            path=str(Path(action.result.destination_path).parent),
-            cursor_path=action.result.destination_path,
-            blocking=True,
+            path=state.current_path,
+            cursor_path=state.current_pane.cursor_path,
+            blocking=False,
             invalidate_paths=browser_snapshot_invalidation_paths(
-                str(Path(action.result.destination_path).parent),
+                state.current_path,
                 action.result.destination_path,
             ),
         ),
@@ -427,7 +426,7 @@ def _handle_zip_compress_failed(state, action, reduce_state):
             pending_zip_compress_request_id=None,
             zip_compress_progress=None,
             zip_compress_confirmation=None,
-            ui_mode=restore_ui_mode_after_pending_input(state),
+            ui_mode=("BROWSING" if state.ui_mode == "BUSY" else state.ui_mode),
         )
     )
 

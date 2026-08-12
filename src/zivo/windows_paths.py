@@ -89,6 +89,10 @@ def display_path(path: str) -> str:
         params = parse_search_workspace_path(path)
         query = params["query"] or "all"
         parts = [f"search:{query}"]
+        if params["include"]:
+            parts.append(f" (include:{params['include']})")
+        if params["exclude"]:
+            parts.append(f" (exclude:{params['exclude']})")
         if params["root"]:
             parts.append(f" (root:{params['root']})")
         return "".join(parts)
@@ -251,7 +255,7 @@ def parse_search_workspace_path(path: str) -> dict[str, str | None]:
         path: A search:// URL (e.g., "search://filename%3Apy?target=all&hidden=false&root=%2Fhome")
 
     Returns:
-        A dictionary with keys: query, target, hidden, root
+        A dictionary with keys: query, target, hidden, root, include, exclude
     """
     from urllib.parse import parse_qs, unquote, urlparse
 
@@ -263,6 +267,8 @@ def parse_search_workspace_path(path: str) -> dict[str, str | None]:
         "target": params.get("target", [None])[0],
         "hidden": params.get("hidden", [None])[0],
         "root": unquote(params.get("root", [None])[0]) if params.get("root") else None,
+        "include": params.get("include", [None])[0],
+        "exclude": params.get("exclude", [None])[0],
     }
 
 

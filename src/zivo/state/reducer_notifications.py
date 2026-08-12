@@ -96,16 +96,31 @@ def handle_notification_action(
     """Execute a notification action through the existing reducer paths."""
 
     notification = state.notification
-    if notification is None or state.notification_revision != action.revision:
+    if state.notification_revision != action.revision:
         return finalize(state)
-    notification_action = notification.action
+    notification_action = (
+        notification.action
+        if notification is not None
+        else (
+            state.notification_details.recovery_action
+            if state.notification_details is not None
+            else None
+        )
+    )
     if notification_action is None or notification_action.action_id != action.action_id:
         return finalize(state)
 
     if action.action_id == "notification.details":
+        if notification is None:
+            return finalize(state)
         if notification.details is None:
             return finalize(_consume_notification(state))
         return _show_notification_details(state, notification.details)
+
+    if action.action_id == "notification.shell_result":
+        if state.shell_command is None or state.shell_command.result is None:
+            return finalize(_consume_notification(state))
+        return finalize(replace(_consume_notification(state), ui_mode="SHELL"))
 
     if action.action_id == "notification.open_destination":
         destination_path = notification.destination_path

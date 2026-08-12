@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from zivo.models import TextReplacePreviewResult, TextReplaceResult
 
 from .models import (
+    FileSearchFieldId,
     FileSearchResultState,
     FindReplaceFieldId,
     GoSourceFilter,
@@ -14,6 +15,7 @@ from .models import (
     GrepSearchResultState,
     GrepSearchScope,
     ReplaceFieldId,
+    ReplaceResultOrigin,
     ReplaceScope,
 )
 
@@ -32,18 +34,8 @@ class BeginGrepSearch:
 
 
 @dataclass(frozen=True)
-class BeginHistorySearch:
-    """Open the command palette in directory history mode."""
-
-
-@dataclass(frozen=True)
 class BeginBookmarkSearch:
     """Open the command palette in bookmark-list mode."""
-
-
-@dataclass(frozen=True)
-class BeginGoToPath:
-    """Open the command palette in go-to-path mode."""
 
 
 @dataclass(frozen=True)
@@ -58,6 +50,15 @@ class BeginTextReplace:
     """Open the command palette in the unified text-replace mode."""
 
     target_paths: tuple[str, ...] = ()
+    result_origin: ReplaceResultOrigin | None = None
+    result_query: str = ""
+    result_file_count: int = 0
+    result_match_count: int = 0
+
+
+@dataclass(frozen=True)
+class BeginReplaceFromSearchResults:
+    """Open replacement for the currently displayed Find/Grep results."""
 
 
 @dataclass(frozen=True)
@@ -96,6 +97,14 @@ class SetFileSearchTarget:
     """Change the file-search target scope."""
 
     target: str
+
+
+@dataclass(frozen=True)
+class SetFileSearchField:
+    """Update one file-search input field."""
+
+    field: FileSearchFieldId
+    value: str
 
 
 @dataclass(frozen=True)
@@ -206,6 +215,17 @@ class FileSearchCompleted:
     request_id: int
     query: str
     results: tuple[FileSearchResultState, ...]
+    truncated: bool = False
+
+
+@dataclass(frozen=True)
+class FileSearchResultsUpdated:
+    """Apply a partial batch of file-search results."""
+
+    request_id: int
+    query: str
+    results: tuple[FileSearchResultState, ...]
+    truncated: bool = False
 
 
 @dataclass(frozen=True)
@@ -225,6 +245,17 @@ class GrepSearchCompleted:
     request_id: int
     query: str
     results: tuple[GrepSearchResultState, ...]
+    truncated: bool = False
+
+
+@dataclass(frozen=True)
+class GrepSearchResultsUpdated:
+    """Apply a partial batch of grep-search results."""
+
+    request_id: int
+    query: str
+    results: tuple[GrepSearchResultState, ...]
+    truncated: bool = False
 
 
 @dataclass(frozen=True)
@@ -235,6 +266,25 @@ class GrepSearchFailed:
     query: str
     message: str
     invalid_query: bool = False
+
+
+@dataclass(frozen=True)
+class GoPathCompletionCompleted:
+    """Apply direct Go destination completion results."""
+
+    request_id: int
+    query: str
+    paths: tuple[str, ...]
+    truncated: bool = False
+
+
+@dataclass(frozen=True)
+class GoPathCompletionFailed:
+    """Apply a terminal Go destination completion failure."""
+
+    request_id: int
+    query: str
+    message: str
 
 
 @dataclass(frozen=True)

@@ -4,8 +4,10 @@ from collections.abc import Callable
 from typing import Any
 
 from zivo.app_runtime_core import CompleteActionHandler, FailureActionHandler, find_handler
+from zivo.app_runtime_search import SearchWorkerResult
 from zivo.models import (
     BulkRenameExecutionResult,
+    ConfigLoadResult,
     CreateZipArchivePreparationResult,
     CreateZipArchiveResult,
     CustomActionResult,
@@ -22,6 +24,7 @@ from zivo.models import (
     UndoResult,
 )
 from zivo.services import (
+    GoPathCompletionResult,
     InvalidFileSearchQueryError,
     InvalidGrepSearchQueryError,
     InvalidTextReplaceQueryError,
@@ -38,6 +41,7 @@ from zivo.state import (
     RunAttributeInspectionEffect,
     RunBulkRenameEffect,
     RunClipboardPasteEffect,
+    RunConfigReloadEffect,
     RunConfigSaveEffect,
     RunCustomActionEffect,
     RunDeletePreparationEffect,
@@ -46,6 +50,7 @@ from zivo.state import (
     RunExternalLaunchEffect,
     RunFileMutationEffect,
     RunFileSearchEffect,
+    RunGoPathCompletionEffect,
     RunGrepExportEffect,
     RunGrepSearchEffect,
     RunShellCommandEffect,
@@ -71,6 +76,8 @@ from zivo.state.actions import (
     ClipboardPasteCompleted,
     ClipboardPasteFailed,
     ClipboardPasteNeedsResolution,
+    ConfigReloadCompleted,
+    ConfigReloadFailed,
     ConfigSaveCompleted,
     ConfigSaveFailed,
     CurrentPaneSnapshotLoaded,
@@ -88,6 +95,8 @@ from zivo.state.actions import (
     FileMutationFailed,
     FileSearchCompleted,
     FileSearchFailed,
+    GoPathCompletionCompleted,
+    GoPathCompletionFailed,
     GrepExportCompleted,
     GrepExportFailed,
     GrepSearchCompleted,
@@ -331,6 +340,18 @@ def complete_config_save(effect: RunConfigSaveEffect, result: object) -> tuple[A
     )
 
 
+def complete_config_reload(
+    effect: RunConfigReloadEffect,
+    result: ConfigLoadResult,
+) -> tuple[Any, ...]:
+    return (
+        ConfigReloadCompleted(
+            request_id=effect.request_id,
+            result=result,
+        ),
+    )
+
+
 def complete_directory_sizes(
     effect: RunDirectorySizeEffect,
     result: object,
@@ -395,21 +416,63 @@ def complete_custom_action(
 
 
 def complete_file_search(effect: RunFileSearchEffect, result: object) -> tuple[Any, ...]:
+    if isinstance(result, SearchWorkerResult):
+        results = result.results
+        truncated = result.truncated
+    else:
+        results = result
+        truncated = False
     return (
         FileSearchCompleted(
             request_id=effect.request_id,
             query=effect.query,
-            results=result,
+            results=results,
+            truncated=truncated,
         ),
     )
 
 
 def complete_grep_search(effect: RunGrepSearchEffect, result: object) -> tuple[Any, ...]:
+    if isinstance(result, SearchWorkerResult):
+        results = result.results
+        truncated = result.truncated
+    else:
+        results = result
+        truncated = False
     return (
         GrepSearchCompleted(
             request_id=effect.request_id,
             query=effect.query,
-            results=result,
+            results=results,
+            truncated=truncated,
+        ),
+    )
+
+
+def complete_go_path_completion(
+    effect: RunGoPathCompletionEffect,
+    result: object,
+) -> tuple[Any, ...]:
+    if isinstance(result, GoPathCompletionResult):
+        paths = result.paths
+        truncated = result.truncated
+        if result.error_message is not None:
+            return (
+                GoPathCompletionFailed(
+                    request_id=effect.request_id,
+                    query=effect.query,
+                    message=result.error_message,
+                ),
+            )
+    else:
+        paths = tuple(result)
+        truncated = False
+    return (
+        GoPathCompletionCompleted(
+            request_id=effect.request_id,
+            query=effect.query,
+            paths=paths,
+            truncated=truncated,
         ),
     )
 
@@ -478,6 +541,7 @@ failed_archive_extract = make_failed_handler(ArchiveExtractFailed)
 failed_zip_compress_preparation = make_failed_handler(ZipCompressPreparationFailed)
 failed_zip_compress = make_failed_handler(ZipCompressFailed)
 failed_config_save = make_failed_handler(ConfigSaveFailed)
+failed_config_reload = make_failed_handler(ConfigReloadFailed)
 failed_directory_sizes = make_failed_handler(
     DirectorySizesFailed,
     extra_field_builders={"paths": lambda e, _err, _msg: e.paths},
@@ -520,6 +584,10 @@ def complete_grep_export(effect: RunGrepExportEffect, result: object) -> tuple[A
 
 
 failed_grep_export = make_failed_handler(GrepExportFailed)
+failed_go_path_completion = make_failed_handler(
+    GoPathCompletionFailed,
+    extra_field_builders={"query": lambda e, _err, _msg: e.query},
+)
 failed_text_replace_preview = make_failed_handler(
     TextReplacePreviewFailed,
     extra_field_builders={
@@ -548,6 +616,7 @@ COMPLETE_ACTION_HANDLERS: tuple[tuple[type[Any], CompleteActionHandler], ...] = 
     (LoadParentChildEffect, complete_parent_child_snapshot),
     (LoadTransferPaneEffect, complete_transfer_pane_snapshot),
     (RunConfigSaveEffect, complete_config_save),
+    (RunConfigReloadEffect, complete_config_reload),
     (RunDirectorySizeEffect, complete_directory_sizes),
     (RunAttributeInspectionEffect, complete_attribute_inspection),
     (RunExternalLaunchEffect, complete_external_launch),
@@ -555,6 +624,7 @@ COMPLETE_ACTION_HANDLERS: tuple[tuple[type[Any], CompleteActionHandler], ...] = 
     (RunCustomActionEffect, complete_custom_action),
     (RunFileSearchEffect, complete_file_search),
     (RunGrepSearchEffect, complete_grep_search),
+    (RunGoPathCompletionEffect, complete_go_path_completion),
     (RunGrepExportEffect, complete_grep_export),
     (RunTextReplacePreviewEffect, complete_text_replace_preview),
     (RunTextReplaceApplyEffect, complete_text_replace_apply),
@@ -578,6 +648,7 @@ FAILED_ACTION_HANDLERS: tuple[tuple[type[Any], FailureActionHandler], ...] = (
     (RunFileMutationEffect, failed_file_mutation),
     (RunDeletePreparationEffect, failed_delete_preparation),
     (RunConfigSaveEffect, failed_config_save),
+    (RunConfigReloadEffect, failed_config_reload),
     (RunDirectorySizeEffect, failed_directory_sizes),
     (RunAttributeInspectionEffect, failed_attribute_inspection),
     (RunExternalLaunchEffect, failed_external_launch),
@@ -586,6 +657,7 @@ FAILED_ACTION_HANDLERS: tuple[tuple[type[Any], FailureActionHandler], ...] = (
     (RunUndoEffect, failed_undo),
     (RunFileSearchEffect, failed_file_search),
     (RunGrepSearchEffect, failed_grep_search),
+    (RunGoPathCompletionEffect, failed_go_path_completion),
     (RunGrepExportEffect, failed_grep_export),
     (RunTextReplacePreviewEffect, failed_text_replace_preview),
     (RunTextReplaceApplyEffect, failed_text_replace_apply),

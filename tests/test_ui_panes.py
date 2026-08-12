@@ -29,6 +29,98 @@ from zivo.ui.panes import (
     build_entry_label,
     truncate_middle,
 )
+from zivo.ui.resize_debounce import ResizeDebouncer
+
+
+def test_resize_debouncer_runs_only_latest_scheduled_callback() -> None:
+    callbacks: list[object] = []
+    timers: list[SimpleNamespace] = []
+
+    class Owner:
+        def set_timer(self, delay: float, callback: object, *, name: str) -> SimpleNamespace:
+            timer = SimpleNamespace(delay=delay, callback=callback, name=name, stop=Mock())
+            timers.append(timer)
+            return timer
+
+    debouncer = ResizeDebouncer(Owner(), lambda: callbacks.append("refresh"), name="test-resize")
+
+    debouncer.schedule()
+    debouncer.schedule()
+    debouncer.schedule()
+
+    assert timers[0].delay == pytest.approx(0.05)
+    assert timers[0].stop.call_count == 1
+    assert timers[1].stop.call_count == 1
+    assert timers[2].stop.call_count == 0
+    timers[0].callback()
+    timers[1].callback()
+    assert callbacks == []
+
+    timers[2].callback()
+
+    assert callbacks == ["refresh"]
+    assert timers[2].name == "test-resize"
+
+
+def test_resize_debouncer_stop_ignores_pending_callback() -> None:
+    timers: list[SimpleNamespace] = []
+
+    class Owner:
+        def set_timer(self, _delay: float, callback: object, *, name: str) -> SimpleNamespace:
+            timer = SimpleNamespace(callback=callback, name=name, stop=Mock())
+            timers.append(timer)
+            return timer
+
+    callback = Mock()
+    debouncer = ResizeDebouncer(Owner(), callback, name="test-resize")
+    debouncer.schedule()
+    debouncer.stop()
+    timers[0].callback()
+
+    callback.assert_not_called()
+    timers[0].stop.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "pane_factory",
+    (
+        lambda: MainPane(
+            "Current",
+            (),
+            summary=CurrentSummaryState(item_count=0, selected_count=0, sort_label="Name"),
+        ),
+        lambda: SidePane("Parent", ()),
+        lambda: ChildPane(ChildPaneViewState(title="Child")),
+    ),
+)
+def test_panes_debounce_resize_refresh(pane_factory) -> None:
+    pane = pane_factory()
+    pane._resize_debouncer.schedule = Mock()  # type: ignore[method-assign]
+
+    pane.on_resize(SimpleNamespace())
+
+    pane._resize_debouncer.schedule.assert_called_once_with()
+
+
+@pytest.mark.parametrize(
+    "pane_factory",
+    (
+        lambda: MainPane(
+            "Current",
+            (),
+            summary=CurrentSummaryState(item_count=0, selected_count=0, sort_label="Name"),
+        ),
+        lambda: SidePane("Parent", ()),
+        lambda: ChildPane(ChildPaneViewState(title="Child")),
+    ),
+)
+def test_panes_stop_pending_resize_refresh_on_unmount(pane_factory) -> None:
+    pane = pane_factory()
+    pane._resize_debouncer.stop = Mock()  # type: ignore[method-assign]
+
+    pane.on_unmount()
+
+    pane._resize_debouncer.stop.assert_called_once_with()
 
 
 def _style_map() -> dict[str, Style]:
@@ -782,6 +874,7 @@ def test_apply_row_updates_updates_slot_key_for_visible_row() -> None:
         PaneEntry("b.txt", "file", path="/path/b.txt"),
     )
     pane = MainPane(title="Test", entries=entries, summary=summary)
+    path_row_index = pane._path_row_index
     table = Mock(spec=DataTable)
     table.size.width = 80
     table.cell_padding = 1
@@ -798,6 +891,7 @@ def test_apply_row_updates_updates_slot_key_for_visible_row() -> None:
     )
 
     assert pane._entries[1].name == "renamed.txt"
+    assert pane._path_row_index is path_row_index
     assert table.update_cell.call_count == 4
     assert table.update_cell.call_args_list[0].args[0] == "__slot__:1"
 
@@ -809,6 +903,7 @@ def test_apply_size_updates_updates_only_target_slot() -> None:
         PaneEntry("b.txt", "file", path="/path/b.txt", size_label="2 B"),
     )
     pane = MainPane(title="Test", entries=entries, summary=summary)
+    path_row_index = pane._path_row_index
     table = Mock(spec=DataTable)
     pane.query_one = Mock(return_value=table)
 
@@ -824,9 +919,40 @@ def test_apply_size_updates_updates_only_target_slot() -> None:
 
     assert pane._entries[0] is entries[0]
     assert pane._entries[1].size_label == "3 B"
+    assert pane._path_row_index is path_row_index
     table.update_cell.assert_called_once()
     assert table.update_cell.call_args.args[0] == "__slot__:1"
     assert table.update_cell.call_args.args[1] == "size"
+
+
+def test_apply_row_updates_refreshes_path_row_index_when_path_changes() -> None:
+    summary = CurrentSummaryState(item_count=2, selected_count=0, sort_label="Name")
+    entries = (
+        PaneEntry("a.txt", "file", path="/path/a.txt"),
+        PaneEntry("b.txt", "file", path="/path/b.txt"),
+    )
+    pane = MainPane(title="Test", entries=entries, summary=summary)
+    path_row_index = pane._path_row_index
+    table = Mock(spec=DataTable)
+    table.size.width = 80
+    table.cell_padding = 1
+    pane.query_one = Mock(return_value=table)
+
+    pane.apply_row_updates(
+        (
+            CurrentPaneRowUpdate(
+                path="/path/b.txt",
+                entry=PaneEntry("renamed.txt", "file", path="/path/renamed.txt"),
+                row_index=1,
+            ),
+        )
+    )
+
+    assert pane._path_row_index is not path_row_index
+    assert pane._path_row_index == {
+        "/path/a.txt": 0,
+        "/path/renamed.txt": 1,
+    }
 
 
 def test_apply_size_updates_resolves_stale_row_index_by_path_index() -> None:

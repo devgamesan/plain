@@ -8,8 +8,10 @@ from textual.worker import Worker, WorkerState
 from zivo.app_runtime_actions import complete_worker_actions, failed_worker_actions
 from zivo.app_runtime_core import (
     TrackingConfig,
+    clear_background_command,
     clear_foreground_operation,
     clear_tracking_for_request,
+    request_background_command_cancel,
     request_foreground_operation_cancel,
 )
 from zivo.app_runtime_execution import (
@@ -22,6 +24,7 @@ from zivo.app_runtime_execution import (
     schedule_attribute_inspection,
     schedule_bulk_rename,
     schedule_clipboard_paste,
+    schedule_config_reload,
     schedule_config_save,
     schedule_custom_action,
     schedule_delete_preparation,
@@ -39,6 +42,7 @@ from zivo.app_runtime_search import (
     CHILD_PANE_TRACKING,
     DIRECTORY_SIZE_TRACKING,
     FILE_SEARCH_RUNTIME,
+    GO_COMPLETION_TRACKING,
     GREP_SEARCH_RUNTIME,
     cancel_active_file_search,
     cancel_active_grep_search,
@@ -47,11 +51,13 @@ from zivo.app_runtime_search import (
     cancel_pending_child_pane,
     cancel_pending_directory_size,
     cancel_pending_file_search,
+    cancel_pending_go_completion,
     cancel_pending_grep_search,
     schedule_browser_snapshot,
     schedule_child_pane_snapshot,
     schedule_directory_sizes,
     schedule_file_search,
+    schedule_go_path_completion,
     schedule_grep_search,
     schedule_parent_child_update,
     schedule_progressive_browser_snapshot,
@@ -75,6 +81,7 @@ from zivo.state import (
     RunAttributeInspectionEffect,
     RunBulkRenameEffect,
     RunClipboardPasteEffect,
+    RunConfigReloadEffect,
     RunConfigSaveEffect,
     RunCustomActionEffect,
     RunDeletePreparationEffect,
@@ -83,6 +90,7 @@ from zivo.state import (
     RunExternalLaunchEffect,
     RunFileMutationEffect,
     RunFileSearchEffect,
+    RunGoPathCompletionEffect,
     RunGrepExportEffect,
     RunGrepSearchEffect,
     RunShellCommandEffect,
@@ -92,11 +100,13 @@ from zivo.state import (
     RunZipCompressEffect,
     RunZipCompressPreparationEffect,
 )
+from zivo.state.actions import ExitCurrentPath, ForegroundOperationAborted
 
 TRACKING_CONFIGS: tuple[TrackingConfig, ...] = (
     CHILD_PANE_TRACKING,
     FILE_SEARCH_RUNTIME.tracking,
     GREP_SEARCH_RUNTIME.tracking,
+    GO_COMPLETION_TRACKING,
     DIRECTORY_SIZE_TRACKING,
 )
 
@@ -109,6 +119,7 @@ __all__ = [
     "cancel_pending_directory_size",
     "cancel_pending_file_search",
     "cancel_pending_grep_search",
+    "cancel_pending_go_completion",
     "cancel_pending_runtime_work",
     "clear_effect_tracking",
     "complete_worker_actions",
@@ -147,12 +158,38 @@ def sync_runtime_state(app: Any, previous_state: Any, next_state: Any) -> None:
         request_foreground_operation_cancel(app, next_operation.operation_id)
     if next_operation is None and previous_operation is not None:
         clear_foreground_operation(app, previous_operation.operation_id)
+        if (
+            getattr(next_state, "pending_exit_after_operation", False)
+            and hasattr(app, "call_next")
+            and hasattr(app, "dispatch_actions")
+        ):
+            # The worker has reached a safe terminal point.  Queue the real
+            # exit action only after the operation's terminal reducer action
+            # has been applied, so no worker is force-stopped.
+            app.call_next(app.dispatch_actions, (ExitCurrentPath(),))
+    previous_command = previous_state.background_command
+    next_command = next_state.background_command
+    if (
+        next_command is not None
+        and next_command.cancel_requested
+        and (
+            previous_command is None
+            or not previous_command.cancel_requested
+            or previous_command.request_id != next_command.request_id
+        )
+    ):
+        request_background_command_cancel(app, next_command.request_id)
     if previous_state.pending_child_pane_request_id != next_state.pending_child_pane_request_id:
         cancel_pending_child_pane(app)
     if previous_state.pending_file_search_request_id != next_state.pending_file_search_request_id:
         cancel_pending_file_search(app)
     if previous_state.pending_grep_search_request_id != next_state.pending_grep_search_request_id:
         cancel_pending_grep_search(app)
+    if (
+        previous_state.pending_go_completion_request_id
+        != next_state.pending_go_completion_request_id
+    ):
+        cancel_pending_go_completion(app)
     if (
         previous_state.pending_directory_size_request_id
         != next_state.pending_directory_size_request_id
@@ -164,6 +201,7 @@ def cancel_pending_runtime_work(app: Any) -> None:
     cancel_pending_child_pane(app)
     cancel_pending_file_search(app)
     cancel_pending_grep_search(app)
+    cancel_pending_go_completion(app)
     cancel_pending_directory_size(app)
 
 
@@ -193,6 +231,7 @@ EFFECT_SCHEDULERS = (
     (RunDuplicateEffect, schedule_duplicate),
     (RunBulkRenameEffect, schedule_bulk_rename),
     (RunConfigSaveEffect, schedule_config_save),
+    (RunConfigReloadEffect, schedule_config_reload),
     (RunCustomActionEffect, schedule_custom_action),
     (RunDirectorySizeEffect, schedule_directory_sizes),
     (RunAttributeInspectionEffect, schedule_attribute_inspection),
@@ -204,6 +243,7 @@ EFFECT_SCHEDULERS = (
     (RunShellCommandEffect, schedule_shell_command),
     (RunFileSearchEffect, schedule_file_search),
     (RunGrepSearchEffect, schedule_grep_search),
+    (RunGoPathCompletionEffect, schedule_go_path_completion),
     (RunGrepExportEffect, schedule_grep_export),
     (RunTextReplacePreviewEffect, schedule_text_replace_preview),
     (RunTextReplaceApplyEffect, schedule_text_replace_apply),
@@ -221,6 +261,10 @@ def clear_effect_tracking(app: Any, effect: Effect) -> None:
         ),
     ):
         clear_foreground_operation(app, effect.request_id)
+    if isinstance(effect, RunShellCommandEffect) or (
+        isinstance(effect, RunCustomActionEffect) and effect.request.mode == "background"
+    ):
+        clear_background_command(app, effect.request_id)
     for tracking in TRACKING_CONFIGS:
         if isinstance(effect, tracking.effect_type):
             clear_tracking_for_request(app, tracking, effect.request_id)
@@ -239,6 +283,22 @@ async def handle_worker_state_changed(app: Any, event: Worker.StateChanged) -> N
     clear_effect_tracking(app, effect)
 
     if event.state == WorkerState.CANCELLED:
+        if isinstance(
+            effect,
+            (
+                RunClipboardPasteEffect,
+                RunArchiveExtractEffect,
+                RunZipCompressEffect,
+                RunTextReplaceApplyEffect,
+            ),
+        ):
+            await app.dispatch_actions(
+                (
+                    ForegroundOperationAborted(
+                        request_id=effect.request_id,
+                    ),
+                )
+            )
         return
 
     if event.state == WorkerState.SUCCESS:

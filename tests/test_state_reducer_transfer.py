@@ -49,7 +49,7 @@ def test_transfer_copy_to_opposite_pane_uses_paste_effect() -> None:
 
     reduced = reduce_app_state(state, TransferCopyToOppositePane())
 
-    assert reduced.state.ui_mode == "BUSY"
+    assert reduced.state.ui_mode == "BROWSING"
     assert reduced.effects == (
         RunClipboardPasteEffect(
             request_id=1,

@@ -3,6 +3,7 @@
 from dataclasses import replace
 
 from zivo.models import (
+    ChildPaneViewState,
     CurrentSummaryState,
     PaneActionViewState,
     PaneStatusViewState,
@@ -18,7 +19,13 @@ from .entry_state_helpers import (
     select_transfer_target_paths,
     select_visible_entry_states,
 )
-from .models import AppState, PaneState, TransferPaneId, TransferPaneState
+from .models import (
+    AppState,
+    PaneState,
+    TransferPaneId,
+    TransferPaneState,
+    resolve_parent_directory_path,
+)
 from .selectors_panes import (
     CurrentPaneProjection as _CurrentPaneProjection,
 )
@@ -32,6 +39,7 @@ from .selectors_panes import (
     select_current_entries,
     select_current_summary_state,
     select_parent_entries,
+    select_parent_entry_count,
     select_tab_bar_state,
 )
 from .selectors_panes import (
@@ -115,7 +123,12 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
     """Build the display shell data consumed by the UI layer."""
 
     current_pane = _select_current_pane_projection(state)
-    child_pane = _select_child_pane_for_cursor(state, current_pane.cursor_entry)
+    responsive_layout = select_responsive_pane_layout(state)
+    child_pane = (
+        _select_child_pane_for_cursor(state, current_pane.cursor_entry)
+        if responsive_layout.show_child
+        else ChildPaneViewState(title="Child Directory")
+    )
     display_directory_sizes = (
         state.config.display.show_directory_sizes or state.sort.field == "size"
     )
@@ -131,13 +144,28 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         state.directory_size_delta.changed_paths,
         state.directory_size_delta.revision,
     )
-    responsive_layout = select_responsive_pane_layout(state)
     current_status_label = _current_cursor_status_label(current_pane)
+    parent_entries = select_parent_entries(state) if responsive_layout.show_parent else ()
+    parent_entry_count = (
+        select_parent_entry_count(state) if responsive_layout.show_parent else 0
+    )
+    parent_heading = _format_directory_heading(
+        "Parent",
+        state.parent_pane.directory_path,
+        parent_entry_count,
+    )
+    if state.parent_pane_loading and state.parent_pane.entries:
+        parent_heading += " · loading"
+    parent_pane_status = (
+        _select_parent_pane_status(state)
+        if responsive_layout.show_parent
+        else None
+    )
     shell = ThreePaneShellData(
         tab_bar=select_tab_bar_state(state),
         current_path=state.current_pane.directory_path,
         path_bar=select_path_bar_state(state),
-        parent_entries=select_parent_entries(state),
+        parent_entries=parent_entries,
         current_entries=(
             _select_current_pane_entries(
                 current_pane.projected_entries,
@@ -162,11 +190,8 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
             status_label=current_status_label,
         ),
         responsive_layout=responsive_layout,
-        parent_heading=_format_directory_heading(
-            "Parent",
-            state.parent_pane.directory_path,
-            len(select_parent_entries(state)),
-        ),
+        parent_heading=parent_heading,
+        parent_pane_status=parent_pane_status,
         current_context_input=select_input_bar_state(state),
         current_pane_status=_select_current_pane_status(state, current_pane.visible_entries),
         help=select_help_bar_state(state),
@@ -267,13 +292,9 @@ def _pane_width_class(width: int) -> str:
 
 
 def _current_cursor_status_label(projection: _CurrentPaneProjection) -> str | None:
-    if projection.cursor_entry is None:
+    if projection.global_cursor_index is None:
         return None
-    try:
-        index = projection.visible_entries.index(projection.cursor_entry)
-    except ValueError:
-        return None
-    return f"{index + 1}/{len(projection.visible_entries)}"
+    return f"{projection.global_cursor_index + 1}/{len(projection.visible_entries)}"
 
 
 def _format_directory_heading(role: str, path: str, item_count: int) -> str:
@@ -307,7 +328,48 @@ def _select_current_pane_status(
                 PaneActionViewState("create_dir", "New directory", "N"),
             ),
         )
-    return PaneStatusViewState(kind="empty", title="No visible items")
+    actions = ()
+    if not state.show_hidden and any(entry.hidden for entry in state.current_pane.entries):
+        actions = (PaneActionViewState("toggle_hidden", "Show hidden files", "."),)
+    return PaneStatusViewState(
+        kind="empty",
+        title="No visible items",
+        detail="Hidden files are currently hidden" if actions else None,
+        actions=actions,
+    )
+
+
+def _select_parent_pane_status(state: AppState) -> PaneStatusViewState | None:
+    """Return an explicit status for the optional parent-directory pane."""
+
+    if state.parent_pane_loading and not state.parent_pane.entries:
+        return PaneStatusViewState(kind="loading", title="Loading parent directory…")
+
+    if state.parent_pane.preview_reason == "permission_denied":
+        return PaneStatusViewState(
+            kind="permission_denied",
+            title="Permission denied",
+            detail="The parent directory cannot be listed",
+        )
+
+    _, parent_path = resolve_parent_directory_path(state.current_path)
+    if parent_path is None:
+        return PaneStatusViewState(
+            kind="no_parent",
+            title="No parent directory",
+            detail="The current directory is the filesystem root",
+        )
+
+    if select_parent_entry_count(state) == 0:
+        if state.parent_pane.entries:
+            return PaneStatusViewState(
+                kind="no_visible",
+                title="No visible items",
+                detail="Hidden files are currently hidden",
+            )
+        return PaneStatusViewState(kind="empty", title="Empty parent directory")
+
+    return None
 
 
 def _select_transfer_pane(
@@ -418,6 +480,7 @@ def _select_current_pane_projection(state: AppState) -> _CurrentPaneProjection:
         visible_entries=visible_entries,
         projected_entries=projected_entries,
         cursor_index=cursor_index,
+        global_cursor_index=global_cursor_index,
         cursor_entry=cursor_entry,
         summary=select_current_summary_state(state),
     )

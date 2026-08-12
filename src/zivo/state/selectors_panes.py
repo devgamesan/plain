@@ -65,6 +65,7 @@ class CurrentPaneProjection:
     visible_entries: tuple[DirectoryEntryState, ...]
     projected_entries: tuple[DirectoryEntryState, ...]
     cursor_index: int | None
+    global_cursor_index: int | None
     cursor_entry: DirectoryEntryState | None
     summary: CurrentSummaryState
 
@@ -86,13 +87,24 @@ def select_parent_entries(state: AppState) -> tuple[PaneEntry, ...]:
     """Return display entries for the parent pane."""
 
     visible_entries = _select_side_pane_entry_states(state.parent_pane.entries, state.show_hidden)
-    return _select_side_pane_entries(
+    projected_entries = _project_side_pane_entry_states(
         visible_entries,
+        compute_current_pane_visible_window(state.terminal_height),
+        state.parent_pane.cursor_path,
+    )
+    return _select_side_pane_entries(
+        projected_entries,
         state.directory_size_cache,
         display_directory_sizes=False,
         selected_path=state.parent_pane.cursor_path,
-        cut_paths=_select_visible_cut_paths(visible_entries, _select_cut_paths(state)),
+        cut_paths=_select_visible_cut_paths(projected_entries, _select_cut_paths(state)),
     )
+
+
+def select_parent_entry_count(state: AppState) -> int:
+    """Return the total visible item count independently of viewport projection."""
+
+    return len(_select_side_pane_entry_states(state.parent_pane.entries, state.show_hidden))
 
 
 def select_current_entries(state: AppState) -> tuple[PaneEntry, ...]:
@@ -185,6 +197,7 @@ def select_current_pane_projection(state: AppState) -> CurrentPaneProjection:
         visible_entries=visible_entries,
         projected_entries=projected_entries,
         cursor_index=cursor_index,
+        global_cursor_index=global_cursor_index,
         cursor_entry=cursor_entry,
         summary=_build_current_summary(
             len(visible_entries),
@@ -299,12 +312,17 @@ def _select_child_pane_for_cursor_base(
         )
 
     visible_entries = _select_side_pane_entry_states(state.child_pane.entries, state.show_hidden)
-    entries = _select_side_pane_entries(
+    projected_entries = _project_side_pane_entry_states(
         visible_entries,
+        compute_current_pane_visible_window(state.terminal_height),
+        None,
+    )
+    entries = _select_side_pane_entries(
+        projected_entries,
         state.directory_size_cache,
         display_directory_sizes=False,
         selected_path=None,
-        cut_paths=_select_visible_cut_paths(visible_entries, _select_cut_paths(state)),
+        cut_paths=_select_visible_cut_paths(projected_entries, _select_cut_paths(state)),
     )
     if not entries:
         return _build_child_status_view(
@@ -317,6 +335,7 @@ def _select_child_pane_for_cursor_base(
         entries,
         syntax_theme,
         metadata_bar,
+        total_item_count=len(visible_entries),
     )
 
 
@@ -371,10 +390,7 @@ def select_child_pane_for_cursor(
     return _with_child_header(view, _format_child_semantic_title(state, view, cursor_entry))
 
 
-@lru_cache(maxsize=4096)
 def _with_child_header(view: ChildPaneViewState, title: str) -> ChildPaneViewState:
-    if view.header_title == title:
-        return view
     return replace(view, header_title=title)
 
 
@@ -414,7 +430,10 @@ def _format_child_semantic_title(
     if view.is_preview or cursor_entry.kind == "file":
         return f"Preview · {target_name}"
 
-    return f"Contents · {target_name} · {len(view.entries)} items"
+    item_count = view.total_item_count
+    if item_count is None:
+        item_count = len(view.entries)
+    return f"Contents · {target_name} · {item_count} items"
 
 
 def _select_command_palette_preview_pane(
@@ -459,15 +478,24 @@ def _select_file_search_preview_pane(
             visible_entries = _select_side_pane_entry_states(
                 state.child_pane.entries, state.show_hidden
             )
+            projected_entries = _project_side_pane_entry_states(
+                visible_entries,
+                compute_current_pane_visible_window(state.terminal_height),
+                None,
+            )
             return _build_child_entries_view(
                 _select_side_pane_entries(
-                    visible_entries,
+                    projected_entries,
                     state.directory_size_cache,
                     display_directory_sizes=False,
                     selected_path=None,
-                    cut_paths=_select_visible_cut_paths(visible_entries, _select_cut_paths(state)),
+                    cut_paths=_select_visible_cut_paths(
+                        projected_entries,
+                        _select_cut_paths(state),
+                    ),
                 ),
                 syntax_theme,
+                total_item_count=len(visible_entries),
             )
         return _build_child_entries_view((), syntax_theme)
 
@@ -639,6 +667,28 @@ def _project_current_pane_entries(
 
 
 @lru_cache(maxsize=256)
+def _project_side_pane_entry_states(
+    entries: tuple[DirectoryEntryState, ...],
+    visible_window: int,
+    selected_path: str | None,
+) -> tuple[DirectoryEntryState, ...]:
+    """Limit side-pane projection while keeping its selected row visible."""
+
+    if len(entries) <= visible_window:
+        return entries
+    if selected_path is None:
+        return entries[:visible_window]
+
+    selected_index = next(
+        (index for index, entry in enumerate(entries) if entry.path == selected_path),
+        0,
+    )
+    window_start = max(0, selected_index - visible_window // 2)
+    window_start = min(window_start, len(entries) - visible_window)
+    return entries[window_start : window_start + visible_window]
+
+
+@lru_cache(maxsize=256)
 def select_current_pane_update_hint(
     projected_entries: tuple[DirectoryEntryState, ...],
     directory_size_cache: tuple[DirectorySizeCacheEntry, ...],
@@ -805,6 +855,7 @@ def _build_child_entries_view(
     entries: tuple[PaneEntry, ...],
     syntax_theme: str,
     metadata_bar: tuple[MetadataItemViewState, ...] = (),
+    total_item_count: int | None = None,
 ) -> ChildPaneViewState:
     return ChildPaneViewState(
         title="Child Directory",
@@ -812,6 +863,7 @@ def _build_child_entries_view(
         syntax_theme=syntax_theme,
         metadata_bar=metadata_bar,
         view_kind="entries",
+        total_item_count=total_item_count,
     )
 
 

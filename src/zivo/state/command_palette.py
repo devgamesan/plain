@@ -22,10 +22,10 @@ from .models import (
     AppState,
     GoCandidateSource,
     GoCandidateState,
+    GoCompletionState,
     GoSourceFilter,
     select_browser_tabs,
 )
-from .reducer_path_helpers import list_matching_directory_paths
 from .selectors import (
     select_has_visible_current_entries,
     select_single_target_entry,
@@ -64,6 +64,32 @@ NOTIFICATION_ACTION_IDS = frozenset(
         "notification.open_destination",
         "notification.retry",
         "notification.details",
+        "notification.shell_result",
+    }
+)
+
+BACKGROUND_OPERATION_BLOCKED_COMMAND_IDS = frozenset(
+    {
+        "undo_last_operation",
+        "replace_text",
+        "rename",
+        "change_permissions",
+        "change_owner",
+        "create_symlink",
+        "compress_as_zip",
+        "extract_archive",
+        "edit_with_terminal_editor",
+        "edit_with_gui_editor",
+        "open",
+        "duplicate_targets",
+        "paste_clipboard",
+        "delete_targets",
+        "transfer_copy_to_opposite_pane",
+        "transfer_move_to_opposite_pane",
+        "open_current_directory_with_file_manager",
+        "open_current_directory_with_terminal",
+        "run_shell_command",
+        "create",
     }
 )
 
@@ -77,6 +103,9 @@ _COMMAND_METADATA: dict[str, CommandPaletteMetadata] = {
     "notification.details": CommandPaletteMetadata(
         "Suggested", ("details", "notification"), 3
     ),
+    "notification.shell_result": CommandPaletteMetadata(
+        "Suggested", ("result", "shell", "command"), 3
+    ),
     "go": CommandPaletteMetadata(
         "Navigate", ("go", "path", "directory", "history", "recent", "bookmark"), 5
     ),
@@ -84,11 +113,8 @@ _COMMAND_METADATA: dict[str, CommandPaletteMetadata] = {
     "grep_search": CommandPaletteMetadata(
         "Search", ("grep", "search", "search contents", "text", "content", "contents"), 21
     ),
-    "history_search": CommandPaletteMetadata("Navigate", ("history", "recent"), 30),
-    "bookmark_search": CommandPaletteMetadata("Navigate", ("bookmark", "saved"), 31),
     "go_back": CommandPaletteMetadata("Navigate", ("back", "previous"), 32),
     "go_forward": CommandPaletteMetadata("Navigate", ("forward", "next"), 33),
-    "go_to_path": CommandPaletteMetadata("Navigate", ("go", "path", "directory"), 34),
     "go_to_home_directory": CommandPaletteMetadata("Navigate", ("home", "~"), 35),
     "reload_directory": CommandPaletteMetadata("View", ("reload", "refresh"), 70),
     "undo_last_operation": CommandPaletteMetadata("System", ("undo", "revert"), 50),
@@ -191,6 +217,7 @@ SEARCH_WORKSPACE_COMMAND_IDS = frozenset(
         "notification.open_destination",
         "notification.retry",
         "notification.details",
+        "notification.shell_result",
         "go_back",
         "go_forward",
         "go",
@@ -202,6 +229,7 @@ SEARCH_WORKSPACE_COMMAND_IDS = frozenset(
         "close_current_tab",
         "exit",
         "select_all",
+        "replace_text",
         "show_attributes",
         "edit_with_terminal_editor",
         "edit_with_gui_editor",
@@ -241,54 +269,6 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
                 path=result.path,
             )
             for index, result in enumerate(state.command_palette.grep_search.results)
-        )
-
-    if state.command_palette.source == "history":
-        query = state.command_palette.query
-        history_results = state.command_palette.history_and_navigation.history_results
-        return tuple(
-            item
-            for item in (
-                CommandPaletteItem(
-                    id=f"history_result:{index}",
-                    label=_display_path(path),
-                    shortcut=None,
-                    enabled=True,
-                    path=path,
-                )
-                for index, path in enumerate(history_results)
-            )
-            if _matches_query(item, query)
-        )
-
-    if state.command_palette.source == "bookmarks":
-        query = state.command_palette.query
-        return tuple(
-            item
-            for item in (
-                CommandPaletteItem(
-                    id=f"bookmark_result:{index}",
-                    label=_display_path(path),
-                    shortcut=None,
-                    enabled=True,
-                    path=path,
-                )
-                for index, path in enumerate(state.config.bookmarks.paths)
-            )
-            if _matches_query(item, query)
-        )
-
-    if state.command_palette.source == "go_to_path":
-        go_to_path_candidates = state.command_palette.history_and_navigation.go_to_path_candidates
-        return tuple(
-            CommandPaletteItem(
-                id=f"go_to_path_candidate:{index}",
-                label=_display_path(path),
-                shortcut=None,
-                enabled=True,
-                path=path,
-            )
-            for index, path in enumerate(go_to_path_candidates)
         )
 
     if state.command_palette.source == "go":
@@ -377,7 +357,7 @@ def normalize_command_palette_cursor(state: AppState, cursor_index: int) -> int:
         item_count = len(state.command_palette.grf.preview_results)
     elif state.command_palette.source == "grep_replace_selected":
         item_count = len(state.command_palette.grs.preview_results)
-    elif state.command_palette.source in {"history", "go"}:
+    elif state.command_palette.source == "go":
         item_count = len(get_command_palette_items(state))
     else:
         item_count = len(get_command_palette_items(state))
@@ -412,7 +392,7 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         CommandPaletteItem(
             id="go",
             label="Go",
-            shortcut=None,
+            shortcut="G",
             enabled=True,
         ),
         CommandPaletteItem(
@@ -493,9 +473,23 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         ),
         CommandPaletteItem(
             id="replace_text",
-            label="Replace text",
+            label=(
+                "Replace selected results"
+                if is_search_workspace_path(state.current_path)
+                else "Replace text"
+            ),
             shortcut=None,
-            enabled=True,
+            enabled=(
+                bool(select_target_file_paths(state))
+                if is_search_workspace_path(state.current_path)
+                else True
+            ),
+            disabled_reason=(
+                "Select a file result to replace"
+                if is_search_workspace_path(state.current_path)
+                and not select_target_file_paths(state)
+                else None
+            ),
         ),
     ]
 
@@ -824,7 +818,15 @@ def _prepare_command_palette_items(
         )
         enabled = item.enabled
         reason = item.disabled_reason
-        if search_workspace and item.id not in SEARCH_WORKSPACE_COMMAND_IDS:
+        operation = state.foreground_operation
+        operation_blocked = operation is not None and (
+            item.id in BACKGROUND_OPERATION_BLOCKED_COMMAND_IDS
+            or item.id.startswith("custom_action:")
+        )
+        if operation_blocked:
+            enabled = False
+            reason = f"{operation.kind.title()} is in progress"
+        elif search_workspace and item.id not in SEARCH_WORKSPACE_COMMAND_IDS:
             enabled = False
             reason = "Unavailable in Search Workspace"
         elif not enabled and reason is None:
@@ -997,7 +999,7 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
         CommandPaletteItem(
             id="go",
             label="Go",
-            shortcut=None,
+            shortcut="G",
             enabled=True,
         ),
         CommandPaletteItem(
@@ -1196,6 +1198,21 @@ def _go_direct_path(query: str, base_path: str) -> str | None:
         return None
 
 
+def _go_query_has_trailing_separator(query: str, base_path: str) -> bool:
+    """Return whether a Go query asks for the next directory level."""
+
+    raw_query = query.strip()
+    if not raw_query:
+        return False
+    if is_windows_path(raw_query) or is_windows_path(base_path) or is_windows_drives_root(
+        base_path
+    ):
+        return raw_query.endswith(("/", "\\"))
+    return raw_query.endswith(os.sep) or (
+        os.altsep is not None and raw_query.endswith(os.altsep)
+    )
+
+
 def _go_candidate_label(candidate: GoCandidateState) -> str:
     label = _display_path(candidate.path)
     if not candidate.sources:
@@ -1262,8 +1279,18 @@ def select_go_candidates(
         for path in list_windows_drive_paths():
             add(path, "direct")
 
-    if effective_filter == "all" and search_query.strip():
-        for path in list_matching_directory_paths(search_query, base_path):
+    completion = (
+        state.command_palette.go_completion
+        if state.command_palette is not None
+        else GoCompletionState()
+    )
+    if (
+        effective_filter == "all"
+        and search_query.strip()
+        and completion.query.strip() == search_query.strip()
+        and completion.base_path == base_path
+    ):
+        for path in completion.paths:
             add(path, "direct")
 
     candidates = tuple(

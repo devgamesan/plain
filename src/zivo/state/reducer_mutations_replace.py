@@ -14,6 +14,7 @@ from .models import (
     ForegroundOperationState,
     NotificationState,
     ReplaceConfirmationState,
+    ReplaceResultOrigin,
 )
 from .reducer_common import finalize
 
@@ -25,6 +26,8 @@ def _handle_begin_replace_confirmation(
     replacement_text: str,
     target_paths: tuple[str, ...],
     total_match_count: int,
+    result_origin: ReplaceResultOrigin | None = None,
+    result_query: str = "",
 ) -> ReduceResult:
     """Display the replace confirmation dialog."""
     return finalize(
@@ -38,6 +41,8 @@ def _handle_begin_replace_confirmation(
                 replacement_text=replacement_text,
                 target_paths=target_paths,
                 total_match_count=total_match_count,
+                result_origin=result_origin,
+                result_query=result_query,
             ),
         )
     )
@@ -75,9 +80,12 @@ def _handle_confirm_replace_targets(
     return finalize(
         replace(
             state,
-            ui_mode="BUSY",
+            # The confirmation is the foreground step; the confirmed
+            # replacement itself runs while browsing remains available.
+            ui_mode="BROWSING",
             replace_confirmation=None,
             command_palette=None,
+            pending_input=None,
             pending_replace_apply_request_id=request_id,
             next_request_id=request_id + 1,
             notification=NotificationState(level="info", message="Applying replacement..."),

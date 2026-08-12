@@ -33,9 +33,9 @@ zivo は、キーバインドをたくさん覚えなくても使える TUI フ�
 - **レスポンシブペイン**: 120 列以上は Parent / Current / Contents、80〜119 列は Current / Contents、80 列未満は `Tab` で current 一覧と Details を切り替え
 - **明示的なペイン状態**: 空、フィルタ0件、読込中、設定無効、非対応、依存不足、権限不足を区別し、プレビュー不能時は概要メタデータを表示
 - **Transfer モード**: 2 つのディレクトリを並べてコピー・移動
-- **検索と grep**: ファイル検索、grep 検索、結果からファイルを開く
-- **置換 (プレビュー付き)**: grep 結果などから置換、diff を確認してから実行
-- **操作通知の次アクション**: Undo可能な成功には `Undo`、archive/zipの成功には移動先、許可された失敗には `Retry` または `Details` を表示
+- **検索と grep**: ファイル検索、grep 検索、表示中の結果から次の操作へ進む
+- **置換 (プレビュー付き)**: Find / Grep / Search Workspace の結果を共通フローへ渡し、diff を確認してから実行
+- **操作通知の次アクション**: Undo可能な成功には `Undo`、archive/zipの成功には移動先、許可された失敗には `Retry` または `Details` を表示し、Detailsには安全な復旧Actionを最大1件表示
 
 ---
 
@@ -118,6 +118,7 @@ zivo-cd
 | `/` | フィルタ |
 | `f` | ファイル検索 |
 | `g` | grep 検索 |
+| `G` | 統合 Go 移動先検索 |
 | `p` | Transfer モード切替 |
 | `Tab`（80 列未満） | current 一覧と Details ビューを切り替え |
 | `q` | 終了 |
@@ -134,9 +135,9 @@ zivo-cd
 
 詳しいコマンド一覧は [Commands](docs/commands.ja.md) を参照してください。
 
-操作通知に表示する次アクションは最大1つです。優先順位は `Undo`、移動先の `Open`、安全な `Retry`、`Details` です。5秒後に自動消去するのは最終成功通知だけで、処理中・warning/error・partial success は自動消去タイマーを持たず、新しい通知または関連する次アクションで状態が進むまで表示されます。StatusBar とコマンドパレットの条件付き `Suggested` は同じ stable action ID と reducer 経路を使い、既存キーボードの意味は変更しません。
+操作通知に表示する次アクションは最大1つです。優先順位は `Undo`、移動先の `Open`、安全な `Retry`、`Details` です。Detailsには安全な復旧Actionを最大1件だけ表示し、`[z] Undo completed items` または `[r] Retry` として実行できます。`Enter` と `Esc` は従来どおりDetailsを閉じます。5秒後に自動消去するのは最終成功通知だけで、処理中・warning/error・partial success は自動消去タイマーを持たず、新しい通知または関連する次アクションで状態が進むまで表示されます。StatusBar、Details、コマンドパレットの条件付き `Suggested` は同じ stable action ID と reducer 経路を使い、既存のグローバルキーボードの意味は変更しません。
 
-時間のかかる Copy・Move・Compress・Extract・Replace は、StatusBarに操作名、進捗、現在対象を表示します。安全に停止できる操作だけ `Cancel` と `Esc` を表示し、キャンセル要求後は現在の対象を完了してから停止します。部分完了時は成功・skip・failure・未処理件数を示し、対象パスとUndo可能範囲は `Details` で確認できます。
+時間のかかる Copy・Move・Compress・Extract・Replace は、StatusBarに操作名、進捗、現在対象を表示します。実行中も通常のブラウズ、ディレクトリ移動、ファイル検索、プレビュー、属性表示を継続できます。安全に停止できる操作だけ `Cancel` と `Esc` を表示し、キャンセル要求後は現在の対象を完了してから停止します。別のファイル変更、Undo、エディタ・シェル起動、変更を伴うカスタムアクションは、進行中の操作名を示して拒否します。部分完了時は成功・skip・failure・未処理件数を示し、対象パスとUndo可能範囲は `Details` で確認できます。
 
 ---
 
@@ -147,7 +148,7 @@ zivo-cd
 - **タブ**: 複数ディレクトリをタブで切り替え
 - **ディレクトリ履歴**: 戻る / 進むで履歴移動
 - **ブックマーク**: ディレクトリを保存し、`b` でブックマークに絞った Go 画面から移動
-- **Go**: ブックマーク、最近の履歴、開いているタブ、Home、直接パスを 1 画面で検索（`@bookmark`、`@history`、`@tab`、`@home` で source を絞り込み）
+- **Go**: `G` でブックマーク、最近の履歴、開いているタブ、Home、直接パスを 1 画面で検索（`@bookmark`、`@history`、`@tab`、`@home` で source を絞り込み）。パス区切りの入力直後は、直接移動候補を残したまま直下の子ディレクトリ候補を読み込みます。
 - **画面からの直接操作**: breadcrumb segment、通常ブラウズの Back/Forward、タブ、sort可能な列ヘッダーをクリックできます。Search Workspace は専用ラベルで表示します
 
 ### ファイル操作
@@ -165,11 +166,11 @@ zivo-cd
 ### 検索・置換
 - **ファイル検索**: 再帰的にファイル名を検索
 - **grep 検索**: ripgrep による再帰検索。ディレクトリ・現在のファイル・選択ファイル・Search Workspace のスコープと、ファイル名 / 拡張子フィルタに対応
-- **置換**: 現在のファイル、選択ファイル、ディレクトリ、ファイル検索結果、grep 結果を対象に、スコープを選んで diff 確認後に一括置換
+- **置換**: 現在のファイル、選択ファイル、ディレクトリ、Find / Grep / Search Workspace から明示的に渡した検索結果を対象に、diff 確認後に一括置換
 
 ### プレビュー
 
-空ディレクトリとフィルタ0件では理由と実行可能な次の操作を表示します。右ペインは読込中を明示し、内容をプレビューできない場合は、種類、サイズ、更新日時、permission、owner/group、symlink target、archive entry countなどの概要へフォールバックします。任意の外部コマンドが不足してもアプリはクラッシュしません。
+空ディレクトリとフィルタ0件では理由と実行可能な次の操作を表示します。現在ペインが隠し項目だけの場合は `[.] Show hidden files` を表示します。左ペインは読込中、権限不足、親なし、表示項目なしを区別し、再読込中もキャッシュ済み一覧を維持します。右ペインは読込中を明示し、内容をプレビューできない場合は、種類、サイズ、更新日時、permission、owner/group、symlink target、archive entry countなどの概要へフォールバックします。任意の外部コマンドが不足してもアプリはクラッシュしません。
 - テキスト / 画像（chafa、対応端末では Kitty graphics protocol も利用可能）/ PDF（pdftotext）/ Office（pandoc）
 
 ### Transfer モード
@@ -178,7 +179,7 @@ zivo-cd
 - `c` でコピー、`m` で、選択中（またはフォーカス中）の項目を反対側ペインへ移動
 
 ### コマンドパレット
-- `:` で全操作をインクリメンタルサーチから実行。Go は移動先を横断検索でき、`~`、`[`、`]`、`b` の近道も維持
+- `:` で全操作をインクリメンタルサーチから実行。`G` で Go の移動先を横断検索でき、`~`、`[`、`]`、`b` の近道も維持
 
 ### カスタマイズ
 - **設定オーバーレイ**: 起動時設定を対話的に編集・保存
@@ -197,7 +198,7 @@ zivo-cd
 
 ## 設定
 
-zivo は初回起動時に `config.toml` を自動生成します。Config Editor では頻繁に変更する基本設定を扱い、`e` で高度設定を設定ファイルから編集できます。UI 保存時にも高度設定や未知の設定は保持されます。
+zivo は初回起動時に `config.toml` を自動生成します。Config Editor では頻繁に変更する基本設定を扱い、`e` で高度設定を設定ファイルから編集できます。UI 保存時にも高度設定や未知の設定は保持され、外部エディタ終了後は設定ファイルを再読込します。
 テーマ、プレビュー、ソート、エディタ連携、削除確認などを設定できます。
 また、外部ツールを起動するカスタムアクションをコマンドパレットに追加できます。
 ヘルプ文言自体は、現在の状態と標準キーマップから生成されます。
@@ -217,7 +218,7 @@ zivo はファイル操作の事故を防ぐための安全機構を備えてい
 - **貼り付け競合解決**: 上書き / スキップ / リネームを選択可能
 - **置換プレビュー**: diff preview で確認してから一括置換を実行
 - **長時間操作の安全性**: Compressは一時アーカイブを作成して成功時だけ原子的に公開し、ExtractとReplaceも一時ファイル経由で置換します。キャンセルでworkerを強制停止せず、正式なdestinationに途中結果を残しません。
-- **結果通知の次アクション**: Retry は、fresh preflight を行う競合なしの貼り付け失敗、適用済み変更がない Duplicate 失敗、archive/zip の準備失敗に限定します。partial result は失敗対象のパスと理由を `Details` に表示します。
+- **結果通知の次アクション**: Retry は、fresh preflight を行う競合なしの貼り付け失敗、適用済み変更がない Duplicate 失敗、archive/zip の準備失敗に限定します。partial result は失敗対象のパスと理由を `Details` に表示し、可能な場合だけ完了済みCopy/Move対象のUndoを提示します。
 - **その他の詳細**: [Safety](docs/safety.ja.md) を参照
 
 ---
@@ -233,6 +234,7 @@ zivo はファイル操作の事故を防ぐための安全機構を備えてい
 - [Architecture](docs/architecture.md) — 実装構造
 - [Performance](docs/performance.md) — 性能確認メモ
 - [Release Checklist](docs/release-checklist.md) — リリースチェックリスト
+- [Dependency and GitHub Actions Audit](docs/dependency-audit.ja.md) — CI依存関係監査とAction固定方針
 
 ---
 

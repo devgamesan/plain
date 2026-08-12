@@ -20,9 +20,17 @@ class StubFilesystemAdapter:
     entries_by_path: dict[str, tuple[DirectoryEntryState, ...]] = field(default_factory=dict)
     errors_by_path: dict[str, Exception] = field(default_factory=dict)
     list_directory_calls: list[str] = field(default_factory=list)
+    list_directory_summary_calls: list[str] = field(default_factory=list)
 
     def list_directory(self, path: str) -> tuple[DirectoryEntryState, ...]:
         self.list_directory_calls.append(path)
+        if path in self.errors_by_path:
+            raise self.errors_by_path[path]
+        return self.entries_by_path[path]
+
+    def list_directory_summary(self, path: str) -> tuple[DirectoryEntryState, ...]:
+        self.list_directory_calls.append(path)
+        self.list_directory_summary_calls.append(path)
         if path in self.errors_by_path:
             raise self.errors_by_path[path]
         return self.entries_by_path[path]
@@ -87,6 +95,19 @@ def test_live_browser_snapshot_loader_builds_three_pane_snapshot(tmp_path) -> No
     assert snapshot.current_pane.cursor_path == str(docs)
     assert snapshot.child_pane.directory_path == str(docs)
     assert [entry.name for entry in snapshot.child_pane.entries] == ["spec.md"]
+
+
+def test_live_browser_snapshot_loader_uses_lightweight_side_pane_listings(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    docs = project / "docs"
+    docs.mkdir()
+    filesystem = _build_stub_filesystem(str(project), str(tmp_path), str(docs))
+    loader = LiveBrowserSnapshotLoader(filesystem=filesystem)
+
+    loader.load_browser_snapshot(str(project), cursor_path=str(docs))
+
+    assert filesystem.list_directory_summary_calls == [str(tmp_path), str(docs)]
 
 
 def test_live_browser_snapshot_loader_uses_cursor_path_for_child_pane(tmp_path) -> None:

@@ -9,6 +9,8 @@ from .effects import ReduceResult
 from .models import (
     AppState,
     CommandPaletteState,
+    FileSearchFieldId,
+    FileSearchResultState,
     FindReplaceFieldId,
     GrepReplaceFieldId,
     GrepReplaceSelectedFieldId,
@@ -18,6 +20,7 @@ from .models import (
     NotificationState,
     ReplaceFieldId,
     ReplacePreviewResultState,
+    SearchResultState,
 )
 from .reducer_common import ReducerFn, finalize, is_regex_file_search_query
 from .selectors import select_visible_current_entry_states
@@ -42,6 +45,29 @@ GREP_REPLACE_SELECTED_FIELDS: tuple[GrepReplaceSelectedFieldId, ...] = ("keyword
 
 _EXTENSION_SEPARATOR_RE = re.compile(r"[\s,]+")
 _VALID_EXTENSION_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*")
+
+FILE_SEARCH_FIELDS: tuple[FileSearchFieldId, ...] = (
+    "keyword",
+    "target",
+    "include",
+    "exclude",
+)
+
+
+def unique_search_result_paths(
+    results: tuple[SearchResultState, ...],
+) -> tuple[str, ...]:
+    """Return unique file paths from Find or Grep results in display order."""
+
+    paths: list[str] = []
+    seen: set[str] = set()
+    for result in results:
+        if isinstance(result, FileSearchResultState) and result.entry_type != "file":
+            continue
+        if result.path not in seen:
+            seen.add(result.path)
+            paths.append(result.path)
+    return tuple(paths)
 
 
 def grep_field_value(
@@ -163,7 +189,7 @@ def replace_grs_field(
     return replace(palette, grs=replace(palette.grs, replacement_text=value))
 
 
-def normalize_grep_extension_filters(
+def normalize_extension_filters(
     raw_value: str,
     *,
     label: str,
@@ -181,6 +207,16 @@ def normalize_grep_extension_filters(
             seen.add(glob)
             normalized_globs.append(glob)
     return tuple(normalized_globs)
+
+
+def normalize_grep_extension_filters(
+    raw_value: str,
+    *,
+    label: str,
+) -> tuple[str, ...]:
+    """Normalize extension filters used by grep and file search."""
+
+    return normalize_extension_filters(raw_value, label=label)
 
 
 def validate_filename_filter(filename_query: str) -> str | None:
@@ -233,7 +269,6 @@ def enter_palette(
     state: AppState,
     *,
     source: str = "commands",
-    history_results: tuple[str, ...] = (),
     preserve_notification: bool = False,
 ) -> AppState:
     return replace(
@@ -243,12 +278,11 @@ def enter_palette(
         pending_input=None,
         command_palette=CommandPaletteState(
             source=source,
-            history_and_navigation=HistoryAndNavigationPaletteState(
-                history_results=history_results,
-            ),
+            history_and_navigation=HistoryAndNavigationPaletteState(),
         ),
         pending_file_search_request_id=None,
         pending_grep_search_request_id=None,
+        pending_go_completion_request_id=None,
         pending_replace_preview_request_id=None,
         pending_replace_apply_request_id=None,
         delete_confirmation=None,
@@ -271,6 +305,7 @@ def restore_browsing_from_palette(
         pending_go_palette=None,
         pending_file_search_request_id=None,
         pending_grep_search_request_id=None,
+        pending_go_completion_request_id=None,
         pending_replace_preview_request_id=None,
         pending_replace_apply_request_id=None,
         attribute_inspection=None,

@@ -24,6 +24,12 @@ preview details, terminal templates, paste behavior, logging, file-search limits
 custom actions, or future settings. Saving basic settings from the UI updates only
 those settings and preserves advanced, unknown, and custom TOML values.
 
+If the Config Editor has unsaved changes, save or close them before opening the
+raw file with `e`. When the external editor exits, zivo reloads `config.toml`
+and applies the result to the running app and Config Editor. If the TOML is
+invalid, zivo keeps the current active configuration and shows a warning. Some
+settings require restarting zivo.
+
 ## Settings Reference
 
 | Section | Key | Values | Description |
@@ -54,7 +60,10 @@ those settings and preserves advanced, unknown, and custom TOML values.
 | `logging` | `level` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` | Log level for file output. Defaults to `ERROR`. Requires app restart to take effect. |
 | `logging` | `path` | Path string | Optional log file path. Leave empty to use `zivo.log` next to `config.toml`. Default log file locations: Linux: `~/.config/zivo/zivo.log`, macOS: `~/Library/Application Support/zivo/zivo.log`. |
 | `bookmarks` | `paths` | Array of absolute path strings | Bookmarked directories shown by `b` and the `Go` command's `@bookmark` filter. Duplicate paths are removed when the config is loaded. |
-| `file_search` | `max_results` | Integer or empty | Maximum number of file search results. Leave empty for unlimited (default). Set to reduce memory usage on large repositories. |
+| `file_search` | `max_results` | Non-negative integer or omitted | Maximum number of direct Find file results. Omit the key to use the default limit of 1,000; `0` disables results. When the limit is exceeded, the palette clearly reports omitted results. |
+| `grep_search` | `max_results` | Non-negative integer or omitted | Maximum number of direct Grep search results. Omit the key to use the default limit of 1,000; `0` disables results. When the limit is exceeded, the palette clearly reports omitted results. |
+| `background_commands` | `max_output_kib` | Integer from `1` to `4096` | Maximum retained stdout and stderr independently for `!` commands and `background` custom actions. Defaults to `1024` KiB per stream. zivo preserves the beginning and end and omits the middle when exceeded. |
+| `background_commands` | `timeout_seconds` | Integer from `1` to `86400` | Maximum execution time for `!` commands and `background` custom actions. Defaults to `300` seconds. Interactive terminal modes are not limited. |
 | `actions` | `custom` | Array of action tables | Custom command palette actions. See [Custom Actions](custom-actions.md). |
 
 ## Example
@@ -92,6 +101,14 @@ directories_first = true
 [behavior]
 confirm_delete = true
 paste_conflict_action = "prompt"
+
+[grep_search]
+# Leave empty for unlimited results (default).
+# max_results = 1000
+
+[background_commands]
+max_output_kib = 1024
+timeout_seconds = 300
 
 [logging]
 enabled = true

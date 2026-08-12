@@ -122,16 +122,17 @@ def _list_matching_entry_paths(
 
     matches: list[str] = []
     try:
-        for child in parent.iterdir():
-            try:
-                if directories_only and not child.is_dir():
+        with os.scandir(parent) as iterator:
+            for child in iterator:
+                try:
+                    if directories_only and not child.is_dir():
+                        continue
+                except OSError:
                     continue
-            except OSError:
-                continue
 
-            if prefix and not child.name.casefold().startswith(prefix):
-                continue
-            matches.append(normalize_windows_path(str(child.resolve())))
+                if prefix and not child.name.casefold().startswith(prefix):
+                    continue
+                matches.append(normalize_windows_path(os.path.abspath(child.path)))
     except (OSError, PermissionError):
         return ()
 

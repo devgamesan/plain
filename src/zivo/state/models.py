@@ -52,15 +52,14 @@ CommandPaletteSource = Literal[
     "commands",
     "file_search",
     "grep_search",
-    "history",
-    "bookmarks",
-    "go_to_path",
     "go",
     "replace_text",
+    # Deprecated compatibility sources; new UI enters replace_text directly.
     "replace_in_found_files",
     "replace_in_grep_files",
     "grep_replace_selected",
 ]
+ReplaceResultOrigin = Literal["find", "grep", "workspace"]
 GoSourceFilter = Literal["all", "bookmarks", "recent", "open_tabs", "home"]
 GoCandidateSource = Literal["home", "bookmark", "recent", "open_tab", "direct"]
 GrepSearchScope = Literal["current_directory", "selected_entries", "search_workspace"]
@@ -69,6 +68,8 @@ ReplaceScope = Literal[
     "current_file",
     "selected_files",
     "current_directory",
+    "search_results",
+    # Deprecated compatibility values. They are not exposed by the unified UI.
     "found_files",
     "grep_result_files",
 ]
@@ -77,7 +78,7 @@ FindReplaceFieldId = Literal["filename", "find", "replace"]
 GrepReplaceFieldId = Literal["keyword", "replace", "filename", "include", "exclude"]
 GrepReplaceSelectedFieldId = Literal["keyword", "replace"]
 FileSearchTarget = Literal["files", "directories", "all"]
-FileSearchFieldId = Literal["keyword", "target"]
+FileSearchFieldId = Literal["keyword", "target", "include", "exclude"]
 DirectorySizeStatus = Literal["pending", "ready", "failed"]
 CurrentPaneProjectionMode = Literal["full", "viewport"]
 LayoutMode = Literal["browser", "transfer"]
@@ -268,6 +269,15 @@ class ForegroundOperationState:
 
 
 @dataclass(frozen=True)
+class BackgroundCommandState:
+    """Cancellation state for one non-interactive external command."""
+
+    request_id: int
+    label: str
+    cancel_requested: bool = False
+
+
+@dataclass(frozen=True)
 class ZipCompressConfirmationState:
     """Pending confirmation dialog state for zip compression conflicts."""
 
@@ -316,6 +326,8 @@ class ReplaceConfirmationState:
     replacement_text: str
     target_paths: tuple[str, ...]
     total_match_count: int
+    result_origin: ReplaceResultOrigin | None = None
+    result_query: str = ""
 
 
 @dataclass(frozen=True)
@@ -354,6 +366,11 @@ class HistoryState:
     visited_all: tuple[str, ...] = ()
 
 
+# Directory history is intentionally bounded so long-running sessions do not
+# accumulate unbounded immutable tuples in every tab and transfer pane.
+DIRECTORY_HISTORY_LIMIT = 100
+
+
 @dataclass(frozen=True)
 class NotificationFailureDetail:
     """One failed target shown by an actionable notification's details view."""
@@ -372,6 +389,7 @@ class NotificationDetails:
     unprocessed_count: int = 0
     unprocessed_paths: tuple[str, ...] = ()
     skipped_paths: tuple[str, ...] = ()
+    recovery_action: "NotificationAction | None" = None
 
 
 NotificationActionId = Literal[
@@ -379,6 +397,7 @@ NotificationActionId = Literal[
     "notification.open_destination",
     "notification.retry",
     "notification.details",
+    "notification.shell_result",
 ]
 
 
@@ -503,6 +522,9 @@ class GrepSearchResultState:
         return f"{self.display_path}:{self.line_number}: {self.line_text}"
 
 
+SearchResultState = FileSearchResultState | GrepSearchResultState
+
+
 @dataclass(frozen=True)
 class ReplacePreviewResultState:
     """A single text-replace preview result shown in the command palette."""
@@ -528,11 +550,19 @@ class ReplacePreviewResultState:
 
 @dataclass(frozen=True)
 class HistoryAndNavigationPaletteState:
-    history_results: tuple[str, ...] = ()
-    go_to_path_candidates: tuple[str, ...] = ()
-    go_to_path_selection_active: bool = True
-    go_candidates: tuple["GoCandidateState", ...] = ()
     go_source_filter: GoSourceFilter = "all"
+
+
+@dataclass(frozen=True)
+class GoCompletionState:
+    """Asynchronous direct-path completion state for the Go palette."""
+
+    query: str = ""
+    base_path: str = ""
+    paths: tuple[str, ...] = ()
+    loading: bool = False
+    results_truncated: bool = False
+    error_message: str | None = None
 
 
 @dataclass(frozen=True)
@@ -553,8 +583,13 @@ class FileSearchPaletteState:
     cache_root_path: str | None = None
     cache_show_hidden: bool = False
     cache_target: FileSearchTarget | None = None
+    cache_include_extensions: tuple[str, ...] = ()
+    cache_exclude_extensions: tuple[str, ...] = ()
     target: FileSearchTarget = "all"
+    include_extensions: str = ""
+    exclude_extensions: str = ""
     active_field: FileSearchFieldId = "keyword"
+    results_truncated: bool = False
 
 
 @dataclass(frozen=True)
@@ -569,6 +604,7 @@ class GrepSearchPaletteState:
     scope_message: str | None = None
     results: tuple[GrepSearchResultState, ...] = ()
     error_message: str | None = None
+    results_truncated: bool = False
 
 
 @dataclass(frozen=True)
@@ -588,10 +624,15 @@ class ReplacePreviewPaletteState:
     status_message: str | None = None
     target_paths: tuple[str, ...] = ()
     total_match_count: int = 0
+    result_origin: ReplaceResultOrigin | None = None
+    result_query: str = ""
+    result_file_count: int = 0
+    result_match_count: int = 0
 
 
 @dataclass(frozen=True)
 class RffPaletteState:
+    """Deprecated compatibility state; new flows use replace_preview."""
     filename_query: str = ""
     active_field: FindReplaceFieldId = "filename"
     find_text: str = ""
@@ -606,6 +647,7 @@ class RffPaletteState:
 
 @dataclass(frozen=True)
 class GrsPaletteState:
+    """Deprecated compatibility state; new flows use replace_preview."""
     keyword: str = ""
     active_field: GrepReplaceSelectedFieldId = "keyword"
     grep_results: tuple[GrepSearchResultState, ...] = ()
@@ -620,6 +662,7 @@ class GrsPaletteState:
 
 @dataclass(frozen=True)
 class GrfPaletteState:
+    """Deprecated compatibility state; new flows use replace_preview."""
     keyword: str = ""
     include_extensions: str = ""
     exclude_extensions: str = ""
@@ -652,6 +695,7 @@ class CommandPaletteState:
     history_and_navigation: HistoryAndNavigationPaletteState = field(
         default_factory=HistoryAndNavigationPaletteState
     )
+    go_completion: GoCompletionState = field(default_factory=GoCompletionState)
 
 
 @dataclass(frozen=True)
@@ -706,6 +750,8 @@ class AppState:
     parent_pane: PaneState
     current_pane: PaneState
     child_pane: PaneState
+    parent_pane_loading: bool = False
+    child_pane_loading: bool = False
     browser_tabs: tuple[BrowserTabState, ...] = ()
     active_tab_index: int = 0
     config: AppConfig = field(default_factory=AppConfig)
@@ -728,6 +774,7 @@ class AppState:
     notification_revision: int = 0
     notification_details: NotificationDetails | None = None
     foreground_operation: ForegroundOperationState | None = None
+    background_command: BackgroundCommandState | None = None
     pending_input: PendingInputState | None = None
     bulk_rename: BulkRenameEditorState | None = None
     pending_key_sequence: PendingKeySequenceState | None = None
@@ -736,6 +783,7 @@ class AppState:
     paste_conflict: PasteConflictState | None = None
     delete_confirmation: DeleteConfirmationState | None = None
     exit_confirmation: ExitConfirmationState | None = None
+    pending_exit_after_operation: bool = False
     name_conflict: NameConflictState | None = None
     archive_extract_confirmation: ArchiveExtractConfirmationState | None = None
     archive_extract_progress: ArchiveExtractProgressState | None = None
@@ -769,11 +817,13 @@ class AppState:
     pending_zip_compress_request_id: int | None = None
     pending_file_search_request_id: int | None = None
     pending_grep_search_request_id: int | None = None
+    pending_go_completion_request_id: int | None = None
     pending_replace_preview_request_id: int | None = None
     pending_replace_apply_request_id: int | None = None
     pending_directory_size_request_id: int | None = None
     pending_attribute_inspection_request_id: int | None = None
     pending_config_save_request_id: int | None = None
+    pending_config_reload_request_id: int | None = None
     pending_shell_command_request_id: int | None = None
     pending_grep_export_request_id: int | None = None
     pending_custom_action_request_id: int | None = None
@@ -797,6 +847,8 @@ def browser_tab_from_app_state(state: AppState) -> BrowserTabState:
         parent_pane=state.parent_pane,
         current_pane=state.current_pane,
         child_pane=state.child_pane,
+        parent_pane_loading=state.parent_pane_loading,
+        child_pane_loading=state.child_pane_loading,
         history=state.history,
         filter=state.filter,
         current_pane_window_start=state.current_pane_window_start,
@@ -850,6 +902,8 @@ def load_browser_tab(state: AppState, index: int) -> AppState:
         parent_pane=tab.parent_pane,
         current_pane=tab.current_pane,
         child_pane=tab.child_pane,
+        parent_pane_loading=tab.parent_pane_loading,
+        child_pane_loading=tab.child_pane_loading,
         history=tab.history,
         filter=tab.filter,
         current_pane_window_start=tab.current_pane_window_start,

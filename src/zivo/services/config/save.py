@@ -7,24 +7,14 @@ from pathlib import Path
 from typing import Protocol
 
 from zivo.models import AppConfig
+from zivo.models.config_editor import CONFIG_EDITOR_FIELDS
 
 from .render import render_app_config, render_optional_toml_string, render_toml_string
 
-CONFIG_EDITOR_MANAGED_SETTINGS: tuple[tuple[str, str], ...] = (
-    ("editor", "command"),
-    ("gui_editor", "command"),
-    ("gui_editor", "fallback_command"),
-    ("display", "show_hidden_files"),
-    ("display", "theme"),
-    ("display", "preview_syntax_theme"),
-    ("display", "enable_text_preview"),
-    ("display", "enable_image_preview"),
-    ("display", "enable_pdf_preview"),
-    ("display", "enable_office_preview"),
-    ("display", "default_sort_field"),
-    ("display", "default_sort_descending"),
-    ("display", "directories_first"),
-    ("behavior", "confirm_delete"),
+CONFIG_EDITOR_MANAGED_SETTINGS: tuple[tuple[str, str], ...] = tuple(
+    setting
+    for field in CONFIG_EDITOR_FIELDS
+    for setting in field.managed_settings
 )
 
 

@@ -185,7 +185,7 @@ sequenceDiagram
 
 ### foreground file operation の進捗
 
-Copy・Move・Compress・Extract・Replace は、1つの一時的な `ForegroundOperationState` を共有する。runtime が operation ID と協調キャンセル用 event を管理し、service は安全な対象境界でだけ event を確認して progress を reducer action へ戻す。古い operation ID の progress は破棄する。StatusBar と HelpBar は専用タスク画面を追加せず state を投影し、キャンセル可能な間だけ `Cancel` と `Esc` を表示する。Compress は同一ディレクトリの一時アーカイブを原子的に公開し、Extract と Replace は一時ファイルを原子的に置換する。部分結果の件数とパスは既存 Details 経路で表示する。
+Copy・Move・Compress・Extract・Replace は、1つの一時的な `ForegroundOperationState` を共有する。確認ダイアログと事前準備は foreground で完了し、確定後の worker 実行中は `BROWSING` を維持する。runtime が operation ID と協調キャンセル用 event を管理し、service は安全な対象境界でだけ event を確認して progress を reducer action へ戻す。古い operation ID の progress は破棄する。別のファイル変更、Undo、エディタ・シェル起動、変更を伴うカスタムアクションは進行中の操作名を示して拒否し、長時間操作は常に1件へ直列化する。StatusBar と HelpBar は専用タスク画面を追加せず state を投影し、通常ブラウズまたはTransfer中にキャンセル可能な間だけ `Cancel` と `Esc` を表示する。画面終了はキャンセル要求と後始末の完了後に行う。完了時は現在の表示パスを維持し、影響を受けた可視ペインだけを progressive refresh する。Compress は同一ディレクトリの一時アーカイブを原子的に公開し、Extract と Replace は一時ファイルを原子的に置換する。部分結果の件数とパスは既存 Details 経路で表示する。
 
 ### `src/zivo/state/reducer_navigation.py`
 
@@ -208,7 +208,7 @@ Copy・Move・Compress・Extract・Replace は、1つの一時的な `Foreground
 ### `src/zivo/state/reducer_palette.py`
 
 - コマンドパレットの開閉、query 更新、候補カーソル移動、実行を担当する
-- `Find files`、`Grep search`、`History search`、`Show bookmarks`、`Go to path`、bookmark add/remove、`Show attributes`、`Extract archive` などの派生フローを起動する
+- `Find files`、`Grep search`、統合 `Go`、bookmark add/remove、`Show attributes`、`Extract archive` などの派生フローを起動する
 - 属性ダイアログの開閉や file search / grep search の結果反映もここで扱う
 
 ### `src/zivo/state/reducer_terminal_config.py`
@@ -232,14 +232,14 @@ Copy・Move・Compress・Extract・Replace は、1つの一時的な `Foreground
 - 標準コマンドの安定 ID、カテゴリ、keywords、shortcut、context priority、無効理由を共有メタデータとして管理する
 - カテゴリ順と決定的な一致スコアで候補を安定ソートする
 - 無効候補も残し、selector と reducer が同じ disabled reason を表示・通知に利用する
+- 検索結果パレットには明示的な `Replace results` 操作を表示する。Search Workspace の `Replace selected results` と同じ `BeginTextReplace` 経路を使い、`Search results` の対象コンテキストは一時的にだけ保持する（結果セットをグローバルには保存しない）
+- 統一Replace selectorは検索元、クエリ、一意な対象ファイル数、Grep match数を表示し、通常のReplaceは Current file / Selected files / Current directory のScopeを維持する
 - 通常 palette には次の候補がある
   - `Find files`
   - `Grep search`
-  - `History search`
-  - `Show bookmarks`
   - `Go back`
   - `Go forward`
-  - `Go to path`
+  - `Go`（Home、bookmark、recent history、open tab、direct path）
   - `Go to home directory`
   - `Reload directory`
   - `Toggle split terminal`
@@ -259,8 +259,9 @@ Copy・Move・Compress・Extract・Replace は、1つの一時的な `Foreground
   - `Edit config`
   - `Create file`
   - `Create directory`
-- palette source は `commands` / `file_search` / `grep_search` / `history` / `bookmarks` / `go_to_path` を持つ
-- `go_to_path` は入力中に一致するディレクトリ候補を複数表示し、`Tab` で選択候補を補完できる
+- palette source は `commands` / `file_search` / `grep_search` / `go` / `replace` などを持つ
+- 統合 `Go` は入力中に Home、bookmark、recent history、open tab、direct path の候補を表示し、`Tab` で direct path 候補を補完できる。パス区切りの直後は、入力中の既存ディレクトリを先頭候補として維持しながら直下の子ディレクトリ候補を表示する
+- direct path の directory listing は reducer で同期実行せず、debounce 付き worker と短時間の親ディレクトリ cache を使う。query/request ID が一致しない結果は破棄し、loading・0件・権限エラー・truncated 状態を Go view に表示する
 - `grep_search` は keyword / filename filter / include extensions / exclude extensions の 4 フィールドを持ち、`Tab` / `Shift+Tab` で入力欄を移動する
 
 ### `src/zivo/services/`
@@ -289,6 +290,8 @@ Copy・Move・Compress・Extract・Replace は、1つの一時的な `Foreground
 - `file_operations.py`: copy / move / rename / create / trash / archive 展開補助などのファイル操作を担当する
 - `external_launcher.py`: OS ごとの起動コマンド差異を吸収する
 
+外部処理の完了後は、待機していた editor・foreground terminal・shell・custom action の reducer 完了経路から、対象 cwd または編集対象の親が現在表示中の実ディレクトリと一致する場合だけ `request_snapshot_refresh()` を発行する。refresh は既存の request ID 世代管理と `post_reload_notification` を再利用するため、手動 Reload と競合した古い snapshot は破棄され、cursor・selection・filter・sort は通常の snapshot 適用規則で維持される。GUI editor、terminal window、configだけを更新するoverlay、Search Workspace、archive の仮想表示はこの経路から除外する。
+
 ### `src/zivo/models/` と `src/zivo/state/models.py`
 
 - `models/` には service と UI が共有する request / result / view model を置く
@@ -307,7 +310,8 @@ stateDiagram-v2
     BROWSING --> DETAIL: Show attributes
     BROWSING --> CONFIG: Edit config
     BROWSING --> CONFIRM: delete / paste conflict / archive conflict
-    BROWSING --> BUSY: snapshot / mutation / launch / config save
+    BROWSING --> BUSY: blocking snapshot / short mutation / launch / config save
+    BROWSING --> BROWSING: confirmed long-running worker starts
     BROWSING --> BROWSING: Alt+← / Alt+→ / Alt+Home / reload / sort / hidden toggle
     PALETTE --> BROWSING: Enter on command / Esc
     PALETTE --> PALETTE: query 更新 / search mode 継続
@@ -315,7 +319,7 @@ stateDiagram-v2
     RENAME --> BUSY: Enter
     CREATE --> BUSY: Enter
     EXTRACT --> CONFIRM: Enter with conflicts
-    EXTRACT --> BUSY: Enter without conflicts
+    EXTRACT --> BROWSING: Enter without conflicts (worker)
     EXTRACT --> BROWSING: Esc
     DETAIL --> BROWSING: Enter / Esc
     CONFIG --> BUSY: s save

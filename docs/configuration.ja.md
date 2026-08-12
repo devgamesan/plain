@@ -18,7 +18,9 @@ zivo は起動時にユーザー設定用の `config.toml` を読み込みます
 - 既定のソート項目、順序、ディレクトリ優先
 - 削除確認
 
-Config Editor で `e` を押すと `config.toml` を開き、高度設定を編集できます。プレビュー詳細、terminal templates、貼り付け動作、logging、file search の上限、custom actions、将来追加される設定はここで管理します。UI で基本設定を保存しても、高度設定・未知の設定・独自の TOML 値は保持されます。
+Config Editor で `e` を押すと `config.toml` を開き、高度設定を編集できます。プレビュー詳細、terminal templates、貼り付け動作、logging、file search の上限、background command の制限、custom actions、将来追加される設定はここで管理します。UI で基本設定を保存しても、高度設定・未知の設定・独自の TOML 値は保持されます。
+
+Config Editor に未保存の変更がある場合は、先に保存または画面を閉じてから `e` で高度設定を開きます。外部エディタを閉じると `config.toml` を再読込し、変更を実行中の zivo と Config Editor に反映します。TOML の構文が不正な場合は現在の有効設定を維持して警告を表示します。設定によっては再起動が必要です。
 
 ## 設定項目一覧
 
@@ -50,7 +52,10 @@ Config Editor で `e` を押すと `config.toml` を開き、高度設定を編�
 | `logging` | `level` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` | ログファイルへ出力するログレベルです。既定値は `ERROR` です。設定の反映にはアプリの再起動が必要です。 |
 | `logging` | `path` | パス文字列 | 任意のログファイル保存先です。空文字なら `config.toml` と同じディレクトリの `zivo.log` を使います。ログファイルの既定の場所: Linux: `~/.config/zivo/zivo.log`、macOS: `~/Library/Application Support/zivo/zivo.log`。 |
 | `bookmarks` | `paths` | 絶対パス文字列の配列 | `b` や Go の `@bookmark` フィルターで表示するブックマーク一覧です。重複パスは読み込み時に取り除かれます。 |
-| `file_search` | `max_results` | 整数または空 | ファイル検索の最大結果件数です。空欄の場合は制限なし（既定値）。大規模リポジトリでのメモリ使用量を削減するために設定します。 |
+| `file_search` | `max_results` | 0以上の整数または省略 | 直接 Find file の最大結果件数です。キーを省略すると既定値1,000件、`0` では結果を無効にします。上限超過時はパレットに省略結果を明示します。 |
+| `grep_search` | `max_results` | 0以上の整数または省略 | 直接 Grep search の最大結果件数です。キーを省略すると既定値1,000件、`0` では結果を無効にします。上限超過時はパレットに省略結果を明示します。 |
+| `background_commands` | `max_output_kib` | `1`〜`4096`の整数 | `!` commandと`background` custom actionで保持するstdout/stderrそれぞれの最大量です。既定値はstreamごとに`1024` KiBです。超過時は先頭と末尾を保持し、中間を省略します。 |
+| `background_commands` | `timeout_seconds` | `1`〜`86400`の整数 | `!` commandと`background` custom actionの最大実行時間です。既定値は`300`秒です。interactiveなterminal modeには適用しません。 |
 | `actions` | `custom` | action table の配列 | コマンドパレットに表示するカスタムアクションです。詳しくは [カスタムアクション](custom-actions.ja.md) を参照してください。 |
 
 ## 設定例
@@ -88,6 +93,14 @@ directories_first = true
 [behavior]
 confirm_delete = true
 paste_conflict_action = "prompt"
+
+[grep_search]
+# 空欄の場合は結果数を制限しません（既定値）。
+# max_results = 1000
+
+[background_commands]
+max_output_kib = 1024
+timeout_seconds = 300
 
 [logging]
 enabled = true

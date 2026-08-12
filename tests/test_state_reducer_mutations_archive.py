@@ -11,7 +11,7 @@ from zivo.models import (
 from zivo.state import (
     ArchiveExtractConfirmationState,
     ArchiveExtractProgressState,
-    LoadBrowserSnapshotEffect,
+    LoadCurrentPaneEffect,
     NotificationAction,
     NotificationState,
     PendingInputState,
@@ -372,8 +372,7 @@ def test_zip_compress_progress_updates_notification() -> None:
     )
 
 
-def test_archive_extract_completed_requests_snapshot_for_destination_parent() -> None:
-    dest_parent = str(Path("/tmp/output").resolve())
+def test_archive_extract_completed_refreshes_current_view_without_navigation() -> None:
     dest_path = str(Path("/tmp/output/archive").resolve())
     state = replace(
         build_initial_app_state(),
@@ -411,17 +410,16 @@ def test_archive_extract_completed_requests_snapshot_for_destination_parent() ->
         destination_path=dest_path,
     )
     assert result.effects == (
-        LoadBrowserSnapshotEffect(
+        LoadCurrentPaneEffect(
             request_id=1,
-            path=dest_parent,
-            cursor_path=dest_path,
-            blocking=True,
-            invalidate_paths=browser_snapshot_invalidation_paths(dest_parent, dest_path),
+            path=state.current_path,
+            cursor_path=state.current_pane.cursor_path,
+            invalidate_paths=browser_snapshot_invalidation_paths(state.current_path, dest_path),
         ),
     )
 
 
-def test_zip_compress_completed_requests_snapshot_for_destination_parent() -> None:
+def test_zip_compress_completed_refreshes_current_view_without_navigation() -> None:
     dest_parent = str(Path("/tmp").resolve())
     dest_path = str(Path("/tmp/output.zip").resolve())
     state = replace(
@@ -460,12 +458,11 @@ def test_zip_compress_completed_requests_snapshot_for_destination_parent() -> No
         destination_path=dest_parent,
     )
     assert result.effects == (
-        LoadBrowserSnapshotEffect(
+        LoadCurrentPaneEffect(
             request_id=1,
-            path=dest_parent,
-            cursor_path=dest_path,
-            blocking=True,
-            invalidate_paths=browser_snapshot_invalidation_paths(dest_parent, dest_path),
+            path=state.current_path,
+            cursor_path=state.current_pane.cursor_path,
+            invalidate_paths=browser_snapshot_invalidation_paths(state.current_path, dest_path),
         ),
     )
 
@@ -512,7 +509,7 @@ def test_zip_compress_failed_returns_to_zip_mode() -> None:
         ZipCompressFailed(request_id=12, message="Destination path already exists as a directory"),
     )
 
-    assert next_state.ui_mode == "ZIP"
+    assert next_state.ui_mode == "BROWSING"
     assert next_state.pending_zip_compress_request_id is None
     assert next_state.notification == NotificationState(
         level="error",

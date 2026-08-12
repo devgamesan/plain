@@ -3,22 +3,26 @@ from pathlib import Path
 from zivo.models import (
     ActionsConfig,
     AppConfig,
+    BackgroundCommandConfig,
     BehaviorConfig,
     BookmarkConfig,
     CustomActionConfig,
     DisplayConfig,
     EditorConfig,
     FileSearchConfig,
+    GrepSearchConfig,
     GuiEditorConfig,
     LoggingConfig,
     TerminalConfig,
 )
+from zivo.models.config_editor import CONFIG_EDITOR_FIELDS
 from zivo.services.config import (
     AppConfigLoader,
     LiveConfigSaveService,
     render_app_config,
     resolve_config_path,
 )
+from zivo.services.config.save import CONFIG_EDITOR_MANAGED_SETTINGS
 from zivo.theme_support import SUPPORTED_APP_THEMES, SUPPORTED_PREVIEW_SYNTAX_THEMES
 
 
@@ -73,6 +77,45 @@ def test_loader_creates_default_config_when_missing(tmp_path) -> None:
     assert 'path = ""' in written
     assert '# paths = ["/home/user/src", "/home/user/docs"]' in written
     assert "grep_preview_context_lines = 3" in written
+    assert "[background_commands]" in written
+    assert "max_output_kib = 1024" in written
+    assert "timeout_seconds = 300" in written
+
+
+def test_loader_marks_invalid_toml_as_fatal(tmp_path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text("[display\ntheme = 'dracula'", encoding="utf-8")
+
+    result = AppConfigLoader(config_path_resolver=lambda: config_path).load()
+
+    assert result.fatal is True
+    assert result.config == AppConfig()
+    assert result.warnings and result.warnings[0].startswith("Failed to parse config.toml:")
+
+
+def test_config_editor_metadata_is_the_save_source_of_truth() -> None:
+    expected_settings = tuple(
+        setting
+        for field in CONFIG_EDITOR_FIELDS
+        for setting in field.managed_settings
+    )
+
+    assert CONFIG_EDITOR_MANAGED_SETTINGS == expected_settings
+    assert tuple(field.field_id for field in CONFIG_EDITOR_FIELDS) == (
+        "editor.command",
+        "gui_editor.preset",
+        "display.show_hidden_files",
+        "display.theme",
+        "display.preview_syntax_theme",
+        "display.enable_text_preview",
+        "display.enable_image_preview",
+        "display.enable_pdf_preview",
+        "display.enable_office_preview",
+        "display.default_sort_field",
+        "display.default_sort_descending",
+        "display.directories_first",
+        "behavior.confirm_delete",
+    )
 
 
 def test_loader_reads_valid_config_values(tmp_path) -> None:
@@ -118,6 +161,10 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
 
         [bookmarks]
         paths = ["{bookmark_a_toml}", "{bookmark_b_toml}", "{bookmark_a_toml}"]
+
+        [background_commands]
+        max_output_kib = 2048
+        timeout_seconds = 900
 
         [[actions.custom]]
         name = "Optimize PNG"
@@ -169,6 +216,10 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
     assert result.config.logging.enabled is False
     assert result.config.logging.path == "~/logs/zivo.log"
     assert result.config.bookmarks.paths == (bookmark_a, bookmark_b)
+    assert result.config.background_commands == BackgroundCommandConfig(
+        max_output_kib=2048,
+        timeout_seconds=900,
+    )
     assert result.config.actions.custom == (
         CustomActionConfig(
             name="Optimize PNG",
@@ -231,6 +282,10 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
 
         [bookmarks]
         paths = ["relative/path", 3]
+
+        [background_commands]
+        max_output_kib = 4097
+        timeout_seconds = 0
         """,
         encoding="utf-8",
     )
@@ -255,7 +310,8 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
     assert result.config.logging.enabled is True
     assert result.config.logging.path is None
     assert result.config.bookmarks.paths == ()
-    assert len(result.warnings) == 20
+    assert result.config.background_commands == BackgroundCommandConfig()
+    assert len(result.warnings) == 22
 
 
 def test_loader_warns_for_invalid_editor_command_syntax(tmp_path) -> None:
@@ -315,6 +371,10 @@ def test_config_save_service_writes_normalized_config_file(tmp_path) -> None:
                 path="/tmp/zivo-errors.log",
             ),
             bookmarks=BookmarkConfig(paths=("/tmp/project", "/tmp/docs")),
+            background_commands=BackgroundCommandConfig(
+                max_output_kib=512,
+                timeout_seconds=120,
+            ),
             actions=ActionsConfig(
                 custom=(
                     CustomActionConfig(
@@ -357,6 +417,8 @@ def test_config_save_service_writes_normalized_config_file(tmp_path) -> None:
     assert 'path = "/tmp/zivo-errors.log"' in written
     assert 'paths = ["/tmp/project", "/tmp/docs"]' in written
     assert "grep_preview_context_lines = 7" in written
+    assert "max_output_kib = 512" in written
+    assert "timeout_seconds = 120" in written
 
 
 def test_config_save_service_preserves_advanced_and_unknown_settings(tmp_path) -> None:
@@ -616,6 +678,38 @@ def test_file_search_config_default_is_unlimited() -> None:
     """file_search.max_results のデフォルト値が None であることを確認."""
     config = AppConfig()
     assert config.file_search.max_results is None
+
+
+def test_grep_search_config_default_is_unlimited() -> None:
+    """grep_search.max_results のデフォルト値が None であることを確認."""
+    config = AppConfig()
+    assert config.grep_search.max_results is None
+
+
+def test_loader_reads_grep_search_max_results(tmp_path) -> None:
+    """config.toml から grep_search.max_results を読み込めることを確認."""
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+        [grep_search]
+        max_results = 500
+        """,
+        encoding="utf-8",
+    )
+
+    result = AppConfigLoader(config_path_resolver=lambda: config_path).load()
+
+    assert result.warnings == ()
+    assert result.config.grep_search.max_results == 500
+
+
+def test_render_app_config_includes_grep_search_section() -> None:
+    """render_app_config が grep_search セクションを出力することを確認."""
+    config = AppConfig(grep_search=GrepSearchConfig(max_results=1000))
+    rendered = render_app_config(config)
+
+    assert "[grep_search]" in rendered
+    assert "max_results = 1000" in rendered
 
 
 def test_file_search_config_custom_max_results() -> None:

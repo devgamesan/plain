@@ -32,6 +32,7 @@ from .pane_rendering import (
     truncate_middle,
 )
 from .pane_status import render_pane_status
+from .resize_debounce import ResizeDebouncer
 from .summary_bar import SummaryBar
 
 
@@ -150,6 +151,11 @@ class MainPane(Vertical):
         self._last_table_width = 0
         self._last_clicked_path: str | None = None
         self._visible_columns: tuple[str, ...] = self.COLUMN_KEYS
+        self._resize_debouncer = ResizeDebouncer(
+            self,
+            self._refresh_after_resize,
+            name="main-pane-resize-debounce",
+        )
 
     @property
     def table_id(self) -> str | None:
@@ -193,6 +199,12 @@ class MainPane(Vertical):
         self.call_after_refresh(self._refresh_table_width)
 
     def on_resize(self, _event: events.Resize) -> None:
+        self._resize_debouncer.schedule()
+
+    def on_unmount(self) -> None:
+        self._resize_debouncer.stop()
+
+    def _refresh_after_resize(self) -> None:
         self._refresh_table_width()
 
     async def handle_table_row_clicked(self, row_index: int) -> None:
@@ -391,7 +403,6 @@ class MainPane(Vertical):
             return
 
         self._entries = tuple(next_entries)
-        self._path_row_index = self._build_path_row_index(self._entries)
         table = self.query_one(DataTable)
         for row_key, entry in changed_rows:
             try:
@@ -405,7 +416,8 @@ class MainPane(Vertical):
         if not updates:
             return
 
-        changed_rows: list[tuple[str, PaneEntry]] = []
+        changed_rows: list[tuple[str, PaneEntry, int]] = []
+        path_index_changed = False
         next_entries: list[PaneEntry] | None = None
         update_by_row = {
             row_index: entry
@@ -422,17 +434,18 @@ class MainPane(Vertical):
             if next_entries is None:
                 next_entries = list(self._entries)
             next_entries[row_index] = next_entry
-            changed_rows.append((self._slot_row_key(row_index), next_entry))
+            changed_rows.append((self._slot_row_key(row_index), next_entry, row_index))
+            path_index_changed = path_index_changed or next_entry.path != entry.path
 
         if not changed_rows:
             return
 
         self._entries = tuple(next_entries)
-        self._path_row_index = self._build_path_row_index(self._entries)
+        if path_index_changed:
+            self._path_row_index = self._build_path_row_index(self._entries)
         table = self.query_one(DataTable)
         column_widths = self._allocate_column_widths(table, self._visible_columns)
-        for row_key, entry in changed_rows:
-            row_index = self._path_row_index.get(entry.path)
+        for row_key, entry, row_index in changed_rows:
             next_cells = self._build_row_cells(entry, column_widths, row_index=row_index)
             for column_key, next_cell in zip(
                 self._visible_columns,

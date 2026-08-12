@@ -9,7 +9,7 @@ import tarfile
 import tempfile
 import zipfile
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Protocol
 
 from zivo.archive_utils import (
@@ -50,6 +50,10 @@ class LiveArchiveExtractService:
         destination_path = _resolve_destination_path(request.destination_path)
         archive_format = _require_supported_archive(source_path)
         entries = _scan_archive_entries(source_path, archive_format)
+        _validate_archive_destinations(
+            destination_path,
+            tuple(entry.destination_parts for entry in entries),
+        )
         conflicts = _scan_conflicts(entries, destination_path)
         return ExtractArchivePreparationResult(
             request=ExtractArchiveRequest(
@@ -174,7 +178,9 @@ def _resolve_source_path(path: str) -> Path:
 
 
 def _resolve_destination_path(path: str) -> Path:
-    return Path(path).expanduser().resolve(strict=False)
+    # Keep the destination lexical so existing links are rejected instead of
+    # being silently followed to a different extraction root.
+    return Path(os.path.abspath(os.path.expanduser(path)))
 
 
 def _require_supported_archive(source_path: Path) -> ArchiveFormat:
@@ -191,6 +197,51 @@ class _ArchiveEntry:
     archive_path: str
     destination_parts: tuple[str, ...]
     is_dir: bool
+
+
+_REPARSE_POINT_ATTRIBUTE = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x0400)
+
+
+def _validate_destination_path(destination_root: Path, target_path: Path) -> None:
+    """Reject symlinks and reparse points anywhere on an extraction path."""
+
+    try:
+        target_path.relative_to(destination_root)
+    except ValueError as error:
+        raise OSError(
+            "Unsafe archive extraction path: "
+            f"{target_path} is outside destination {destination_root}"
+        ) from error
+
+    for candidate in reversed(target_path.parents):
+        _validate_destination_component(candidate)
+    _validate_destination_component(target_path)
+
+
+def _validate_destination_component(path: Path) -> None:
+    try:
+        path_stat = path.lstat()
+    except FileNotFoundError:
+        return
+    except OSError as error:
+        raise OSError(f"Cannot inspect archive extraction path: {path}") from error
+
+    if stat.S_ISLNK(path_stat.st_mode) or (
+        getattr(path_stat, "st_file_attributes", 0) & _REPARSE_POINT_ATTRIBUTE
+    ):
+        raise OSError(
+            "Unsafe archive extraction path: "
+            f"{path} is a symlink or Windows reparse point"
+        )
+
+
+def _validate_archive_destinations(
+    destination_root: Path,
+    destination_parts: tuple[tuple[str, ...], ...],
+) -> None:
+    _validate_destination_path(destination_root, destination_root)
+    for parts in destination_parts:
+        _validate_destination_path(destination_root, destination_root.joinpath(*parts))
 
 
 def _scan_archive_entries(
@@ -254,7 +305,8 @@ def _scan_conflicts(
 def _normalize_archive_member_path(name: str) -> tuple[str, ...] | None:
     normalized_name = name.replace("\\", "/")
     member_path = PurePosixPath(normalized_name)
-    if member_path.is_absolute():
+    windows_member_path = PureWindowsPath(normalized_name)
+    if member_path.is_absolute() or windows_member_path.drive or windows_member_path.root:
         raise OSError(f"Archive entry uses an absolute path: {name}")
 
     parts = tuple(part for part in member_path.parts if part not in {"", "."})
@@ -289,6 +341,10 @@ def _extract_zip_archive(
             for info in archive.infolist()
             if (parts := _normalize_archive_member_path(info.filename)) is not None
         ]
+        _validate_archive_destinations(
+            destination_path,
+            tuple(parts for _, parts in entries),
+        )
         total_entries = len(entries)
         extracted_entries = 0
 
@@ -304,15 +360,16 @@ def _extract_zip_archive(
                 )
             target_path = destination_path.joinpath(*parts)
             if info.is_dir():
-                _prepare_directory_target(target_path)
+                _prepare_directory_target(target_path, destination_path)
             else:
-                _prepare_file_target(target_path)
+                _prepare_file_target(target_path, destination_path)
                 _write_archive_file_atomically(
                     target_path,
                     lambda temporary_path: _copy_stream(
                         archive.open(info),
                         temporary_path,
                     ),
+                    destination_root=destination_path,
                 )
             extracted_entries += 1
             _report_progress(progress_callback, extracted_entries, total_entries, str(target_path))
@@ -334,6 +391,10 @@ def _extract_tar_archive(
             if (parts := _normalize_archive_member_path(member.name)) is not None
             and (member.isdir() or member.isfile())
         ]
+        _validate_archive_destinations(
+            destination_path,
+            tuple(parts for _, parts in members),
+        )
         total_entries = len(members)
         extracted_entries = 0
 
@@ -349,15 +410,16 @@ def _extract_tar_archive(
                 )
             target_path = destination_path.joinpath(*parts)
             if member.isdir():
-                _prepare_directory_target(target_path)
+                _prepare_directory_target(target_path, destination_path)
             elif member.isfile():
-                _prepare_file_target(target_path)
+                _prepare_file_target(target_path, destination_path)
                 extracted_file = archive.extractfile(member)
                 if extracted_file is None:
                     raise OSError(f"Failed to read archive member: {member.name}")
                 _write_archive_file_atomically(
                     target_path,
                     lambda temporary_path: _copy_stream(extracted_file, temporary_path),
+                    destination_root=destination_path,
                 )
             else:
                 raise OSError(f"Unsupported archive member type: {member.name}")
@@ -378,10 +440,12 @@ def _extract_gz_archive(
     target_path = destination_path / entry_name
     if cancel_callback is not None and cancel_callback():
         return 0, (str(target_path),), True
-    _prepare_file_target(target_path)
+    _validate_archive_destinations(destination_path, ((entry_name,),))
+    _prepare_file_target(target_path, destination_path)
     _write_archive_file_atomically(
         target_path,
         lambda temporary_path: _copy_stream(gzip.open(source_path, "rb"), temporary_path),
+        destination_root=destination_path,
     )
     _report_progress(progress_callback, 1, 1, str(target_path))
     return 1, (), False
@@ -398,30 +462,40 @@ def _extract_bz2_archive(
     target_path = destination_path / entry_name
     if cancel_callback is not None and cancel_callback():
         return 0, (str(target_path),), True
-    _prepare_file_target(target_path)
+    _validate_archive_destinations(destination_path, ((entry_name,),))
+    _prepare_file_target(target_path, destination_path)
     _write_archive_file_atomically(
         target_path,
         lambda temporary_path: _copy_stream(bz2.open(source_path, "rb"), temporary_path),
+        destination_root=destination_path,
     )
     _report_progress(progress_callback, 1, 1, str(target_path))
     return 1, (), False
 
 
-def _prepare_directory_target(target_path: Path) -> None:
+def _prepare_directory_target(target_path: Path, destination_root: Path) -> None:
+    _validate_destination_path(destination_root, target_path)
     if target_path.exists() and not target_path.is_dir():
         raise OSError(f"Cannot replace file with directory: {target_path.name}")
     target_path.mkdir(parents=True, exist_ok=True)
 
 
-def _prepare_file_target(target_path: Path) -> None:
+def _prepare_file_target(target_path: Path, destination_root: Path) -> None:
+    _validate_destination_path(destination_root, target_path)
     target_path.parent.mkdir(parents=True, exist_ok=True)
     if target_path.exists() and target_path.is_dir():
         raise OSError(f"Cannot replace directory with file: {target_path.name}")
 
 
-def _write_archive_file_atomically(target_path: Path, writer) -> None:
+def _write_archive_file_atomically(
+    target_path: Path,
+    writer,
+    *,
+    destination_root: Path,
+) -> None:
     """Write one extracted file beside its destination, then replace atomically."""
 
+    _validate_destination_path(destination_root, target_path)
     file_descriptor, temporary_name = tempfile.mkstemp(
         prefix=f".{target_path.name}.zivo-",
         dir=str(target_path.parent),
@@ -432,6 +506,7 @@ def _write_archive_file_atomically(target_path: Path, writer) -> None:
         writer(temporary_path)
         if target_path.exists() and not target_path.is_symlink():
             temporary_path.chmod(stat.S_IMODE(target_path.stat().st_mode))
+        _validate_destination_path(destination_root, target_path)
         os.replace(temporary_path, target_path)
     except BaseException:
         temporary_path.unlink(missing_ok=True)

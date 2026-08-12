@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -21,6 +22,58 @@ def test_live_file_search_service_matches_files_recursively(tmp_path) -> None:
     assert [result.display_path for result in results] == ["docs/README.md"]
 
 
+def test_live_file_search_service_filters_extensions_case_insensitively(tmp_path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "main.PY").write_text("print()\n", encoding="utf-8")
+    (root / "app.js").write_text("console.log()\n", encoding="utf-8")
+    (root / "README.md").write_text("readme\n", encoding="utf-8")
+
+    results = LiveFileSearchService().search(
+        str(root),
+        "",
+        show_hidden=False,
+        include_extensions=("*.py", "*.js"),
+    )
+
+    assert [result.display_path for result in results] == ["app.js", "main.PY"]
+
+
+def test_live_file_search_service_combines_keyword_and_exclude_extension_filters(
+    tmp_path,
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "README.md").write_text("readme\n", encoding="utf-8")
+    (root / "README.txt").write_text("readme\n", encoding="utf-8")
+    (root / "guide.md").write_text("guide\n", encoding="utf-8")
+
+    results = LiveFileSearchService().search(
+        str(root),
+        "read",
+        show_hidden=False,
+        exclude_extensions=("*.txt",),
+    )
+
+    assert [result.display_path for result in results] == ["README.md"]
+
+
+def test_live_file_search_service_returns_no_directories_with_extension_filters(tmp_path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "docs.py").mkdir()
+
+    results = LiveFileSearchService().search(
+        str(root),
+        "",
+        show_hidden=False,
+        search_target="directories",
+        include_extensions=("*.py",),
+    )
+
+    assert results == ()
+
+
 def test_live_file_search_service_skips_hidden_paths_when_disabled(tmp_path) -> None:
     root = tmp_path / "project"
     root.mkdir()
@@ -35,6 +88,62 @@ def test_live_file_search_service_skips_hidden_paths_when_disabled(tmp_path) -> 
 
     assert hidden_off == ()
     assert [result.display_path for result in hidden_on] == [".secret/README.md"]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation requires extra Windows privileges")
+def test_live_file_search_service_does_not_follow_directory_symlink_cycle(tmp_path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    nested = root / "nested"
+    nested.mkdir()
+    (nested / "README.md").write_text("readme\n", encoding="utf-8")
+    (nested / "parent").symlink_to(root, target_is_directory=True)
+
+    service = LiveFileSearchService()
+    cancellation_checks = 0
+
+    def is_cancelled() -> bool:
+        nonlocal cancellation_checks
+        cancellation_checks += 1
+        return cancellation_checks > 32
+
+    results = service.search(
+        str(root),
+        "readme",
+        show_hidden=False,
+        is_cancelled=is_cancelled,
+    )
+
+    assert [result.display_path for result in results] == ["nested/README.md"]
+    assert cancellation_checks < 32
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation requires extra Windows privileges")
+def test_live_file_search_service_reports_but_does_not_follow_directory_symlink(
+    tmp_path,
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    target = tmp_path / "target"
+    target.mkdir()
+    (target / "nested.txt").write_text("nested\n", encoding="utf-8")
+    link = root / "linked-target"
+    link.symlink_to(target, target_is_directory=True)
+
+    service = LiveFileSearchService()
+
+    directory_results = service.search(
+        str(root),
+        "linked",
+        show_hidden=False,
+        search_target="directories",
+    )
+    all_results = service.search(str(root), "nested", show_hidden=False)
+
+    assert [(result.display_path, result.entry_type) for result in directory_results] == [
+        ("linked-target", "directory")
+    ]
+    assert all_results == ()
 
 
 def test_live_file_search_service_matches_case_insensitively_and_includes_directories(
@@ -199,6 +308,33 @@ def test_live_file_search_service_respects_max_results(tmp_path) -> None:
     # 結果がソートされていることを確認
     display_paths = [result.display_path for result in results]
     assert display_paths == sorted(display_paths, key=natural_sort_key)
+
+
+def test_live_file_search_service_emits_first_batch_and_truncation(tmp_path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    for name in ("a.txt", "b.txt", "c.txt"):
+        (root / name).write_text("content\n", encoding="utf-8")
+
+    batches: list[tuple[tuple[str, ...], bool]] = []
+
+    results = LiveFileSearchService().search(
+        str(root),
+        ".txt",
+        show_hidden=False,
+        max_results=2,
+        on_results=lambda batch, truncated: batches.append(
+            (tuple(result.display_path for result in batch), truncated)
+        ),
+    )
+
+    assert len(results) == 2
+    assert [result.display_path for result in results] == sorted(
+        result.display_path for result in results
+    )
+    assert batches[0][0]
+    assert batches[0][1] is False
+    assert batches[-1][1] is True
 
 
 def test_live_file_search_service_no_limit_when_max_results_is_none(tmp_path) -> None:

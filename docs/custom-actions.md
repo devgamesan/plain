@@ -42,17 +42,19 @@ cwd = "{cwd}"
 | `name` | yes | Label shown in the command palette. |
 | `command` | yes | argv array to run. zivo does not run it through a shell. |
 | `when` | no | `always`, `single_file`, or `selection`. Defaults to `always`. |
-| `mode` | no | `background` or `terminal`. Defaults to `background`. |
+| `mode` | no | `background`, `terminal`, or `terminal_window`. Defaults to `background`. |
 | `cwd` | no | Working directory template. Defaults to `{cwd}`. |
 | `extensions` | no | File extensions used with `single_file`, without or with leading dots. |
 
 ## Modes
 
-`background` is for non-interactive commands. zivo captures stdout/stderr and shows a success or failure message in the status bar. Do not use this mode for TUI apps that need a terminal.
+`background` is for non-interactive commands. stdin is closed, so prompts, password input, and TUI apps cannot interact with the terminal. zivo captures stdout/stderr and shows a success or failure message in the status bar. Each stream is retained up to `background_commands.max_output_kib` (1 MiB by default), preserving its beginning and end. Commands stop after `background_commands.timeout_seconds` (five minutes by default), or when you press `Esc`.
 
 `terminal` is for TUI or interactive commands such as `lazygit`. zivo temporarily suspends its own interface, runs the command in the current terminal, then returns when the command exits.
 
 `terminal_window` opens a new terminal window or tab to run the command. zivo does not suspend; the new window runs independently with a shell prompt after the command completes. This is useful for tools you want to run side-by-side with zivo.
+
+The output limit, timeout, and zivo-side `Esc` cancellation apply only to `background`. Use `terminal` or `terminal_window` for interactive programs such as `lazygit`.
 
 ## Variables
 
@@ -71,3 +73,5 @@ cwd = "{cwd}"
 ## Safety
 
 zivo shows the expanded command, working directory, and mode before running any custom action. Destructive command detection is not automatic, so keep destructive actions explicit in their names and prefer commands that already ask for confirmation.
+
+Stopping a background command cannot undo filesystem or external side effects the command already performed.

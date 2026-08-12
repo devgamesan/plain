@@ -10,13 +10,13 @@ from zivo.models import (
     CustomActionExpansionError,
     expand_custom_action,
 )
+from zivo.windows_paths import is_search_workspace_path, parse_search_workspace_path
 
 from .actions import (
     ActivateNextTab,
     ActivateNotificationAction,
     ActivatePreviousTab,
     AddBookmark,
-    BeginBookmarkSearch,
     BeginBulkRename,
     BeginChmodInput,
     BeginChownInput,
@@ -27,9 +27,7 @@ from .actions import (
     BeginExtractArchiveInput,
     BeginFileSearch,
     BeginGo,
-    BeginGoToPath,
     BeginGrepSearch,
-    BeginHistorySearch,
     BeginRenameInput,
     BeginShellCommandInput,
     BeginSymlinkInput,
@@ -85,6 +83,7 @@ from .reducer_palette_shared import (
 )
 from .reducer_transfer import request_transfer_pane_snapshot
 from .selectors import (
+    select_target_file_paths,
     select_target_paths,
     select_transfer_target_paths,
     select_visible_current_entry_states,
@@ -146,24 +145,12 @@ def _run_grep_search_command(state: AppState, reduce_state: ReducerFn) -> Reduce
     return reduce_state(state, BeginGrepSearch())
 
 
-def _run_history_search_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
-    return reduce_state(state, BeginHistorySearch())
-
-
-def _run_bookmark_search_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
-    return reduce_state(state, BeginBookmarkSearch())
-
-
 def _run_go_back_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
     return reduce_state(state, GoBack())
 
 
 def _run_go_forward_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
     return reduce_state(state, GoForward())
-
-
-def _run_go_to_path_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
-    return reduce_state(state, BeginGoToPath())
 
 
 def _run_go_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
@@ -209,7 +196,21 @@ def _run_replace_text_command(
     next_state: AppState,
     reduce_state: ReducerFn,
 ) -> ReduceResult:
-    del state
+    if is_search_workspace_path(state.current_path):
+        target_paths = select_target_file_paths(state)
+        if not target_paths:
+            return notify(next_state, level="warning", message="Select a file result to replace")
+        params = parse_search_workspace_path(state.current_path)
+        query = str(params.get("query") or "")
+        return reduce_state(
+            next_state,
+            BeginTextReplace(
+                target_paths=target_paths,
+                result_origin="workspace",
+                result_query=query,
+                result_file_count=len(target_paths),
+            ),
+        )
     return reduce_state(next_state, BeginTextReplace())
 
 
@@ -572,16 +573,10 @@ def _run_palette_command_item(
         return _run_file_search_command(next_state, reduce_state)
     if item_id == "grep_search":
         return _run_grep_search_command(next_state, reduce_state)
-    if item_id == "history_search":
-        return _run_history_search_command(next_state, reduce_state)
-    if item_id == "bookmark_search":
-        return _run_bookmark_search_command(next_state, reduce_state)
     if item_id == "go_back":
         return _run_go_back_command(next_state, reduce_state)
     if item_id == "go_forward":
         return _run_go_forward_command(next_state, reduce_state)
-    if item_id == "go_to_path":
-        return _run_go_to_path_command(next_state, reduce_state)
     if item_id == "go":
         return _run_go_command(next_state, reduce_state)
     if item_id == "go_to_home_directory":

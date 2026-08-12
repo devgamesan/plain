@@ -9,6 +9,9 @@ from typing import Literal, Protocol
 from zivo.state.models import FileSearchResultState, FileSearchTarget
 from zivo.state.natural_sort import natural_sort_key
 
+FileSearchProgressCallback = Callable[[tuple[FileSearchResultState, ...], bool], None]
+_SEARCH_BATCH_SIZE = 32
+
 
 class FileSearchService(Protocol):
     """Boundary for recursive filename searches."""
@@ -20,12 +23,21 @@ class FileSearchService(Protocol):
         *,
         show_hidden: bool,
         search_target: FileSearchTarget = "all",
+        include_extensions: tuple[str, ...] = (),
+        exclude_extensions: tuple[str, ...] = (),
         max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
+        on_results: FileSearchProgressCallback | None = None,
     ) -> tuple[FileSearchResultState, ...]: ...
 
 
 _REGEX_QUERY_PREFIX = "re:"
+
+
+def _extension_suffix(pattern: str) -> str:
+    """Convert a normalized extension glob (``*.py``) to a suffix."""
+
+    return pattern.removeprefix("*").casefold()
 
 
 class InvalidFileSearchQueryError(ValueError):
@@ -80,7 +92,16 @@ def parse_file_search_query(query: str) -> ParsedFileSearchQuery:
 
 
 def _is_walkable_directory(path: Path) -> bool:
-    """Return whether a path should be traversed, skipping unreadable entries."""
+    """Return whether a real directory should be traversed."""
+
+    try:
+        return path.is_dir() and not path.is_symlink()
+    except OSError:
+        return False
+
+
+def _is_directory(path: Path) -> bool:
+    """Return whether a path is a directory, following symlinks for classification."""
 
     try:
         return path.is_dir()
@@ -99,11 +120,17 @@ class LiveFileSearchService:
         *,
         show_hidden: bool,
         search_target: FileSearchTarget = "all",
+        include_extensions: tuple[str, ...] = (),
+        exclude_extensions: tuple[str, ...] = (),
         max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
+        on_results: FileSearchProgressCallback | None = None,
     ) -> tuple[FileSearchResultState, ...]:
         parsed_query = parse_file_search_query(query)
-        if not parsed_query.raw_query:
+        has_extension_filters = bool(include_extensions or exclude_extensions)
+        if not parsed_query.raw_query and not has_extension_filters:
+            return ()
+        if search_target == "directories" and has_extension_filters:
             return ()
 
         root = Path(root_path).expanduser().resolve()
@@ -113,7 +140,14 @@ class LiveFileSearchService:
             raise OSError(f"Not a directory: {root}")
 
         results: list[FileSearchResultState] = []
+        pending_results: list[FileSearchResultState] = []
         stack = [root]
+
+        def emit_results(*, truncated: bool = False) -> None:
+            if on_results is None or (not pending_results and not truncated):
+                return
+            on_results(tuple(pending_results), truncated)
+            pending_results.clear()
 
         while stack:
             if is_cancelled is not None and is_cancelled():
@@ -125,15 +159,37 @@ class LiveFileSearchService:
                         return ()
                     if not show_hidden and child.name.startswith("."):
                         continue
-                    is_dir = _is_walkable_directory(child)
-                    if is_dir:
+                    is_dir = _is_directory(child)
+                    if _is_walkable_directory(child):
                         stack.append(child)
                     if search_target == "directories" and not is_dir:
                         continue
                     if search_target == "files" and is_dir:
                         continue
+                    if has_extension_filters:
+                        if is_dir:
+                            continue
+                        lowered_name = child.name.casefold()
+                        if include_extensions and not any(
+                            lowered_name.endswith(_extension_suffix(pattern))
+                            for pattern in include_extensions
+                        ):
+                            continue
+                        if any(
+                            lowered_name.endswith(_extension_suffix(pattern))
+                            for pattern in exclude_extensions
+                        ):
+                            continue
                     if not parsed_query.matches(child.name):
                         continue
+                    if max_results is not None and len(results) >= max_results:
+                        emit_results(truncated=True)
+                        return tuple(
+                            sorted(
+                                results,
+                                key=lambda result: natural_sort_key(result.display_path),
+                            )
+                        )
                     results.append(
                         FileSearchResultState(
                             path=str(child),
@@ -141,13 +197,13 @@ class LiveFileSearchService:
                             entry_type="directory" if is_dir else "file",
                         )
                     )
-
-                    if max_results is not None and len(results) >= max_results:
-                        results.sort(key=lambda result: natural_sort_key(result.display_path))
-                        return tuple(results)
+                    pending_results.append(results[-1])
+                    if len(results) == 1 or len(pending_results) >= _SEARCH_BATCH_SIZE:
+                        emit_results()
             except (FileNotFoundError, PermissionError):
                 continue
 
+        emit_results()
         results.sort(key=lambda result: natural_sort_key(result.display_path))
         return tuple(results)
 
@@ -170,14 +226,18 @@ class FakeFileSearchService:
         *,
         show_hidden: bool,
         search_target: FileSearchTarget = "all",
+        include_extensions: tuple[str, ...] = (),
+        exclude_extensions: tuple[str, ...] = (),
         max_results: int | None = None,
         is_cancelled: Callable[[], bool] | None = None,
+        on_results: FileSearchProgressCallback | None = None,
     ) -> tuple[FileSearchResultState, ...]:
-        key = (
-            (root_path, query, show_hidden)
-            if search_target == "all"
-            else (root_path, query, show_hidden, search_target)
-        )
+        key_parts = [root_path, query, show_hidden]
+        if search_target != "all":
+            key_parts.append(search_target)
+        if include_extensions or exclude_extensions:
+            key_parts.extend((include_extensions, exclude_extensions))
+        key = tuple(key_parts)
         self.executed_requests.append(key)
         if is_cancelled is not None and is_cancelled():
             return ()
@@ -193,9 +253,13 @@ class FakeFileSearchService:
             if max_results <= 0:
                 return ()
             if len(results) > max_results:
+                if on_results is not None:
+                    on_results(tuple(results[:max_results]), True)
                 limited_results = tuple(
                     sorted(results, key=lambda r: natural_sort_key(r.display_path))[:max_results]
                 )
                 return limited_results
 
+        if on_results is not None and results:
+            on_results(results, False)
         return results

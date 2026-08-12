@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from zivo.models import (
     AppConfig,
     BulkRenameExecutionResult,
+    ConfigLoadResult,
     CreateZipArchiveRequest,
     CreateZipArchiveResult,
     CustomActionExecutionRequest,
@@ -405,6 +406,22 @@ class ExternalLaunchFailed:
 
     request_id: int
     request: ExternalLaunchRequest
+    message: str
+
+
+@dataclass(frozen=True)
+class ConfigReloadCompleted:
+    """Apply a config loaded after external editing."""
+
+    request_id: int
+    result: ConfigLoadResult
+
+
+@dataclass(frozen=True)
+class ConfigReloadFailed:
+    """Report a config reload worker failure."""
+
+    request_id: int
     message: str
 
 

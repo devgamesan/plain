@@ -11,8 +11,14 @@ from typing import Any
 
 from textual.app import SuspendNotSupported
 
-from zivo.app_runtime_core import WorkerSpec, run_worker, start_foreground_operation
+from zivo.app_runtime_core import (
+    WorkerSpec,
+    run_worker,
+    start_background_command,
+    start_foreground_operation,
+)
 from zivo.models import CustomActionResult
+from zivo.services.config import AppConfigLoader
 from zivo.state import (
     ExitCurrentPathEffect,
     RunArchiveExtractEffect,
@@ -20,6 +26,7 @@ from zivo.state import (
     RunAttributeInspectionEffect,
     RunBulkRenameEffect,
     RunClipboardPasteEffect,
+    RunConfigReloadEffect,
     RunConfigSaveEffect,
     RunCustomActionEffect,
     RunDeletePreparationEffect,
@@ -40,9 +47,38 @@ from zivo.state.actions import (
     DuplicateProgress,
     ExternalLaunchCompleted,
     ExternalLaunchFailed,
+    FileSearchResultsUpdated,
     ForegroundOperationProgress,
+    GrepSearchResultsUpdated,
     ZipCompressProgress,
 )
+
+
+def report_search_results(
+    app: Any,
+    request_id: int,
+    query: str,
+    source: str,
+    results: tuple[Any, ...],
+    truncated: bool,
+) -> None:
+    """Forward one search-result batch from a worker to the reducer."""
+
+    action = (
+        FileSearchResultsUpdated(request_id, query, results, truncated)
+        if source == "file_search"
+        else GrepSearchResultsUpdated(request_id, query, results, truncated)
+    )
+    try:
+        if getattr(app, "_thread_id", None) == threading.get_ident():
+            app.call_next(app.dispatch_actions, (action,))
+            return
+        if not hasattr(app, "call_from_thread"):
+            app.call_next(app.dispatch_actions, (action,))
+            return
+        app.call_from_thread(app.call_next, app.dispatch_actions, (action,))
+    except (RuntimeError, FutureCancelledError):
+        return
 
 
 def schedule_clipboard_paste(app: Any, effect: RunClipboardPasteEffect) -> None:
@@ -120,7 +156,25 @@ def schedule_config_save(app: Any, effect: RunConfigSaveEffect) -> None:
     )
 
 
+def schedule_config_reload(app: Any, effect: RunConfigReloadEffect) -> None:
+    """Reload config.toml after the external editor exits."""
+
+    loader = AppConfigLoader(config_path_resolver=lambda: Path(effect.path))
+    run_worker(
+        app,
+        effect,
+        loader.load,
+        WorkerSpec(
+            name=f"config-reload:{effect.request_id}",
+            group="config-reload",
+            description=effect.path,
+            exclusive=True,
+        ),
+    )
+
+
 def schedule_shell_command(app: Any, effect: RunShellCommandEffect) -> None:
+    cancel_event = start_background_command(app, effect.request_id)
     run_worker(
         app,
         effect,
@@ -128,6 +182,9 @@ def schedule_shell_command(app: Any, effect: RunShellCommandEffect) -> None:
             app._shell_command_service.execute,
             cwd=effect.cwd,
             command=effect.command,
+            max_output_bytes=effect.max_output_bytes,
+            timeout_seconds=effect.timeout_seconds,
+            cancel_callback=cancel_event.is_set,
         ),
         WorkerSpec(
             name=f"shell-command:{effect.request_id}",
@@ -145,10 +202,17 @@ def schedule_custom_action(app: Any, effect: RunCustomActionEffect) -> None:
     if effect.request.mode == "terminal_window":
         run_terminal_window_custom_action(app, effect)
         return
+    cancel_event = start_background_command(app, effect.request_id)
     run_worker(
         app,
         effect,
-        partial(app._custom_action_service.execute, effect.request),
+        partial(
+            app._custom_action_service.execute,
+            effect.request,
+            max_output_bytes=effect.max_output_bytes,
+            timeout_seconds=effect.timeout_seconds,
+            cancel_callback=cancel_event.is_set,
+        ),
         WorkerSpec(
             name=f"custom-action:{effect.request_id}",
             group="custom-action",

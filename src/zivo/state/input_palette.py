@@ -35,6 +35,7 @@ from .command_palette import get_command_palette_items, normalize_command_palett
 from .input_common import DispatchedActions, supported, warn
 from .models import (
     AppState,
+    CommandPaletteSource,
     FileSearchFieldId,
     FindReplaceFieldId,
     GrepReplaceFieldId,
@@ -133,14 +134,8 @@ def palette_extra_rows(palette_source: str | None) -> int:
     return 0
 
 
-def dispatch_command_palette_input(
-    state: AppState,
-    *,
-    key: str,
-    character: str | None,
-) -> DispatchedActions:
-    palette_source = state.command_palette.source if state.command_palette is not None else None
-    search_palette = palette_source in {
+_SEARCH_PALETTE_SOURCES = frozenset(
+    {
         "file_search",
         "grep_search",
         "go",
@@ -149,304 +144,431 @@ def dispatch_command_palette_input(
         "replace_in_grep_files",
         "grep_replace_selected",
     }
+)
 
-    if (
-        key == "tab"
-        and state.command_palette is not None
-        and state.command_palette.source == "go"
-    ):
-        if state.command_palette.source == "go":
-            candidates = tuple(
-                item.path
-                for item in get_command_palette_items(state)
-                if item.path is not None
-            )
-        if not candidates:
-            if state.command_palette.go_completion.loading:
-                return warn("Searching directories…")
-            if state.command_palette.go_completion.error_message:
-                return warn(state.command_palette.go_completion.error_message)
-            return warn("No matching directory to complete")
 
-        selected_path = candidates[
-            normalize_command_palette_cursor(state, state.command_palette.cursor_index)
-        ]
-        completion_base_path = state.current_path
-        if state.layout_mode == "transfer":
-            transfer = (
-                state.transfer_left
-                if state.active_transfer_pane == "left"
-                else state.transfer_right
-            )
-            if transfer is not None:
-                completion_base_path = transfer.current_path
-        completed_query = format_go_to_path_completion(
-            selected_path,
-            state.command_palette.query,
-            completion_base_path,
-            append_separator=len(candidates) == 1,
+def _dispatch_go_input(
+    state: AppState,
+    *,
+    key: str,
+) -> DispatchedActions | None:
+    if key != "tab" or state.command_palette is None:
+        return None
+
+    candidates = tuple(
+        item.path for item in get_command_palette_items(state) if item.path is not None
+    )
+    if not candidates:
+        if state.command_palette.go_completion.loading:
+            return warn("Searching directories…")
+        if state.command_palette.go_completion.error_message:
+            return warn(state.command_palette.go_completion.error_message)
+        return warn("No matching directory to complete")
+
+    selected_path = candidates[
+        normalize_command_palette_cursor(state, state.command_palette.cursor_index)
+    ]
+    completion_base_path = state.current_path
+    if state.layout_mode == "transfer":
+        transfer = (
+            state.transfer_left if state.active_transfer_pane == "left" else state.transfer_right
         )
-        if len(candidates) == 1 and completed_query != os.sep:
-            completed_query = completed_query.rstrip(os.sep) + os.sep
-        return supported(SetCommandPaletteQuery(completed_query))
+        if transfer is not None:
+            completion_base_path = transfer.current_path
+    completed_query = format_go_to_path_completion(
+        selected_path,
+        state.command_palette.query,
+        completion_base_path,
+        append_separator=len(candidates) == 1,
+    )
+    if len(candidates) == 1 and completed_query != os.sep:
+        completed_query = completed_query.rstrip(os.sep) + os.sep
+    return supported(SetCommandPaletteQuery(completed_query))
 
-    if key == "escape":
-        return supported(CancelCommandPalette())
 
-    if key == "tab" and palette_source == "file_search":
+def _dispatch_file_search_input(
+    state: AppState,
+    *,
+    key: str,
+) -> DispatchedActions | None:
+    palette = state.command_palette
+    if palette is None:
+        return None
+    if key == "tab":
         return supported(CycleFileSearchField(delta=1))
-
-    if key == "shift+tab" and palette_source == "file_search":
+    if key == "shift+tab":
         return supported(CycleFileSearchField(delta=-1))
-
-    if key == "tab" and palette_source == "grep_search":
-        return supported(CycleGrepSearchField(delta=1))
-
-    if key == "shift+tab" and palette_source == "grep_search":
-        return supported(CycleGrepSearchField(delta=-1))
-
-    if key == "tab" and palette_source == "replace_text":
-        return supported(CycleReplaceField(delta=1))
-
-    if key == "shift+tab" and palette_source == "replace_text":
-        return supported(CycleReplaceField(delta=-1))
-
-    if key == "tab" and palette_source == "replace_in_found_files":
-        return supported(CycleFindReplaceField(delta=1))
-    if key == "shift+tab" and palette_source == "replace_in_found_files":
-        return supported(CycleFindReplaceField(delta=-1))
-    if key == "tab" and palette_source == "replace_in_grep_files":
-        return supported(CycleGrepReplaceField(delta=1))
-    if key == "shift+tab" and palette_source == "replace_in_grep_files":
-        return supported(CycleGrepReplaceField(delta=-1))
-    if key == "tab" and palette_source == "grep_replace_selected":
-        return supported(CycleGrepReplaceSelectedField(delta=1))
-    if key == "shift+tab" and palette_source == "grep_replace_selected":
-        return supported(CycleGrepReplaceSelectedField(delta=-1))
-
-
-    if key in ("left", "right") and palette_source == "file_search":
-        if (
-            state.command_palette is not None
-            and state.command_palette.file_search.active_field == "target"
-        ):
-            delta = -1 if key == "left" else 1
-            targets: tuple[str, ...] = ("files", "directories", "all")
-            current = state.command_palette.file_search.target
-            index = targets.index(current)
-            next_target = targets[(index + delta) % len(targets)]
-            return supported(SetFileSearchTarget(target=next_target))
-        return warn("Use left/right arrows on the target field to change scope")
-
-    if key in ("left", "right") and palette_source == "grep_search":
-        if state.command_palette.grep_search.active_field != "scope":
-            return warn("Use left/right arrows on the scope field to change scope")
-        scopes = ("current_directory",)
-        if state.current_pane.selected_paths:
-            scopes += ("selected_entries",)
-        if is_search_workspace_path(state.current_path):
-            scopes = ("search_workspace",)
-            if state.current_pane.selected_paths:
-                scopes += ("selected_entries",)
-        current = state.command_palette.grep_search.scope
-        index = scopes.index(current)
-        next_scope = scopes[(index + (-1 if key == "left" else 1)) % len(scopes)]
-        return supported(SetGrepSearchScope(scope=next_scope))
-
-    if key in ("left", "right") and palette_source == "replace_text":
-        if state.command_palette.replace_preview.active_field != "scope":
-            return warn("Use left/right arrows on the scope field to change scope")
-        if state.command_palette.replace_preview.scope == "search_results":
-            return warn("Search results scope is fixed to the displayed search results")
-        scopes = (
-            "current_file",
-            "selected_files",
-            "current_directory",
-        )
-        current = state.command_palette.replace_preview.scope
-        next_scope = scopes[(scopes.index(current) + (-1 if key == "left" else 1)) % len(scopes)]
-        return supported(SetReplaceScope(scope=next_scope))
-
-    if key == "up" or (key == "k" and not search_palette):
-        return supported(MoveCommandPaletteCursor(delta=-1))
-
-    if key == "down" or (key == "j" and not search_palette):
-        return supported(MoveCommandPaletteCursor(delta=1))
-
-    if key == "ctrl+j":
-        return supported(MoveCommandPaletteCursor(delta=1))
-
-    if key == "ctrl+k":
-        return supported(MoveCommandPaletteCursor(delta=-1))
-
-    if key == "pageup":
-        extra_rows = palette_extra_rows(palette_source)
-        visible = compute_search_visible_window(state.terminal_height, extra_rows=extra_rows)
-        return supported(MoveCommandPaletteCursor(delta=-visible))
-
-    if key == "pagedown":
-        extra_rows = palette_extra_rows(palette_source)
-        visible = compute_search_visible_window(state.terminal_height, extra_rows=extra_rows)
-        return supported(MoveCommandPaletteCursor(delta=visible))
-
-    if key == "home":
-        return supported(MoveCommandPaletteCursor(delta=-999999))
-
-    if key == "end":
-        return supported(MoveCommandPaletteCursor(delta=999999))
-
-    if key == "ctrl+w" and palette_source == "file_search":
+    if key in ("left", "right"):
+        if palette.file_search.active_field != "target":
+            return warn("Use left/right arrows on the target field to change scope")
+        delta = -1 if key == "left" else 1
+        targets: tuple[str, ...] = ("files", "directories", "all")
+        current = palette.file_search.target
+        next_target = targets[(targets.index(current) + delta) % len(targets)]
+        return supported(SetFileSearchTarget(target=next_target))
+    if key == "ctrl+w":
         from .actions_palette import OpenSearchWorkspace
 
         return supported(OpenSearchWorkspace())
+    if key == "backspace":
+        if palette.file_search.active_field == "target":
+            return warn("Use left/right arrows on the target field to change scope")
+        active_field: FileSearchFieldId = palette.file_search.active_field
+        next_value = active_file_search_field_value(state)[:-1]
+        if active_field == "keyword":
+            return supported(SetCommandPaletteQuery(next_value))
+        return supported(SetFileSearchField(field=active_field, value=next_value))
+    return None
 
+
+def _dispatch_grep_search_input(
+    state: AppState,
+    *,
+    key: str,
+) -> DispatchedActions | None:
+    palette = state.command_palette
+    if palette is None:
+        return None
+    if key == "tab":
+        return supported(CycleGrepSearchField(delta=1))
+    if key == "shift+tab":
+        return supported(CycleGrepSearchField(delta=-1))
+    if key in ("left", "right"):
+        return _dispatch_grep_scope_input(state, key=key)
+    if key == "backspace":
+        if palette.grep_search.active_field == "scope":
+            return warn("Use left/right arrows to change scope")
+        return supported(
+            SetGrepSearchField(
+                field=palette.grep_search.active_field,
+                value=active_grep_field_value(state)[:-1],
+            )
+        )
+    return None
+
+
+def _dispatch_grep_scope_input(state: AppState, *, key: str) -> DispatchedActions:
+    palette = state.command_palette
+    if palette is None or palette.grep_search.active_field != "scope":
+        return warn("Use left/right arrows on the scope field to change scope")
+    scopes = ("current_directory",)
+    if state.current_pane.selected_paths:
+        scopes += ("selected_entries",)
+    if is_search_workspace_path(state.current_path):
+        scopes = ("search_workspace",)
+        if state.current_pane.selected_paths:
+            scopes += ("selected_entries",)
+    delta = -1 if key == "left" else 1
+    current = palette.grep_search.scope
+    next_scope = scopes[(scopes.index(current) + delta) % len(scopes)]
+    return supported(SetGrepSearchScope(scope=next_scope))
+
+
+def _dispatch_replace_input(
+    state: AppState,
+    *,
+    key: str,
+) -> DispatchedActions | None:
+    palette = state.command_palette
+    if palette is None:
+        return None
+    if key == "tab":
+        return supported(CycleReplaceField(delta=1))
+    if key == "shift+tab":
+        return supported(CycleReplaceField(delta=-1))
+    if key in ("left", "right"):
+        if palette.replace_preview.active_field != "scope":
+            return warn("Use left/right arrows on the scope field to change scope")
+        if palette.replace_preview.scope == "search_results":
+            return warn("Search results scope is fixed to the displayed search results")
+        scopes = ("current_file", "selected_files", "current_directory")
+        current = palette.replace_preview.scope
+        delta = -1 if key == "left" else 1
+        next_scope = scopes[(scopes.index(current) + delta) % len(scopes)]
+        return supported(SetReplaceScope(scope=next_scope))
+    if key == "backspace":
+        if palette.replace_preview.active_field == "scope":
+            return warn("Use left/right arrows to change scope")
+        return supported(
+            SetReplaceField(
+                field=palette.replace_preview.active_field,
+                value=active_replace_field_value(state)[:-1],
+            )
+        )
+    return None
+
+
+def _dispatch_find_replace_input(
+    state: AppState,
+    *,
+    key: str,
+) -> DispatchedActions | None:
+    palette = state.command_palette
+    if palette is None:
+        return None
+    if key == "tab":
+        return supported(CycleFindReplaceField(delta=1))
+    if key == "shift+tab":
+        return supported(CycleFindReplaceField(delta=-1))
+    if key == "backspace":
+        return supported(
+            SetFindReplaceField(
+                field=palette.rff.active_field,
+                value=active_find_replace_field_value(state)[:-1],
+            )
+        )
+    return None
+
+
+def _dispatch_grep_replace_input(
+    state: AppState,
+    *,
+    key: str,
+) -> DispatchedActions | None:
+    palette = state.command_palette
+    if palette is None:
+        return None
+    if key == "tab":
+        return supported(CycleGrepReplaceField(delta=1))
+    if key == "shift+tab":
+        return supported(CycleGrepReplaceField(delta=-1))
+    if key == "backspace":
+        return supported(
+            SetGrepReplaceField(
+                field=palette.grf.active_field,
+                value=active_grep_replace_field_value(state)[:-1],
+            )
+        )
+    return None
+
+
+def _dispatch_grep_replace_selected_input(
+    state: AppState,
+    *,
+    key: str,
+) -> DispatchedActions | None:
+    palette = state.command_palette
+    if palette is None:
+        return None
+    if key == "tab":
+        return supported(CycleGrepReplaceSelectedField(delta=1))
+    if key == "shift+tab":
+        return supported(CycleGrepReplaceSelectedField(delta=-1))
+    if key == "backspace":
+        return supported(
+            SetGrepReplaceSelectedField(
+                field=palette.grs.active_field,
+                value=active_grep_replace_selected_field_value(state)[:-1],
+            )
+        )
+    return None
+
+
+def _dispatch_source_input(
+    state: AppState,
+    *,
+    source: CommandPaletteSource | None,
+    key: str,
+) -> DispatchedActions | None:
+    if source == "go":
+        return _dispatch_go_input(state, key=key)
+    if source == "file_search":
+        return _dispatch_file_search_input(state, key=key)
+    if source == "grep_search":
+        return _dispatch_grep_search_input(state, key=key)
+    if source == "replace_text":
+        return _dispatch_replace_input(state, key=key)
+    if source == "replace_in_found_files":
+        return _dispatch_find_replace_input(state, key=key)
+    if source == "replace_in_grep_files":
+        return _dispatch_grep_replace_input(state, key=key)
+    if source == "grep_replace_selected":
+        return _dispatch_grep_replace_selected_input(state, key=key)
+    return None
+
+
+def _dispatch_cursor_input(
+    state: AppState,
+    *,
+    source: CommandPaletteSource | None,
+    key: str,
+) -> DispatchedActions | None:
+    if key == "escape":
+        return supported(CancelCommandPalette())
+    if key == "up" or (key == "k" and source not in _SEARCH_PALETTE_SOURCES):
+        return supported(MoveCommandPaletteCursor(delta=-1))
+    if key == "down" or (key == "j" and source not in _SEARCH_PALETTE_SOURCES):
+        return supported(MoveCommandPaletteCursor(delta=1))
+    if key == "ctrl+j":
+        return supported(MoveCommandPaletteCursor(delta=1))
+    if key == "ctrl+k":
+        return supported(MoveCommandPaletteCursor(delta=-1))
+    if key in {"pageup", "pagedown"}:
+        visible = compute_search_visible_window(
+            state.terminal_height,
+            extra_rows=palette_extra_rows(source),
+        )
+        delta = -visible if key == "pageup" else visible
+        return supported(MoveCommandPaletteCursor(delta=delta))
+    if key == "home":
+        return supported(MoveCommandPaletteCursor(delta=-999999))
+    if key == "end":
+        return supported(MoveCommandPaletteCursor(delta=999999))
+    return None
+
+
+def _dispatch_palette_action_input(
+    state: AppState,
+    *,
+    source: CommandPaletteSource | None,
+    key: str,
+) -> DispatchedActions | None:
     if key == "enter":
         return supported(SubmitCommandPalette())
-
-    if key == "ctrl+r" and palette_source in {"file_search", "grep_search"}:
+    if key == "ctrl+r" and source in {"file_search", "grep_search"}:
         return supported(BeginReplaceFromSearchResults())
-
-    if key == "backspace":
-        if palette_source == "file_search":
-            if (
-                state.command_palette is not None
-                and state.command_palette.file_search.active_field == "target"
-            ):
-                return warn("Use left/right arrows on the target field to change scope")
-            active_field: FileSearchFieldId = state.command_palette.file_search.active_field
-            next_value = active_file_search_field_value(state)[:-1]
-            if active_field == "keyword":
-                return supported(SetCommandPaletteQuery(next_value))
-            return supported(SetFileSearchField(field=active_field, value=next_value))
-        if palette_source == "grep_search":
-            if state.command_palette.grep_search.active_field == "scope":
-                return warn("Use left/right arrows to change scope")
-            return supported(
-                SetGrepSearchField(
-                    field=state.command_palette.grep_search.active_field,
-                    value=active_grep_field_value(state)[:-1],
-                )
-            )
-        if palette_source == "replace_text":
-            if state.command_palette.replace_preview.active_field == "scope":
-                return warn("Use left/right arrows to change scope")
-            return supported(
-                SetReplaceField(
-                    field=state.command_palette.replace_preview.active_field,
-                    value=active_replace_field_value(state)[:-1],
-                )
-            )
-        if palette_source == "replace_in_found_files":
-            return supported(
-                SetFindReplaceField(
-                    field=state.command_palette.rff.active_field,
-                    value=active_find_replace_field_value(state)[:-1],
-                )
-            )
-        if palette_source == "replace_in_grep_files":
-            return supported(
-                SetGrepReplaceField(
-                    field=state.command_palette.grf.active_field,
-                    value=active_grep_replace_field_value(state)[:-1],
-                )
-            )
-        if palette_source == "grep_replace_selected":
-            return supported(
-                SetGrepReplaceSelectedField(
-                    field=state.command_palette.grs.active_field,
-                    value=active_grep_replace_selected_field_value(state)[:-1],
-                )
-            )
-        current_query = state.command_palette.query if state.command_palette is not None else ""
-        return supported(SetCommandPaletteQuery(current_query[:-1]))
-
-    if key == "ctrl+e" and state.command_palette is not None:
-        if state.command_palette.source == "grep_search":
-            return supported(OpenGrepResultInEditor())
-        if state.command_palette.source == "file_search":
-            return supported(OpenFindResultInEditor())
-
-    if key == "ctrl+o" and state.command_palette is not None:
-        if state.command_palette.source == "grep_search":
-            return supported(OpenGrepResultInGuiEditor())
-        if state.command_palette.source == "file_search":
-            return supported(OpenFindResultInGuiEditor())
-
+    if key == "ctrl+e" and source == "grep_search":
+        return supported(OpenGrepResultInEditor())
+    if key == "ctrl+e" and source == "file_search":
+        return supported(OpenFindResultInEditor())
+    if key == "ctrl+o" and source == "grep_search":
+        return supported(OpenGrepResultInGuiEditor())
+    if key == "ctrl+o" and source == "file_search":
+        return supported(OpenFindResultInGuiEditor())
     if key == "ctrl+x" and state.command_palette is not None:
-        if state.command_palette.source in {
-            "grep_search",
-            "replace_in_grep_files",
-            "grep_replace_selected",
-        }:
+        if source in {"grep_search", "replace_in_grep_files", "grep_replace_selected"}:
             return supported(SaveGrepResults())
         return warn("No grep results to save")
-
-    if character and character.isprintable():
-        if palette_source == "file_search":
-            if (
-                state.command_palette is not None
-                and state.command_palette.file_search.active_field == "target"
-            ):
-                return warn("Use left/right arrows on the target field to change scope")
-            active_field: FileSearchFieldId = state.command_palette.file_search.active_field
-            if active_field == "keyword":
-                current_query = state.command_palette.query
-                return supported(SetCommandPaletteQuery(f"{current_query}{character}"))
-            return supported(
-                SetFileSearchField(
-                    field=active_field,
-                    value=f"{active_file_search_field_value(state)}{character}",
-                )
-            )
-        if palette_source == "grep_search":
-            active_field: GrepSearchFieldId = state.command_palette.grep_search.active_field
-            if active_field == "scope":
-                return warn("Use left/right arrows to change scope")
-            return supported(
-                SetGrepSearchField(
-                    field=active_field,
-                    value=f"{active_grep_field_value(state)}{character}",
-                )
-            )
-        if palette_source == "replace_text":
-            active_field: ReplaceFieldId = state.command_palette.replace_preview.active_field
-            if active_field == "scope":
-                return warn("Use left/right arrows to change scope")
-            return supported(
-                SetReplaceField(
-                    field=active_field,
-                    value=f"{active_replace_field_value(state)}{character}",
-                )
-            )
-        if palette_source == "replace_in_found_files":
-            active: FindReplaceFieldId = state.command_palette.rff.active_field
-            return supported(
-                SetFindReplaceField(
-                    field=active,
-                    value=f"{active_find_replace_field_value(state)}{character}",
-                )
-            )
-        if palette_source == "replace_in_grep_files":
-            active: GrepReplaceFieldId = state.command_palette.grf.active_field
-            return supported(
-                SetGrepReplaceField(
-                    field=active,
-                    value=f"{active_grep_replace_field_value(state)}{character}",
-                )
-            )
-        if palette_source == "grep_replace_selected":
-            active: GrepReplaceSelectedFieldId = state.command_palette.grs.active_field
-            return supported(
-                SetGrepReplaceSelectedField(
-                    field=active,
-                    value=f"{active_grep_replace_selected_field_value(state)}{character}",
-                )
-            )
+    if key == "backspace":
         current_query = state.command_palette.query if state.command_palette is not None else ""
-        return supported(SetCommandPaletteQuery(f"{current_query}{character}"))
+        return supported(SetCommandPaletteQuery(current_query[:-1]))
+    return None
 
-    if search_palette:
-        if state.command_palette is not None and state.command_palette.source == "grep_search":
+
+def _dispatch_common_input(
+    state: AppState,
+    *,
+    source: CommandPaletteSource | None,
+    key: str,
+) -> DispatchedActions | None:
+    result = _dispatch_cursor_input(state, source=source, key=key)
+    if result is not None:
+        return result
+    return _dispatch_palette_action_input(state, source=source, key=key)
+
+
+def _dispatch_file_search_text(
+    state: AppState,
+    *,
+    character: str,
+) -> DispatchedActions:
+    palette = state.command_palette
+    if palette is None or palette.file_search.active_field == "target":
+        return warn("Use left/right arrows on the target field to change scope")
+    active_field: FileSearchFieldId = palette.file_search.active_field
+    if active_field == "keyword":
+        return supported(SetCommandPaletteQuery(f"{palette.query}{character}"))
+    return supported(
+        SetFileSearchField(
+            field=active_field,
+            value=f"{active_file_search_field_value(state)}{character}",
+        )
+    )
+
+
+def _dispatch_grep_search_text(state: AppState, *, character: str) -> DispatchedActions:
+    palette = state.command_palette
+    if palette is None:
+        return warn("Use left/right arrows to change scope")
+    active_field: GrepSearchFieldId = palette.grep_search.active_field
+    if active_field == "scope":
+        return warn("Use left/right arrows to change scope")
+    return supported(
+        SetGrepSearchField(
+            field=active_field,
+            value=f"{active_grep_field_value(state)}{character}",
+        )
+    )
+
+
+def _dispatch_replace_text(state: AppState, *, character: str) -> DispatchedActions:
+    palette = state.command_palette
+    if palette is None:
+        return warn("Use left/right arrows to change scope")
+    active_field: ReplaceFieldId = palette.replace_preview.active_field
+    if active_field == "scope":
+        return warn("Use left/right arrows to change scope")
+    return supported(
+        SetReplaceField(
+            field=active_field,
+            value=f"{active_replace_field_value(state)}{character}",
+        )
+    )
+
+
+def _dispatch_find_replace_text(state: AppState, *, character: str) -> DispatchedActions:
+    active: FindReplaceFieldId = state.command_palette.rff.active_field
+    return supported(
+        SetFindReplaceField(
+            field=active,
+            value=f"{active_find_replace_field_value(state)}{character}",
+        )
+    )
+
+
+def _dispatch_grep_replace_text(state: AppState, *, character: str) -> DispatchedActions:
+    active: GrepReplaceFieldId = state.command_palette.grf.active_field
+    return supported(
+        SetGrepReplaceField(
+            field=active,
+            value=f"{active_grep_replace_field_value(state)}{character}",
+        )
+    )
+
+
+def _dispatch_grep_replace_selected_text(
+    state: AppState,
+    *,
+    character: str,
+) -> DispatchedActions:
+    active: GrepReplaceSelectedFieldId = state.command_palette.grs.active_field
+    return supported(
+        SetGrepReplaceSelectedField(
+            field=active,
+            value=f"{active_grep_replace_selected_field_value(state)}{character}",
+        )
+    )
+
+
+def _dispatch_text_input(
+    state: AppState,
+    *,
+    source: CommandPaletteSource | None,
+    character: str | None,
+) -> DispatchedActions | None:
+    palette = state.command_palette
+    if not character or not character.isprintable():
+        return None
+    if palette is None:
+        return supported(SetCommandPaletteQuery(character))
+    if source == "file_search":
+        return _dispatch_file_search_text(state, character=character)
+    if source == "grep_search":
+        return _dispatch_grep_search_text(state, character=character)
+    if source == "replace_text":
+        return _dispatch_replace_text(state, character=character)
+    if source == "replace_in_found_files":
+        return _dispatch_find_replace_text(state, character=character)
+    if source == "replace_in_grep_files":
+        return _dispatch_grep_replace_text(state, character=character)
+    if source == "grep_replace_selected":
+        return _dispatch_grep_replace_selected_text(state, character=character)
+    return supported(SetCommandPaletteQuery(f"{palette.query}{character}"))
+
+
+def _dispatch_palette_warning(source: CommandPaletteSource | None) -> DispatchedActions:
+    if source in _SEARCH_PALETTE_SOURCES:
+        if source == "grep_search":
             return warn(
                 "Use Tab/Shift+Tab, type, arrows, Enter, "
                 "Ctrl+r replace, Ctrl+e editor, Ctrl+x save results, or Esc"
@@ -455,8 +577,25 @@ def dispatch_command_palette_input(
             "Use arrows, type to search, Enter, "
             "Ctrl+r replace, Ctrl+e editor, Ctrl+x save results, or Esc"
         )
-
-    if palette_source == "replace_text":
+    if source == "replace_text":
         return warn("Use Tab/Shift+Tab, type, arrows or Ctrl+j/k, Enter to apply, or Esc")
-
     return warn("Use arrows, type to filter, Enter to run, or Esc to cancel")
+
+
+def dispatch_command_palette_input(
+    state: AppState,
+    *,
+    key: str,
+    character: str | None,
+) -> DispatchedActions:
+    source = state.command_palette.source if state.command_palette is not None else None
+    result = _dispatch_source_input(state, source=source, key=key)
+    if result is not None:
+        return result
+    result = _dispatch_common_input(state, source=source, key=key)
+    if result is not None:
+        return result
+    result = _dispatch_text_input(state, source=source, character=character)
+    if result is not None:
+        return result
+    return _dispatch_palette_warning(source)

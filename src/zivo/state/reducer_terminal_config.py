@@ -61,6 +61,7 @@ from .reducer_common import (
     finalize,
     move_config_cursor_visual,
     notification_for_external_launch,
+    request_external_directory_refresh,
     run_external_launch_request,
     sync_child_pane,
 )
@@ -597,9 +598,33 @@ def _handle_external_launch_completed(
             ),
         )
     notification = notification_for_external_launch(action.request)
-    if notification is None:
-        return finalize(state)
-    return finalize(replace(state, notification=notification))
+    reload_target = _external_reload_target(action.request)
+    if reload_target is None:
+        if notification is None:
+            return finalize(state)
+        return finalize(replace(state, notification=notification))
+
+    next_state = replace(state, ui_mode="BROWSING")
+    return request_external_directory_refresh(
+        next_state,
+        directory_path=reload_target[0],
+        path_is_directory=reload_target[1],
+        notification=notification,
+    )
+
+
+def _external_reload_target(request: ExternalLaunchRequest) -> tuple[str, bool] | None:
+    """Return the waited external launch path eligible for a directory refresh."""
+
+    if request.kind == "open_editor" and request.path:
+        return request.path, False
+    if (
+        request.kind == "open_terminal"
+        and request.terminal_launch_mode == "foreground"
+        and request.path
+    ):
+        return request.path, True
+    return None
 
 
 def _handle_config_reload_completed(
@@ -704,22 +729,26 @@ def _handle_shell_command_completed(
             if state.shell_command is not None
             else None
         )
-        return finalize(
-            replace(
-                state,
-                ui_mode="BROWSING",
-                shell_command=next_shell,
-                pending_shell_command_request_id=None,
-                background_command=None,
-                notification=NotificationState(
-                    level="warning",
-                    message=message,
-                    action=NotificationAction(
-                        action_id="notification.shell_result",
-                        label="Result",
-                    ),
-                ),
-            )
+        notification = NotificationState(
+            level="warning",
+            message=message,
+            action=NotificationAction(
+                action_id="notification.shell_result",
+                label="Result",
+            ),
+        )
+        next_state = replace(
+            state,
+            ui_mode="BROWSING",
+            shell_command=next_shell,
+            pending_shell_command_request_id=None,
+            background_command=None,
+            notification=notification,
+        )
+        return request_external_directory_refresh(
+            next_state,
+            directory_path=state.shell_command.cwd if state.shell_command else None,
+            notification=notification,
         )
     # UIモードをSHELLのままにし、実行結果をShellCommandStateに保持する
     # shell_commandがNoneの場合（キャンセルされた場合など）はBROWSINGに戻る
@@ -732,15 +761,18 @@ def _handle_shell_command_completed(
                 background_command=None,
             )
         )
-    return finalize(
-        replace(
-            state,
-            ui_mode="SHELL",
-            shell_command=replace(state.shell_command, result=action.result),
-            pending_shell_command_request_id=None,
-            background_command=None,
-            notification=None,
-        )
+    next_state = replace(
+        state,
+        ui_mode="SHELL",
+        shell_command=replace(state.shell_command, result=action.result),
+        pending_shell_command_request_id=None,
+        background_command=None,
+        notification=None,
+    )
+    return request_external_directory_refresh(
+        next_state,
+        directory_path=state.shell_command.cwd,
+        notification=None,
     )
 
 

@@ -11,6 +11,8 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 
 Directory History と Go の最近の履歴は、最後に訪問したディレクトリから新しい順に表示します。各タブと Transfer の各ペインは、最新の重複しないディレクトリパスを100件までメモリに保持し、古い項目を自動的に破棄します。
 
+待機する terminal editor、foreground terminal、shell command、`terminal` / `background` のカスタムアクションが完了したとき、実行 cwd または編集対象ファイルの親が表示中の実ディレクトリと一致すれば、そのディレクトリを1回だけ再読込します。既存のカーソル、選択、filter、sort は再読込後も適用されます。GUI editor、新しい terminal window、既定アプリ起動、configだけを更新するoverlay完了、Search Workspace、archive 専用表示はこの完了時再読込の対象外です。
+
 最新の操作に次アクションがある場合、通常の `commands` パレットの先頭に条件付きで `Suggested` を1件だけ表示します。表示優先順位は `Undo`、`Open destination`、安全な `Retry`、`Details` です。Detailsには安全な復旧Actionを最大1件だけ表示し、`[z] Undo completed items` または `[r] Retry` として実行できます。`Enter` / `Esc` はDetailsを閉じます。StatusBar、Details、条件付き `Suggested` は同じ stable action ID と reducer 経路を共有し、既存のグローバルキーボード経路は現在の意味を維持します。新しいグローバルキーは追加しません。表示開始から5秒で自動消去するのは最終成功通知だけで、処理中・warning/error・partial success は自動消去しません。
 
 `Retry` は、成功・skip・overwrite がなく、元の `PasteRequest` の conflict resolution が未指定である貼り付け失敗、成功・適用済み変更がない Duplicate 失敗、archive/zip 準備失敗に限定します。Retry は毎回 fresh preparation/preflight を行い、競合や対象変更があれば既存の競合確認・再確認経路へ戻ります。`Details` は失敗件数、対象パス、理由を表示し、有効なUndoエントリがある場合だけ完了済みCopy/Move対象のUndoを提示します。`Enter` または `Esc` で閉じます。

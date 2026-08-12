@@ -159,6 +159,57 @@ def test_shell_command_completed_shows_result_in_dialog() -> None:
     assert failure.notification is None
 
 
+def test_shell_command_completion_refreshes_its_current_directory() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/tmp/project",
+        ui_mode="BUSY",
+        shell_command=ShellCommandState(cwd="/tmp/project", command="touch created"),
+        pending_shell_command_request_id=4,
+        background_command=BackgroundCommandState(4, "Shell command"),
+    )
+
+    result = reduce_app_state(
+        state,
+        ShellCommandCompleted(
+            request_id=4,
+            result=ShellCommandResult(exit_code=0),
+        ),
+    )
+
+    assert result.state.ui_mode == "SHELL"
+    assert result.state.pending_browser_snapshot_request_id == 1
+    assert len(result.effects) == 1
+    assert result.effects[0].path == "/tmp/project"
+    assert result.effects[0].blocking is False
+
+
+def test_shell_command_completion_keeps_timeout_result_notification_through_refresh() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/tmp/project",
+        ui_mode="BUSY",
+        shell_command=ShellCommandState(cwd="/tmp/project", command="slow"),
+        pending_shell_command_request_id=4,
+        background_command=BackgroundCommandState(4, "Shell command"),
+    )
+    result = reduce_app_state(
+        state,
+        ShellCommandCompleted(
+            request_id=4,
+            result=ShellCommandResult(
+                exit_code=-15,
+                termination_reason="timed_out",
+                timeout_seconds=300,
+            ),
+        ),
+    )
+
+    assert result.state.notification is None
+    assert result.state.post_reload_notification is not None
+    assert result.state.post_reload_notification.message == "Command stopped after 300 seconds"
+
+
 def test_shell_timeout_returns_to_browsing_with_result_action() -> None:
     state = replace(
         build_initial_app_state(),

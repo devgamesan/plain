@@ -67,6 +67,9 @@ zivo includes several safety mechanisms to prevent accidents during file operati
 
 - If the destination already exists, a confirmation dialog is shown before extraction.
 - The status bar shows entry-count progress while the extraction runs.
+- Before writing, zivo normalizes the destination lexically and inspects the destination root and every target path component with `lstat()`.
+- Existing symlinks and Windows reparse points in the destination root, its parents, or an extracted target are rejected with an unsafe-path error; absolute and `..` archive members are rejected as well.
+- All archive targets are validated before the first write, and the containment check is repeated before directory creation and atomic file replacement. This applies to ZIP, TAR, GZ, and BZ2 extraction.
 
 ## Long-Running File Operations
 

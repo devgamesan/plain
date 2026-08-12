@@ -85,7 +85,7 @@ jobs:
       - name: Lint
         run: uv run ruff check .
 
-      - name: Test (Linux/macOS)
+      - name: Test (Linux/macOS full suite)
         if: runner.os != 'Windows'
         env:
           TMPDIR: ${{ runner.temp }}/zivo-tmp
@@ -93,12 +93,17 @@ jobs:
           TEMP: ${{ runner.temp }}/zivo-tmp
         run: uv run pytest
 
-      - name: Test (Windows regression subset)
+      - name: Test (Windows supported regression scope)
         if: runner.os == 'Windows'
         env:
           TMPDIR: ${{ runner.temp }}/zivo-tmp
           TMP: ${{ runner.temp }}/zivo-tmp
           TEMP: ${{ runner.temp }}/zivo-tmp
+        # The full suite was evaluated for Issue #1160. It currently has
+        # 24 native-Windows failures (POSIX path/newline assumptions,
+        # chmod/chown semantics, and platform-specific UI timing). Keep the
+        # established file-operation/search/config regression scope explicit
+        # until those tests are ported.
         run: >
           uv run pytest
           tests/test_adapters_file_operations.py

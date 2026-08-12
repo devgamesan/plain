@@ -304,6 +304,7 @@ def _handle_begin_text_replace(
                 next_state.command_palette,
                 replace_preview=replace(
                     next_state.command_palette.replace_preview,
+                    find_text=action.result_query if action.result_origin is not None else "",
                     scope=scope,
                     target_paths=action.target_paths or replace_scope_target_paths(state, scope),
                     result_origin=action.result_origin,

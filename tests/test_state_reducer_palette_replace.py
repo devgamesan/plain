@@ -111,6 +111,7 @@ def test_begin_replace_from_find_results_uses_search_results_scope() -> None:
     preview = result.state.command_palette.replace_preview
     assert result.state.command_palette.source == "replace_text"
     assert preview.scope == "search_results"
+    assert preview.find_text == "readme"
     assert preview.target_paths == ("/tmp/README.md",)
     assert preview.result_origin == "find"
     assert preview.result_query == "readme"
@@ -141,6 +142,7 @@ def test_begin_replace_from_grep_results_deduplicates_files_and_counts_matches()
     assert result.state.command_palette is not None
     preview = result.state.command_palette.replace_preview
     assert preview.scope == "search_results"
+    assert preview.find_text == "TODO"
     assert preview.target_paths == (path, "/tmp/src.py")
     assert preview.result_origin == "grep"
     assert preview.result_file_count == 2

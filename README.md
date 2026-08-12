@@ -236,6 +236,7 @@ zivo includes safety mechanisms to prevent data loss during file operations.
 - [Architecture](docs/architecture.en.md) — implementation structure
 - [Performance](docs/performance.en.md) — performance notes
 - [Release Checklist](docs/release-checklist.md) — release checklist
+- [Dependency and GitHub Actions Audit](docs/dependency-audit.md) — CI dependency and action supply-chain audit policy
 
 ---
 

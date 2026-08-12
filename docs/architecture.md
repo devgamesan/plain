@@ -260,8 +260,8 @@ Copy・Move・Compress・Extract・Replace は、1つの一時的な `Foreground
   - `Create file`
   - `Create directory`
 - palette source は `commands` / `file_search` / `grep_search` / `go` / `replace` などを持つ
-- 統合 `Go` は入力中に Home、bookmark、recent history、open tab、direct path の候補を表示し、`Tab` で direct path 候補を補完できる
-- direct path の directory listing は reducer で同期実行せず、debounce 付き worker と短時間の親ディレクトリ cache を使う。query/request ID が一致しない結果は破棄し、loading・0件・truncated 状態を Go view に表示する
+- 統合 `Go` は入力中に Home、bookmark、recent history、open tab、direct path の候補を表示し、`Tab` で direct path 候補を補完できる。パス区切りの直後は、入力中の既存ディレクトリを先頭候補として維持しながら直下の子ディレクトリ候補を表示する
+- direct path の directory listing は reducer で同期実行せず、debounce 付き worker と短時間の親ディレクトリ cache を使う。query/request ID が一致しない結果は破棄し、loading・0件・権限エラー・truncated 状態を Go view に表示する
 - `grep_search` は keyword / filename filter / include extensions / exclude extensions の 4 フィールドを持ち、`Tab` / `Shift+Tab` で入力欄を移動する
 
 ### `src/zivo/services/`

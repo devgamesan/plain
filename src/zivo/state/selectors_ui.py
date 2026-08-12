@@ -22,7 +22,7 @@ from zivo.models import (
 from zivo.platform_support import is_split_terminal_supported
 from zivo.windows_paths import is_search_workspace_path
 
-from .command_palette import parse_go_query
+from .command_palette import _go_direct_path, parse_go_query
 from .models import AppState
 from .reducer_config import (
     CONFIG_EDITOR_CATEGORIES,
@@ -680,6 +680,10 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
         completion = state.command_palette.go_completion
         if completion.loading:
             footer_message = f"{footer_message} | Searching directories…"
+        elif completion.error_message and _go_direct_path(
+            completion.query, completion.base_path
+        ) is not None:
+            footer_message = f"{footer_message} | {completion.error_message}"
         elif completion.results_truncated:
             footer_message = (
                 f"{footer_message} | More matches available — type more characters"

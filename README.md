@@ -149,7 +149,7 @@ Long-running Copy, Move, Compress, Extract, and Replace operations show their op
 - **Tabs**: open multiple directories and switch between them
 - **Directory history**: go back / forward through visited directories
 - **Bookmarks**: save directories and open them from the bookmark-filtered Go view with `b`
-- **Go**: press `G` to search bookmarks, recent history, open tabs, Home, or a direct path in one view; use `@bookmark`, `@history`, `@tab`, or `@home` prefixes to filter the source
+- **Go**: press `G` to search bookmarks, recent history, open tabs, Home, or a direct path in one view; use `@bookmark`, `@history`, `@tab`, or `@home` prefixes to filter the source. After a path separator, direct navigation remains available while child-directory candidates load.
 - **Direct UI controls**: click breadcrumb segments, Back/Forward (normal browsing), tabs, and sortable column headers; Search Workspace uses a dedicated non-breadcrumb label
 
 ### File operations

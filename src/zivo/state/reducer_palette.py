@@ -64,6 +64,7 @@ from .actions_palette import OpenSearchWorkspace
 from .command_palette import (
     _go_base_path,
     _go_direct_path,
+    _go_query_has_trailing_separator,
     normalize_command_palette_cursor,
     parse_go_query,
 )
@@ -209,10 +210,13 @@ def _handle_set_go_query(state: AppState, next_palette, query: str) -> ReduceRes
         error_message=None,
     )
     next_palette = replace(next_palette, go_completion=completion)
+    base_path = _go_base_path(state)
+    direct_path = _go_direct_path(search_query, base_path)
+    has_trailing_separator = _go_query_has_trailing_separator(search_query, base_path)
     if (
         source_filter != "all"
         or not search_query.strip()
-        or _go_direct_path(search_query, _go_base_path(state)) is not None
+        or (direct_path is not None and not has_trailing_separator)
     ):
         return finalize(
             replace(
@@ -236,7 +240,7 @@ def _handle_set_go_query(state: AppState, next_palette, query: str) -> ReduceRes
         RunGoPathCompletionEffect(
             request_id=request_id,
             query=search_query,
-            base_path=_go_base_path(state),
+            base_path=base_path,
         ),
     )
 

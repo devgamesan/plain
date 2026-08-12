@@ -1193,6 +1193,21 @@ def _go_direct_path(query: str, base_path: str) -> str | None:
         return None
 
 
+def _go_query_has_trailing_separator(query: str, base_path: str) -> bool:
+    """Return whether a Go query asks for the next directory level."""
+
+    raw_query = query.strip()
+    if not raw_query:
+        return False
+    if is_windows_path(raw_query) or is_windows_path(base_path) or is_windows_drives_root(
+        base_path
+    ):
+        return raw_query.endswith(("/", "\\"))
+    return raw_query.endswith(os.sep) or (
+        os.altsep is not None and raw_query.endswith(os.altsep)
+    )
+
+
 def _go_candidate_label(candidate: GoCandidateState) -> str:
     label = _display_path(candidate.path)
     if not candidate.sources:

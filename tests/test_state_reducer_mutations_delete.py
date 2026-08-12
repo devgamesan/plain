@@ -125,7 +125,9 @@ def test_cancel_delete_confirmation_returns_to_browsing_with_warning() -> None:
     next_state = _reduce_state(state, CancelDeleteConfirmation())
 
     assert next_state.ui_mode == "BROWSING"
-    assert next_state.notification == NotificationState(level="warning", message="Delete cancelled")
+    assert next_state.notification == NotificationState(
+        level="warning", message="Move to trash cancelled"
+    )
 
 
 def test_confirm_exit_requests_cancel_and_waits_for_active_operation() -> None:
@@ -264,5 +266,5 @@ def test_cancel_permanent_delete_confirmation_returns_to_browsing_with_warning()
     assert next_state.ui_mode == "BROWSING"
     assert next_state.notification == NotificationState(
         level="warning",
-        message="Permanent delete cancelled",
+            message="Permanently delete cancelled",
     )

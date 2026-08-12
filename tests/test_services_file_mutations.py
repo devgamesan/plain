@@ -96,7 +96,7 @@ def test_file_mutation_service_trashes_single_path() -> None:
     )
 
     assert adapter.trashed_paths == ["/tmp/zivo/docs"]
-    assert result.message == "Trashed 1 item"
+    assert result.message == "Moved 1 item to trash"
     assert result.removed_paths == ("/tmp/zivo/docs",)
 
 
@@ -532,7 +532,7 @@ def test_file_mutation_service_raises_when_all_deletes_fail() -> None:
     adapter = StubFileOperationAdapter(failing_paths={"/tmp/zivo/docs"})
     service = LiveFileMutationService(adapter=adapter)
 
-    with pytest.raises(OSError, match="Failed to trash docs"):
+    with pytest.raises(OSError, match="Failed to move docs to trash"):
         service.execute(DeleteRequest(paths=("/tmp/zivo/docs",), mode="trash"))
 
 
@@ -559,7 +559,7 @@ def test_file_mutation_service_permanently_deletes_single_path() -> None:
 
     assert adapter.deleted_paths == ["/tmp/zivo/docs"]
     assert adapter.trashed_paths == []
-    assert result.message == "Deleted 1 item permanently"
+    assert result.message == "Permanently deleted 1 item"
     assert result.removed_paths == ("/tmp/zivo/docs",)
 
 
@@ -600,7 +600,7 @@ def test_file_mutation_service_reports_partial_permanent_delete_failures() -> No
 
     assert adapter.deleted_paths == ["/tmp/zivo/docs"]
     assert result.level == "warning"
-    assert result.message == "Deleted 1/2 items permanently with 1 failure(s)"
+    assert result.message == "Permanently deleted 1/2 items with 1 failure(s)"
     assert result.removed_paths == ("/tmp/zivo/docs",)
 
 
@@ -626,5 +626,5 @@ def test_file_mutation_service_permanently_deletes_symlink_without_following_tar
 
     assert link.exists() is False
     assert target.exists()
-    assert result.message == "Deleted 1 item permanently"
+    assert result.message == "Permanently deleted 1 item"
     assert result.removed_paths == (str(link),)

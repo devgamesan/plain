@@ -212,10 +212,10 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             if confirmation.additional_confirmation_armed:
                 return HelpBarState(("D permanently delete | esc cancel",))
             if confirmation.requires_additional_confirmation:
-                return HelpBarState(("enter review permanent delete | esc cancel",))
+                return HelpBarState(("enter review permanently delete | esc cancel",))
             if confirmation.mode == "permanent":
-                return HelpBarState(("enter confirm permanent delete | esc cancel",))
-            return HelpBarState(("enter confirm delete | esc cancel",))
+                return HelpBarState(("enter confirm permanently delete | esc cancel",))
+            return HelpBarState(("enter confirm move to trash | esc cancel",))
         if state.exit_confirmation is not None:
             if state.foreground_operation is not None:
                 return HelpBarState(("enter cancel and exit | esc cancel",))
@@ -772,27 +772,27 @@ def select_conflict_dialog_state(state: AppState) -> ConflictDialogState | None:
                 else size_label
             )
             message = (
-                f"Permanently delete {target_count} {noun} ({size_note})? "
-                f"Targets: {names_label}. This cannot be undone."
+                f"Permanently delete {target_count} {noun}? This cannot be undone. "
+                f"Size: {size_note}. Targets: {names_label}."
             )
             if confirmation.additional_confirmation_armed:
-                title = "Final Permanent Delete Confirmation"
+                title = "Final Permanently Delete Confirmation"
                 message = f"{message} Press D to permanently delete now."
                 options = ("D permanently delete", "esc cancel")
             elif confirmation.requires_additional_confirmation:
-                title = "Permanent Delete Confirmation"
-                message = f"{message} Press Enter to continue to the final confirmation."
-                options = ("enter review", "esc cancel")
+                title = "Permanently Delete Confirmation"
+                message = f"{message} Press Enter to review the final confirmation."
+                options = ("enter review permanently delete", "esc cancel")
             else:
-                title = "Permanent Delete Confirmation"
-                options = ("enter confirm", "esc cancel")
+                title = "Permanently Delete Confirmation"
+                options = ("enter permanently delete", "esc cancel")
         else:
             first_name = Path(confirmation.paths[0]).name
-            message = f"Move {target_count} {noun} to trash?"
+            message = f"Move {target_count} {noun} to Trash?"
             if target_count > 1:
-                message = f"Move {target_count} items to trash? The first target is {first_name}."
-            title = "Delete Confirmation"
-            options = ("enter confirm", "esc cancel")
+                message = f"Move {target_count} items to Trash? The first target is {first_name}."
+            title = "Move to Trash Confirmation"
+            options = ("enter move to trash", "esc cancel")
         return ConflictDialogState(
             title=title,
             message=message,

@@ -152,10 +152,10 @@ def _handle_delete_preparation_failed(state, action, reduce_state):
 
 def _handle_cancel_delete_confirmation(state, action, reduce_state):
     message = (
-        "Permanent delete cancelled"
+        "Permanently delete cancelled"
         if state.delete_confirmation is not None
         and state.delete_confirmation.mode == "permanent"
-        else "Delete cancelled"
+        else "Move to trash cancelled"
     )
     return finalize(
         replace(

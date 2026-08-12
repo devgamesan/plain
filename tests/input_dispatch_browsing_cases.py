@@ -895,7 +895,9 @@ def test_browsing_d_warns_when_no_target_exists() -> None:
     actions = dispatch_key_input(state, key="d", character="d")
 
     assert actions == (
-        SetNotification(NotificationState(level="warning", message="Nothing to delete")),
+        SetNotification(
+            NotificationState(level="warning", message="Nothing to move to trash")
+        ),
     )
 
 
@@ -920,7 +922,9 @@ def test_browsing_delete_warns_when_no_target_exists() -> None:
     actions = dispatch_key_input(state, key="delete")
 
     assert actions == (
-        SetNotification(NotificationState(level="warning", message="Nothing to delete")),
+        SetNotification(
+            NotificationState(level="warning", message="Nothing to move to trash")
+        ),
     )
 
 

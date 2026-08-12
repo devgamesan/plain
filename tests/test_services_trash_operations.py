@@ -153,7 +153,7 @@ def test_macos_restore_raises_when_trashed_missing(tmp_path, monkeypatch) -> Non
         metadata_path=str(metadata_dir / "meta.restoreinfo"),
     )
 
-    with pytest.raises(OSError, match="Trashed entry not found"):
+    with pytest.raises(OSError, match="Item in trash not found"):
         MacOsTrashService().restore(record)
 
 

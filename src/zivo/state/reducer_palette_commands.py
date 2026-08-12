@@ -8,6 +8,7 @@ from zivo.models import (
     BulkRenameTarget,
     CustomActionContext,
     CustomActionExpansionError,
+    DeleteMode,
     expand_custom_action,
 )
 from zivo.windows_paths import is_search_workspace_path, parse_search_workspace_path
@@ -406,6 +407,8 @@ def _run_delete_targets_command(
     state: AppState,
     next_state: AppState,
     reduce_state: ReducerFn,
+    *,
+    mode: DeleteMode = "trash",
 ) -> ReduceResult:
     target_paths = (
         _transfer_target_paths(state)
@@ -413,8 +416,13 @@ def _run_delete_targets_command(
         else select_target_paths(state)
     )
     if not target_paths:
-        return notify(state, level="warning", message="Nothing to delete")
-    return reduce_state(next_state, BeginDeleteTargets(paths=target_paths))
+        message = (
+            "Nothing to permanently delete"
+            if mode == "permanent"
+            else "Nothing to move to trash"
+        )
+        return notify(state, level="warning", message=message)
+    return reduce_state(next_state, BeginDeleteTargets(paths=target_paths, mode=mode))
 
 
 def _run_copy_targets_command(
@@ -633,6 +641,13 @@ def _run_palette_command_item(
         return _run_edit_with_gui_editor_command(state, next_state, reduce_state)
     if item_id == "delete_targets":
         return _run_delete_targets_command(state, next_state, reduce_state)
+    if item_id == "permanent_delete_targets":
+        return _run_delete_targets_command(
+            state,
+            next_state,
+            reduce_state,
+            mode="permanent",
+        )
     if item_id == "open_current_directory_with_file_manager":
         return _run_open_current_directory_with_file_manager_command(next_state, reduce_state)
     if item_id == "open_current_directory_with_terminal":

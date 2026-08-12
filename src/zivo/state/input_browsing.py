@@ -138,7 +138,7 @@ BROWSING_HELP_LINES = (
         ("c", "copy"),
         ("x", "cut"),
         ("v", "paste"),
-        ("d", "delete"),
+        ("d", "trash"),
         ("r", "rename"),
         ("z", "undo"),
     ),
@@ -523,7 +523,7 @@ def handle_cycle_sort(state: AppState, _ctx: BrowsingCtx) -> DispatchedActions:
 
 def handle_delete_targets(_state: AppState, ctx: BrowsingCtx) -> DispatchedActions:
     if not ctx.target_paths:
-        return warn("Nothing to delete")
+        return warn("Nothing to move to trash")
     return supported(BeginDeleteTargets(ctx.target_paths, mode="trash"))
 
 

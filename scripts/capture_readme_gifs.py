@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import math
+import re
 import shutil
 import subprocess
 import tempfile
@@ -20,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Sequence
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 from zivo.app import create_app
 from zivo.models import PasteAppliedChange, PasteExecutionResult, PasteSummary
@@ -34,13 +36,14 @@ DOCS_PATH = f"{BASE_PATH}/docs"
 README_PATH = f"{BASE_PATH}/README.md"
 
 TARGET_SPECS: dict[str, tuple[int, int]] = {
-    "basic_operation.gif": (1000, 640),
-    "command_palette.gif": (1000, 462),
-    "transfer_mode_operation.gif": (1000, 640),
+    "basic_operation.gif": (1600, 1040),
+    "command_palette.gif": (1600, 693),
+    "transfer_mode_operation.gif": (1600, 1040),
 }
 
 FRAME_DURATIONS_MS = (900, 700, 700, 1000, 1000)
-TERMINAL_SIZE = (120, 24)
+BROWSER_TERMINAL_SIZE = (120, 39)
+PALETTE_TERMINAL_SIZE = (120, 26)
 
 
 @dataclass(frozen=True)
@@ -116,6 +119,46 @@ def build_demo_loader() -> FakeBrowserSnapshotLoader:
             "file",
             size_bytes=2_048,
             modified_at=datetime(2026, 8, 3, 10, 0),
+        ),
+        _entry(
+            f"{BASE_PATH}/tests",
+            "tests",
+            "dir",
+            modified_at=datetime(2026, 8, 2, 9, 30),
+        ),
+        _entry(
+            f"{BASE_PATH}/assets",
+            "assets",
+            "dir",
+            modified_at=datetime(2026, 8, 1, 15, 45),
+        ),
+        _entry(
+            f"{BASE_PATH}/pyproject.toml",
+            "pyproject.toml",
+            "file",
+            size_bytes=1_024,
+            modified_at=datetime(2026, 8, 3, 8, 20),
+        ),
+        _entry(
+            f"{BASE_PATH}/uv.lock",
+            "uv.lock",
+            "file",
+            size_bytes=8_192,
+            modified_at=datetime(2026, 8, 2, 18, 5),
+        ),
+        _entry(
+            f"{BASE_PATH}/LICENSE",
+            "LICENSE",
+            "file",
+            size_bytes=1_072,
+            modified_at=datetime(2026, 7, 31, 12, 0),
+        ),
+        _entry(
+            f"{BASE_PATH}/CHANGELOG.md",
+            "CHANGELOG.md",
+            "file",
+            size_bytes=3_456,
+            modified_at=datetime(2026, 7, 30, 17, 10),
         ),
     )
     parent = PaneState(
@@ -219,7 +262,7 @@ async def _capture_basic(directory: Path) -> list[CapturedFrame]:
     loader = build_demo_loader()
     app = create_app(snapshot_loader=loader, initial_path=BASE_PATH)
     frames: list[CapturedFrame] = []
-    async with app.run_test(size=TERMINAL_SIZE) as pilot:
+    async with app.run_test(size=BROWSER_TERMINAL_SIZE) as pilot:
         await _wait_for_browser(app, pilot, BASE_PATH)
         await _wait_for_child(app, pilot)
         frames.append(_capture_svg(app, directory, 0, FRAME_DURATIONS_MS[0]))
@@ -228,12 +271,12 @@ async def _capture_basic(directory: Path) -> list[CapturedFrame]:
         await _wait_for_child(app, pilot)
         frames.append(_capture_svg(app, directory, 1, FRAME_DURATIONS_MS[1]))
 
-        await pilot.press("down")
+        await pilot.press("down", "down", "down", "down", "down")
         await _wait_for_child(app, pilot)
         frames.append(_capture_svg(app, directory, 2, FRAME_DURATIONS_MS[2]))
 
-        await pilot.press("space")
-        await pilot.pause(0.1)
+        await pilot.press("space", "up")
+        await _wait_for_child(app, pilot)
         frames.append(_capture_svg(app, directory, 3, FRAME_DURATIONS_MS[3]))
     return frames
 
@@ -242,7 +285,7 @@ async def _capture_command_palette(directory: Path) -> list[CapturedFrame]:
     loader = build_demo_loader()
     app = create_app(snapshot_loader=loader, initial_path=BASE_PATH)
     frames: list[CapturedFrame] = []
-    async with app.run_test(size=TERMINAL_SIZE) as pilot:
+    async with app.run_test(size=PALETTE_TERMINAL_SIZE) as pilot:
         await _wait_for_browser(app, pilot, BASE_PATH)
         await _wait_for_child(app, pilot)
 
@@ -269,7 +312,7 @@ async def _capture_transfer(directory: Path) -> list[CapturedFrame]:
         initial_path=BASE_PATH,
     )
     frames: list[CapturedFrame] = []
-    async with app.run_test(size=TERMINAL_SIZE) as pilot:
+    async with app.run_test(size=BROWSER_TERMINAL_SIZE) as pilot:
         await _wait_for_browser(app, pilot, BASE_PATH)
         await pilot.press("p")
         await _wait_for(
@@ -293,7 +336,7 @@ async def _capture_transfer(directory: Path) -> list[CapturedFrame]:
         frames.append(_capture_svg(app, directory, 1, FRAME_DURATIONS_MS[1]))
 
         await pilot.press("tab")
-        await pilot.press("down", "down", "space")
+        await pilot.press("down", "down", "down", "down", "down", "down", "space")
         await pilot.pause(0.1)
         frames.append(_capture_svg(app, directory, 2, FRAME_DURATIONS_MS[2]))
 
@@ -313,21 +356,78 @@ def _find_rsvg_convert() -> str:
     return executable
 
 
+def _svg_geometry(svg_path: Path) -> tuple[float, float, float, float, float, float]:
+    """Return SVG viewport and the Rich terminal content rectangle."""
+
+    svg = svg_path.read_text(encoding="utf-8")
+    view_box = re.search(
+        r'viewBox="0 0 (?P<width>[0-9.]+) (?P<height>[0-9.]+)"',
+        svg,
+    )
+    clip = re.search(
+        r'<clipPath id="(?P<id>[^"]+-clip-terminal)">\s*'
+        r'<rect x="0" y="0" width="(?P<width>[0-9.]+)" height="(?P<height>[0-9.]+)"',
+        svg,
+    )
+    if view_box is None or clip is None:
+        raise RuntimeError(f"Could not determine terminal geometry in {svg_path}")
+    clip_id = re.escape(clip.group("id"))
+    transform = re.search(
+        rf'<g transform="translate\((?P<x>[0-9.]+), (?P<y>[0-9.]+)\)" '
+        rf'clip-path="url\(#{clip_id}\)"',
+        svg,
+    )
+    if transform is None:
+        raise RuntimeError(f"Could not locate terminal transform in {svg_path}")
+    return (
+        float(view_box.group("width")),
+        float(view_box.group("height")),
+        float(transform.group("x")),
+        float(transform.group("y")),
+        float(clip.group("width")),
+        float(clip.group("height")),
+    )
+
+
 def _render_svg(svg_path: Path, png_path: Path, size: tuple[int, int], rsvg: str) -> None:
-    width, height = size
+    view_width, view_height, terminal_x, terminal_y, terminal_width, terminal_height = (
+        _svg_geometry(svg_path)
+    )
+    raw_width = math.ceil(view_width * 2)
+    raw_path = png_path.with_name(f"{png_path.stem}.raw.png")
     subprocess.run(
         [
             rsvg,
             "-w",
-            str(width),
-            "-h",
-            str(height),
+            str(raw_width),
             str(svg_path),
             "-o",
-            str(png_path),
+            str(raw_path),
         ],
         check=True,
     )
+    try:
+        with Image.open(raw_path) as raw_image:
+            scale_x = raw_image.width / view_width
+            scale_y = raw_image.height / view_height
+            crop_box = (
+                round(terminal_x * scale_x),
+                round(terminal_y * scale_y),
+                round((terminal_x + terminal_width) * scale_x),
+                round((terminal_y + terminal_height) * scale_y),
+            )
+            terminal_image = raw_image.crop(crop_box).convert("RGB")
+        rendered = ImageOps.fit(
+            terminal_image,
+            size,
+            method=Image.Resampling.LANCZOS,
+            centering=(0.5, 0.5),
+        )
+        rendered.save(png_path)
+        rendered.close()
+        terminal_image.close()
+    finally:
+        raw_path.unlink(missing_ok=True)
 
 
 def _assemble_gif(
@@ -343,7 +443,10 @@ def _assemble_gif(
         _render_svg(frame.svg_path, png_path, size, rsvg)
         png_paths.append(png_path)
 
-    images = [Image.open(path).convert("RGB") for path in png_paths]
+    images: list[Image.Image] = []
+    for path in png_paths:
+        with Image.open(path) as source:
+            images.append(source.convert("RGB"))
     if not images:
         raise RuntimeError(f"No frames captured for {output_path.name}")
     if any(image.size != size for image in images):

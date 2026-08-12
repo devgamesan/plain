@@ -19,3 +19,12 @@ def test_keybinding_docs_describe_risky_permanent_delete_confirmation() -> None:
 
     assert "`Enter` then `D`" in english
     assert "`Enter` → `D`" in japanese
+
+
+def test_keybinding_docs_use_trash_for_the_reversible_delete_shortcut() -> None:
+    repository_root = Path(__file__).resolve().parents[1]
+
+    for relative_path in ("docs/keybindings.md", "docs/keybindings.ja.md"):
+        content = (repository_root / relative_path).read_text(encoding="utf-8")
+        assert "d trash" in content
+        assert "d delete" not in content

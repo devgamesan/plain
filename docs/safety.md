@@ -4,7 +4,7 @@ zivo includes several safety mechanisms to prevent accidents during file operati
 
 ---
 
-## Move to Trash
+## Move to trash
 
 - Press `d` or `Delete` to move selected items to the trash.
 - A confirmation dialog is shown by default (configurable via `behavior.confirm_delete` in `config.toml`).
@@ -13,13 +13,13 @@ zivo includes several safety mechanisms to prevent accidents during file operati
 
 ---
 
-## Permanent Delete
+## Permanently Delete
 
 - Press `D` or `Shift+Delete` to permanently delete selected items.
-- Permanent delete always asks for confirmation regardless of the `behavior.confirm_delete` setting.
+- Permanently delete always asks for confirmation regardless of the `behavior.confirm_delete` setting.
 - The confirmation shows the target count, total size, up to three representative names, and whether any sizes could not be read.
 - Multiple targets or any directory require two explicit steps: press `Enter` to review, then uppercase `D` to delete.
-- Unlike trash, these operations cannot be undone.
+- Unlike Move to trash, this operation cannot be undone.
 
 ---
 

@@ -202,7 +202,9 @@ def run_delete_prepare_request(state, request: DeleteRequest) -> ReduceResult:
     request_id = state.next_request_id
     next_state = replace(
         state,
-        notification=NotificationState(level="info", message="Inspecting delete targets"),
+        notification=NotificationState(
+            level="info", message="Preparing to permanently delete"
+        ),
         delete_confirmation=None,
         pending_delete_prepare_request_id=request_id,
         next_request_id=request_id + 1,

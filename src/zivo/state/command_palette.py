@@ -84,6 +84,7 @@ BACKGROUND_OPERATION_BLOCKED_COMMAND_IDS = frozenset(
         "duplicate_targets",
         "paste_clipboard",
         "delete_targets",
+        "permanent_delete_targets",
         "transfer_copy_to_opposite_pane",
         "transfer_move_to_opposite_pane",
         "open_current_directory_with_file_manager",
@@ -170,6 +171,9 @@ _COMMAND_METADATA: dict[str, CommandPaletteMetadata] = {
     ),
     "delete_targets": CommandPaletteMetadata(
         "File", ("delete", "trash", "remove"), 17
+    ),
+    "permanent_delete_targets": CommandPaletteMetadata(
+        "File", ("delete", "permanent", "irreversible", "remove"), 18
     ),
     "open_current_directory_with_file_manager": CommandPaletteMetadata(
         "System", ("open", "folder", "file manager", "explorer"), 82
@@ -642,6 +646,14 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
                     enabled=True,
                 )
             )
+            items.append(
+                CommandPaletteItem(
+                    id="permanent_delete_targets",
+                    label="Permanently delete",
+                    shortcut="D",
+                    enabled=True,
+                )
+            )
 
     items.extend(
         [
@@ -795,6 +807,12 @@ def _build_contextual_command_items(state: AppState) -> tuple[CommandPaletteItem
         ),
         CommandPaletteItem(
             "delete_targets", "Move to trash", "d", has_target and not search_workspace
+        ),
+        CommandPaletteItem(
+            "permanent_delete_targets",
+            "Permanently delete",
+            "D",
+            has_target and not search_workspace,
         ),
     )
     return items
@@ -1089,6 +1107,12 @@ def _build_transfer_command_palette_items(state: AppState) -> tuple[CommandPalet
             id="delete_targets",
             label="Move to trash",
             shortcut="d",
+            enabled=has_target,
+        ),
+        CommandPaletteItem(
+            id="permanent_delete_targets",
+            label="Permanently delete",
+            shortcut="D",
             enabled=has_target,
         ),
         CommandPaletteItem(

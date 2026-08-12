@@ -156,7 +156,8 @@ Long-running Copy, Move, Compress, Extract, and Replace operations show their op
 - **Copy / Cut / Paste / Duplicate**: within a pane (normal mode only); Duplicate keeps the original and creates a safe same-directory copy
 - **Rename**: inline single-item rename, or a reviewable `Rename N items` editor for two or more selected items (base-name numbering, extension preservation, validation, progress, and same-directory staging)
 - **Permissions and ownership**: change selected targets' octal mode or owner/group from the command palette on POSIX-style filesystems
-- **Delete**: move to trash (`d`) or permanently delete (`D`); permanent delete shows target count, total size, representative names, and an irreversible-operation warning
+- **Move to trash**: `d` / `Delete` moves items to the OS trash; the operation can be undone when supported
+- **Permanently delete**: `D` / `Shift+Delete` permanently deletes items; confirmation shows target count, total size, representative names, and an irreversible-operation warning
 - **Undo**: revert rename, paste, duplicate, or trash operations
 - **Multi-selection**: select files with Space, or Select all
 
@@ -215,7 +216,7 @@ See [Custom Actions](docs/custom-actions.md) for custom action examples and safe
 zivo includes safety mechanisms to prevent data loss during file operations.
 
 - **Move to trash**: `d` / `Delete` moves items to the OS trash (confirmation dialog configurable)
-- **Permanent delete**: `D` / `Shift+Delete` always asks for confirmation; multiple targets or directories require `Enter` followed by an explicit uppercase `D`
+- **Permanently delete**: `D` / `Shift+Delete` always asks for confirmation; multiple targets or directories require `Enter` followed by an explicit uppercase `D`
 - **Undo**: `z` reverses the last rename, bulk rename, paste, or trash operation
 - **Paste conflict resolution**: choose overwrite, skip, or rename on name collision
 - **Actionable results**: retry is limited to fresh-preflight paste failures without conflicts, duplicate failures with no applied changes, and archive/zip preparation failures. Partial results expose failed paths and reasons in `Details`; when valid, Details offers Undo for completed Copy/Move items only.

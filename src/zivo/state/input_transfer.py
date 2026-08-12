@@ -93,7 +93,7 @@ TRANSFER_HELP_LINES = (
         ("space", "select"),
         ("c", "copy-to-pane"),
         ("m", "move-to-pane"),
-        ("d", "delete"),
+        ("d", "trash"),
         ("r", "rename"),
         ("z", "undo"),
     ),
@@ -223,7 +223,7 @@ def dispatch_transfer_input(
             message = (
                 "Nothing to permanently delete"
                 if mode == "permanent"
-                else "Nothing to delete"
+                else "Nothing to move to trash"
             )
             return warn(message)
         return supported(BeginDeleteTargets(target_paths, mode=mode))
@@ -250,7 +250,7 @@ def dispatch_transfer_input(
 
     return warn(
         "Use Tab to switch pane, space select, c copy-to-pane, "
-        "m move-to-pane, d trash, D permanent-delete, r rename, z undo, "
+        "m move-to-pane, d trash, D permanently delete, r rename, z undo, "
         "b bookmarks, . hidden, n new-file, N new-dir, : palette, or p/Esc to close"
     )
 

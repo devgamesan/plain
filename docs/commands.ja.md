@@ -52,6 +52,7 @@ Directory History と Go の最近の履歴は、最後に訪問したディレ�
 | `Copy path` | 対象が 1 件以上あるとき | 選択中のパス一覧、または未選択時はフォーカス中のパスをシステムクリップボードへコピーします。 |
 | `Duplicate` | 通常の実ファイルシステムで対象が 1 件以上あるとき | 選択中の各対象、または未選択時はフォーカス対象を現在の親ディレクトリ内へ複製します。既存項目を上書きせず、拡張子を維持した `copy`、`copy 2`、`copy 3` の順で空き名を選びます。ファイル、ディレクトリ、symlink に対応し、進捗・対象別失敗・成功結果を通知します。成功した複製先は 1 回の Undo 単位になります。 |
 | `Move to trash` | 対象が 1 件以上あるとき | 選択中の項目、またはフォーカス項目をゴミ箱へ移動します（既定では確認あり、設定で変更可能）。Windows では `send2trash` 経由で Recycle Bin を使います。 |
+| `Permanently delete` | 対象が 1 件以上あるとき | 選択中の項目、またはフォーカス項目を完全に削除します。常に確認が必要で、複数対象またはディレクトリを含む場合は既存の `Enter` → `D` 二段階確認を行い、Undoできません。 |
 | `Open current directory with file manager` | 常に表示 | 現在ディレクトリを OS のファイルマネージャで開きます。 |
 | `Open current directory with terminal` | 常に表示 | `config.toml` の設定を優先しつつ、zivo の current directory を起点に別ウィンドウの外部ターミナルを起動します。独立した作業や長時間の作業に使います。 |
 | `Run shell command` | 常に表示 | 1 行入力から、現在ディレクトリで短い非対話コマンドをバックグラウンド実行します。ダイアログで cwd を確認でき、結果には exit code、stdout、stderr を保持します。結果画面で `r` を押すと再実行、`t` を押すと同じ cwd の外部ターミナルを開きます。対話コマンドには通常画面の `t` による foreground shell を使います。Windows では `powershell.exe`、次に `pwsh`、最後に `cmd.exe` を優先するため、構文は選ばれた Windows shell に従います。 |

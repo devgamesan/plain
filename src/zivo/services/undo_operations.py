@@ -102,8 +102,8 @@ class LiveUndoService:
         return _result_from_changes(
             success_count=len(restored_paths),
             total_count=len(steps),
-            singular_message="Restored trashed item",
-            plural_message="Restored trashed items",
+            singular_message="Restored item from trash",
+            plural_message="Restored items from trash",
             path=restored_paths[0] if restored_paths else None,
             failures=failures,
         )

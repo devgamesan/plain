@@ -81,7 +81,7 @@ class LinuxTrashService:
         metadata_path = Path(record.metadata_path)
         original_path = Path(record.original_path)
         if not trashed_path.exists():
-            raise OSError(f"Trashed entry not found: {trashed_path.name}")
+            raise OSError(f"Item in trash not found: {trashed_path.name}")
         if original_path.exists():
             raise OSError(f"Restore destination already exists: {original_path.name}")
 
@@ -153,7 +153,7 @@ class MacOsTrashService:
         original_path = Path(record.original_path)
 
         if not trashed_path.exists():
-            raise OSError(f"Trashed entry not found: {trashed_path.name}")
+            raise OSError(f"Item in trash not found: {trashed_path.name}")
         if original_path.exists():
             raise OSError(f"Restore destination already exists: {original_path.name}")
 

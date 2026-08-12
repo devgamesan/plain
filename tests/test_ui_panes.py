@@ -145,7 +145,7 @@ def test_help_bar_keeps_three_rows_and_uses_tail_ellipsis() -> None:
     state = HelpBarState(
         (
             "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit",
-            "space select | c copy | x cut | v paste | d delete | r rename | z undo",
+            "space select | c copy | x cut | v paste | d trash | r rename | z undo",
             "f find | g grep | n new-file | N new-dir | : palette",
         )
     )

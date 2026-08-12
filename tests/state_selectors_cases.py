@@ -1599,12 +1599,12 @@ def test_select_help_bar_defaults_to_browsing_shortcuts() -> None:
 
     assert help_state.lines == (
         "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit",
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo",
+        "space select | c copy | x cut | v paste | d trash | r rename | z undo",
         f"f find | g grep | G go | n new-file | N new-dir{split_terminal_hint} | : palette",
     )
     assert help_state.text == (
         "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
+        "space select | c copy | x cut | v paste | d trash | r rename | z undo\n"
             f"f find | g grep | G go | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
 
@@ -1639,7 +1639,7 @@ def test_select_help_bar_for_search_workspace_shows_available_actions_only() -> 
         ": palette",
     )
     assert "x cut" not in help_state.text
-    assert "d delete" not in help_state.text
+    assert "d trash" not in help_state.text
     assert "f find" not in help_state.text
 
 
@@ -1650,12 +1650,12 @@ def test_select_help_bar_for_transfer_mode_prioritizes_transfer_actions() -> Non
 
     assert help_state.lines == (
         "enter dir | . hidden | Tab switch-pane | p/Esc close | q quit",
-        "space select | c copy-to-pane | m move-to-pane | d delete | r rename | z undo",
+        "space select | c copy-to-pane | m move-to-pane | d trash | r rename | z undo",
         "n new-file | N new-dir | G go | : palette",
     )
     assert help_state.text == (
         "enter dir | . hidden | Tab switch-pane | p/Esc close | q quit\n"
-        "space select | c copy-to-pane | m move-to-pane | d delete | r rename | z undo\n"
+        "space select | c copy-to-pane | m move-to-pane | d trash | r rename | z undo\n"
             "n new-file | N new-dir | G go | : palette"
     )
 
@@ -3011,8 +3011,9 @@ def test_select_conflict_dialog_state_formats_delete_confirmation() -> None:
     dialog = select_conflict_dialog_state(state)
 
     assert dialog is not None
-    assert dialog.title == "Delete Confirmation"
-    assert dialog.options == ("enter confirm", "esc cancel")
+    assert dialog.title == "Move to Trash Confirmation"
+    assert dialog.message == "Move 2 items to Trash? The first target is docs."
+    assert dialog.options == ("enter move to trash", "esc cancel")
 
 
 def test_select_conflict_dialog_state_formats_permanent_delete_confirmation() -> None:
@@ -3028,11 +3029,12 @@ def test_select_conflict_dialog_state_formats_permanent_delete_confirmation() ->
     dialog = select_conflict_dialog_state(state)
 
     assert dialog is not None
-    assert dialog.title == "Permanent Delete Confirmation"
+    assert dialog.title == "Permanently Delete Confirmation"
+    assert dialog.message.startswith("Permanently delete 1 item? This cannot be undone.")
     assert "This cannot be undone" in dialog.message
     assert "2.0KiB" in dialog.message
     assert "docs" in dialog.message
-    assert dialog.options == ("enter confirm", "esc cancel")
+    assert dialog.options == ("enter permanently delete", "esc cancel")
 
 
 def test_select_conflict_dialog_state_formats_additional_permanent_delete_confirmation(
@@ -3051,7 +3053,7 @@ def test_select_conflict_dialog_state_formats_additional_permanent_delete_confir
     dialog = select_conflict_dialog_state(state)
 
     assert dialog is not None
-    assert dialog.title == "Final Permanent Delete Confirmation"
+    assert dialog.title == "Final Permanently Delete Confirmation"
     assert "4 items" in dialog.message
     assert "4.0KiB" in dialog.message
     assert "docs, src, tests, and 1 more" in dialog.message
@@ -3174,7 +3176,7 @@ def test_select_help_bar_for_delete_confirmation() -> None:
 
     help_state = select_help_bar_state(state)
 
-    assert help_state.text == "enter confirm delete | esc cancel"
+    assert help_state.text == "enter confirm move to trash | esc cancel"
 
 
 def test_select_help_bar_for_permanent_delete_confirmation() -> None:
@@ -3189,7 +3191,7 @@ def test_select_help_bar_for_permanent_delete_confirmation() -> None:
 
     help_state = select_help_bar_state(state)
 
-    assert help_state.text == "enter confirm permanent delete | esc cancel"
+    assert help_state.text == "enter confirm permanently delete | esc cancel"
 
 
 def test_select_help_bar_for_armed_permanent_delete_confirmation() -> None:

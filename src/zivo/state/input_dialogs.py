@@ -92,8 +92,8 @@ def dispatch_confirm_input(
         if confirmation.additional_confirmation_armed:
             return warn("Use D to permanently delete or Esc to cancel")
         if confirmation.requires_additional_confirmation:
-            return warn("Use Enter to review permanent delete or Esc to cancel")
-        return warn("Use Enter to confirm delete or Esc to cancel")
+            return warn("Use Enter to review permanently delete or Esc to cancel")
+        return warn("Use Enter to confirm move to trash or Esc to cancel")
 
     if state.exit_confirmation is not None:
         if key == "escape":

@@ -224,6 +224,28 @@ def test_palette_ctrl_k_moves_cursor_up_in_replace_palette() -> None:
     assert actions == (SetNotification(None), MoveCommandPaletteCursor(delta=-1))
 
 
+def test_replace_palette_j_and_k_are_text_input() -> None:
+    from zivo.state.models import CommandPaletteState
+
+    state = replace(
+        build_initial_app_state(),
+        ui_mode="PALETTE",
+        command_palette=CommandPaletteState(
+            source="replace_text",
+            replace_preview=ReplacePreviewPaletteState(find_text="todo"),
+        ),
+    )
+
+    assert dispatch_key_input(state, key="j", character="j") == (
+        SetNotification(None),
+        SetReplaceField(field="find", value="todoj"),
+    )
+    assert dispatch_key_input(state, key="k", character="k") == (
+        SetNotification(None),
+        SetReplaceField(field="find", value="todok"),
+    )
+
+
 def test_palette_printable_key_updates_query() -> None:
     state = replace(build_initial_app_state(), ui_mode="PALETTE")
 

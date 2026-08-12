@@ -140,7 +140,15 @@ def dispatch_command_palette_input(
     character: str | None,
 ) -> DispatchedActions:
     palette_source = state.command_palette.source if state.command_palette is not None else None
-    search_palette = palette_source in {"file_search", "grep_search", "go"}
+    search_palette = palette_source in {
+        "file_search",
+        "grep_search",
+        "go",
+        "replace_text",
+        "replace_in_found_files",
+        "replace_in_grep_files",
+        "grep_replace_selected",
+    }
 
     if (
         key == "tab"

@@ -99,6 +99,7 @@ from zivo.state.actions import (
     SetNotification,
     SetPendingInputValue,
     SetPendingKeySequence,
+    SetReplaceField,
     SetSort,
     ShowAttributes,
     SubmitCommandPalette,

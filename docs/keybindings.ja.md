@@ -157,7 +157,7 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 
 | キー | 動作 |
 | --- | ------ |
-| 文字入力 / `↑` / `↓` / `Ctrl+j` / `Ctrl+k` / `k` / `j` / `Enter` / `Esc` | コマンドを絞り込み、選択、実行、キャンセル。`Find files` と `Grep search` では `j` / `k` は文字入力として扱われ、結果のナビゲーションには `↑` / `↓` または `Ctrl+j` / `Ctrl+k` を使用します。 |
+| 文字入力 / `↑` / `↓` / `Ctrl+j` / `Ctrl+k` / `k` / `j` / `Enter` / `Esc` | コマンドを絞り込み、選択、実行、キャンセル。`Find files`、`Grep search`、`Replace text` では `j` / `k` は文字入力として扱われ、結果のナビゲーションには `↑` / `↓` または `Ctrl+j` / `Ctrl+k` を使用します。 |
 
 Find files または Grep search の結果表示中は、`Ctrl+r`（またはクリック可能な `Replace results` フッター）で表示中のファイル結果を統一Replaceプレビューへ渡せます。
 

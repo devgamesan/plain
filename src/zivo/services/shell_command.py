@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import shlex
 import shutil
-import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import sleep
@@ -13,11 +12,21 @@ from typing import Callable, Mapping, Protocol
 
 from zivo.models import ShellCommandResult
 
+from .bounded_process import CancelCallback, run_bounded_process
+
 
 class ShellCommandService(Protocol):
     """Boundary for running non-interactive shell commands."""
 
-    def execute(self, *, cwd: str, command: str) -> ShellCommandResult: ...
+    def execute(
+        self,
+        *,
+        cwd: str,
+        command: str,
+        max_output_bytes: int = 1024 * 1024,
+        timeout_seconds: int = 300,
+        cancel_callback: CancelCallback | None = None,
+    ) -> ShellCommandResult: ...
 
 
 @dataclass(frozen=True)
@@ -29,7 +38,15 @@ class LiveShellCommandService:
     os_name: str = os.name
     command_available: Callable[[str], str | None] = shutil.which
 
-    def execute(self, *, cwd: str, command: str) -> ShellCommandResult:
+    def execute(
+        self,
+        *,
+        cwd: str,
+        command: str,
+        max_output_bytes: int = 1024 * 1024,
+        timeout_seconds: int = 300,
+        cancel_callback: CancelCallback | None = None,
+    ) -> ShellCommandResult:
         resolved_cwd = Path(cwd).expanduser().resolve()
         if not resolved_cwd.is_dir():
             raise OSError(f"Shell command requires a directory: {resolved_cwd}")
@@ -38,18 +55,14 @@ class LiveShellCommandService:
         env = dict(os.environ)
         env.update(self.extra_env)
 
-        completed = subprocess.run(
+        return run_bounded_process(
             list(shell_command),
             cwd=str(resolved_cwd),
             env=env,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        return ShellCommandResult(
-            exit_code=completed.returncode,
-            stdout=completed.stdout,
-            stderr=completed.stderr,
+            max_output_bytes=max_output_bytes,
+            timeout_seconds=timeout_seconds,
+            cancel_callback=cancel_callback,
+            os_name=self.os_name,
         )
 
     def _build_command_invocation(self, command: str) -> tuple[str, ...]:
@@ -109,7 +122,15 @@ class FakeShellCommandService:
     default_delay_seconds: float = 0.0
     executed_commands: list[tuple[str, str]] = field(default_factory=list)
 
-    def execute(self, *, cwd: str, command: str) -> ShellCommandResult:
+    def execute(
+        self,
+        *,
+        cwd: str,
+        command: str,
+        max_output_bytes: int = 1024 * 1024,
+        timeout_seconds: int = 300,
+        cancel_callback: CancelCallback | None = None,
+    ) -> ShellCommandResult:
         if self.default_delay_seconds > 0:
             sleep(self.default_delay_seconds)
 

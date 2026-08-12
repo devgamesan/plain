@@ -10,6 +10,7 @@ from pathlib import Path
 from zivo.models import (
     ActionsConfig,
     AppConfig,
+    BackgroundCommandConfig,
     BookmarkConfig,
     ConfigLoadResult,
     CustomActionConfig,
@@ -100,6 +101,9 @@ class AppConfigLoader:
                 bookmarks=load_bookmark_config(document.get("bookmarks"), warnings),
                 file_search=load_file_search_config(document.get("file_search"), warnings),
                 grep_search=load_grep_search_config(document.get("grep_search"), warnings),
+                background_commands=load_background_command_config(
+                    document.get("background_commands"), warnings
+                ),
                 actions=load_actions_config(document.get("actions"), warnings),
             )
         if "help_bar" in document:
@@ -438,6 +442,36 @@ def load_grep_search_config(section: object, warnings: list[str]) -> GrepSearchC
         return config
 
     return GrepSearchConfig(max_results=max_results)
+
+
+def load_background_command_config(
+    section: object,
+    warnings: list[str],
+) -> BackgroundCommandConfig:
+    config = BackgroundCommandConfig()
+    validated = validate_section_dict(section, "background_commands", warnings)
+    if validated is None:
+        return config
+    return BackgroundCommandConfig(
+        max_output_kib=read_int(
+            validated,
+            key="max_output_kib",
+            default=config.max_output_kib,
+            minimum=1,
+            maximum=4096,
+            warnings=warnings,
+            section_name="background_commands",
+        ),
+        timeout_seconds=read_int(
+            validated,
+            key="timeout_seconds",
+            default=config.timeout_seconds,
+            minimum=1,
+            maximum=86400,
+            warnings=warnings,
+            section_name="background_commands",
+        ),
+    )
 
 
 def load_actions_config(section: object, warnings: list[str]) -> ActionsConfig:

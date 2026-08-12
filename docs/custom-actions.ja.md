@@ -42,17 +42,19 @@ cwd = "{cwd}"
 | `name` | yes | コマンドパレットに表示する名前。 |
 | `command` | yes | 実行する argv 配列。shell 経由では実行しません。 |
 | `when` | no | `always`、`single_file`、`selection`。既定値は `always`。 |
-| `mode` | no | `background` または `terminal`。既定値は `background`。 |
+| `mode` | no | `background`、`terminal`、または`terminal_window`。既定値は`background`。 |
 | `cwd` | no | 作業ディレクトリのテンプレート。既定値は `{cwd}`。 |
 | `extensions` | no | `single_file` 用の拡張子条件。先頭の dot はあってもなくても構いません。 |
 
 ## mode の使い分け
 
-`background` は非対話コマンド向けです。zivo は stdout/stderr を捕捉し、成功/失敗を status bar に表示します。TTY が必要な TUI app には使わないでください。
+`background` は非対話コマンド向けです。stdinは閉じられるため、prompt、password入力、TUI appはterminalと対話できません。zivoはstdout/stderrを捕捉し、成功/失敗をstatus barに表示します。各streamは`background_commands.max_output_kib`（既定値1 MiB）まで保持し、超過時は先頭と末尾を残します。`background_commands.timeout_seconds`（既定値5分）を超えるか、`Esc`を押すと停止します。
 
 `terminal` は `lazygit` のような TUI/対話コマンド向けです。zivo の画面を一時停止し、現在の terminal でコマンドを実行し、終了後に zivo へ戻ります。
 
 `terminal_window` は、新しいターミナルウィンドウまたはタブでコマンドを実行します。zivo は suspend せず、新しいウィンドウは独立して実行され、コマンド完了後にシェルプロンプトが表示されます。zivo と並行して使いたいツールに便利です。
+
+出力上限、timeout、zivo側の`Esc` cancelが適用されるのは`background`だけです。`lazygit`などのinteractive programには`terminal`または`terminal_window`を使用してください。
 
 ## 変数
 
@@ -71,3 +73,5 @@ cwd = "{cwd}"
 ## 安全性
 
 カスタムアクション実行前に、展開後の command、cwd、mode を確認します。destructive なコマンドかどうかは自動判定しないため、破壊的な操作は名前を明確にし、コマンド側でも確認を挟む運用にしてください。
+
+background commandを停止しても、そのcommandがすでに行ったfilesystem変更や外部の副作用は元に戻りません。

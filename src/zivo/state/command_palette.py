@@ -64,6 +64,7 @@ NOTIFICATION_ACTION_IDS = frozenset(
         "notification.open_destination",
         "notification.retry",
         "notification.details",
+        "notification.shell_result",
     }
 )
 
@@ -101,6 +102,9 @@ _COMMAND_METADATA: dict[str, CommandPaletteMetadata] = {
     "notification.retry": CommandPaletteMetadata("Suggested", ("retry", "notification"), 2),
     "notification.details": CommandPaletteMetadata(
         "Suggested", ("details", "notification"), 3
+    ),
+    "notification.shell_result": CommandPaletteMetadata(
+        "Suggested", ("result", "shell", "command"), 3
     ),
     "go": CommandPaletteMetadata(
         "Navigate", ("go", "path", "directory", "history", "recent", "bookmark"), 5
@@ -213,6 +217,7 @@ SEARCH_WORKSPACE_COMMAND_IDS = frozenset(
         "notification.open_destination",
         "notification.retry",
         "notification.details",
+        "notification.shell_result",
         "go_back",
         "go_forward",
         "go",

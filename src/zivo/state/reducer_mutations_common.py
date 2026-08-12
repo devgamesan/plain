@@ -13,6 +13,7 @@ from zivo.models import (
 
 from .actions import (
     Action,
+    CancelBackgroundCommand,
     CancelForegroundOperation,
     ForegroundOperationAborted,
     ForegroundOperationProgress,
@@ -24,6 +25,27 @@ from .reducer_common import ReducerFn
 MutationHandler = Callable[[AppState, Action, ReducerFn], ReduceResult | None]
 
 _UNDO_STACK_LIMIT = 20
+
+
+def handle_cancel_background_command(
+    state: AppState,
+    _action: CancelBackgroundCommand,
+    _reduce_state: ReducerFn,
+) -> ReduceResult:
+    """Mark the active external command for process termination."""
+
+    from .reducer_common import finalize
+
+    command = state.background_command
+    if command is None or command.cancel_requested:
+        return finalize(state)
+    return finalize(
+        replace(
+            state,
+            background_command=replace(command, cancel_requested=True),
+            notification=NotificationState(level="info", message="Stopping command..."),
+        )
+    )
 
 
 def handle_cancel_foreground_operation(

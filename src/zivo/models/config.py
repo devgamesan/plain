@@ -15,6 +15,8 @@ ImagePreviewMode = Literal["auto", "kitty", "chafa"]
 CustomActionWhen = Literal["always", "single_file", "selection"]
 CustomActionMode = Literal["background", "terminal", "terminal_window"]
 DEFAULT_SEARCH_MAX_RESULTS = 1000
+DEFAULT_BACKGROUND_COMMAND_MAX_OUTPUT_KIB = 1024
+DEFAULT_BACKGROUND_COMMAND_TIMEOUT_SECONDS = 300
 
 
 @dataclass(frozen=True)
@@ -103,6 +105,14 @@ class GrepSearchConfig:
 
 
 @dataclass(frozen=True)
+class BackgroundCommandConfig:
+    """Limits for non-interactive shell commands and custom actions."""
+
+    max_output_kib: int = DEFAULT_BACKGROUND_COMMAND_MAX_OUTPUT_KIB
+    timeout_seconds: int = DEFAULT_BACKGROUND_COMMAND_TIMEOUT_SECONDS
+
+
+@dataclass(frozen=True)
 class CustomActionConfig:
     """User-defined command palette action."""
 
@@ -134,6 +144,9 @@ class AppConfig:
     bookmarks: BookmarkConfig = field(default_factory=BookmarkConfig)
     file_search: FileSearchConfig = field(default_factory=FileSearchConfig)
     grep_search: GrepSearchConfig = field(default_factory=GrepSearchConfig)
+    background_commands: BackgroundCommandConfig = field(
+        default_factory=BackgroundCommandConfig
+    )
     actions: ActionsConfig = field(default_factory=ActionsConfig)
 
 

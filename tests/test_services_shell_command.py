@@ -2,22 +2,19 @@ from pathlib import Path
 
 import pytest
 
+from zivo.models import ShellCommandResult
 from zivo.services import LiveShellCommandService
 
 
 def test_live_shell_command_service_executes_in_cwd(monkeypatch, tmp_path: Path) -> None:
     captured: dict[str, object] = {}
 
-    def fake_run(*args, **kwargs):
-        captured["args"] = args
+    def fake_run(command, **kwargs):
+        captured["args"] = (list(command),)
         captured["kwargs"] = kwargs
-        return type(
-            "Completed",
-            (),
-            {"returncode": 0, "stdout": f"{tmp_path.resolve()}\n", "stderr": ""},
-        )()
+        return ShellCommandResult(exit_code=0, stdout=f"{tmp_path.resolve()}\n")
 
-    monkeypatch.setattr("zivo.services.shell_command.subprocess.run", fake_run)
+    monkeypatch.setattr("zivo.services.shell_command.run_bounded_process", fake_run)
     service = LiveShellCommandService(shell="/bin/sh", os_name="posix")
 
     result = service.execute(cwd=str(tmp_path), command="pwd")
@@ -33,14 +30,10 @@ def test_live_shell_command_service_captures_nonzero_exit_and_stderr(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
-    def fake_run(*args, **kwargs):
-        return type(
-            "Completed",
-            (),
-            {"returncode": 7, "stdout": "", "stderr": "boom"},
-        )()
+    def fake_run(command, **kwargs):
+        return ShellCommandResult(exit_code=7, stderr="boom")
 
-    monkeypatch.setattr("zivo.services.shell_command.subprocess.run", fake_run)
+    monkeypatch.setattr("zivo.services.shell_command.run_bounded_process", fake_run)
     service = LiveShellCommandService(shell="/bin/sh", os_name="posix")
 
     result = service.execute(cwd=str(tmp_path), command="printf boom >&2; exit 7")
@@ -63,13 +56,9 @@ def test_live_shell_command_service_uses_powershell_on_windows(monkeypatch, tmp_
     def fake_run(*args, **kwargs):
         captured["args"] = args
         captured["kwargs"] = kwargs
-        return type(
-            "Completed",
-            (),
-            {"returncode": 0, "stdout": "done\n", "stderr": ""},
-        )()
+        return ShellCommandResult(exit_code=0, stdout="done\n")
 
-    monkeypatch.setattr("zivo.services.shell_command.subprocess.run", fake_run)
+    monkeypatch.setattr("zivo.services.shell_command.run_bounded_process", fake_run)
     service = LiveShellCommandService(
         os_name="nt",
         command_available=lambda command: command if command == "powershell.exe" else None,
@@ -95,7 +84,7 @@ def test_live_shell_command_service_falls_back_to_pwsh_on_windows(
             {"returncode": 0, "stdout": "", "stderr": ""},
         )()
 
-    monkeypatch.setattr("zivo.services.shell_command.subprocess.run", fake_run)
+    monkeypatch.setattr("zivo.services.shell_command.run_bounded_process", fake_run)
     service = LiveShellCommandService(
         os_name="nt",
         command_available=lambda command: command if command == "pwsh" else None,
@@ -120,7 +109,7 @@ def test_live_shell_command_service_falls_back_to_cmd_on_windows(
             {"returncode": 0, "stdout": "", "stderr": ""},
         )()
 
-    monkeypatch.setattr("zivo.services.shell_command.subprocess.run", fake_run)
+    monkeypatch.setattr("zivo.services.shell_command.run_bounded_process", fake_run)
     service = LiveShellCommandService(
         os_name="nt",
         command_available=lambda command: command if command == "cmd.exe" else None,
@@ -145,7 +134,7 @@ def test_live_shell_command_service_uses_windows_shell_override(
             {"returncode": 0, "stdout": "", "stderr": ""},
         )()
 
-    monkeypatch.setattr("zivo.services.shell_command.subprocess.run", fake_run)
+    monkeypatch.setattr("zivo.services.shell_command.run_bounded_process", fake_run)
     service = LiveShellCommandService(
         shell="pwsh -NoLogo",
         os_name="nt",

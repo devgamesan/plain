@@ -24,6 +24,7 @@ def render_app_config(config: AppConfig) -> str:
         render_bookmarks_section(config),
         render_file_search_section(config),
         render_grep_search_section(config),
+        render_background_commands_section(config),
         render_actions_section(config),
     ]
     return "\n\n".join(sections) + "\n"
@@ -163,6 +164,17 @@ def render_grep_search_section(config: AppConfig) -> str:
         "# Example:\n"
         "# max_results = 1000\n"
         f"{max_results_line}"
+    )
+
+
+def render_background_commands_section(config: AppConfig) -> str:
+    limits = config.background_commands
+    return (
+        "[background_commands]\n"
+        "# Limits for `!` commands and background custom actions.\n"
+        "# stdout and stderr are limited independently.\n"
+        f"max_output_kib = {limits.max_output_kib}\n"
+        f"timeout_seconds = {limits.timeout_seconds}"
     )
 
 

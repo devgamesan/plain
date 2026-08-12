@@ -18,7 +18,7 @@ zivo は起動時にユーザー設定用の `config.toml` を読み込みます
 - 既定のソート項目、順序、ディレクトリ優先
 - 削除確認
 
-Config Editor で `e` を押すと `config.toml` を開き、高度設定を編集できます。プレビュー詳細、terminal templates、貼り付け動作、logging、file search の上限、custom actions、将来追加される設定はここで管理します。UI で基本設定を保存しても、高度設定・未知の設定・独自の TOML 値は保持されます。
+Config Editor で `e` を押すと `config.toml` を開き、高度設定を編集できます。プレビュー詳細、terminal templates、貼り付け動作、logging、file search の上限、background command の制限、custom actions、将来追加される設定はここで管理します。UI で基本設定を保存しても、高度設定・未知の設定・独自の TOML 値は保持されます。
 
 Config Editor に未保存の変更がある場合は、先に保存または画面を閉じてから `e` で高度設定を開きます。外部エディタを閉じると `config.toml` を再読込し、変更を実行中の zivo と Config Editor に反映します。TOML の構文が不正な場合は現在の有効設定を維持して警告を表示します。設定によっては再起動が必要です。
 
@@ -54,6 +54,8 @@ Config Editor に未保存の変更がある場合は、先に保存または画
 | `bookmarks` | `paths` | 絶対パス文字列の配列 | `b` や Go の `@bookmark` フィルターで表示するブックマーク一覧です。重複パスは読み込み時に取り除かれます。 |
 | `file_search` | `max_results` | 0以上の整数または省略 | 直接 Find file の最大結果件数です。キーを省略すると既定値1,000件、`0` では結果を無効にします。上限超過時はパレットに省略結果を明示します。 |
 | `grep_search` | `max_results` | 0以上の整数または省略 | 直接 Grep search の最大結果件数です。キーを省略すると既定値1,000件、`0` では結果を無効にします。上限超過時はパレットに省略結果を明示します。 |
+| `background_commands` | `max_output_kib` | `1`〜`4096`の整数 | `!` commandと`background` custom actionで保持するstdout/stderrそれぞれの最大量です。既定値はstreamごとに`1024` KiBです。超過時は先頭と末尾を保持し、中間を省略します。 |
+| `background_commands` | `timeout_seconds` | `1`〜`86400`の整数 | `!` commandと`background` custom actionの最大実行時間です。既定値は`300`秒です。interactiveなterminal modeには適用しません。 |
 | `actions` | `custom` | action table の配列 | コマンドパレットに表示するカスタムアクションです。詳しくは [カスタムアクション](custom-actions.ja.md) を参照してください。 |
 
 ## 設定例
@@ -95,6 +97,10 @@ paste_conflict_action = "prompt"
 [grep_search]
 # 空欄の場合は結果数を制限しません（既定値）。
 # max_results = 1000
+
+[background_commands]
+max_output_kib = 1024
+timeout_seconds = 300
 
 [logging]
 enabled = true

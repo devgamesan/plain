@@ -87,6 +87,9 @@ zivo includes several safety mechanisms to prevent accidents during file operati
 - Press `!` to execute a one-line shell command.
 - Commands run in the background as a separate process, preventing unintended termination of zivo. They are not suitable for prompts, TUI apps, or other interactive input; use `t` for a foreground shell instead.
 - The dialog identifies the working directory and keeps the exit code, stdout, and stderr available after completion. Press `r` to rerun the command or `t` to open its directory in an external terminal.
+- Non-interactive commands receive no terminal input. stdout and stderr are retained independently up to 1 MiB by default, preserving the beginning and end; the default timeout is five minutes. Both limits are advanced `[background_commands]` settings.
+- Press `Esc` to stop a running non-interactive command. Timeout and cancellation return to browsing, and Shell Command retains a `Result` action for captured output. Stopping a command cannot roll back side effects it already performed.
+- TUI programs, prompts, and password input must use the foreground shell or a custom action in `terminal`/`terminal_window` mode; those interactive modes are not subject to these limits.
 
 ---
 

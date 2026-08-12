@@ -63,6 +63,34 @@ def clear_foreground_operation(app: Any, operation_id: int) -> None:
     app._foreground_operation_id = None
 
 
+def start_background_command(app: Any, request_id: int) -> threading.Event:
+    """Create the cancel event for a non-interactive external command."""
+
+    event = threading.Event()
+    app._background_command_cancel_event = event
+    app._background_command_request_id = request_id
+    return event
+
+
+def request_background_command_cancel(app: Any, request_id: int) -> None:
+    """Signal the matching external command to terminate."""
+
+    if getattr(app, "_background_command_request_id", None) != request_id:
+        return
+    event = getattr(app, "_background_command_cancel_event", None)
+    if event is not None:
+        event.set()
+
+
+def clear_background_command(app: Any, request_id: int) -> None:
+    """Release cancellation tracking for a completed external command."""
+
+    if getattr(app, "_background_command_request_id", None) != request_id:
+        return
+    app._background_command_cancel_event = None
+    app._background_command_request_id = None
+
+
 CompleteActionHandler = Callable[[Effect, object], tuple[Any, ...]]
 FailureActionHandler = Callable[[Effect, BaseException | None, str], tuple[Any, ...]]
 

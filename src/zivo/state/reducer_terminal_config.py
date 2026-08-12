@@ -46,7 +46,14 @@ from .effects import (
     RunConfigSaveEffect,
     RunShellCommandEffect,
 )
-from .models import AppState, ConfigEditorState, NotificationState, ShellCommandState
+from .models import (
+    AppState,
+    BackgroundCommandState,
+    ConfigEditorState,
+    NotificationAction,
+    NotificationState,
+    ShellCommandState,
+)
 from .reducer_common import (
     ReducerFn,
     apply_config_to_runtime_state,
@@ -363,20 +370,29 @@ def _handle_submit_shell_command(
             )
         )
     request_id = state.next_request_id
+    limits = state.config.background_commands
     # shell_commandを保持したままにして、完了時に結果を設定できるようにする
     return finalize(
         replace(
             state,
             ui_mode="BUSY",
-            notification=NotificationState(level="info", message="Running shell command..."),
+            notification=NotificationState(
+                level="info", message="Running command — Esc cancel"
+            ),
             # shell_command=None,  # 削除：shell_commandを保持
             pending_shell_command_request_id=request_id,
+            background_command=BackgroundCommandState(
+                request_id=request_id,
+                label="Shell command",
+            ),
             next_request_id=request_id + 1,
         ),
         RunShellCommandEffect(
             request_id=request_id,
             cwd=state.current_path,
             command=command,
+            max_output_bytes=limits.max_output_kib * 1024,
+            timeout_seconds=limits.timeout_seconds,
         ),
     )
 
@@ -675,6 +691,36 @@ def _handle_shell_command_completed(
 ) -> ReduceResult:
     if state.pending_shell_command_request_id != action.request_id:
         return finalize(state)
+    if action.result.termination_reason != "completed":
+        timed_out = action.result.termination_reason == "timed_out"
+        timeout = action.result.timeout_seconds or 0
+        message = (
+            f"Command stopped after {timeout} seconds"
+            if timed_out
+            else "Command cancelled"
+        )
+        next_shell = (
+            replace(state.shell_command, result=action.result)
+            if state.shell_command is not None
+            else None
+        )
+        return finalize(
+            replace(
+                state,
+                ui_mode="BROWSING",
+                shell_command=next_shell,
+                pending_shell_command_request_id=None,
+                background_command=None,
+                notification=NotificationState(
+                    level="warning",
+                    message=message,
+                    action=NotificationAction(
+                        action_id="notification.shell_result",
+                        label="Result",
+                    ),
+                ),
+            )
+        )
     # UIモードをSHELLのままにし、実行結果をShellCommandStateに保持する
     # shell_commandがNoneの場合（キャンセルされた場合など）はBROWSINGに戻る
     if state.shell_command is None:
@@ -683,6 +729,7 @@ def _handle_shell_command_completed(
                 state,
                 ui_mode="BROWSING",
                 pending_shell_command_request_id=None,
+                background_command=None,
             )
         )
     return finalize(
@@ -691,6 +738,8 @@ def _handle_shell_command_completed(
             ui_mode="SHELL",
             shell_command=replace(state.shell_command, result=action.result),
             pending_shell_command_request_id=None,
+            background_command=None,
+            notification=None,
         )
     )
 
@@ -708,6 +757,7 @@ def _handle_shell_command_failed(
             ui_mode="BROWSING",
             notification=NotificationState(level="error", message=action.message),
             pending_shell_command_request_id=None,
+            background_command=None,
         )
     )
 

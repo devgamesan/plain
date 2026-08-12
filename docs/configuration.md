@@ -62,6 +62,8 @@ settings require restarting zivo.
 | `bookmarks` | `paths` | Array of absolute path strings | Bookmarked directories shown by `b` and the `Go` command's `@bookmark` filter. Duplicate paths are removed when the config is loaded. |
 | `file_search` | `max_results` | Non-negative integer or omitted | Maximum number of direct Find file results. Omit the key to use the default limit of 1,000; `0` disables results. When the limit is exceeded, the palette clearly reports omitted results. |
 | `grep_search` | `max_results` | Non-negative integer or omitted | Maximum number of direct Grep search results. Omit the key to use the default limit of 1,000; `0` disables results. When the limit is exceeded, the palette clearly reports omitted results. |
+| `background_commands` | `max_output_kib` | Integer from `1` to `4096` | Maximum retained stdout and stderr independently for `!` commands and `background` custom actions. Defaults to `1024` KiB per stream. zivo preserves the beginning and end and omits the middle when exceeded. |
+| `background_commands` | `timeout_seconds` | Integer from `1` to `86400` | Maximum execution time for `!` commands and `background` custom actions. Defaults to `300` seconds. Interactive terminal modes are not limited. |
 | `actions` | `custom` | Array of action tables | Custom command palette actions. See [Custom Actions](custom-actions.md). |
 
 ## Example
@@ -103,6 +105,10 @@ paste_conflict_action = "prompt"
 [grep_search]
 # Leave empty for unlimited results (default).
 # max_results = 1000
+
+[background_commands]
+max_output_kib = 1024
+timeout_seconds = 300
 
 [logging]
 enabled = true

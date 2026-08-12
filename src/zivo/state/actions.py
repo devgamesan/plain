@@ -48,6 +48,7 @@ from .actions_mutations import (
     BeginDeleteTargets,
     BeginExitCurrentPath,
     CancelArchiveExtractConfirmation,
+    CancelBackgroundCommand,
     CancelCustomActionConfirmation,
     CancelDeleteConfirmation,
     CancelExitConfirmation,
@@ -124,6 +125,7 @@ __all__ = [
     "BeginExitCurrentPath",
     "BeginCustomActionConfirmation",
     "CancelArchiveExtractConfirmation",
+    "CancelBackgroundCommand",
     "CancelCustomActionConfirmation",
     "CancelDeleteConfirmation",
     "CancelExitConfirmation",
@@ -480,6 +482,7 @@ Action = (
     | ResolvePasteConflict
     | CancelPasteConflict
     | CancelForegroundOperation
+    | CancelBackgroundCommand
     | ForegroundOperationAborted
     | ConfirmDeleteTargets
     | CancelDeleteConfirmation

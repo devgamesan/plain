@@ -269,6 +269,15 @@ class ForegroundOperationState:
 
 
 @dataclass(frozen=True)
+class BackgroundCommandState:
+    """Cancellation state for one non-interactive external command."""
+
+    request_id: int
+    label: str
+    cancel_requested: bool = False
+
+
+@dataclass(frozen=True)
 class ZipCompressConfirmationState:
     """Pending confirmation dialog state for zip compression conflicts."""
 
@@ -388,6 +397,7 @@ NotificationActionId = Literal[
     "notification.open_destination",
     "notification.retry",
     "notification.details",
+    "notification.shell_result",
 ]
 
 
@@ -764,6 +774,7 @@ class AppState:
     notification_revision: int = 0
     notification_details: NotificationDetails | None = None
     foreground_operation: ForegroundOperationState | None = None
+    background_command: BackgroundCommandState | None = None
     pending_input: PendingInputState | None = None
     bulk_rename: BulkRenameEditorState | None = None
     pending_key_sequence: PendingKeySequenceState | None = None

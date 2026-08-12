@@ -19,7 +19,13 @@ from .entry_state_helpers import (
     select_transfer_target_paths,
     select_visible_entry_states,
 )
-from .models import AppState, PaneState, TransferPaneId, TransferPaneState
+from .models import (
+    AppState,
+    PaneState,
+    TransferPaneId,
+    TransferPaneState,
+    resolve_parent_directory_path,
+)
 from .selectors_panes import (
     CurrentPaneProjection as _CurrentPaneProjection,
 )
@@ -143,6 +149,18 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
     parent_entry_count = (
         select_parent_entry_count(state) if responsive_layout.show_parent else 0
     )
+    parent_heading = _format_directory_heading(
+        "Parent",
+        state.parent_pane.directory_path,
+        parent_entry_count,
+    )
+    if state.parent_pane_loading and state.parent_pane.entries:
+        parent_heading += " · loading"
+    parent_pane_status = (
+        _select_parent_pane_status(state)
+        if responsive_layout.show_parent
+        else None
+    )
     shell = ThreePaneShellData(
         tab_bar=select_tab_bar_state(state),
         current_path=state.current_pane.directory_path,
@@ -172,11 +190,8 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
             status_label=current_status_label,
         ),
         responsive_layout=responsive_layout,
-        parent_heading=_format_directory_heading(
-            "Parent",
-            state.parent_pane.directory_path,
-            parent_entry_count,
-        ),
+        parent_heading=parent_heading,
+        parent_pane_status=parent_pane_status,
         current_context_input=select_input_bar_state(state),
         current_pane_status=_select_current_pane_status(state, current_pane.visible_entries),
         help=select_help_bar_state(state),
@@ -313,7 +328,48 @@ def _select_current_pane_status(
                 PaneActionViewState("create_dir", "New directory", "N"),
             ),
         )
-    return PaneStatusViewState(kind="empty", title="No visible items")
+    actions = ()
+    if not state.show_hidden and any(entry.hidden for entry in state.current_pane.entries):
+        actions = (PaneActionViewState("toggle_hidden", "Show hidden files", "."),)
+    return PaneStatusViewState(
+        kind="empty",
+        title="No visible items",
+        detail="Hidden files are currently hidden" if actions else None,
+        actions=actions,
+    )
+
+
+def _select_parent_pane_status(state: AppState) -> PaneStatusViewState | None:
+    """Return an explicit status for the optional parent-directory pane."""
+
+    if state.parent_pane_loading and not state.parent_pane.entries:
+        return PaneStatusViewState(kind="loading", title="Loading parent directory…")
+
+    if state.parent_pane.preview_reason == "permission_denied":
+        return PaneStatusViewState(
+            kind="permission_denied",
+            title="Permission denied",
+            detail="The parent directory cannot be listed",
+        )
+
+    _, parent_path = resolve_parent_directory_path(state.current_path)
+    if parent_path is None:
+        return PaneStatusViewState(
+            kind="no_parent",
+            title="No parent directory",
+            detail="The current directory is the filesystem root",
+        )
+
+    if select_parent_entry_count(state) == 0:
+        if state.parent_pane.entries:
+            return PaneStatusViewState(
+                kind="no_visible",
+                title="No visible items",
+                detail="Hidden files are currently hidden",
+            )
+        return PaneStatusViewState(kind="empty", title="Empty parent directory")
+
+    return None
 
 
 def _select_transfer_pane(

@@ -56,6 +56,8 @@ def load_browser_tab_from_tabs(
         parent_pane=tab.parent_pane,
         current_pane=tab.current_pane,
         child_pane=tab.child_pane,
+        parent_pane_loading=tab.parent_pane_loading,
+        child_pane_loading=tab.child_pane_loading,
         history=tab.history,
         filter=tab.filter,
         current_pane_window_start=tab.current_pane_window_start,

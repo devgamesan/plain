@@ -107,6 +107,7 @@ from zivo.state.actions import (
     SetTerminalSize,
     SetTransferCursorPath,
     ShowAttributes,
+    ToggleHiddenFiles,
 )
 from zivo.ui import (
     AttributeDialog,
@@ -552,6 +553,18 @@ class zivoApp(App[None]):
             (ActivateNotificationAction(message.action_id, message.revision),)
         )
 
+    async def on_notification_details_action_clicked(
+        self,
+        message: NotificationDetailsDialog.ActionClicked,
+    ) -> None:
+        """Run a safe recovery action exposed by the Details overlay."""
+
+        from zivo.state.actions import ActivateNotificationAction
+
+        await self.dispatch_actions(
+            (ActivateNotificationAction(message.action_id, message.revision),)
+        )
+
     async def on_status_bar_auto_dismiss(self, message: StatusBar.AutoDismiss) -> None:
         """Request revision-checked auto-dismissal from the status timer."""
 
@@ -783,6 +796,7 @@ class zivoApp(App[None]):
             "clear_filter": CancelFilterInput(),
             "create_file": BeginCreateInput("file"),
             "create_dir": BeginCreateInput("dir"),
+            "toggle_hidden": ToggleHiddenFiles(),
             "show_attributes": ShowAttributes(),
             "edit_config": BeginConfigEditor(),
         }

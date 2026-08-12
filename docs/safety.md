@@ -74,7 +74,7 @@ zivo includes several safety mechanisms to prevent accidents during file operati
 - Long-running file operations are serialized. Other file mutations, Undo, editor or shell launches, and mutation-capable custom actions are rejected with the active operation name.
 - `Cancel` and `Esc` request cooperative cancellation only at safe item boundaries; the current item is allowed to finish and workers are never force-stopped.
 - An exit request asks for cancellation and exits only after the current item and cleanup have completed.
-- Partial results explicitly report succeeded, skipped, failed, and not-processed targets. Only completed Copy/Move targets are included in Undo.
+- Partial results explicitly report succeeded, skipped, failed, and not-processed targets. Only completed Copy/Move targets are included in Undo; Details may offer that Undo as a single recovery action when the entry is still valid. Retry remains restricted to the existing safe allowlist and is never offered for partial results with applied changes, overwrite, or skip outcomes.
 - Compress writes to a same-directory temporary archive and atomically publishes it on success. Extract and Replace write temporary files and atomically replace their destinations, cleaning temporary files on cancellation or failure.
 
 ---

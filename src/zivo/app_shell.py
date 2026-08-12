@@ -72,6 +72,7 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
             SidePane(
                 shell.parent_heading,
                 shell.parent_entries,
+                status=shell.parent_pane_status,
                 id="parent-pane",
                 classes="pane side-pane",
             ),
@@ -350,6 +351,7 @@ async def refresh_shell(
         if shell.responsive_layout.show_parent:
             await parent_pane.set_entries(shell.parent_entries)
             parent_pane.set_title(shell.parent_heading)
+            parent_pane.set_status(shell.parent_pane_status)
         if shell.responsive_layout.show_child:
             await child_pane.set_state(shell.child_pane)
         parent_pane.display = shell.responsive_layout.show_parent

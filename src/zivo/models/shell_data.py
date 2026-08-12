@@ -253,6 +253,10 @@ class NotificationDetailsDialogState:
     title: str
     lines: tuple[str, ...]
     options: tuple[str, ...] = ("enter close", "esc close")
+    recovery_action_id: str | None = None
+    recovery_action_label: str | None = None
+    recovery_action_shortcut: str | None = None
+    recovery_action_revision: int = 0
 
 
 @dataclass(frozen=True)
@@ -455,6 +459,7 @@ class ThreePaneShellData:
     layout_mode: Literal["browser", "transfer"] = "browser"
     path_bar: PathBarState | None = None
     transfer_header: TransferHeaderState | None = None
+    parent_pane_status: PaneStatusViewState | None = None
     transfer_left: TransferPaneViewState | None = None
     transfer_right: TransferPaneViewState | None = None
 

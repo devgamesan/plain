@@ -1,7 +1,9 @@
 """Notification failure details overlay."""
 
+from rich.style import Style
 from rich.text import Text
 from textual.containers import Container, VerticalScroll
+from textual.message import Message
 from textual.widgets import Static
 
 from zivo.models import NotificationDetailsDialogState
@@ -19,6 +21,14 @@ class NotificationDetailsDialog(Container):
     ) -> None:
         super().__init__(id=id, classes=classes)
         self.state = state
+
+    class ActionClicked(Message):
+        """Notify the app that a Details recovery action was clicked."""
+
+        def __init__(self, action_id: str, revision: int) -> None:
+            super().__init__()
+            self.action_id = action_id
+            self.revision = revision
 
     def compose(self):
         yield Static("", id="notification-details-title")
@@ -49,4 +59,29 @@ class NotificationDetailsDialog(Container):
             if index < len(state.lines) - 1:
                 rendered.append("\n")
         lines.update(rendered)
-        options.update(f"Actions: {' | '.join(state.options)}")
+        if state.recovery_action_id and state.recovery_action_shortcut:
+            rendered_options = Text("Actions: ")
+            rendered_options.append(
+                f"{state.recovery_action_shortcut} {state.recovery_action_label}",
+                style=Style(
+                    bold=True,
+                    underline=True,
+                    meta={
+                        "notification_action_id": state.recovery_action_id,
+                        "notification_action_revision": state.recovery_action_revision,
+                    },
+                ),
+            )
+            rendered_options.append(" | " + " | ".join(state.options[1:]))
+            options.update(rendered_options)
+        else:
+            options.update(f"Actions: {' | '.join(state.options)}")
+
+    def on_click(self, event) -> None:
+        meta = event.style.meta or {}
+        action_id = meta.get("notification_action_id")
+        revision = meta.get("notification_action_revision")
+        if not isinstance(action_id, str) or not isinstance(revision, int):
+            return
+        event.stop()
+        self.post_message(self.ActionClicked(action_id, revision))

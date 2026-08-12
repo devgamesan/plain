@@ -21,6 +21,7 @@ Screen {
 
 .side-pane {
     width: 0.6fr;
+    layers: content status;
 }
 
 .main-pane {
@@ -77,6 +78,10 @@ Screen {
     height: 1fr;
 }
 
+.side-pane .pane-list {
+    layer: content;
+}
+
 .pane-table {
     scrollbar-size: 0 0;
     layer: content;
@@ -119,6 +124,10 @@ Screen {
     padding: 1 2;
     background: $boost;
     color: $text;
+}
+
+.side-pane .pane-status {
+    layer: status;
 }
 
 .pane-entry {

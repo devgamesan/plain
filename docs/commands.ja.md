@@ -11,9 +11,9 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 
 Directory History と Go の最近の履歴は、最後に訪問したディレクトリから新しい順に表示します。各タブと Transfer の各ペインは、最新の重複しないディレクトリパスを100件までメモリに保持し、古い項目を自動的に破棄します。
 
-最新の操作に次アクションがある場合、通常の `commands` パレットの先頭に条件付きで `Suggested` を1件だけ表示します。表示優先順位は `Undo`、`Open destination`、安全な `Retry`、`Details` です。StatusBar と条件付き `Suggested` は同じ stable action ID と reducer 経路を共有し、既存キーボード経路は現在の意味を維持します。新しいグローバルキーは追加せず、既存の `Enter` / `r` の意味も変更しません。表示開始から5秒で自動消去するのは最終成功通知だけで、処理中・warning/error・partial success は自動消去しません。
+最新の操作に次アクションがある場合、通常の `commands` パレットの先頭に条件付きで `Suggested` を1件だけ表示します。表示優先順位は `Undo`、`Open destination`、安全な `Retry`、`Details` です。Detailsには安全な復旧Actionを最大1件だけ表示し、`[z] Undo completed items` または `[r] Retry` として実行できます。`Enter` / `Esc` はDetailsを閉じます。StatusBar、Details、条件付き `Suggested` は同じ stable action ID と reducer 経路を共有し、既存のグローバルキーボード経路は現在の意味を維持します。新しいグローバルキーは追加しません。表示開始から5秒で自動消去するのは最終成功通知だけで、処理中・warning/error・partial success は自動消去しません。
 
-`Retry` は、成功・skip・overwrite がなく、元の `PasteRequest` の conflict resolution が未指定である貼り付け失敗、成功・適用済み変更がない Duplicate 失敗、archive/zip 準備失敗に限定します。Retry は毎回 fresh preparation/preflight を行い、競合や対象変更があれば既存の競合確認・再確認経路へ戻ります。`Details` は失敗件数、対象パス、理由を表示し、`Enter` または `Esc` で閉じます。
+`Retry` は、成功・skip・overwrite がなく、元の `PasteRequest` の conflict resolution が未指定である貼り付け失敗、成功・適用済み変更がない Duplicate 失敗、archive/zip 準備失敗に限定します。Retry は毎回 fresh preparation/preflight を行い、競合や対象変更があれば既存の競合確認・再確認経路へ戻ります。`Details` は失敗件数、対象パス、理由を表示し、有効なUndoエントリがある場合だけ完了済みCopy/Move対象のUndoを提示します。`Enter` または `Esc` で閉じます。
 
 コマンド一覧全体はマウスホイールでスクロールできます。キーボードのカーソル移動（`↑` / `↓` または `Ctrl+j` / `Ctrl+k`）では、選択行が自動的に表示範囲へ追従します。
 
@@ -58,5 +58,5 @@ Directory History と Go の最近の履歴は、最後に訪問したディレ�
 | `Show hidden files` / `Hide hidden files` | 常に表示 | ブラウザ 3 ペインの隠しファイル表示を切り替えます。ラベルは現在状態を反映します。 |
 | `Edit config` | 常に表示 | 起動時設定を編集するオーバーレイを開きます。優先ターミナルエディタ、GUI エディタプリセット、外部ターミナル起動モード、隠しファイル表示、ディレクトリサイズ表示、テキストプレビュー表示、画像プレビュー表示、画像プレビュー方式、PDF プレビュー表示、Office プレビュー表示、テーマ、ソート、貼り付け競合時の既定動作、削除確認の有無などを編集できます。オーバーレイ内には選択中の設定が何を変えるかの説明も表示されるため、README を見返さなくても挙動を判断できます。テーマ変更はその場で即時プレビューされます。 |
 
-空・フォールバック状態のペインには、実行可能なローカルActionだけを表示します。空の現在ディレクトリでは `Create`、フィルタ0件では `Clear filter`、内容プレビュー不能時は `Show attributes`、設定で無効な場合は `Edit config` を表示します。フォールバックActionにはコマンドパレット経由のキーボード導線 `:`（`:` → 表示されたコマンド）を示し、クリックも補助操作として利用できます。クリック時も既存コマンドと同じreducer経路を使用します。
+空・フォールバック状態のペインには、実行可能なローカルActionだけを表示します。空の現在ディレクトリでは `Create`、フィルタ0件では `Clear filter`、隠し項目だけの場合は `[.] Show hidden files`、内容プレビュー不能時は `Show attributes`、設定で無効な場合は `Edit config` を表示します。クリック時も既存コマンドと同じreducer経路を使用します。左ペインは読込中、権限不足、親なし、表示項目なしを区別し、再読込中もキャッシュ済み一覧を維持します。
 | `Create` | 常に表示 | ファイル／ディレクトリを一つのフローで作成します。Type を明示的に選び、必要なら不足したサブディレクトリを含む相対パスを入力して、親ディレクトリと最終対象のプレビューを確認して実行します。`n` は File、`N` は Directory を初期選択します。 |

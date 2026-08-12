@@ -263,7 +263,7 @@ def test_transfer_mode_d_warns_when_no_targets() -> None:
     result = dispatch_key_input(state, key="d")
     assert len(result) == 1
     assert isinstance(result[0], SetNotification)
-    assert result[0].notification.message == "Nothing to delete"
+    assert result[0].notification.message == "Nothing to move to trash"
 
 
 def test_transfer_lowercase_r_begins_rename_for_single_target() -> None:

@@ -3228,7 +3228,7 @@ async def test_app_displays_browsing_help_bar() -> None:
     split_terminal_hint = " | t term" if os.name == "posix" else ""
     expected_help = (
         "enter open | e edit | / filter | s sort | . hidden | [ ] bk/fwd | q quit\n"
-        "space select | c copy | x cut | v paste | d delete | r rename | z undo\n"
+        "space select | c copy | x cut | v paste | d trash | r rename | z undo\n"
             f"f find | g grep | G go | n new-file | N new-dir{split_terminal_hint} | : palette"
     )
 
@@ -3334,7 +3334,7 @@ async def test_app_displays_transfer_help_bar() -> None:
     app = create_app(snapshot_loader=loader, initial_path=path)
     expected_help = (
         "enter dir | . hidden | Tab switch-pane | p/Esc close | q quit\n"
-        "space select | c copy-to-pane | m move-to-pane | d delete | r rename | z undo\n"
+        "space select | c copy-to-pane | m move-to-pane | d trash | r rename | z undo\n"
             "n new-file | N new-dir | G go | : palette"
     )
 
@@ -6029,7 +6029,7 @@ async def test_app_delete_confirmation_round_trip() -> None:
         results={
             delete_request: FileMutationResult(
                 path=None,
-                message="Trashed 2 items",
+                message="Moved 2 items to trash",
                 removed_paths=(docs, src),
             )
         },
@@ -6051,7 +6051,7 @@ async def test_app_delete_confirmation_round_trip() -> None:
         dialog = app.query_one("#conflict-dialog", ConflictDialog)
 
         assert app.app_state.ui_mode == "CONFIRM"
-        assert str(help_bar.renderable) == "enter confirm delete | esc cancel"
+        assert str(help_bar.renderable) == "enter confirm move to trash | esc cancel"
         assert dialog.display is True
 
         await pilot.press("enter")
@@ -6059,7 +6059,7 @@ async def test_app_delete_confirmation_round_trip() -> None:
 
         status_bar = await _wait_for_status_bar(app)
         assert app.app_state.ui_mode == "BROWSING"
-        assert str(status_bar.renderable) == "info: Trashed 2 items"
+        assert str(status_bar.renderable) == "info: Moved 2 items to trash"
 
 
 @pytest.mark.asyncio
@@ -6084,7 +6084,7 @@ async def test_app_delete_skips_confirmation_when_disabled() -> None:
         results={
             delete_request: FileMutationResult(
                 path=None,
-                message="Trashed 2 items",
+                message="Moved 2 items to trash",
                 removed_paths=(docs, src),
             )
         }
@@ -6116,7 +6116,7 @@ async def test_app_delete_skips_confirmation_when_disabled() -> None:
         assert app.app_state.ui_mode == "BROWSING"
         assert app.app_state.delete_confirmation is None
         assert dialog.display is False
-        assert str(status_bar.renderable) == "info: Trashed 2 items"
+        assert str(status_bar.renderable) == "info: Moved 2 items to trash"
 
 
 @pytest.mark.asyncio
@@ -6141,7 +6141,7 @@ async def test_app_permanent_delete_always_confirms() -> None:
         results={
             delete_request: FileMutationResult(
                 path=None,
-                message="Deleted 2 items permanently",
+                message="Permanently deleted 2 items",
                 removed_paths=(docs, src),
             )
         },
@@ -6179,9 +6179,12 @@ async def test_app_permanent_delete_always_confirms() -> None:
         dialog_message = dialog.query_one("#conflict-dialog-message", Static)
 
         assert app.app_state.ui_mode == "CONFIRM"
-        assert str(help_bar.renderable) == "enter review permanent delete | esc cancel"
+        assert str(help_bar.renderable) == "enter review permanently delete | esc cancel"
         assert dialog.display is True
-        assert "2 items (8.0KiB)" in str(dialog_message.renderable)
+        assert "Permanently delete 2 items? This cannot be undone." in str(
+            dialog_message.renderable
+        )
+        assert "Size: 8.0KiB" in str(dialog_message.renderable)
         assert "Targets: docs, src" in str(dialog_message.renderable)
         assert "This cannot be undone" in str(dialog_message.renderable)
 
@@ -6195,7 +6198,7 @@ async def test_app_permanent_delete_always_confirms() -> None:
 
         status_bar = await _wait_for_status_bar(app)
         assert app.app_state.ui_mode == "BROWSING"
-        assert str(status_bar.renderable) == "info: Deleted 2 items permanently"
+        assert str(status_bar.renderable) == "info: Permanently deleted 2 items"
 
 
 @pytest.mark.asyncio

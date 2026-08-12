@@ -132,7 +132,7 @@ def test_delete_file_mutation_completed_requests_reload_without_deleted_cursor()
             request_id=7,
             result=FileMutationResult(
                 path=None,
-                message="Trashed 1 item",
+                message="Moved 1 item to trash",
                 removed_paths=("/home/tadashi/develop/zivo/docs",),
             ),
         ),
@@ -169,7 +169,7 @@ def test_delete_file_mutation_completed_requests_reload_without_deleted_cursor()
             request_id=7,
             result=FileMutationResult(
                 path=None,
-                message="Trashed 1 item",
+                message="Moved 1 item to trash",
                 removed_paths=("/home/tadashi/develop/zivo/docs",),
                 operation="delete",
                 delete_mode="trash",

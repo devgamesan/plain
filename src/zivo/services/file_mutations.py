@@ -169,7 +169,11 @@ class LiveFileMutationService:
                 else:
                     self.adapter.remove_path(path)
             except OSError as error:
-                fallback_message = "Trash failed" if request.mode == "trash" else "Delete failed"
+                fallback_message = (
+                    "Move to trash failed"
+                    if request.mode == "trash"
+                    else "Permanently delete failed"
+                )
                 failures.append((path, str(error) or fallback_message))
             else:
                 removed_paths.append(path)
@@ -178,19 +182,21 @@ class LiveFileMutationService:
             if len(failures) == 1:
                 failed_path = Path(failures[0][0]).name
                 if request.mode == "trash":
-                    raise OSError(f"Failed to trash {failed_path}: {failures[0][1]}")
+                    raise OSError(
+                        f"Failed to move {failed_path} to trash: {failures[0][1]}"
+                    )
                 raise OSError(f"Failed to permanently delete {failed_path}: {failures[0][1]}")
             if request.mode == "trash":
-                raise OSError(f"Failed to trash {len(failures)} items")
+                raise OSError(f"Failed to move {len(failures)} items to trash")
             raise OSError(f"Failed to permanently delete {len(failures)} items")
 
         if failures:
             message = (
-                f"Trashed {len(removed_paths)}/{len(request.paths)} items"
+                f"Moved {len(removed_paths)}/{len(request.paths)} items to trash"
                 f" with {len(failures)} failure(s)"
                 if request.mode == "trash"
                 else (
-                    f"Deleted {len(removed_paths)}/{len(request.paths)} items permanently"
+                    f"Permanently deleted {len(removed_paths)}/{len(request.paths)} items"
                     f" with {len(failures)} failure(s)"
                 )
             )
@@ -206,9 +212,9 @@ class LiveFileMutationService:
 
         noun = "item" if len(removed_paths) == 1 else "items"
         message = (
-            f"Trashed {len(removed_paths)} {noun}"
+            f"Moved {len(removed_paths)} {noun} to trash"
             if request.mode == "trash"
-            else f"Deleted {len(removed_paths)} {noun} permanently"
+            else f"Permanently deleted {len(removed_paths)} {noun}"
         )
         return FileMutationResult(
             path=None,
@@ -416,9 +422,9 @@ class FakeFileMutationService:
         if isinstance(request, DeleteRequest):
             noun = "item" if len(request.paths) == 1 else "items"
             message = (
-                f"Trashed {len(request.paths)} {noun}"
+                f"Moved {len(request.paths)} {noun} to trash"
                 if request.mode == "trash"
-                else f"Deleted {len(request.paths)} {noun} permanently"
+                else f"Permanently deleted {len(request.paths)} {noun}"
             )
             return FileMutationResult(
                 path=None,

@@ -25,6 +25,7 @@ from zivo.state import (
     RunAttributeInspectionEffect,
     RunConfigSaveEffect,
     RunCustomActionEffect,
+    RunDeletePreparationEffect,
     RunDuplicateEffect,
     RunExternalLaunchEffect,
     TransferPaneState,
@@ -49,7 +50,11 @@ from zivo.state.actions import (
     SubmitCommandPalette,
     ToggleTransferMode,
 )
-from zivo.state.command_palette import parse_go_query, select_go_candidates
+from zivo.state.command_palette import (
+    get_command_palette_items,
+    parse_go_query,
+    select_go_candidates,
+)
 
 
 def _reduce_state(state, action):
@@ -1098,6 +1103,41 @@ def test_submit_command_palette_deletes_targets() -> None:
     assert result.state.ui_mode == "CONFIRM"
     assert result.state.command_palette is None
     assert result.state.delete_confirmation is not None
+
+
+def test_submit_command_palette_permanently_deletes_targets_through_preparation() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("permanently delete"))
+
+    items = get_command_palette_items(state)
+    assert [(item.id, item.label, item.shortcut) for item in items] == [
+        ("permanent_delete_targets", "Permanently delete", "D")
+    ]
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "BUSY"
+    assert result.state.command_palette is None
+    assert result.state.delete_confirmation is None
+    assert isinstance(result.effects[0], RunDeletePreparationEffect)
+    assert result.effects[0].request.mode == "permanent"
+
+
+def test_submit_transfer_command_palette_permanently_deletes_targets() -> None:
+    state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
+    state = _reduce_state(state, BeginCommandPalette())
+    state = _reduce_state(state, SetCommandPaletteQuery("permanently delete"))
+
+    items = get_command_palette_items(state)
+    assert [(item.id, item.label, item.shortcut) for item in items] == [
+        ("permanent_delete_targets", "Permanently delete", "D")
+    ]
+
+    result = reduce_app_state(state, SubmitCommandPalette())
+
+    assert result.state.ui_mode == "BUSY"
+    assert isinstance(result.effects[0], RunDeletePreparationEffect)
+    assert result.effects[0].request.mode == "permanent"
 
 
 def test_submit_command_palette_uses_selected_paths_for_copy_path() -> None:

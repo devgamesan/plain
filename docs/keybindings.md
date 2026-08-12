@@ -7,14 +7,14 @@ Complete list of keybindings for all zivo modes.
 The three-row help bar keeps a stable order. Browsing uses these groups:
 
 1. `enter open`, `e edit`, `/ filter`, `s sort`, `. hidden`, `[ ] bk/fwd`, `q quit`
-2. `space select`, `c copy`, `x cut`, `v paste`, `d delete`, `r rename`, `z undo`
+2. `space select`, `c copy`, `x cut`, `v paste`, `d trash`, `r rename`, `z undo`
 3. `f find`, `g grep`, `G go`, `n new-file`, `N new-dir`, `t term`, `: palette`
 
 Search Workspace shows `enter open`, `e edit`, `/ filter`, `s sort`, `. hidden`, `[ ] bk/fwd`, `q quit`, then `space select`, `c copy`, `z undo`, and `: palette`.
 
 On terminals narrower than 80 columns, normal browsing uses `Tab` to toggle the details view (preview/results) and the current file list. The current cursor, selection, filter, and preview identity are preserved; `j` / `k` still move the underlying current-list cursor. Search Workspace keeps `Tab` for moving between its input fields.
 
-Transfer shows `enter dir`, `. hidden`, `Tab switch-pane`, `p/Esc close`, `q quit`, then `space select`, `c copy-to-pane`, `m move-to-pane`, `d delete`, `r rename`, `z undo`, and finally `G go`, `N new-dir`, `: palette`. `D` remains documented below but is intentionally omitted from the help bar.
+Transfer shows `enter dir`, `. hidden`, `Tab switch-pane`, `p/Esc close`, `q quit`, then `space select`, `c copy-to-pane`, `m move-to-pane`, `d trash`, `r rename`, `z undo`, and finally `G go`, `N new-dir`, `: palette`. `D` remains documented below but is intentionally omitted from the help bar.
 
 When a right-pane preview is active, its footer shows `Ctrl+J/K scroll preview`. Replace previews use `Shift+↑/↓ scroll preview`. `Ctrl+↑/↓` are aliases for normal preview scrolling. Narrow terminals keep three rows and elide lower-frequency items from the right.
 
@@ -203,7 +203,7 @@ There is only one keyboard input field in this mode, so `Tab` / `Shift+Tab` do n
 
 | Key | Action |
 | --- | ------ |
-| `Enter` / `Esc` | Confirm or cancel trash and single-file permanent delete |
+| `Enter` / `Esc` | Confirm or cancel Move to trash and single-file Permanently delete |
 | `Enter` then `D` | Two-step confirmation for multiple targets or directories |
 | `o` / `s` / `r` / `Esc` | Resolve a paste conflict with overwrite / skip / rename / cancel |
 

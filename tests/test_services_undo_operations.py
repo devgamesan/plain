@@ -132,7 +132,7 @@ def test_live_undo_service_restores_trash_records() -> None:
 
     assert trash_service.restored_records == [record]
     assert result.path == "/tmp/project/docs"
-    assert result.message == "Restored trashed item"
+    assert result.message == "Restored item from trash"
 
 
 def test_live_undo_service_raises_when_all_steps_fail() -> None:

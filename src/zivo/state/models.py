@@ -684,6 +684,7 @@ class CommandPaletteState:
     source: CommandPaletteSource = "commands"
     query: str = ""
     cursor_index: int = 0
+    cursor_navigation_active: bool = False
     file_search: FileSearchPaletteState = field(default_factory=FileSearchPaletteState)
     grep_search: GrepSearchPaletteState = field(default_factory=GrepSearchPaletteState)
     replace_preview: ReplacePreviewPaletteState = field(

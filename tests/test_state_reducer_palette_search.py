@@ -931,6 +931,34 @@ def test_file_search_partial_results_are_applied_and_keep_request_pending() -> N
     assert result.state.command_palette.file_search.results_truncated is False
 
 
+def test_file_search_streaming_results_keep_first_result_selected_without_navigation() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
+    state = _reduce_state(state, SetCommandPaletteQuery("read"))
+    state = _reduce_state(
+        state,
+        FileSearchResultsUpdated(
+            request_id=1,
+            query="read",
+            results=(FileSearchResultState(path="/tmp/b.txt", display_path="b.txt"),),
+        ),
+    )
+
+    result = reduce_app_state(
+        state,
+        FileSearchResultsUpdated(
+            request_id=1,
+            query="read",
+            results=(FileSearchResultState(path="/tmp/a.txt", display_path="a.txt"),),
+        ),
+    )
+
+    assert [item.display_path for item in result.state.command_palette.file_search.results] == [
+        "a.txt",
+        "b.txt",
+    ]
+    assert result.state.command_palette.cursor_index == 0
+
+
 def test_file_search_partial_results_preserve_selected_path_when_sorted_order_changes() -> None:
     state = _reduce_state(build_initial_app_state(), BeginFileSearch())
     state = replace(
@@ -945,6 +973,7 @@ def test_file_search_partial_results_preserve_selected_path_when_sorted_order_ch
                     FileSearchResultState(path="/tmp/b.txt", display_path="b.txt"),
                 ),
             ),
+            cursor_navigation_active=True,
         ),
         pending_file_search_request_id=1,
     )
@@ -1010,6 +1039,48 @@ def test_grep_search_partial_results_are_applied_while_search_is_pending() -> No
 
     assert result.state.command_palette.grep_search.results[0].display_path == "README.md"
     assert result.state.pending_grep_search_request_id == 1
+
+
+def test_grep_search_streaming_results_keep_first_result_selected_without_navigation() -> None:
+    state = _reduce_state(build_initial_app_state(), BeginGrepSearch())
+    state = _reduce_state(state, SetCommandPaletteQuery("todo"))
+    state = _reduce_state(
+        state,
+        GrepSearchResultsUpdated(
+            request_id=1,
+            query="todo",
+            results=(
+                GrepSearchResultState(
+                    path="/tmp/b.txt",
+                    display_path="b.txt",
+                    line_number=1,
+                    line_text="TODO",
+                ),
+            ),
+        ),
+    )
+
+    result = reduce_app_state(
+        state,
+        GrepSearchResultsUpdated(
+            request_id=1,
+            query="todo",
+            results=(
+                GrepSearchResultState(
+                    path="/tmp/a.txt",
+                    display_path="a.txt",
+                    line_number=1,
+                    line_text="TODO",
+                ),
+            ),
+        ),
+    )
+
+    assert [item.display_path for item in result.state.command_palette.grep_search.results] == [
+        "a.txt",
+        "b.txt",
+    ]
+    assert result.state.command_palette.cursor_index == 0
 
 
 def test_grep_search_partial_results_filter_selected_scope() -> None:

@@ -30,7 +30,9 @@ These preview tools are optional. When one is unavailable, zivo names the missin
 
 ### CI coverage
 
-The CI matrix runs the full `pytest` suite on Ubuntu, macOS, and native Windows. A test may be skipped on Windows only when its reason documents an OS-specific limitation, such as symlink privileges or permission semantics.
+The CI matrix runs the full `pytest` suite on Ubuntu and macOS. Native Windows runs the supported regression scope covering file operations, clipboard, archive extraction/compression, file and grep search, text replacement, and configuration (`tests/test_adapters_file_operations.py`, `tests/test_services_clipboard_operations.py`, `tests/test_services_file_mutations.py`, `tests/test_services_archive_extract.py`, `tests/test_services_zip_compress.py`, `tests/test_services_file_search.py`, `tests/test_services_grep_search.py`, `tests/test_services_text_replace.py`, and `tests/test_services_config.py`).
+
+The full suite was evaluated for Issue #1160 and currently has 24 native-Windows failures caused by POSIX path/newline assumptions, chmod/chown semantics, and platform-specific UI timing. The Windows scope remains intentionally limited until those tests are ported. A test may be skipped on Windows only when its reason documents an OS-specific limitation, such as symlink privileges or permission semantics.
 
 ### OS-specific installation examples
 

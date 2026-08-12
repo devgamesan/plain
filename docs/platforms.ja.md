@@ -28,6 +28,10 @@ zivo 本体の起動は `uv` だけで行えますが、一部の機能は `PATH
 これらのプレビュー用コマンドは任意依存です。不足時はコマンド名を表示し、tracebackで終了せず、概要メタデータと利用可能な代替Actionを表示します。
 | grep 検索 | `ripgrep` |
 
+### CI のテスト範囲
+
+CI の matrix では Ubuntu、macOS、ネイティブ Windows のすべてで `pytest` のフルスイートを実行します。Windows でテストを skip する場合は、symlink 権限や権限セマンティクスなど、OS 固有の制約を理由としてテスト側に明記します。
+
 ### OS 別のインストール例
 
 ```bash

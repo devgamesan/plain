@@ -28,6 +28,10 @@ zivo itself can be installed and started with `uv`, but some features depend on 
 These preview tools are optional. When one is unavailable, zivo names the missing command, keeps the application running, and shows compact metadata plus an available fallback action instead of a traceback.
 | Grep search | `ripgrep` |
 
+### CI coverage
+
+The CI matrix runs the full `pytest` suite on Ubuntu, macOS, and native Windows. A test may be skipped on Windows only when its reason documents an OS-specific limitation, such as symlink privileges or permission semantics.
+
 ### OS-specific installation examples
 
 ```bash

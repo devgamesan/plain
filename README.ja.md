@@ -234,6 +234,7 @@ zivo はファイル操作の事故を防ぐための安全機構を備えてい
 - [Architecture](docs/architecture.md) — 実装構造
 - [Performance](docs/performance.md) — 性能確認メモ
 - [Release Checklist](docs/release-checklist.md) — リリースチェックリスト
+- [Dependency and GitHub Actions Audit](docs/dependency-audit.ja.md) — CI依存関係監査とAction固定方針
 
 ---
 

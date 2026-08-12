@@ -46,6 +46,7 @@ zivo = "zivo.__main__:main"
 
 [dependency-groups]
 dev = [
+  "pip-audit>=2.9.0",
   "pip-licenses>=4.0",
   "pre-commit>=4.0",
   "pytest>=8.0",

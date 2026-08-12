@@ -290,6 +290,8 @@ Copy・Move・Compress・Extract・Replace は、1つの一時的な `Foreground
 - `file_operations.py`: copy / move / rename / create / trash / archive 展開補助などのファイル操作を担当する
 - `external_launcher.py`: OS ごとの起動コマンド差異を吸収する
 
+外部処理の完了後は、待機していた editor・foreground terminal・shell・custom action の reducer 完了経路から、対象 cwd または編集対象の親が現在表示中の実ディレクトリと一致する場合だけ `request_snapshot_refresh()` を発行する。refresh は既存の request ID 世代管理と `post_reload_notification` を再利用するため、手動 Reload と競合した古い snapshot は破棄され、cursor・selection・filter・sort は通常の snapshot 適用規則で維持される。GUI editor、terminal window、configだけを更新するoverlay、Search Workspace、archive の仮想表示はこの経路から除外する。
+
 ### `src/zivo/models/` と `src/zivo/state/models.py`
 
 - `models/` には service と UI が共有する request / result / view model を置く

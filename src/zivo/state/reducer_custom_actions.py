@@ -19,7 +19,7 @@ from .models import (
     CustomActionConfirmationState,
     NotificationState,
 )
-from .reducer_common import ReducerFn, finalize
+from .reducer_common import ReducerFn, finalize, request_external_directory_refresh
 from .reducer_mutations_common import MutationHandler
 
 
@@ -134,18 +134,24 @@ def _handle_custom_action_completed(
         action.result.result,
         mode=action.request.mode,
     )
-    return finalize(
-        replace(
-            state,
-            ui_mode="BROWSING",
-            pending_custom_action_request_id=None,
-            background_command=None,
-            notification=NotificationState(
-                level=level,
-                message=message,
-                auto_dismiss=level == "info",
-            ),
-        )
+    notification = NotificationState(
+        level=level,
+        message=message,
+        auto_dismiss=level == "info",
+    )
+    next_state = replace(
+        state,
+        ui_mode="BROWSING",
+        pending_custom_action_request_id=None,
+        background_command=None,
+        notification=notification,
+    )
+    if action.request.mode == "terminal_window":
+        return finalize(next_state)
+    return request_external_directory_refresh(
+        next_state,
+        directory_path=action.request.cwd,
+        notification=notification,
     )
 
 

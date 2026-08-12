@@ -4,6 +4,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
+from zivo.archive_utils import is_supported_archive_path
 from zivo.models import (
     ChmodRequest,
     ChownRequest,
@@ -24,9 +25,11 @@ from zivo.models import (
     UndoEntry,
 )
 from zivo.windows_paths import (
+    is_search_workspace_path,
     is_windows_drives_root,
     is_windows_path,
     normalize_windows_path,
+    paths_equal,
 )
 
 from .actions import Action
@@ -522,6 +525,81 @@ def request_snapshot_refresh(
             ),
         ),
     )
+
+
+def request_external_directory_refresh(
+    state,
+    *,
+    directory_path: str | None,
+    notification: NotificationState | None = None,
+    path_is_directory: bool = True,
+) -> ReduceResult:
+    """Refresh the visible directory after a waited external process exits.
+
+    External work may finish after the user has navigated elsewhere.  Only a
+    directory that still matches the active real filesystem path is eligible;
+    virtual workspaces must never be sent to the filesystem snapshot loader.
+    The caller supplies the completion notification so it can survive the
+    asynchronous snapshot response through ``post_reload_notification``.
+    """
+
+    if not _external_directory_matches_current(
+        state,
+        directory_path,
+        path_is_directory=path_is_directory,
+    ):
+        return finalize(state)
+
+    next_state = replace(
+        state,
+        notification=None,
+        post_reload_notification=notification,
+    )
+    return request_snapshot_refresh(next_state)
+
+
+def _external_directory_matches_current(
+    state,
+    directory_path: str | None,
+    *,
+    path_is_directory: bool,
+) -> bool:
+    if not directory_path:
+        return False
+    current_path = state.current_path
+    # Search workspaces and other zivo virtual roots are not filesystem
+    # directories and must not be handed to the snapshot loader.
+    if _is_virtual_browser_path(current_path):
+        return False
+
+    candidate = directory_path
+    if not path_is_directory:
+        _, candidate = resolve_parent_directory_path(directory_path)
+    if candidate is None:
+        return False
+
+    return paths_equal(
+        _normalize_external_path(candidate),
+        _normalize_external_path(current_path),
+    )
+
+
+def _normalize_external_path(path: str) -> str:
+    if is_windows_path(path):
+        return normalize_windows_path(path)
+    return str(Path(path).expanduser().resolve())
+
+
+def _is_virtual_browser_path(path: str) -> bool:
+    if is_search_workspace_path(path) or path.startswith("::zivo::"):
+        return True
+    normalized = path.replace("\\", "/")
+    for separator_index, character in enumerate(normalized):
+        if character != "/" or separator_index == 0:
+            continue
+        if is_supported_archive_path(normalized[:separator_index]):
+            return True
+    return False
 
 
 def format_clipboard_message(prefix: str, paths: tuple[str, ...]) -> str:

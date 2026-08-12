@@ -17,6 +17,7 @@ from zivo.state import (
     DirectoryEntryState,
     DirectorySizeCacheEntry,
     DirectorySizeDeltaState,
+    FilterState,
     ForegroundOperationState,
     HistoryState,
     LoadBrowserSnapshotEffect,
@@ -31,6 +32,7 @@ from zivo.state import (
     RunConfigSaveEffect,
     RunDirectorySizeEffect,
     RunExternalLaunchEffect,
+    SortState,
     build_initial_app_state,
     reduce_app_state,
     select_browser_tabs,
@@ -814,6 +816,232 @@ def test_open_path_in_editor_with_line_number_emits_external_launch_effect() -> 
                 line_number=42,
             ),
         ),
+    )
+
+
+def test_completed_foreground_editor_refreshes_matching_current_directory() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/tmp/project",
+        current_pane=PaneState(
+            directory_path="/tmp/project",
+            entries=(DirectoryEntryState("/tmp/project/README.md", "README.md", "file"),),
+            cursor_path="/tmp/project/README.md",
+        ),
+    )
+
+    result = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=4,
+            request=ExternalLaunchRequest(
+                kind="open_editor",
+                path="/tmp/project/README.md",
+            ),
+        ),
+    )
+
+    assert result.state.pending_browser_snapshot_request_id == 1
+    assert result.state.ui_mode == "BROWSING"
+    assert result.effects == (
+        LoadBrowserSnapshotEffect(
+            request_id=1,
+            path="/tmp/project",
+            cursor_path="/tmp/project/README.md",
+            blocking=False,
+            invalidate_paths=tuple(
+                str(Path(path).resolve())
+                for path in ("/tmp/project", "/tmp", "/tmp/project/README.md")
+            ),
+            enable_image_preview=True,
+            enable_pdf_preview=True,
+            enable_office_preview=True,
+        ),
+    )
+
+
+def test_completed_external_launch_excludes_gui_editor_and_terminal_window() -> None:
+    state = replace(build_initial_app_state(), current_path="/tmp/project")
+
+    gui_result = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="open_gui_editor",
+                path="/tmp/project/README.md",
+            ),
+        ),
+    )
+    window_result = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=2,
+            request=ExternalLaunchRequest(
+                kind="open_terminal",
+                path="/tmp/project",
+                terminal_launch_mode="window",
+            ),
+        ),
+    )
+
+    assert gui_result.effects == ()
+    assert window_result.effects == ()
+
+
+def test_completed_foreground_terminal_refreshes_matching_current_directory() -> None:
+    state = replace(build_initial_app_state(), current_path="/tmp/project")
+
+    result = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="open_terminal",
+                path="/tmp/project",
+                terminal_launch_mode="foreground",
+            ),
+        ),
+    )
+
+    assert result.state.pending_browser_snapshot_request_id == 1
+    assert result.effects[0].path == "/tmp/project"
+
+
+def test_external_refresh_skips_virtual_search_workspace() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="search://query?root=%2Ftmp%2Fproject",
+    )
+
+    result = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="open_editor",
+                path="/tmp/project/README.md",
+            ),
+        ),
+    )
+
+    assert result.effects == ()
+
+
+def test_external_refresh_skips_archive_virtual_path() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/tmp/project/archive.zip/src",
+    )
+
+    result = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="open_editor",
+                path="/tmp/project/archive.zip/src/README.md",
+            ),
+        ),
+    )
+
+    assert result.effects == ()
+
+
+def test_external_refresh_completion_wins_over_manual_reload_without_busy_mode() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/tmp/project",
+        ui_mode="BUSY",
+        pending_browser_snapshot_request_id=9,
+        next_request_id=10,
+    )
+
+    result = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=8,
+            request=ExternalLaunchRequest(
+                kind="open_editor",
+                path="/tmp/project/README.md",
+            ),
+        ),
+    )
+
+    assert result.state.pending_browser_snapshot_request_id == 10
+    assert result.state.ui_mode == "BROWSING"
+    assert result.effects[0].request_id == 10
+
+    stale = reduce_app_state(
+        result.state,
+        BrowserSnapshotLoaded(
+            request_id=9,
+            snapshot=BrowserSnapshot(
+                current_path="/tmp/project",
+                parent_pane=PaneState(directory_path="/tmp", entries=()),
+                current_pane=PaneState(directory_path="/tmp/project", entries=()),
+                child_pane=PaneState(directory_path="/tmp/project", entries=()),
+            ),
+        ),
+    )
+    assert stale.state.pending_browser_snapshot_request_id == 10
+
+
+def test_external_refresh_applies_new_entries_while_preserving_view_state() -> None:
+    state = replace(
+        build_initial_app_state(),
+        current_path="/tmp/project",
+        filter=FilterState(query="read", active=True),
+        sort=SortState(field="modified", descending=True, directories_first=False),
+        current_pane=PaneState(
+            directory_path="/tmp/project",
+            entries=(DirectoryEntryState("/tmp/project/README.md", "README.md", "file"),),
+            cursor_path="/tmp/project/README.md",
+            selected_paths=frozenset({"/tmp/project/README.md"}),
+            selection_anchor_path="/tmp/project/README.md",
+        ),
+    )
+    started = reduce_app_state(
+        state,
+        ExternalLaunchCompleted(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="open_editor",
+                path="/tmp/project/README.md",
+            ),
+        ),
+    )
+    loaded = reduce_app_state(
+        started.state,
+        BrowserSnapshotLoaded(
+            request_id=started.state.pending_browser_snapshot_request_id or 0,
+            snapshot=BrowserSnapshot(
+                current_path="/tmp/project",
+                parent_pane=PaneState(directory_path="/tmp", entries=()),
+                current_pane=PaneState(
+                    directory_path="/tmp/project",
+                    entries=(
+                        DirectoryEntryState(
+                            "/tmp/project/README.md",
+                            "README.md",
+                            "file",
+                        ),
+                        DirectoryEntryState("/tmp/project/new.txt", "new.txt", "file"),
+                    ),
+                    cursor_path="/tmp/project/README.md",
+                ),
+                child_pane=PaneState(directory_path="/tmp/project", entries=()),
+            ),
+        ),
+    )
+
+    assert loaded.state.current_pane.cursor_path == "/tmp/project/README.md"
+    assert loaded.state.current_pane.selected_paths == frozenset({"/tmp/project/README.md"})
+    assert loaded.state.filter == FilterState(query="read", active=True)
+    assert loaded.state.sort == SortState(
+        field="modified",
+        descending=True,
+        directories_first=False,
     )
 
 

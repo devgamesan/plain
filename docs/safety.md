@@ -57,6 +57,7 @@ zivo includes several safety mechanisms to prevent accidents during file operati
 ## Text Replacement Preview
 
 - Before applying batch text replacements, a diff preview is shown in the right pane.
+- Find/Grep/Search Workspace results enter replacement through an explicit `Search results` target; the preview identifies the source and file/match counts.
 - Press `Enter` to confirm the replacement after reviewing changes.
 - Use `Shift+↑` / `Shift+↓` to scroll the diff preview.
 

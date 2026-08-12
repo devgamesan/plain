@@ -333,10 +333,18 @@ def _select_replace_preview_window(
         extra_rows=_GREP_SEARCH_EXTRA_INPUT_ROWS,
     )
     title = "Replace Text"
-    if state.command_palette is not None and state.command_palette.replace_preview.preview_results:
-        file_count = len(state.command_palette.replace_preview.preview_results)
-        total_matches = state.command_palette.replace_preview.total_match_count
-        title = f"Replace Text ({file_count} file(s), {total_matches} match(es))"
+    if state.command_palette is not None:
+        preview = state.command_palette.replace_preview
+        if preview.result_origin is not None:
+            origin_labels = {"find": "Find", "grep": "Grep", "workspace": "Workspace"}
+            origin = origin_labels[preview.result_origin]
+            title = f"Replace Search Results · {origin}"
+            if preview.result_query:
+                title = f'{title} "{preview.result_query}"'
+        if preview.preview_results:
+            file_count = len(preview.preview_results)
+            total_matches = preview.total_match_count
+            title = f"{title} ({file_count} file(s), {total_matches} match(es))"
     return _select_search_window(results, cursor_index, title=title, visible_window=visible_window)
 
 
@@ -466,6 +474,7 @@ def _build_replace_input_fields(
         "current_file": "Current file",
         "selected_files": "Selected files",
         "current_directory": "Current directory",
+        "search_results": "Search results",
         "found_files": "Found files",
         "grep_result_files": "Grep result files",
     }

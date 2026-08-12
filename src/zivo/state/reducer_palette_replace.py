@@ -617,6 +617,8 @@ def handle_submit_replace_palette(state: AppState) -> ReduceResult:
         replacement_text=state.command_palette.replace_preview.replacement_text,
         target_paths=state.command_palette.replace_preview.target_paths,
         total_match_count=state.command_palette.replace_preview.total_match_count,
+        result_origin=state.command_palette.replace_preview.result_origin,
+        result_query=state.command_palette.replace_preview.result_query,
     )
 
 

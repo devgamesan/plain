@@ -232,6 +232,8 @@ Copy, Move, Compress, Extract, and Replace share one transient `ForegroundOperat
 - Owns shared metadata for stable command IDs, categories, keywords, shortcuts, context priority, and disabled reasons
 - Applies deterministic category and match ranking to the command list
 - Keeps disabled candidates searchable so selectors and reducers can reuse the same reason text
+- Search result palettes expose one explicit `Replace results` action. It dispatches the same `BeginTextReplace` path as the Search Workspace `Replace selected results` command, with a transient `Search results` target context; result sets are not persisted globally.
+- The unified replacement selector displays the result origin, query, unique file count, and Grep match count, while ordinary replacement keeps Current file / Selected files / Current directory scopes.
 - The default command palette includes:
   - `Find files`
   - `Grep search`

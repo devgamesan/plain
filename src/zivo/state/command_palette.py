@@ -224,6 +224,7 @@ SEARCH_WORKSPACE_COMMAND_IDS = frozenset(
         "close_current_tab",
         "exit",
         "select_all",
+        "replace_text",
         "show_attributes",
         "edit_with_terminal_editor",
         "edit_with_gui_editor",
@@ -467,9 +468,23 @@ def _build_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, .
         ),
         CommandPaletteItem(
             id="replace_text",
-            label="Replace text",
+            label=(
+                "Replace selected results"
+                if is_search_workspace_path(state.current_path)
+                else "Replace text"
+            ),
             shortcut=None,
-            enabled=True,
+            enabled=(
+                bool(select_target_file_paths(state))
+                if is_search_workspace_path(state.current_path)
+                else True
+            ),
+            disabled_reason=(
+                "Select a file result to replace"
+                if is_search_workspace_path(state.current_path)
+                and not select_target_file_paths(state)
+                else None
+            ),
         ),
     ]
 

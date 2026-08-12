@@ -15,6 +15,7 @@ from .actions import (
     BeginGrepReplace,
     BeginGrepReplaceSelected,
     BeginGrepSearch,
+    BeginReplaceFromSearchResults,
     BeginTextReplace,
     CancelCommandPalette,
     CycleFileSearchField,
@@ -138,6 +139,7 @@ from .reducer_palette_shared import (
     GREP_SEARCH_FIELDS,
     enter_palette,
     restore_browsing_from_palette,
+    unique_search_result_paths,
 )
 
 
@@ -287,7 +289,13 @@ def _handle_begin_text_replace(
     reduce_state: ReducerFn,
 ) -> ReduceResult:
     del reduce_state
-    scope = "selected_files" if action.target_paths else default_replace_scope(state)
+    scope = (
+        "search_results"
+        if action.result_origin is not None
+        else "selected_files"
+        if action.target_paths
+        else default_replace_scope(state)
+    )
     next_state = enter_palette(state, source="replace_text")
     return finalize(
         replace(
@@ -296,11 +304,73 @@ def _handle_begin_text_replace(
                 next_state.command_palette,
                 replace_preview=replace(
                     next_state.command_palette.replace_preview,
+                    find_text=action.result_query if action.result_origin is not None else "",
                     scope=scope,
                     target_paths=action.target_paths or replace_scope_target_paths(state, scope),
+                    result_origin=action.result_origin,
+                    result_query=action.result_query,
+                    result_file_count=action.result_file_count or len(action.target_paths),
+                    result_match_count=action.result_match_count,
                 ),
             ),
         )
+    )
+
+
+def _handle_begin_replace_from_search_results(
+    state: AppState,
+    action: BeginReplaceFromSearchResults,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    del action
+    if state.command_palette is None:
+        return finalize(state)
+
+    source = state.command_palette.source
+    if source == "file_search":
+        file_results = state.command_palette.file_search.results
+        paths = unique_search_result_paths(file_results)
+        origin = "find"
+        query = state.command_palette.query.strip()
+        match_count = 0
+    elif source == "grep_search":
+        grep_results = state.command_palette.grep_search.results
+        paths = unique_search_result_paths(grep_results)
+        origin = "grep"
+        query = state.command_palette.grep_search.keyword.strip()
+        match_count = len(grep_results)
+    else:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message="Replace results is available from Find files or Grep search",
+                ),
+            )
+        )
+
+    if not paths:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message="No file results are available to replace",
+                ),
+            )
+        )
+
+    return _handle_begin_text_replace(
+        state,
+        BeginTextReplace(
+            target_paths=paths,
+            result_origin=origin,
+            result_query=query,
+            result_file_count=len(paths),
+            result_match_count=match_count,
+        ),
+        reduce_state,
     )
 
 
@@ -467,6 +537,7 @@ _PALETTE_HANDLERS: dict[type[Action], _PaletteHandler] = {
     BeginFileSearch: _handle_begin_file_search,
     BeginGrepSearch: _handle_begin_grep_search,
     BeginTextReplace: _handle_begin_text_replace,
+    BeginReplaceFromSearchResults: _handle_begin_replace_from_search_results,
     BeginFindAndReplace: lambda s, a, r: _handle_begin_legacy_replace(s, "replace_in_found_files"),
     BeginGrepReplace: lambda s, a, r: _handle_begin_legacy_replace(s, "replace_in_grep_files"),
     BeginGrepReplaceSelected: _handle_begin_grep_replace_selected,

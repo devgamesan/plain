@@ -13,10 +13,12 @@ from zivo.models import (
     CustomActionConfig,
 )
 from zivo.state import (
+    DirectoryEntryState,
+    PaneState,
     build_initial_app_state,
     select_command_palette_state,
 )
-from zivo.state.actions import BeginCommandPalette
+from zivo.state.actions import BeginCommandPalette, SubmitCommandPalette
 from zivo.state.command_palette import get_command_palette_items
 from zivo.state.models import ForegroundOperationState
 from zivo.ui.command_palette import CommandPalette
@@ -118,6 +120,51 @@ def test_disabled_command_reason_is_shared_by_selector_and_submit_path() -> None
     assert view is not None
     assert view.footer_message == item.disabled_reason
     assert view.items[0].disabled_reason == item.disabled_reason
+
+
+def test_search_workspace_exposes_replace_selected_results_for_file_targets() -> None:
+    state = reduce_state(build_initial_app_state(), BeginCommandPalette())
+    path = "/tmp/README.md"
+    state = replace(
+        state,
+        current_path="search://readme?target=files&hidden=false&root=%2Ftmp",
+        current_pane=PaneState(
+            directory_path="search://readme?target=files&hidden=false&root=%2Ftmp",
+            entries=(DirectoryEntryState(path, "README.md", "file"),),
+            cursor_path=path,
+            selected_paths=frozenset({path}),
+        ),
+    )
+
+    item = next(item for item in get_command_palette_items(state) if item.id == "replace_text")
+
+    assert item.label == "Replace selected results"
+    assert item.enabled is True
+
+
+def test_search_workspace_replace_uses_selected_results_scope() -> None:
+    state = reduce_state(build_initial_app_state(), BeginCommandPalette())
+    path = "/tmp/README.md"
+    state = replace(
+        state,
+        current_path="search://readme?target=files&hidden=false&root=%2Ftmp",
+        current_pane=PaneState(
+            directory_path="search://readme?target=files&hidden=false&root=%2Ftmp",
+            entries=(DirectoryEntryState(path, "README.md", "file"),),
+            cursor_path=path,
+            selected_paths=frozenset({path}),
+        ),
+        command_palette=replace(state.command_palette, query="replace selected results"),
+    )
+
+    result = reduce_state(state, SubmitCommandPalette())
+
+    assert result.command_palette is not None
+    preview = result.command_palette.replace_preview
+    assert preview.scope == "search_results"
+    assert preview.result_origin == "workspace"
+    assert preview.result_query == "readme"
+    assert preview.target_paths == (path,)
 
 
 def test_custom_actions_remain_searchable_by_name() -> None:

@@ -10,6 +10,7 @@ from .models import (
     AppState,
     CommandPaletteState,
     FileSearchFieldId,
+    FileSearchResultState,
     FindReplaceFieldId,
     GrepReplaceFieldId,
     GrepReplaceSelectedFieldId,
@@ -19,6 +20,7 @@ from .models import (
     NotificationState,
     ReplaceFieldId,
     ReplacePreviewResultState,
+    SearchResultState,
 )
 from .reducer_common import ReducerFn, finalize, is_regex_file_search_query
 from .selectors import select_visible_current_entry_states
@@ -50,6 +52,22 @@ FILE_SEARCH_FIELDS: tuple[FileSearchFieldId, ...] = (
     "include",
     "exclude",
 )
+
+
+def unique_search_result_paths(
+    results: tuple[SearchResultState, ...],
+) -> tuple[str, ...]:
+    """Return unique file paths from Find or Grep results in display order."""
+
+    paths: list[str] = []
+    seen: set[str] = set()
+    for result in results:
+        if isinstance(result, FileSearchResultState) and result.entry_type != "file":
+            continue
+        if result.path not in seen:
+            seen.add(result.path)
+            paths.append(result.path)
+    return tuple(paths)
 
 
 def grep_field_value(

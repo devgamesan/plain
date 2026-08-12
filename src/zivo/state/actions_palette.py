@@ -15,6 +15,7 @@ from .models import (
     GrepSearchResultState,
     GrepSearchScope,
     ReplaceFieldId,
+    ReplaceResultOrigin,
     ReplaceScope,
 )
 
@@ -49,6 +50,15 @@ class BeginTextReplace:
     """Open the command palette in the unified text-replace mode."""
 
     target_paths: tuple[str, ...] = ()
+    result_origin: ReplaceResultOrigin | None = None
+    result_query: str = ""
+    result_file_count: int = 0
+    result_match_count: int = 0
+
+
+@dataclass(frozen=True)
+class BeginReplaceFromSearchResults:
+    """Open replacement for the currently displayed Find/Grep results."""
 
 
 @dataclass(frozen=True)

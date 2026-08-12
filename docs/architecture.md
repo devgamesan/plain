@@ -232,6 +232,8 @@ Copy・Move・Compress・Extract・Replace は、1つの一時的な `Foreground
 - 標準コマンドの安定 ID、カテゴリ、keywords、shortcut、context priority、無効理由を共有メタデータとして管理する
 - カテゴリ順と決定的な一致スコアで候補を安定ソートする
 - 無効候補も残し、selector と reducer が同じ disabled reason を表示・通知に利用する
+- 検索結果パレットには明示的な `Replace results` 操作を表示する。Search Workspace の `Replace selected results` と同じ `BeginTextReplace` 経路を使い、`Search results` の対象コンテキストは一時的にだけ保持する（結果セットをグローバルには保存しない）
+- 統一Replace selectorは検索元、クエリ、一意な対象ファイル数、Grep match数を表示し、通常のReplaceは Current file / Selected files / Current directory のScopeを維持する
 - 通常 palette には次の候補がある
   - `Find files`
   - `Grep search`

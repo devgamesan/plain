@@ -240,10 +240,22 @@ class LiveBrowserSnapshotLoader:
             parent_cursor_path = None
         else:
             parent_directory_path = parent_path
-            parent_entries = self._list_directory(parent_path, detailed=False)
-            parent_cursor_path = (
-                resolved_path if _contains_path(parent_entries, resolved_path) else None
-            )
+            try:
+                parent_entries = self._list_directory(parent_path, detailed=False)
+            except OSError as error:
+                if not _is_permission_denied_error(error):
+                    raise
+                parent_entries = ()
+                parent_cursor_path = None
+                parent_preview_reason = "permission_denied"
+            else:
+                parent_cursor_path = (
+                    resolved_path if _contains_path(parent_entries, resolved_path) else None
+                )
+                parent_preview_reason = None
+
+        if parent_path is None:
+            parent_preview_reason = None
 
         return BrowserSnapshot(
             current_path=resolved_path,
@@ -251,6 +263,12 @@ class LiveBrowserSnapshotLoader:
                 directory_path=parent_directory_path,
                 entries=parent_entries,
                 cursor_path=parent_cursor_path,
+                preview_message=(
+                    PREVIEW_PERMISSION_DENIED_MESSAGE
+                    if parent_preview_reason == "permission_denied"
+                    else None
+                ),
+                preview_reason=parent_preview_reason,
             ),
             current_pane=PaneState(
                 directory_path=resolved_path,
@@ -479,16 +497,36 @@ class LiveBrowserSnapshotLoader:
             parent_cursor_path = None
         else:
             parent_directory_path = parent_path
-            parent_entries = self._list_directory(parent_path, detailed=False)
-            parent_cursor_path = (
-                resolved_path if _contains_path(parent_entries, resolved_path) else None
-            )
+            try:
+                parent_entries = self._list_directory(parent_path, detailed=False)
+            except OSError as error:
+                if not _is_permission_denied_error(error):
+                    raise
+                parent_entries = ()
+                parent_cursor_path = None
+                parent_pane = PaneState(
+                    directory_path=parent_directory_path,
+                    entries=parent_entries,
+                    preview_message=PREVIEW_PERMISSION_DENIED_MESSAGE,
+                    preview_reason="permission_denied",
+                )
+            else:
+                parent_cursor_path = (
+                    resolved_path if _contains_path(parent_entries, resolved_path) else None
+                )
 
-        parent_pane = PaneState(
-            directory_path=parent_directory_path,
-            entries=parent_entries,
-            cursor_path=parent_cursor_path,
-        )
+                parent_pane = PaneState(
+                    directory_path=parent_directory_path,
+                    entries=parent_entries,
+                    cursor_path=parent_cursor_path,
+                )
+
+        if parent_path is None:
+            parent_pane = PaneState(
+                directory_path=parent_directory_path,
+                entries=parent_entries,
+                cursor_path=parent_cursor_path,
+            )
 
         # Load child pane using existing method
         resolved_cursor_path = current_pane.cursor_path

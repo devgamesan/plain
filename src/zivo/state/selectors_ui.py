@@ -154,9 +154,26 @@ def select_notification_details_dialog_state(
         lines.append(f"Skipped path: {path}")
     for path in details.unprocessed_paths:
         lines.append(f"Not processed path: {path}")
+    recovery_action = details.recovery_action
+    shortcut = (
+        {
+            "notification.undo": "z",
+            "notification.retry": "r",
+        }.get(recovery_action.action_id)
+        if recovery_action is not None
+        else None
+    )
+    options = ("enter close", "esc close")
+    if recovery_action is not None and shortcut is not None:
+        options = (f"{shortcut} {recovery_action.label}", *options)
     return NotificationDetailsDialogState(
         title="Notification details",
         lines=tuple(lines),
+        options=options,
+        recovery_action_id=recovery_action.action_id if recovery_action else None,
+        recovery_action_label=recovery_action.label if recovery_action else None,
+        recovery_action_shortcut=shortcut,
+        recovery_action_revision=state.notification_revision,
     )
 
 

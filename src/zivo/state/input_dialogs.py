@@ -1,6 +1,7 @@
 """Dialog and non-browsing mode input dispatchers."""
 
 from .actions import (
+    ActivateNotificationAction,
     AdvancePermanentDeleteConfirmation,
     CancelArchiveExtractConfirmation,
     CancelCustomActionConfirmation,
@@ -301,6 +302,20 @@ def dispatch_about_input(
 def dispatch_detail_input(
     state: AppState, *, key: str, character: str | None
 ) -> DispatchedActions:
+    details = state.notification_details
+    if details is not None and details.recovery_action is not None:
+        recovery_action = details.recovery_action
+        shortcut = {
+            "notification.undo": "z",
+            "notification.retry": "r",
+        }.get(recovery_action.action_id)
+        if shortcut == key:
+            return supported(
+                ActivateNotificationAction(
+                    recovery_action.action_id,
+                    state.notification_revision,
+                )
+            )
     if key in {"enter", "escape"}:
         return supported(DismissAttributeDialog())
 

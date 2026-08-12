@@ -548,6 +548,7 @@ def _notification_details(
     skipped_count: int = 0,
     skipped_paths: tuple[str, ...] = (),
     unprocessed_paths: tuple[str, ...] = (),
+    recovery_action: NotificationAction | None = None,
 ) -> NotificationDetails:
     return NotificationDetails(
         failure_count=len(failures),
@@ -562,6 +563,17 @@ def _notification_details(
         skipped_paths=skipped_paths,
         unprocessed_count=len(unprocessed_paths),
         unprocessed_paths=unprocessed_paths,
+        recovery_action=recovery_action,
+    )
+
+
+def _undo_recovery_action(undo_entry: UndoEntry | None) -> NotificationAction | None:
+    if undo_entry is None:
+        return None
+    return NotificationAction(
+        action_id="notification.undo",
+        label="Undo completed items",
+        payload=undo_entry,
     )
 
 
@@ -597,13 +609,17 @@ def notification_for_paste_summary(
                     skipped_count=summary.skipped_count,
                     skipped_paths=summary.skipped_paths,
                     unprocessed_paths=summary.unprocessed_paths,
+                    recovery_action=_undo_recovery_action(undo_entry),
                 )
                 if summary.failure_count or summary.unprocessed_count or summary.skipped_paths
                 else None
             ),
         )
     if summary.failure_count and summary.success_count:
-        details = _notification_details(summary.failures)
+        details = _notification_details(
+            summary.failures,
+            recovery_action=_undo_recovery_action(undo_entry),
+        )
         return NotificationState(
             level="warning",
             message=(
@@ -651,7 +667,10 @@ def notification_for_paste_summary(
                 action_id="notification.details",
                 label="Details",
             ),
-            details=_notification_details(summary.failures),
+            details=_notification_details(
+                summary.failures,
+                recovery_action=_undo_recovery_action(undo_entry),
+            ),
         )
     if summary.skipped_count and not summary.success_count and not summary.failure_count:
         return NotificationState(
@@ -693,7 +712,10 @@ def notification_for_duplicate_summary(
     applied_changes_count: int = 0,
 ) -> NotificationState:
     if summary.failure_count and summary.success_count:
-        details = _notification_details(summary.failures)
+        details = _notification_details(
+            summary.failures,
+            recovery_action=_undo_recovery_action(undo_entry),
+        )
         return NotificationState(
             level="warning",
             message=(

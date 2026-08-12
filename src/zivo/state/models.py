@@ -380,6 +380,7 @@ class NotificationDetails:
     unprocessed_count: int = 0
     unprocessed_paths: tuple[str, ...] = ()
     skipped_paths: tuple[str, ...] = ()
+    recovery_action: "NotificationAction | None" = None
 
 
 NotificationActionId = Literal[
@@ -726,6 +727,8 @@ class AppState:
     parent_pane: PaneState
     current_pane: PaneState
     child_pane: PaneState
+    parent_pane_loading: bool = False
+    child_pane_loading: bool = False
     browser_tabs: tuple[BrowserTabState, ...] = ()
     active_tab_index: int = 0
     config: AppConfig = field(default_factory=AppConfig)
@@ -819,6 +822,8 @@ def browser_tab_from_app_state(state: AppState) -> BrowserTabState:
         parent_pane=state.parent_pane,
         current_pane=state.current_pane,
         child_pane=state.child_pane,
+        parent_pane_loading=state.parent_pane_loading,
+        child_pane_loading=state.child_pane_loading,
         history=state.history,
         filter=state.filter,
         current_pane_window_start=state.current_pane_window_start,
@@ -872,6 +877,8 @@ def load_browser_tab(state: AppState, index: int) -> AppState:
         parent_pane=tab.parent_pane,
         current_pane=tab.current_pane,
         child_pane=tab.child_pane,
+        parent_pane_loading=tab.parent_pane_loading,
+        child_pane_loading=tab.child_pane_loading,
         history=tab.history,
         filter=tab.filter,
         current_pane_window_start=tab.current_pane_window_start,

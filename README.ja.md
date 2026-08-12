@@ -35,7 +35,7 @@ zivo は、キーバインドをたくさん覚えなくても使える TUI フ�
 - **Transfer モード**: 2 つのディレクトリを並べてコピー・移動
 - **検索と grep**: ファイル検索、grep 検索、表示中の結果から次の操作へ進む
 - **置換 (プレビュー付き)**: Find / Grep / Search Workspace の結果を共通フローへ渡し、diff を確認してから実行
-- **操作通知の次アクション**: Undo可能な成功には `Undo`、archive/zipの成功には移動先、許可された失敗には `Retry` または `Details` を表示
+- **操作通知の次アクション**: Undo可能な成功には `Undo`、archive/zipの成功には移動先、許可された失敗には `Retry` または `Details` を表示し、Detailsには安全な復旧Actionを最大1件表示
 
 ---
 
@@ -135,7 +135,7 @@ zivo-cd
 
 詳しいコマンド一覧は [Commands](docs/commands.ja.md) を参照してください。
 
-操作通知に表示する次アクションは最大1つです。優先順位は `Undo`、移動先の `Open`、安全な `Retry`、`Details` です。5秒後に自動消去するのは最終成功通知だけで、処理中・warning/error・partial success は自動消去タイマーを持たず、新しい通知または関連する次アクションで状態が進むまで表示されます。StatusBar とコマンドパレットの条件付き `Suggested` は同じ stable action ID と reducer 経路を使い、既存キーボードの意味は変更しません。
+操作通知に表示する次アクションは最大1つです。優先順位は `Undo`、移動先の `Open`、安全な `Retry`、`Details` です。Detailsには安全な復旧Actionを最大1件だけ表示し、`[z] Undo completed items` または `[r] Retry` として実行できます。`Enter` と `Esc` は従来どおりDetailsを閉じます。5秒後に自動消去するのは最終成功通知だけで、処理中・warning/error・partial success は自動消去タイマーを持たず、新しい通知または関連する次アクションで状態が進むまで表示されます。StatusBar、Details、コマンドパレットの条件付き `Suggested` は同じ stable action ID と reducer 経路を使い、既存のグローバルキーボードの意味は変更しません。
 
 時間のかかる Copy・Move・Compress・Extract・Replace は、StatusBarに操作名、進捗、現在対象を表示します。実行中も通常のブラウズ、ディレクトリ移動、ファイル検索、プレビュー、属性表示を継続できます。安全に停止できる操作だけ `Cancel` と `Esc` を表示し、キャンセル要求後は現在の対象を完了してから停止します。別のファイル変更、Undo、エディタ・シェル起動、変更を伴うカスタムアクションは、進行中の操作名を示して拒否します。部分完了時は成功・skip・failure・未処理件数を示し、対象パスとUndo可能範囲は `Details` で確認できます。
 
@@ -170,7 +170,7 @@ zivo-cd
 
 ### プレビュー
 
-空ディレクトリとフィルタ0件では理由と実行可能な次の操作を表示します。右ペインは読込中を明示し、内容をプレビューできない場合は、種類、サイズ、更新日時、permission、owner/group、symlink target、archive entry countなどの概要へフォールバックします。任意の外部コマンドが不足してもアプリはクラッシュしません。
+空ディレクトリとフィルタ0件では理由と実行可能な次の操作を表示します。現在ペインが隠し項目だけの場合は `[.] Show hidden files` を表示します。左ペインは読込中、権限不足、親なし、表示項目なしを区別し、再読込中もキャッシュ済み一覧を維持します。右ペインは読込中を明示し、内容をプレビューできない場合は、種類、サイズ、更新日時、permission、owner/group、symlink target、archive entry countなどの概要へフォールバックします。任意の外部コマンドが不足してもアプリはクラッシュしません。
 - テキスト / 画像（chafa、対応端末では Kitty graphics protocol も利用可能）/ PDF（pdftotext）/ Office（pandoc）
 
 ### Transfer モード
@@ -218,7 +218,7 @@ zivo はファイル操作の事故を防ぐための安全機構を備えてい
 - **貼り付け競合解決**: 上書き / スキップ / リネームを選択可能
 - **置換プレビュー**: diff preview で確認してから一括置換を実行
 - **長時間操作の安全性**: Compressは一時アーカイブを作成して成功時だけ原子的に公開し、ExtractとReplaceも一時ファイル経由で置換します。キャンセルでworkerを強制停止せず、正式なdestinationに途中結果を残しません。
-- **結果通知の次アクション**: Retry は、fresh preflight を行う競合なしの貼り付け失敗、適用済み変更がない Duplicate 失敗、archive/zip の準備失敗に限定します。partial result は失敗対象のパスと理由を `Details` に表示します。
+- **結果通知の次アクション**: Retry は、fresh preflight を行う競合なしの貼り付け失敗、適用済み変更がない Duplicate 失敗、archive/zip の準備失敗に限定します。partial result は失敗対象のパスと理由を `Details` に表示し、可能な場合だけ完了済みCopy/Move対象のUndoを提示します。
 - **その他の詳細**: [Safety](docs/safety.ja.md) を参照
 
 ---

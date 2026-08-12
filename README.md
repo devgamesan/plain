@@ -35,7 +35,7 @@ By default, it keeps a stable, mode-specific set of standard shortcuts visible i
 - **Transfer mode**: copy and move files between two directories side by side
 - **Search and grep**: find files, grep recursively, and continue from visible results
 - **Replace with preview**: pass Find/Grep/Workspace results into one flow, review diffs, then apply a batch replacement
-- **Actionable operation notifications**: successful undoable operations offer `Undo`, archive/zip results offer destination navigation, and allowlisted failures offer `Retry` or `Details`
+- **Actionable operation notifications**: successful undoable operations offer `Undo`, archive/zip results offer destination navigation, and allowlisted failures offer `Retry` or `Details`; Details can expose one safe recovery action
 
 ---
 
@@ -136,7 +136,7 @@ Search accepts common aliases and keywords such as `duplicate` or `clone` for Du
 
 See [Commands](docs/commands.md) for the full command list.
 
-Operation notifications show at most one next action. The priority is `Undo`, destination `Open`, safe `Retry`, then `Details`. Only final success notifications auto-dismiss after five seconds; processing, warning/error, and partial-success notifications stay visible without an auto-dismiss timer until a newer notification or its associated action advances the flow. The status bar and the command palette's conditional `Suggested` entry use the same action ID and reducer path, while existing keyboard meanings remain unchanged.
+Operation notifications show at most one next action. The priority is `Undo`, destination `Open`, safe `Retry`, then `Details`. A Details overlay may expose at most one additional safe recovery action: `[z] Undo completed items` or `[r] Retry`; `Enter` and `Esc` still close it. Only final success notifications auto-dismiss after five seconds; processing, warning/error, and partial-success notifications stay visible without an auto-dismiss timer until a newer notification or its associated action advances the flow. The status bar, Details overlay, and the command palette's conditional `Suggested` entry use the same action ID and reducer path, while existing global keyboard meanings remain unchanged.
 
 Long-running Copy, Move, Compress, Extract, and Replace operations show their operation name, progress, and current target in the status bar. Normal browsing, directory navigation, file search, preview, and attribute inspection remain available while they run. Safe operations expose `Cancel` and `Esc`; cancellation finishes the current item before stopping. Other file mutations, Undo, editor or shell launches, and mutation-capable custom actions are rejected with the active operation name. Partial results report succeeded, skipped, failed, and not-processed counts, with paths and Undo scope available from `Details`.
 
@@ -171,7 +171,7 @@ Long-running Copy, Move, Compress, Extract, and Replace operations show their op
 
 ### Preview
 
-Empty directories and zero-result filters show their reason and an available next action. The right pane shows loading state explicitly and, when content preview is unavailable, falls back to a compact summary such as type, size, modified time, permissions, owner/group, symlink target, or archive entry count. Missing optional commands are reported without crashing the application.
+Empty directories and zero-result filters show their reason and an available next action. When all current entries are hidden, the current pane offers `[.] Show hidden files`. The parent pane distinguishes loading, permission denied, no parent directory, and no visible items; cached parent entries remain visible during refresh. The right pane shows loading state explicitly and, when content preview is unavailable, falls back to a compact summary such as type, size, modified time, permissions, owner/group, symlink target, or archive entry count. Missing optional commands are reported without crashing the application.
 - Text, images (chafa; optional Kitty graphics protocol on compatible terminals), PDF (pdftotext), Office (pandoc)
 
 ### Transfer mode
@@ -218,7 +218,7 @@ zivo includes safety mechanisms to prevent data loss during file operations.
 - **Permanent delete**: `D` / `Shift+Delete` always asks for confirmation; multiple targets or directories require `Enter` followed by an explicit uppercase `D`
 - **Undo**: `z` reverses the last rename, bulk rename, paste, or trash operation
 - **Paste conflict resolution**: choose overwrite, skip, or rename on name collision
-- **Actionable results**: retry is limited to fresh-preflight paste failures without conflicts, duplicate failures with no applied changes, and archive/zip preparation failures. Partial results expose failed paths and reasons in `Details`.
+- **Actionable results**: retry is limited to fresh-preflight paste failures without conflicts, duplicate failures with no applied changes, and archive/zip preparation failures. Partial results expose failed paths and reasons in `Details`; when valid, Details offers Undo for completed Copy/Move items only.
 - **Replace preview**: review diffs before applying batch replacements
 - **Safe long-running operations**: Compress writes to a temporary archive and atomically publishes it; Extract and Replace write temporary files before replacement. Cancellation never force-stops a worker or leaves a partial temporary output as the final destination.
 - **More details**: see [Safety](docs/safety.md)

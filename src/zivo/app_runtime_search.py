@@ -20,6 +20,7 @@ from zivo.app_runtime_core import (
 )
 from zivo.app_runtime_execution import report_foreground_operation_progress, report_search_results
 from zivo.models.config import DEFAULT_SEARCH_MAX_RESULTS
+from zivo.services import GoPathCompletionResult
 from zivo.state import (
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
@@ -28,6 +29,7 @@ from zivo.state import (
     LoadTransferPaneEffect,
     RunDirectorySizeEffect,
     RunFileSearchEffect,
+    RunGoPathCompletionEffect,
     RunGrepSearchEffect,
     RunTextReplaceApplyEffect,
     RunTextReplacePreviewEffect,
@@ -37,6 +39,7 @@ CHILD_PANE_DEBOUNCE_SECONDS = 0.03
 DOCUMENT_PREVIEW_DEBOUNCE_SECONDS = 0.35
 FILE_SEARCH_DEBOUNCE_SECONDS = 0.2
 GREP_SEARCH_DEBOUNCE_SECONDS = 0.2
+GO_COMPLETION_DEBOUNCE_SECONDS = 0.06
 DOCUMENT_PREVIEW_EXTENSIONS = frozenset({".pdf", ".docx", ".xlsx", ".pptx"})
 
 
@@ -73,6 +76,12 @@ GREP_SEARCH_RUNTIME = SearchRuntimeConfig(
     ),
 )
 
+GO_COMPLETION_TRACKING = TrackingConfig(
+    effect_type=RunGoPathCompletionEffect,
+    cancel_event_attr="_active_go_completion_cancel_event",
+    request_id_attr="_active_go_completion_request_id",
+)
+
 DIRECTORY_SIZE_TRACKING = TrackingConfig(
     effect_type=RunDirectorySizeEffect,
     cancel_event_attr="_active_directory_size_cancel_event",
@@ -89,6 +98,8 @@ CHILD_PANE_TRACKING = TrackingConfig(
 def schedule_browser_snapshot(app: Any, effect: LoadBrowserSnapshotEffect) -> None:
     if effect.invalidate_paths:
         app._snapshot_loader.invalidate_directory_listing_cache(effect.invalidate_paths)
+        if hasattr(app, "_go_completion_service"):
+            app._go_completion_service.invalidate(effect.invalidate_paths)
     run_worker(
         app,
         effect,
@@ -270,6 +281,52 @@ def start_file_search_worker(app: Any, effect: RunFileSearchEffect) -> None:
 
 def schedule_grep_search(app: Any, effect: RunGrepSearchEffect) -> None:
     schedule_search_effect(app, effect, GREP_SEARCH_RUNTIME)
+
+
+def schedule_go_path_completion(app: Any, effect: RunGoPathCompletionEffect) -> None:
+    """Debounce and run direct Go completion off the UI thread."""
+
+    cancel_timer(app, "_go_completion_timer")
+    timer = app.set_timer(
+        GO_COMPLETION_DEBOUNCE_SECONDS,
+        partial(start_go_path_completion_worker, app, effect),
+        name=f"go-completion-debounce:{effect.request_id}",
+    )
+    app._go_completion_timer = timer
+
+
+def start_go_path_completion_worker(app: Any, effect: RunGoPathCompletionEffect) -> None:
+    app._go_completion_timer = None
+    if app._app_state.pending_go_completion_request_id != effect.request_id:
+        return
+    cancel_event = threading.Event()
+    set_active_tracking(app, GO_COMPLETION_TRACKING, effect.request_id, cancel_event)
+
+    def run_completion() -> GoPathCompletionResult:
+        return app._go_completion_service.complete(
+            effect.query,
+            effect.base_path,
+            is_cancelled=cancel_event.is_set,
+        )
+
+    run_worker(
+        app,
+        effect,
+        run_completion,
+        WorkerSpec(
+            name=f"go-completion:{effect.request_id}",
+            group="go-completion",
+            description=effect.query,
+            exclusive=True,
+        ),
+    )
+
+
+def cancel_pending_go_completion(app: Any) -> None:
+    if hasattr(app, "_go_completion_timer"):
+        cancel_timer(app, "_go_completion_timer")
+    if hasattr(app, "_active_go_completion_cancel_event"):
+        cancel_active_tracking(app, GO_COMPLETION_TRACKING)
 
 
 def start_grep_search_worker(app: Any, effect: RunGrepSearchEffect) -> None:

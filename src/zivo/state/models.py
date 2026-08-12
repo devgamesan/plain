@@ -544,6 +544,18 @@ class HistoryAndNavigationPaletteState:
 
 
 @dataclass(frozen=True)
+class GoCompletionState:
+    """Asynchronous direct-path completion state for the Go palette."""
+
+    query: str = ""
+    base_path: str = ""
+    paths: tuple[str, ...] = ()
+    loading: bool = False
+    results_truncated: bool = False
+    error_message: str | None = None
+
+
+@dataclass(frozen=True)
 class GoCandidateState:
     """A destination candidate shown by the unified Go palette."""
 
@@ -673,6 +685,7 @@ class CommandPaletteState:
     history_and_navigation: HistoryAndNavigationPaletteState = field(
         default_factory=HistoryAndNavigationPaletteState
     )
+    go_completion: GoCompletionState = field(default_factory=GoCompletionState)
 
 
 @dataclass(frozen=True)
@@ -793,6 +806,7 @@ class AppState:
     pending_zip_compress_request_id: int | None = None
     pending_file_search_request_id: int | None = None
     pending_grep_search_request_id: int | None = None
+    pending_go_completion_request_id: int | None = None
     pending_replace_preview_request_id: int | None = None
     pending_replace_apply_request_id: int | None = None
     pending_directory_size_request_id: int | None = None

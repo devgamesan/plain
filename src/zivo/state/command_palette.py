@@ -22,10 +22,10 @@ from .models import (
     AppState,
     GoCandidateSource,
     GoCandidateState,
+    GoCompletionState,
     GoSourceFilter,
     select_browser_tabs,
 )
-from .reducer_path_helpers import list_matching_directory_paths
 from .selectors import (
     select_has_visible_current_entries,
     select_single_target_entry,
@@ -1259,8 +1259,18 @@ def select_go_candidates(
         for path in list_windows_drive_paths():
             add(path, "direct")
 
-    if effective_filter == "all" and search_query.strip():
-        for path in list_matching_directory_paths(search_query, base_path):
+    completion = (
+        state.command_palette.go_completion
+        if state.command_palette is not None
+        else GoCompletionState()
+    )
+    if (
+        effective_filter == "all"
+        and search_query.strip()
+        and completion.query.strip() == search_query.strip()
+        and completion.base_path == base_path
+    ):
+        for path in completion.paths:
             add(path, "direct")
 
     candidates = tuple(

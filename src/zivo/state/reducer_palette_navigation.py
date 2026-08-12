@@ -61,6 +61,14 @@ def handle_submit_go_palette(state: AppState, reduce_state: ReducerFn) -> Reduce
 
     items = get_command_palette_items(state)
     if not items:
+        if state.command_palette.go_completion.loading:
+            return notify(state, level="warning", message="Searching directories…")
+        if state.command_palette.go_completion.error_message:
+            return notify(
+                state,
+                level="error",
+                message=state.command_palette.go_completion.error_message,
+            )
         return notify(state, level="warning", message="No matching destinations")
     cursor = normalize_command_palette_cursor(state, state.command_palette.cursor_index)
     selected_item = items[cursor]

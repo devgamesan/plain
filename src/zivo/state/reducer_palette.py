@@ -29,6 +29,8 @@ from .actions import (
     FileSearchCompleted,
     FileSearchFailed,
     FileSearchResultsUpdated,
+    GoPathCompletionCompleted,
+    GoPathCompletionFailed,
     GrepExportCompleted,
     GrepExportFailed,
     GrepSearchCompleted,
@@ -59,8 +61,13 @@ from .actions import (
     TextReplacePreviewFailed,
 )
 from .actions_palette import OpenSearchWorkspace
-from .command_palette import normalize_command_palette_cursor
-from .effects import ReduceResult
+from .command_palette import (
+    _go_base_path,
+    _go_direct_path,
+    normalize_command_palette_cursor,
+    parse_go_query,
+)
+from .effects import ReduceResult, RunGoPathCompletionEffect
 from .models import AppState, NotificationState
 from .reducer_common import (
     ReducerFn,
@@ -184,15 +191,127 @@ def _next_palette_query_state(state: AppState, query: str):
         ),
     )
 
+
+def _handle_set_go_query(state: AppState, next_palette, query: str) -> ReduceResult:
+    """Update static Go candidates immediately and schedule direct completion."""
+
+    source_filter, search_query = parse_go_query(
+        query,
+        state.command_palette.history_and_navigation.go_source_filter,
+    )
+    completion = replace(
+        next_palette.go_completion,
+        query=search_query,
+        base_path=_go_base_path(state),
+        paths=(),
+        loading=False,
+        results_truncated=False,
+        error_message=None,
+    )
+    next_palette = replace(next_palette, go_completion=completion)
+    if (
+        source_filter != "all"
+        or not search_query.strip()
+        or _go_direct_path(search_query, _go_base_path(state)) is not None
+    ):
+        return finalize(
+            replace(
+                state,
+                command_palette=next_palette,
+                pending_go_completion_request_id=None,
+            )
+        )
+    request_id = state.next_request_id
+    next_state = replace(
+        state,
+        command_palette=replace(
+            next_palette,
+            go_completion=replace(completion, loading=True),
+        ),
+        pending_go_completion_request_id=request_id,
+        next_request_id=request_id + 1,
+    )
+    return finalize(
+        next_state,
+        RunGoPathCompletionEffect(
+            request_id=request_id,
+            query=search_query,
+            base_path=_go_base_path(state),
+        ),
+    )
+
 def _handle_set_palette_query(state: AppState, action: SetCommandPaletteQuery) -> ReduceResult:
     if state.command_palette is None:
         return finalize(state)
     next_palette = _next_palette_query_state(state, action.query)
+    if state.command_palette.source == "go":
+        return _handle_set_go_query(state, next_palette, action.query)
     if state.command_palette.source == "file_search":
         return handle_set_file_search_query(state, next_palette, action.query)
     if state.command_palette.source == "grep_search":
         return handle_set_grep_search_field(state, "keyword", action.query)
     return finalize(replace(state, command_palette=next_palette))
+
+
+def handle_go_path_completion_completed(
+    state: AppState,
+    action: GoPathCompletionCompleted,
+) -> ReduceResult:
+    """Apply only the completion result belonging to the active query."""
+
+    palette = state.command_palette
+    if (
+        palette is None
+        or palette.source != "go"
+        or state.pending_go_completion_request_id != action.request_id
+        or palette.go_completion.query.strip() != action.query.strip()
+    ):
+        return finalize(state)
+    next_completion = replace(
+        palette.go_completion,
+        query=action.query,
+        paths=action.paths,
+        loading=False,
+        results_truncated=action.truncated,
+        error_message=None,
+    )
+    return finalize(
+        replace(
+            state,
+            command_palette=replace(palette, go_completion=next_completion),
+            pending_go_completion_request_id=None,
+        )
+    )
+
+
+def handle_go_path_completion_failed(
+    state: AppState,
+    action: GoPathCompletionFailed,
+) -> ReduceResult:
+    """Show a completion error only while its query is still active."""
+
+    palette = state.command_palette
+    if (
+        palette is None
+        or palette.source != "go"
+        or state.pending_go_completion_request_id != action.request_id
+        or palette.go_completion.query.strip() != action.query.strip()
+    ):
+        return finalize(state)
+    next_completion = replace(
+        palette.go_completion,
+        loading=False,
+        paths=(),
+        results_truncated=False,
+        error_message=action.message,
+    )
+    return finalize(
+        replace(
+            state,
+            command_palette=replace(palette, go_completion=next_completion),
+            pending_go_completion_request_id=None,
+        )
+    )
 
 
 def _handle_cycle_grep_search_field(state: AppState, action: CycleGrepSearchField) -> ReduceResult:
@@ -574,6 +693,8 @@ _PALETTE_HANDLERS: dict[type[Action], _PaletteHandler] = {
     GrepSearchCompleted: lambda s, a, r: handle_grep_search_completed(s, a),
     GrepSearchFailed: lambda s, a, r: handle_grep_search_failed(s, a),
     GrepSearchResultsUpdated: lambda s, a, r: handle_grep_search_results_updated(s, a),
+    GoPathCompletionCompleted: lambda s, a, r: handle_go_path_completion_completed(s, a),
+    GoPathCompletionFailed: lambda s, a, r: handle_go_path_completion_failed(s, a),
     TextReplacePreviewCompleted: lambda s, a, r: handle_text_replace_preview_completed(s, a),
     TextReplacePreviewFailed: lambda s, a, r: handle_text_replace_preview_failed(s, a),
     TextReplaceApplied: lambda s, a, r: handle_text_replace_applied(s, a, r),

@@ -677,14 +677,30 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             "open_tabs": "Open tabs filter active | type to search, Enter go",
             "home": "Home filter active | type to search, Enter go",
         }[source_filter]
+        completion = state.command_palette.go_completion
+        if completion.loading:
+            footer_message = f"{footer_message} | Searching directories…"
+        elif completion.results_truncated:
+            footer_message = (
+                f"{footer_message} | More matches available — type more characters"
+            )
+        empty_message = (
+            completion.error_message
+            or ("Searching directories…" if completion.loading else None)
+            or (
+                "No matching destinations"
+                if completion.query.strip()
+                else "Type a path or destination"
+            )
+        )
         return _build_command_palette_items_view(
             state,
             cursor_index,
             title=title,
             empty_message=(
                 "No bookmarks"
-                if source_filter == "bookmarks"
-                else "Type a path or destination"
+                if source_filter == "bookmarks" and not completion.query.strip()
+                else empty_message
             ),
             footer_message=footer_message,
         )

@@ -162,6 +162,10 @@ def dispatch_command_palette_input(
                 if item.path is not None
             )
         if not candidates:
+            if state.command_palette.go_completion.loading:
+                return warn("Searching directories…")
+            if state.command_palette.go_completion.error_message:
+                return warn(state.command_palette.go_completion.error_message)
             return warn("No matching directory to complete")
 
         selected_path = candidates[

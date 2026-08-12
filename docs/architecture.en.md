@@ -261,6 +261,7 @@ Copy, Move, Compress, Extract, and Replace share one transient `ForegroundOperat
   - `Create directory`
 - Palette sources include `commands`, `file_search`, `grep_search`, `go`, and `replace`
 - Unified `Go` shows Home, bookmark, recent-history, open-tab, and direct-path candidates while the user types, and lets `Tab` complete a direct-path candidate
+- Direct-path directory listings run in a debounced worker with a short-lived parent-directory cache; mismatched query/request results are discarded and the Go view exposes loading, empty, and truncated states
 - `grep_search` uses separate keyword / filename-filter / include-extensions / exclude-extensions fields and moves focus with `Tab` / `Shift+Tab`
 
 ### `src/zivo/services/`

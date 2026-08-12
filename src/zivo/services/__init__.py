@@ -81,6 +81,12 @@ from .file_search import (
     InvalidFileSearchQueryError,
     LiveFileSearchService,
 )
+from .go_completion import (
+    GO_COMPLETION_CACHE_TTL_SECONDS,
+    GO_COMPLETION_MAX_RESULTS,
+    GoPathCompletionResult,
+    GoPathCompletionService,
+)
 from .grep_export import (
     FakeGrepExportService,
     GrepExportService,
@@ -146,6 +152,10 @@ __all__ = [
     "FileSearchService",
     "GrepExportService",
     "GrepSearchService",
+    "GoPathCompletionResult",
+    "GoPathCompletionService",
+    "GO_COMPLETION_CACHE_TTL_SECONDS",
+    "GO_COMPLETION_MAX_RESULTS",
     "FakeArchiveExtractService",
     "FakeArchiveListService",
     "FakeAttributeInspectionService",

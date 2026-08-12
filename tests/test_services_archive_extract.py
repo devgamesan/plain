@@ -1,5 +1,6 @@
 import bz2
 import gzip
+import os
 import tarfile
 import zipfile
 from io import BytesIO
@@ -35,6 +36,23 @@ def _create_gz_archive(path) -> None:
 def _create_bz2_archive(path) -> None:
     with bz2.open(path, "wb") as f:
         f.write(b"hello from bz2\n")
+
+
+def _create_zip_archive_with_nested_file(path) -> None:
+    with zipfile.ZipFile(path, mode="w") as archive:
+        archive.writestr("safe.txt", "safe\n")
+        archive.writestr("linked/proof.txt", "proof\n")
+
+
+def _create_tar_archive_with_nested_file(path, mode: str) -> None:
+    with tarfile.open(path, mode) as archive:
+        for name, body in (
+            ("safe.txt", b"safe\n"),
+            ("linked/proof.txt", b"proof\n"),
+        ):
+            info = tarfile.TarInfo(name=name)
+            info.size = len(body)
+            archive.addfile(info, BytesIO(body))
 
 
 @pytest.mark.parametrize(
@@ -164,3 +182,97 @@ def test_archive_extract_cancels_between_entries_without_temporary_files(tmp_pat
     assert result.extracted_entries == 1
     assert len(result.unprocessed_paths) == 1
     assert list(destination_path.glob(".*.zivo-*")) == []
+
+
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="creating symlinks requires extra Windows privileges",
+)
+@pytest.mark.parametrize(
+    ("archive_name", "builder"),
+    (
+        ("sample.zip", _create_zip_archive_with_nested_file),
+        ("sample.tar", lambda path: _create_tar_archive_with_nested_file(path, "w")),
+        ("sample.tar.gz", lambda path: _create_tar_archive_with_nested_file(path, "w:gz")),
+        ("sample.tar.bz2", lambda path: _create_tar_archive_with_nested_file(path, "w:bz2")),
+    ),
+)
+def test_archive_extract_rejects_existing_symlink_before_writing(
+    tmp_path,
+    archive_name,
+    builder,
+) -> None:
+    archive_path = tmp_path / archive_name
+    builder(archive_path)
+    outside_path = tmp_path / "outside"
+    outside_path.mkdir()
+    destination_path = tmp_path / "output"
+    destination_path.mkdir()
+    (destination_path / "linked").symlink_to(outside_path, target_is_directory=True)
+
+    with pytest.raises(OSError, match="symlink or Windows reparse point"):
+        LiveArchiveExtractService().execute(
+            ExtractArchiveRequest(
+                source_path=str(archive_path),
+                destination_path=str(destination_path),
+            )
+        )
+
+    assert not (destination_path / "safe.txt").exists()
+    assert not (outside_path / "proof.txt").exists()
+
+
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="creating symlinks requires extra Windows privileges",
+)
+@pytest.mark.parametrize(
+    ("archive_name", "builder", "expected_name"),
+    (
+        ("sample.log.gz", _create_gz_archive, "sample.log"),
+        ("sample.log.bz2", _create_bz2_archive, "sample.log"),
+    ),
+)
+def test_single_file_archive_extract_rejects_symlink_destination(
+    tmp_path,
+    archive_name,
+    builder,
+    expected_name,
+) -> None:
+    archive_path = tmp_path / archive_name
+    builder(archive_path)
+    outside_path = tmp_path / "outside"
+    outside_path.mkdir()
+    destination_path = tmp_path / "output"
+    destination_path.symlink_to(outside_path, target_is_directory=True)
+
+    with pytest.raises(OSError, match="symlink or Windows reparse point"):
+        LiveArchiveExtractService().execute(
+            ExtractArchiveRequest(
+                source_path=str(archive_path),
+                destination_path=str(destination_path),
+            )
+        )
+
+    assert not (outside_path / expected_name).exists()
+
+
+@pytest.mark.parametrize(
+    "member_name",
+    ("/absolute.txt", "C:/absolute.txt", "../outside.txt"),
+)
+def test_archive_extract_rejects_unsafe_member_paths(tmp_path, member_name) -> None:
+    archive_path = tmp_path / "sample.zip"
+    with zipfile.ZipFile(archive_path, mode="w") as archive:
+        archive.writestr(member_name, "unsafe\n")
+    destination_path = tmp_path / "output"
+
+    with pytest.raises(OSError, match="(absolute path|escapes the destination directory)"):
+        LiveArchiveExtractService().execute(
+            ExtractArchiveRequest(
+                source_path=str(archive_path),
+                destination_path=str(destination_path),
+            )
+        )
+
+    assert not destination_path.exists()

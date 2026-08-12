@@ -202,6 +202,7 @@
 - [ ] Go画面では `j` / `k` を検索文字として入力できること
 - [ ] ~ キーまたは「Go to home directory」でホームディレクトリに移動できること
 - [ ] 絶対パスと相対パスの両方が使えること
+- [ ] 5,000 sibling directories で Go 入力が UI を同期的に塞がず、loading/0件/truncated 表示と stale result 排除が機能すること
 
 ### 転送モード
 

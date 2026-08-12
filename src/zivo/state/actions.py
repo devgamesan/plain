@@ -221,6 +221,8 @@ from .actions_palette import (
     FileSearchCompleted,
     FileSearchFailed,
     FileSearchResultsUpdated,
+    GoPathCompletionCompleted,
+    GoPathCompletionFailed,
     GrepExportCompleted,
     GrepExportFailed,
     GrepSearchCompleted,
@@ -366,6 +368,8 @@ Action = (
     | GrepSearchCompleted
     | GrepSearchFailed
     | GrepSearchResultsUpdated
+    | GoPathCompletionCompleted
+    | GoPathCompletionFailed
     | TextReplacePreviewCompleted
     | TextReplacePreviewFailed
     | TextReplaceApplied

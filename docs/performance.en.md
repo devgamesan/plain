@@ -118,6 +118,20 @@ uv run python scripts/benchmark_current_pane_projection.py --entries 50000 --ite
 - Issue #326 promoted that direction from a comparison spike to the normal implementation path
 - `current_pane_projection_mode` remains as an internal benchmark/test switch, while normal startup now uses viewport projection by default
 
+## Issue #281 Go path completion
+
+Direct-path completion in the unified Go palette uses a short debounce, a worker, and a short-lived parent-directory listing cache. Results are capped at 500 entries and the UI tells users to type more characters when the cap is reached.
+
+Run the manual comparison with:
+
+```bash
+uv run python scripts/benchmark_go_completion.py --dirs 5000 --iterations 10
+```
+
+The benchmark separates cold listing from cached prefix filtering. It is intentionally not part of CI.
+
+On 2026-08-12 (macOS, 5,000 directories, 10 iterations), the local run measured 14.26 ms mean / 18.41 ms p95 for cold listing and 0.31 ms mean / 0.37 ms p95 for cached `directory_000` filtering.
+
 ## Current policy
 
 - Automated benchmarks remain out of CI and release workflows

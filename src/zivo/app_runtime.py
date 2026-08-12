@@ -40,6 +40,7 @@ from zivo.app_runtime_search import (
     CHILD_PANE_TRACKING,
     DIRECTORY_SIZE_TRACKING,
     FILE_SEARCH_RUNTIME,
+    GO_COMPLETION_TRACKING,
     GREP_SEARCH_RUNTIME,
     cancel_active_file_search,
     cancel_active_grep_search,
@@ -48,11 +49,13 @@ from zivo.app_runtime_search import (
     cancel_pending_child_pane,
     cancel_pending_directory_size,
     cancel_pending_file_search,
+    cancel_pending_go_completion,
     cancel_pending_grep_search,
     schedule_browser_snapshot,
     schedule_child_pane_snapshot,
     schedule_directory_sizes,
     schedule_file_search,
+    schedule_go_path_completion,
     schedule_grep_search,
     schedule_parent_child_update,
     schedule_progressive_browser_snapshot,
@@ -85,6 +88,7 @@ from zivo.state import (
     RunExternalLaunchEffect,
     RunFileMutationEffect,
     RunFileSearchEffect,
+    RunGoPathCompletionEffect,
     RunGrepExportEffect,
     RunGrepSearchEffect,
     RunShellCommandEffect,
@@ -100,6 +104,7 @@ TRACKING_CONFIGS: tuple[TrackingConfig, ...] = (
     CHILD_PANE_TRACKING,
     FILE_SEARCH_RUNTIME.tracking,
     GREP_SEARCH_RUNTIME.tracking,
+    GO_COMPLETION_TRACKING,
     DIRECTORY_SIZE_TRACKING,
 )
 
@@ -112,6 +117,7 @@ __all__ = [
     "cancel_pending_directory_size",
     "cancel_pending_file_search",
     "cancel_pending_grep_search",
+    "cancel_pending_go_completion",
     "cancel_pending_runtime_work",
     "clear_effect_tracking",
     "complete_worker_actions",
@@ -166,6 +172,11 @@ def sync_runtime_state(app: Any, previous_state: Any, next_state: Any) -> None:
     if previous_state.pending_grep_search_request_id != next_state.pending_grep_search_request_id:
         cancel_pending_grep_search(app)
     if (
+        previous_state.pending_go_completion_request_id
+        != next_state.pending_go_completion_request_id
+    ):
+        cancel_pending_go_completion(app)
+    if (
         previous_state.pending_directory_size_request_id
         != next_state.pending_directory_size_request_id
     ):
@@ -176,6 +187,7 @@ def cancel_pending_runtime_work(app: Any) -> None:
     cancel_pending_child_pane(app)
     cancel_pending_file_search(app)
     cancel_pending_grep_search(app)
+    cancel_pending_go_completion(app)
     cancel_pending_directory_size(app)
 
 
@@ -217,6 +229,7 @@ EFFECT_SCHEDULERS = (
     (RunShellCommandEffect, schedule_shell_command),
     (RunFileSearchEffect, schedule_file_search),
     (RunGrepSearchEffect, schedule_grep_search),
+    (RunGoPathCompletionEffect, schedule_go_path_completion),
     (RunGrepExportEffect, schedule_grep_export),
     (RunTextReplacePreviewEffect, schedule_text_replace_preview),
     (RunTextReplaceApplyEffect, schedule_text_replace_apply),

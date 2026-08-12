@@ -269,6 +269,25 @@ class GrepSearchFailed:
 
 
 @dataclass(frozen=True)
+class GoPathCompletionCompleted:
+    """Apply direct Go destination completion results."""
+
+    request_id: int
+    query: str
+    paths: tuple[str, ...]
+    truncated: bool = False
+
+
+@dataclass(frozen=True)
+class GoPathCompletionFailed:
+    """Apply a terminal Go destination completion failure."""
+
+    request_id: int
+    query: str
+    message: str
+
+
+@dataclass(frozen=True)
 class TextReplacePreviewCompleted:
     """Apply completed text-replace preview results to the command palette."""
 

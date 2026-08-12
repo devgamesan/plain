@@ -236,6 +236,15 @@ class RunGrepSearchEffect:
 
 
 @dataclass(frozen=True)
+class RunGoPathCompletionEffect:
+    """Complete direct Go destinations outside the reducer."""
+
+    request_id: int
+    query: str
+    base_path: str
+
+
+@dataclass(frozen=True)
 class RunTextReplacePreviewEffect:
     """Preview text replacement across selected files."""
 
@@ -324,6 +333,7 @@ Effect = (
     | RunExternalLaunchEffect
     | RunFileSearchEffect
     | RunGrepSearchEffect
+    | RunGoPathCompletionEffect
     | RunGrepExportEffect
     | RunTextReplacePreviewEffect
     | RunTextReplaceApplyEffect

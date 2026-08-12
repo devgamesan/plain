@@ -24,6 +24,7 @@ from zivo.models import (
     UndoResult,
 )
 from zivo.services import (
+    GoPathCompletionResult,
     InvalidFileSearchQueryError,
     InvalidGrepSearchQueryError,
     InvalidTextReplaceQueryError,
@@ -49,6 +50,7 @@ from zivo.state import (
     RunExternalLaunchEffect,
     RunFileMutationEffect,
     RunFileSearchEffect,
+    RunGoPathCompletionEffect,
     RunGrepExportEffect,
     RunGrepSearchEffect,
     RunShellCommandEffect,
@@ -93,6 +95,8 @@ from zivo.state.actions import (
     FileMutationFailed,
     FileSearchCompleted,
     FileSearchFailed,
+    GoPathCompletionCompleted,
+    GoPathCompletionFailed,
     GrepExportCompleted,
     GrepExportFailed,
     GrepSearchCompleted,
@@ -445,6 +449,34 @@ def complete_grep_search(effect: RunGrepSearchEffect, result: object) -> tuple[A
     )
 
 
+def complete_go_path_completion(
+    effect: RunGoPathCompletionEffect,
+    result: object,
+) -> tuple[Any, ...]:
+    if isinstance(result, GoPathCompletionResult):
+        paths = result.paths
+        truncated = result.truncated
+        if result.error_message is not None:
+            return (
+                GoPathCompletionFailed(
+                    request_id=effect.request_id,
+                    query=effect.query,
+                    message=result.error_message,
+                ),
+            )
+    else:
+        paths = tuple(result)
+        truncated = False
+    return (
+        GoPathCompletionCompleted(
+            request_id=effect.request_id,
+            query=effect.query,
+            paths=paths,
+            truncated=truncated,
+        ),
+    )
+
+
 def complete_text_replace_preview(
     effect: RunTextReplacePreviewEffect,
     result: TextReplacePreviewResult,
@@ -552,6 +584,10 @@ def complete_grep_export(effect: RunGrepExportEffect, result: object) -> tuple[A
 
 
 failed_grep_export = make_failed_handler(GrepExportFailed)
+failed_go_path_completion = make_failed_handler(
+    GoPathCompletionFailed,
+    extra_field_builders={"query": lambda e, _err, _msg: e.query},
+)
 failed_text_replace_preview = make_failed_handler(
     TextReplacePreviewFailed,
     extra_field_builders={
@@ -588,6 +624,7 @@ COMPLETE_ACTION_HANDLERS: tuple[tuple[type[Any], CompleteActionHandler], ...] = 
     (RunCustomActionEffect, complete_custom_action),
     (RunFileSearchEffect, complete_file_search),
     (RunGrepSearchEffect, complete_grep_search),
+    (RunGoPathCompletionEffect, complete_go_path_completion),
     (RunGrepExportEffect, complete_grep_export),
     (RunTextReplacePreviewEffect, complete_text_replace_preview),
     (RunTextReplaceApplyEffect, complete_text_replace_apply),
@@ -620,6 +657,7 @@ FAILED_ACTION_HANDLERS: tuple[tuple[type[Any], FailureActionHandler], ...] = (
     (RunUndoEffect, failed_undo),
     (RunFileSearchEffect, failed_file_search),
     (RunGrepSearchEffect, failed_grep_search),
+    (RunGoPathCompletionEffect, failed_go_path_completion),
     (RunGrepExportEffect, failed_grep_export),
     (RunTextReplacePreviewEffect, failed_text_replace_preview),
     (RunTextReplaceApplyEffect, failed_text_replace_apply),

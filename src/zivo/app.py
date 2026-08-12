@@ -46,6 +46,7 @@ from zivo.services import (
     ExternalLaunchService,
     FileMutationService,
     FileSearchService,
+    GoPathCompletionService,
     GrepExportService,
     GrepSearchService,
     LiveArchiveExtractService,
@@ -201,6 +202,7 @@ class zivoApp(App[None]):
         zip_compress_service: ZipCompressService | None = None,
         external_launch_service: ExternalLaunchService | None = None,
         file_search_service: FileSearchService | None = None,
+        go_completion_service: GoPathCompletionService | None = None,
         grep_search_service: GrepSearchService | None = None,
         grep_export_service: GrepExportService | None = None,
         text_replace_service: TextReplaceService | None = None,
@@ -249,6 +251,7 @@ class zivoApp(App[None]):
             external_launch_service or self._build_external_launch_service(self._app_config)
         )
         self._file_search_service = file_search_service or LiveFileSearchService()
+        self._go_completion_service = go_completion_service or GoPathCompletionService()
         self._grep_search_service = grep_search_service or LiveGrepSearchService()
         self._grep_export_service = grep_export_service or LiveGrepExportService()
         self._text_replace_service = text_replace_service or LiveTextReplaceService()
@@ -264,6 +267,9 @@ class zivoApp(App[None]):
         self._file_search_timer: Timer | None = None
         self._active_file_search_cancel_event: threading.Event | None = None
         self._active_file_search_request_id: int | None = None
+        self._go_completion_timer: Timer | None = None
+        self._active_go_completion_cancel_event: threading.Event | None = None
+        self._active_go_completion_request_id: int | None = None
         self._grep_search_timer: Timer | None = None
         self._active_grep_search_cancel_event: threading.Event | None = None
         self._active_grep_search_request_id: int | None = None

@@ -40,6 +40,7 @@ from zivo.models import (
 )
 from zivo.services import InvalidFileSearchQueryError
 from zivo.state import (
+    BackgroundCommandState,
     BrowserSnapshot,
     CommandPaletteState,
     DirectoryEntryState,
@@ -238,6 +239,29 @@ def test_sync_runtime_state_queues_exit_after_operation_reaches_terminal_state()
     sync_runtime_state(app, previous_state, next_state)
 
     assert app.call_next_calls == [(app.dispatch_actions, ((ExitCurrentPath(),),))]
+
+
+def test_sync_runtime_state_signals_background_command_cancel() -> None:
+    event = threading.Event()
+    previous_state = replace(
+        build_initial_app_state(),
+        background_command=BackgroundCommandState(12, "Check project"),
+    )
+    next_state = replace(
+        previous_state,
+        background_command=BackgroundCommandState(
+            12,
+            "Check project",
+            cancel_requested=True,
+        ),
+    )
+    app = _RecordingApp(_app_state=next_state)
+    app._background_command_request_id = 12
+    app._background_command_cancel_event = event
+
+    sync_runtime_state(app, previous_state, next_state)
+
+    assert event.is_set()
 
 
 @dataclass(frozen=True)

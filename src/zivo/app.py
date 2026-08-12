@@ -261,6 +261,8 @@ class zivoApp(App[None]):
         self._pending_workers: dict[str, Effect] = {}
         self._foreground_operation_cancel_event: threading.Event | None = None
         self._foreground_operation_id: int | None = None
+        self._background_command_cancel_event: threading.Event | None = None
+        self._background_command_request_id: int | None = None
         self._child_pane_timer: Timer | None = None
         self._active_child_pane_cancel_event: threading.Event | None = None
         self._active_child_pane_request_id: int | None = None

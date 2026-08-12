@@ -280,6 +280,11 @@ def select_help_bar_state(state: AppState) -> HelpBarState:
             )
         return HelpBarState(("type command | ↑↓ or Ctrl+j/k select | enter run | esc cancel",))
     if state.ui_mode == "BUSY":
+        command = state.background_command
+        if command is not None:
+            if command.cancel_requested:
+                return HelpBarState(("Stopping command...",))
+            return HelpBarState(("Esc cancel",))
         operation = state.foreground_operation
         if operation is not None:
             if operation.cancel_requested:

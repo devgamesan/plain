@@ -40,6 +40,7 @@ def read_int(
     key: str,
     default: int,
     minimum: int = 0,
+    maximum: int | None = None,
     valid_values: frozenset[int] | None = None,
     warnings: list[str],
     section_name: str,
@@ -55,10 +56,15 @@ def read_int(
                     f"{section_name}.{key} must be one of {valid_display}; using default."
                 )
             return default
-        if value >= minimum:
+        if value >= minimum and (maximum is None or value <= maximum):
             return value
         if key in section:
-            warnings.append(f"{section_name}.{key} must be >= {minimum}; using default.")
+            expected = f">= {minimum}"
+            if maximum is not None:
+                expected = f"between {minimum} and {maximum}"
+            warnings.append(
+                f"{section_name}.{key} must be {expected}; using default."
+            )
         return default
     if key in section:
         warnings.append(f"{section_name}.{key} must be an integer; using default.")

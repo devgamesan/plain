@@ -117,6 +117,11 @@ def handle_notification_action(
             return finalize(_consume_notification(state))
         return _show_notification_details(state, notification.details)
 
+    if action.action_id == "notification.shell_result":
+        if state.shell_command is None or state.shell_command.result is None:
+            return finalize(_consume_notification(state))
+        return finalize(replace(_consume_notification(state), ui_mode="SHELL"))
+
     if action.action_id == "notification.open_destination":
         destination_path = notification.destination_path
         if destination_path is None and isinstance(notification_action.payload, str):

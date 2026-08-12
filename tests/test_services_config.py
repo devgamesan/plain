@@ -3,6 +3,7 @@ from pathlib import Path
 from zivo.models import (
     ActionsConfig,
     AppConfig,
+    BackgroundCommandConfig,
     BehaviorConfig,
     BookmarkConfig,
     CustomActionConfig,
@@ -76,6 +77,9 @@ def test_loader_creates_default_config_when_missing(tmp_path) -> None:
     assert 'path = ""' in written
     assert '# paths = ["/home/user/src", "/home/user/docs"]' in written
     assert "grep_preview_context_lines = 3" in written
+    assert "[background_commands]" in written
+    assert "max_output_kib = 1024" in written
+    assert "timeout_seconds = 300" in written
 
 
 def test_loader_marks_invalid_toml_as_fatal(tmp_path) -> None:
@@ -158,6 +162,10 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
         [bookmarks]
         paths = ["{bookmark_a_toml}", "{bookmark_b_toml}", "{bookmark_a_toml}"]
 
+        [background_commands]
+        max_output_kib = 2048
+        timeout_seconds = 900
+
         [[actions.custom]]
         name = "Optimize PNG"
         command = ["oxipng", "-o", "4", "{{file}}"]
@@ -208,6 +216,10 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
     assert result.config.logging.enabled is False
     assert result.config.logging.path == "~/logs/zivo.log"
     assert result.config.bookmarks.paths == (bookmark_a, bookmark_b)
+    assert result.config.background_commands == BackgroundCommandConfig(
+        max_output_kib=2048,
+        timeout_seconds=900,
+    )
     assert result.config.actions.custom == (
         CustomActionConfig(
             name="Optimize PNG",
@@ -270,6 +282,10 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
 
         [bookmarks]
         paths = ["relative/path", 3]
+
+        [background_commands]
+        max_output_kib = 4097
+        timeout_seconds = 0
         """,
         encoding="utf-8",
     )
@@ -294,7 +310,8 @@ def test_loader_keeps_valid_values_and_warns_for_invalid_entries(tmp_path) -> No
     assert result.config.logging.enabled is True
     assert result.config.logging.path is None
     assert result.config.bookmarks.paths == ()
-    assert len(result.warnings) == 20
+    assert result.config.background_commands == BackgroundCommandConfig()
+    assert len(result.warnings) == 22
 
 
 def test_loader_warns_for_invalid_editor_command_syntax(tmp_path) -> None:
@@ -354,6 +371,10 @@ def test_config_save_service_writes_normalized_config_file(tmp_path) -> None:
                 path="/tmp/zivo-errors.log",
             ),
             bookmarks=BookmarkConfig(paths=("/tmp/project", "/tmp/docs")),
+            background_commands=BackgroundCommandConfig(
+                max_output_kib=512,
+                timeout_seconds=120,
+            ),
             actions=ActionsConfig(
                 custom=(
                     CustomActionConfig(
@@ -396,6 +417,8 @@ def test_config_save_service_writes_normalized_config_file(tmp_path) -> None:
     assert 'path = "/tmp/zivo-errors.log"' in written
     assert 'paths = ["/tmp/project", "/tmp/docs"]' in written
     assert "grep_preview_context_lines = 7" in written
+    assert "max_output_kib = 512" in written
+    assert "timeout_seconds = 120" in written
 
 
 def test_config_save_service_preserves_advanced_and_unknown_settings(tmp_path) -> None:

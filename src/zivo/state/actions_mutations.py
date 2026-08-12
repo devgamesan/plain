@@ -179,3 +179,8 @@ class ConfirmCustomAction:
 @dataclass(frozen=True)
 class CancelCustomActionConfirmation:
     """Cancel the pending custom action."""
+
+
+@dataclass(frozen=True)
+class CancelBackgroundCommand:
+    """Request termination of the active non-interactive command."""

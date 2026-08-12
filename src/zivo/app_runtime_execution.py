@@ -11,7 +11,12 @@ from typing import Any
 
 from textual.app import SuspendNotSupported
 
-from zivo.app_runtime_core import WorkerSpec, run_worker, start_foreground_operation
+from zivo.app_runtime_core import (
+    WorkerSpec,
+    run_worker,
+    start_background_command,
+    start_foreground_operation,
+)
 from zivo.models import CustomActionResult
 from zivo.services.config import AppConfigLoader
 from zivo.state import (
@@ -169,6 +174,7 @@ def schedule_config_reload(app: Any, effect: RunConfigReloadEffect) -> None:
 
 
 def schedule_shell_command(app: Any, effect: RunShellCommandEffect) -> None:
+    cancel_event = start_background_command(app, effect.request_id)
     run_worker(
         app,
         effect,
@@ -176,6 +182,9 @@ def schedule_shell_command(app: Any, effect: RunShellCommandEffect) -> None:
             app._shell_command_service.execute,
             cwd=effect.cwd,
             command=effect.command,
+            max_output_bytes=effect.max_output_bytes,
+            timeout_seconds=effect.timeout_seconds,
+            cancel_callback=cancel_event.is_set,
         ),
         WorkerSpec(
             name=f"shell-command:{effect.request_id}",
@@ -193,10 +202,17 @@ def schedule_custom_action(app: Any, effect: RunCustomActionEffect) -> None:
     if effect.request.mode == "terminal_window":
         run_terminal_window_custom_action(app, effect)
         return
+    cancel_event = start_background_command(app, effect.request_id)
     run_worker(
         app,
         effect,
-        partial(app._custom_action_service.execute, effect.request),
+        partial(
+            app._custom_action_service.execute,
+            effect.request,
+            max_output_bytes=effect.max_output_bytes,
+            timeout_seconds=effect.timeout_seconds,
+            cancel_callback=cancel_event.is_set,
+        ),
         WorkerSpec(
             name=f"custom-action:{effect.request_id}",
             group="custom-action",

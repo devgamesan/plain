@@ -89,6 +89,14 @@ def dispatch_key_input(
     if state.ui_mode == "BUSY":
         if (
             key in {"escape", "esc"}
+            and state.background_command is not None
+            and not state.background_command.cancel_requested
+        ):
+            from .actions_mutations import CancelBackgroundCommand
+
+            return (CancelBackgroundCommand(),)
+        if (
+            key in {"escape", "esc"}
             and state.foreground_operation is not None
             and state.foreground_operation.cancelable
             and not state.foreground_operation.cancel_requested

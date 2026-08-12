@@ -8,8 +8,10 @@ from textual.worker import Worker, WorkerState
 from zivo.app_runtime_actions import complete_worker_actions, failed_worker_actions
 from zivo.app_runtime_core import (
     TrackingConfig,
+    clear_background_command,
     clear_foreground_operation,
     clear_tracking_for_request,
+    request_background_command_cancel,
     request_foreground_operation_cancel,
 )
 from zivo.app_runtime_execution import (
@@ -165,6 +167,18 @@ def sync_runtime_state(app: Any, previous_state: Any, next_state: Any) -> None:
             # exit action only after the operation's terminal reducer action
             # has been applied, so no worker is force-stopped.
             app.call_next(app.dispatch_actions, (ExitCurrentPath(),))
+    previous_command = previous_state.background_command
+    next_command = next_state.background_command
+    if (
+        next_command is not None
+        and next_command.cancel_requested
+        and (
+            previous_command is None
+            or not previous_command.cancel_requested
+            or previous_command.request_id != next_command.request_id
+        )
+    ):
+        request_background_command_cancel(app, next_command.request_id)
     if previous_state.pending_child_pane_request_id != next_state.pending_child_pane_request_id:
         cancel_pending_child_pane(app)
     if previous_state.pending_file_search_request_id != next_state.pending_file_search_request_id:
@@ -247,6 +261,10 @@ def clear_effect_tracking(app: Any, effect: Effect) -> None:
         ),
     ):
         clear_foreground_operation(app, effect.request_id)
+    if isinstance(effect, RunShellCommandEffect) or (
+        isinstance(effect, RunCustomActionEffect) and effect.request.mode == "background"
+    ):
+        clear_background_command(app, effect.request_id)
     for tracking in TRACKING_CONFIGS:
         if isinstance(effect, tracking.effect_type):
             clear_tracking_for_request(app, tracking, effect.request_id)

@@ -87,6 +87,9 @@ zivo は、ファイル操作における事故を防ぐためのさまざまな
 - `!` キーで 1 行シェルコマンドを実行できます。
 - コマンドは zivo のプロセスとは別にバックグラウンド実行されるため、意図しない終了を防ぎます。プロンプトや TUI など対話入力が必要なコマンドには使わず、`t` の foreground shell を使います。
 - ダイアログには作業ディレクトリを表示し、完了後も exit code、stdout、stderr を確認できます。`r` で再実行、`t` で同じディレクトリの外部ターミナルを開けます。
+- 非対話commandにはterminal入力を渡しません。stdout/stderrはそれぞれ既定で1 MiBまで先頭と末尾を保持し、既定timeoutは5分です。どちらもadvancedな`[background_commands]`設定で変更できます。
+- 実行中の非対話commandは`Esc`で停止できます。timeout/cancel後はBROWSINGへ戻り、Shell Commandでは`Result`から取得済み出力を確認できます。停止前にcommandが行った副作用はrollbackされません。
+- TUI、prompt、password入力にはforeground shell、または`terminal`/`terminal_window` modeのcustom actionを使用してください。interactive modeにはこれらの制限を適用しません。
 
 ---
 

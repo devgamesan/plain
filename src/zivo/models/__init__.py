@@ -3,6 +3,7 @@
 from .config import (
     ActionsConfig,
     AppConfig,
+    BackgroundCommandConfig,
     BehaviorConfig,
     BookmarkConfig,
     ConfigLoadResult,
@@ -94,7 +95,7 @@ from .file_operations import (
     UndoStep,
     emit_operation_progress,
 )
-from .shell_command import ShellCommandResult
+from .shell_command import CommandTerminationReason, ShellCommandResult
 from .shell_data import (
     AttributeDialogState,
     BulkRenameDialogState,
@@ -133,6 +134,7 @@ from .shell_data import (
 
 __all__ = [
     "AppConfig",
+    "BackgroundCommandConfig",
     "ActionsConfig",
     "ArchiveFormat",
     "BulkRenameAppliedChange",
@@ -244,6 +246,7 @@ __all__ = [
     "UndoStep",
     "ShellCommandDialogState",
     "ShellCommandResult",
+    "CommandTerminationReason",
     "StatusBarState",
     "StatusBarActionState",
     "TabBarState",

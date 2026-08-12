@@ -285,6 +285,8 @@ class RunShellCommandEffect:
     request_id: int
     cwd: str
     command: str
+    max_output_bytes: int = 1024 * 1024
+    timeout_seconds: int = 300
 
 
 @dataclass(frozen=True)
@@ -293,6 +295,8 @@ class RunCustomActionEffect:
 
     request_id: int
     request: CustomActionExecutionRequest
+    max_output_bytes: int = 1024 * 1024
+    timeout_seconds: int = 300
 
 
 @dataclass(frozen=True)

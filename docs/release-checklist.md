@@ -27,10 +27,11 @@
 
 ### README画像
 
-- [ ] README の GIF は現行のキー表示・ペイン表示と一致し、高解像度で文字が読みやすいこと
+- [ ] README の GIF は現行のキー表示・ペイン表示と一致し、カラーかつ高解像度で文字が読みやすいこと
 - [ ] `rsvg-convert`（librsvg）と開発依存の Pillow が利用できること
 - [ ] `uv run python scripts/capture_readme_gifs.py` で3枚を再生成できること
-- [ ] 生成物のサイズが `basic_operation.gif` / `transfer_mode_operation.gif` は 1600×1040、`command_palette.gif` は 1600×693 であること
+- [ ] 生成物のサイズが3枚とも FullHD（1920×1080）であること
+- [ ] 操作例がプロジェクトの閲覧・READMEプレビュー・READMEのdocsへのコピーを示すこと
 
 ### 基本操作
 

@@ -25,25 +25,96 @@ from typing import Callable, Sequence
 from PIL import Image, ImageOps
 
 from zivo.app import create_app
-from zivo.models import PasteAppliedChange, PasteExecutionResult, PasteSummary
+from zivo.models import (
+    AppConfig,
+    DisplayConfig,
+    PasteAppliedChange,
+    PasteExecutionResult,
+    PasteSummary,
+)
 from zivo.services import FakeBrowserSnapshotLoader
 from zivo.state.actions import NavigateTransferToPath
 from zivo.state.models import BrowserSnapshot, DirectoryEntryState, PaneState
 
-BASE_PATH = "/tmp/zivo-readme-demo"
+BASE_PATH = "/Users/demo/Projects/zivo"
 SRC_PATH = f"{BASE_PATH}/src"
 DOCS_PATH = f"{BASE_PATH}/docs"
 README_PATH = f"{BASE_PATH}/README.md"
 
 TARGET_SPECS: dict[str, tuple[int, int]] = {
-    "basic_operation.gif": (1600, 1040),
-    "command_palette.gif": (1600, 693),
-    "transfer_mode_operation.gif": (1600, 1040),
+    "basic_operation.gif": (1920, 1080),
+    "command_palette.gif": (1920, 1080),
+    "transfer_mode_operation.gif": (1920, 1080),
 }
 
 FRAME_DURATIONS_MS = (900, 700, 700, 1000, 1000)
 BROWSER_TERMINAL_SIZE = (120, 39)
-PALETTE_TERMINAL_SIZE = (120, 26)
+PALETTE_TERMINAL_SIZE = BROWSER_TERMINAL_SIZE
+
+CAPTURE_APP_CONFIG = AppConfig(
+    display=DisplayConfig(theme="catppuccin-mocha", preview_syntax_theme="one-dark")
+)
+
+# Textual's headless test driver intentionally asks Rich for a monochrome
+# render.  README captures are documentation assets, so restore the semantic
+# Catppuccin colors in the SVG before rasterization.  The replacement keeps
+# this workaround local to the capture helper and does not affect runtime UI.
+_CAPTURE_COLOR_REPLACEMENTS = {
+    "#1f1f1f": "#1e1e2e",
+    "#1b1b1b": "#1e1e2e",  # base
+    "#1c1c1c": "#181825",  # mantle
+    "#1e1e1e": "#313244",  # surface0
+    "#040404": "#11111b",  # crust
+    "#191919": "#181825",  # mantle (palette overlay)
+    "#222222": "#1e1e2e",  # base (Rich monochrome variant)
+    "#272727": "#45475a",  # surface1 / selected row
+    "#292929": "#45475a",
+    "#2d2d2d": "#585b70",  # border
+    "#313131": "#313244",
+    "#323232": "#313244",
+    "#333333": "#313244",
+    "#363636": "#45475a",
+    "#3b3b3b": "#45475a",
+    "#484848": "#585b70",
+    "#4f4f4f": "#6c7086",
+    "#4a4a4a": "#585b70",
+    "#424242": "#45475a",
+    "#555555": "#585b70",
+    "#656565": "#6c7086",  # overlay0
+    "#d0d0d0": "#f9e2af",  # selected row background
+    "#919191": "#7f849c",  # overlay1
+    "#a5a5a5": "#a6adc8",  # subtext0
+    "#aaaaaa": "#a6adc8",
+    "#b0b0b0": "#bac2de",  # subtext1
+    "#bfbfbf": "#bac2de",
+    "#c5c8c6": "#cdd6f4",  # text
+    "#2c2c2c": "#313244",
+    "#616161": "#6c7086",
+    "#d6d6d6": "#cdd6f4",
+    "#e0e0e0": "#cdd6f4",
+    "#e1e1e1": "#cdd6f4",
+    "#e4e4e4": "#cdd6f4",
+    "#eaeaea": "#f5e0e6",  # bright text
+    "#f8f8f8": "#f5e0e6",
+}
+
+_CAPTURE_STYLE_COLORS = {
+    1: "#cdd6f4",  # title / empty space
+    2: "#a6adc8",  # navigation controls
+    3: "#cdd6f4",  # current path
+    4: "#585b70",  # pane border
+    5: "#7f849c",  # pane separator
+    6: "#cba6f7",  # current-path heading
+    7: "#fab387",  # directories and current directory
+    8: "#cdd6f4",  # preview heading / active pane
+    9: "#cdd6f4",  # normal file rows
+    10: "#cdd6f4",  # table metadata
+    11: "#cdd6f4",  # preview body / selected row text
+    12: "#bac2de",  # table headings
+    13: "#cdd6f4",  # selected file row
+    14: "#a6adc8",  # preview footer
+    15: "#a6adc8",  # help bar
+}
 
 
 @dataclass(frozen=True)
@@ -114,23 +185,31 @@ def build_demo_loader() -> FakeBrowserSnapshotLoader:
             modified_at=datetime(2026, 8, 2, 10, 0),
         ),
         _entry(
-            README_PATH,
-            "README.md",
-            "file",
-            size_bytes=2_048,
-            modified_at=datetime(2026, 8, 3, 10, 0),
-        ),
-        _entry(
             f"{BASE_PATH}/tests",
             "tests",
             "dir",
             modified_at=datetime(2026, 8, 2, 9, 30),
         ),
         _entry(
-            f"{BASE_PATH}/assets",
-            "assets",
-            "dir",
-            modified_at=datetime(2026, 8, 1, 15, 45),
+            f"{BASE_PATH}/CHANGELOG.md",
+            "CHANGELOG.md",
+            "file",
+            size_bytes=3_456,
+            modified_at=datetime(2026, 7, 30, 17, 10),
+        ),
+        _entry(
+            f"{BASE_PATH}/LICENSE",
+            "LICENSE",
+            "file",
+            size_bytes=1_072,
+            modified_at=datetime(2026, 7, 31, 12, 0),
+        ),
+        _entry(
+            README_PATH,
+            "README.md",
+            "file",
+            size_bytes=2_048,
+            modified_at=datetime(2026, 8, 3, 10, 0),
         ),
         _entry(
             f"{BASE_PATH}/pyproject.toml",
@@ -146,30 +225,19 @@ def build_demo_loader() -> FakeBrowserSnapshotLoader:
             size_bytes=8_192,
             modified_at=datetime(2026, 8, 2, 18, 5),
         ),
-        _entry(
-            f"{BASE_PATH}/LICENSE",
-            "LICENSE",
-            "file",
-            size_bytes=1_072,
-            modified_at=datetime(2026, 7, 31, 12, 0),
-        ),
-        _entry(
-            f"{BASE_PATH}/CHANGELOG.md",
-            "CHANGELOG.md",
-            "file",
-            size_bytes=3_456,
-            modified_at=datetime(2026, 7, 30, 17, 10),
-        ),
     )
     parent = PaneState(
-        directory_path="/tmp",
-        entries=(_entry(BASE_PATH, "zivo-readme-demo", "dir"),),
+        directory_path="/Users/demo/Projects",
+        entries=(_entry(BASE_PATH, "zivo", "dir"),),
         cursor_path=BASE_PATH,
     )
     docs_child = PaneState(
         directory_path=DOCS_PATH,
-        entries=(_entry(f"{DOCS_PATH}/guide.md", "guide.md", "file"),),
-        cursor_path=f"{DOCS_PATH}/guide.md",
+        entries=(
+            _entry(f"{DOCS_PATH}/getting-started.md", "getting-started.md", "file"),
+            _entry(f"{DOCS_PATH}/architecture.md", "architecture.md", "file"),
+        ),
+        cursor_path=f"{DOCS_PATH}/getting-started.md",
     )
     src_child = PaneState(
         directory_path=SRC_PATH,
@@ -184,8 +252,8 @@ def build_demo_loader() -> FakeBrowserSnapshotLoader:
         preview_title="README.md",
         preview_content=(
             "# zivo\n\n"
-            "A fast three-pane browser.\n\n"
-            "Browse, preview, and operate files without leaving the keyboard."
+            "A keyboard-first file browser.\n\n"
+            "Browse and preview files in one screen."
         ),
         preview_kind="text",
     )
@@ -199,6 +267,16 @@ def build_demo_loader() -> FakeBrowserSnapshotLoader:
         ),
         child_pane=docs_child,
     )
+    docs_snapshot = BrowserSnapshot(
+        current_path=DOCS_PATH,
+        parent_pane=parent,
+        current_pane=PaneState(
+            directory_path=DOCS_PATH,
+            entries=docs_child.entries,
+            cursor_path=docs_child.cursor_path,
+        ),
+        child_pane=PaneState(directory_path=DOCS_PATH, entries=()),
+    )
     src_snapshot = BrowserSnapshot(
         current_path=SRC_PATH,
         parent_pane=parent,
@@ -206,7 +284,7 @@ def build_demo_loader() -> FakeBrowserSnapshotLoader:
         child_pane=PaneState(directory_path=SRC_PATH, entries=()),
     )
     return FakeBrowserSnapshotLoader(
-        snapshots={BASE_PATH: base_snapshot, SRC_PATH: src_snapshot},
+        snapshots={BASE_PATH: base_snapshot, DOCS_PATH: docs_snapshot, SRC_PATH: src_snapshot},
         child_panes={
             (BASE_PATH, DOCS_PATH): docs_child,
             (BASE_PATH, SRC_PATH): src_child,
@@ -255,12 +333,33 @@ async def _wait_for_child(app, pilot) -> None:
 def _capture_svg(app, directory: Path, index: int, duration_ms: int) -> CapturedFrame:
     path = directory / f"frame-{index:02d}.svg"
     app.save_screenshot(filename=path.name, path=str(directory))
+    _apply_capture_colors(path)
     return CapturedFrame(path, duration_ms)
+
+
+def _apply_capture_colors(svg_path: Path) -> None:
+    """Restore the capture palette that the headless Rich driver removes."""
+
+    svg = svg_path.read_text(encoding="utf-8")
+    for source, replacement in _CAPTURE_COLOR_REPLACEMENTS.items():
+        svg = svg.replace(source, replacement)
+    for role, replacement in _CAPTURE_STYLE_COLORS.items():
+        svg = re.sub(
+            rf"(?P<prefix>\.terminal-[\w-]+-r{role}\s*\{{\s*fill:\s*)"
+            rf"#[0-9a-fA-F]{{6}}",
+            rf"\g<prefix>{replacement}",
+            svg,
+        )
+    svg_path.write_text(svg, encoding="utf-8")
 
 
 async def _capture_basic(directory: Path) -> list[CapturedFrame]:
     loader = build_demo_loader()
-    app = create_app(snapshot_loader=loader, initial_path=BASE_PATH)
+    app = create_app(
+        snapshot_loader=loader,
+        app_config=CAPTURE_APP_CONFIG,
+        initial_path=BASE_PATH,
+    )
     frames: list[CapturedFrame] = []
     async with app.run_test(size=BROWSER_TERMINAL_SIZE) as pilot:
         await _wait_for_browser(app, pilot, BASE_PATH)
@@ -283,7 +382,11 @@ async def _capture_basic(directory: Path) -> list[CapturedFrame]:
 
 async def _capture_command_palette(directory: Path) -> list[CapturedFrame]:
     loader = build_demo_loader()
-    app = create_app(snapshot_loader=loader, initial_path=BASE_PATH)
+    app = create_app(
+        snapshot_loader=loader,
+        app_config=CAPTURE_APP_CONFIG,
+        initial_path=BASE_PATH,
+    )
     frames: list[CapturedFrame] = []
     async with app.run_test(size=PALETTE_TERMINAL_SIZE) as pilot:
         await _wait_for_browser(app, pilot, BASE_PATH)
@@ -309,6 +412,7 @@ async def _capture_transfer(directory: Path) -> list[CapturedFrame]:
     app = create_app(
         snapshot_loader=loader,
         clipboard_service=CaptureClipboardService(),
+        app_config=CAPTURE_APP_CONFIG,
         initial_path=BASE_PATH,
     )
     frames: list[CapturedFrame] = []
@@ -326,10 +430,10 @@ async def _capture_transfer(directory: Path) -> list[CapturedFrame]:
         await pilot.pause(0.1)
         frames.append(_capture_svg(app, directory, 0, FRAME_DURATIONS_MS[0]))
 
-        await app.dispatch_actions((NavigateTransferToPath(SRC_PATH),))
+        await app.dispatch_actions((NavigateTransferToPath(DOCS_PATH),))
         await _wait_for(
             lambda: app.app_state.transfer_left is not None
-            and app.app_state.transfer_left.current_path == SRC_PATH
+            and app.app_state.transfer_left.current_path == DOCS_PATH
             and app.app_state.transfer_left.pending_snapshot_request_id is None,
             pilot,
         )
@@ -341,7 +445,25 @@ async def _capture_transfer(directory: Path) -> list[CapturedFrame]:
         frames.append(_capture_svg(app, directory, 2, FRAME_DURATIONS_MS[2]))
 
         await pilot.press("c")
-        await pilot.pause(0.4)
+        await pilot.pause(0.05)
+        await _wait_for(
+            lambda: (
+                app.app_state.pending_paste_request_id is None
+                and app.app_state.foreground_operation is None
+            ),
+            pilot,
+        )
+        await pilot.pause(0.05)
+        await _wait_for(
+            lambda: (
+                app.app_state.transfer_left is not None
+                and app.app_state.transfer_right is not None
+                and app.app_state.transfer_left.pending_snapshot_request_id is None
+                and app.app_state.transfer_right.pending_snapshot_request_id is None
+            ),
+            pilot,
+        )
+        await pilot.pause(0.1)
         frames.append(_capture_svg(app, directory, 3, FRAME_DURATIONS_MS[3]))
     return frames
 
@@ -417,10 +539,11 @@ def _render_svg(svg_path: Path, png_path: Path, size: tuple[int, int], rsvg: str
                 round((terminal_y + terminal_height) * scale_y),
             )
             terminal_image = raw_image.crop(crop_box).convert("RGB")
-        rendered = ImageOps.fit(
+        rendered = ImageOps.pad(
             terminal_image,
             size,
             method=Image.Resampling.LANCZOS,
+            color="#1e1e2e",
             centering=(0.5, 0.5),
         )
         rendered.save(png_path)

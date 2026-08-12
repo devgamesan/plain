@@ -154,11 +154,20 @@ from .reducer_palette_shared import (
 def _handle_move_palette_cursor(state: AppState, action: MoveCommandPaletteCursor) -> ReduceResult:
     if state.command_palette is None:
         return finalize(state)
+    current_index = normalize_command_palette_cursor(
+        state,
+        state.command_palette.cursor_index,
+    )
+    next_index = normalize_command_palette_cursor(
+        state,
+        state.command_palette.cursor_index + action.delta,
+    )
     next_palette = replace(
         state.command_palette,
-        cursor_index=normalize_command_palette_cursor(
-            state,
-            state.command_palette.cursor_index + action.delta,
+        cursor_index=next_index,
+        cursor_navigation_active=(
+            state.command_palette.cursor_navigation_active
+            or next_index != current_index
         ),
     )
     next_state = replace(state, command_palette=next_palette)

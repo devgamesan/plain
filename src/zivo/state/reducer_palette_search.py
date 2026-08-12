@@ -158,6 +158,11 @@ def handle_set_file_search_query(
     next_palette,
     query: str,
 ) -> ReduceResult:
+    next_palette = replace(
+        next_palette,
+        cursor_index=0,
+        cursor_navigation_active=False,
+    )
     stripped_query = query.strip()
     search_target = next_palette.file_search.target
     try:
@@ -302,6 +307,7 @@ def handle_set_grep_search_field(
         next_palette,
         grep_search=replace(next_palette.grep_search, error_message=None),
         cursor_index=0,
+        cursor_navigation_active=False,
     )
     stripped_query = next_palette.grep_search.keyword.strip()
     if not stripped_query:
@@ -729,7 +735,12 @@ def _preserve_search_cursor(
     current: tuple[FileSearchResultState | GrepSearchResultState, ...],
     merged: tuple[FileSearchResultState | GrepSearchResultState, ...],
 ) -> int:
-    if not current or not merged or state.command_palette is None:
+    if (
+        not current
+        or not merged
+        or state.command_palette is None
+        or not state.command_palette.cursor_navigation_active
+    ):
         return 0
     old_index = normalize_command_palette_cursor(state, state.command_palette.cursor_index)
     if old_index >= len(current):

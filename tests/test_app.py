@@ -1073,9 +1073,11 @@ async def test_app_renders_text_preview_in_child_pane_for_file_cursor() -> None:
         await _wait_for_child_preview(app, "Preview · README.md", "# Title")
 
         child_list = app.query_one("#child-pane-list", Static)
+        child_list_scroll = app.query_one("#child-pane-list-scroll")
         child_preview_scroll = app.query_one("#child-pane-preview-scroll", VerticalScroll)
 
         assert child_list.display is False
+        assert child_list_scroll.display is False
         assert child_preview_scroll.display is True
 
 

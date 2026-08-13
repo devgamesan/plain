@@ -157,11 +157,13 @@ class ChildPane(Vertical):
             classes="pane-preview-help",
         )
         preview_help.display = self._state.preview_scroll_hint is not None
-        yield _PaneListScroll(
+        list_scroll = _PaneListScroll(
             list_content,
             id=self.list_scroll_id,
             classes="pane-list-scroll",
         )
+        list_scroll.display = not self._state.is_preview
+        yield list_scroll
         yield preview_scroll
         yield preview_help
         metadata_bar = Static(
@@ -262,9 +264,16 @@ class ChildPane(Vertical):
         if state.display_title != previous_state.display_title:
             self.query_one(Label).update(state.display_title)
         list_widget = self._list_widget()
+        try:
+            list_scroll_widget = self._list_scroll_widget()
+        except NoMatches:
+            # Some lightweight unit harnesses provide only the list widget.
+            list_scroll_widget = None
         scroll_widget = self._preview_scroll_widget()
         if mode_changed:
             list_widget.display = not state.is_preview
+            if list_scroll_widget is not None:
+                list_scroll_widget.display = not state.is_preview
             scroll_widget.display = state.is_preview
         try:
             preview_help = self._preview_help_widget()
@@ -406,6 +415,9 @@ class ChildPane(Vertical):
 
     def _list_widget(self) -> Static:
         return self.query_one(f"#{self.list_view_id}", Static)
+
+    def _list_scroll_widget(self) -> _PaneListScroll:
+        return self.query_one(f"#{self.list_scroll_id}", _PaneListScroll)
 
     def _prepare_list_scroll(self) -> bool:
         """Expand the child directory list before its first wheel movement."""

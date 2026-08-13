@@ -274,7 +274,16 @@ class CommandPalette(Container):
         viewport_height = scroll_widget.content_region.height or scroll_widget.size.height
         if viewport_height <= 0:
             return
-        target_y = max(0, selected_line - viewport_height + 1)
+        current_y = int(scroll_widget.scroll_y)
+        visible_bottom = current_y + viewport_height - 1
+        if current_y <= selected_line <= visible_bottom:
+            return
+        target_y = (
+            selected_line
+            if selected_line < current_y
+            else selected_line - viewport_height + 1
+        )
+        target_y = max(0, target_y)
         scroll_widget.scroll_to(
             y=target_y,
             animate=False,

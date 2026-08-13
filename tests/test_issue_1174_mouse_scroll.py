@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll
@@ -167,6 +169,75 @@ async def test_issue_1174_search_and_replace_results_hide_scrollbar_and_reach_ta
         await pilot._post_mouse_events([MouseScrollUp], widget="#command-palette-items-scroll")
         await pilot.pause(0.05)
         assert scroll.scroll_y < scroll_y
+
+
+@pytest.mark.asyncio
+async def test_issue_1174_result_cursor_preserves_manual_scroll_when_row_is_visible() -> None:
+    visible = tuple(
+        CommandPaletteItemViewState(
+            label=f"result-{index:03}",
+            shortcut=None,
+            enabled=True,
+            selected=index == 0,
+        )
+        for index in range(10)
+    )
+    all_results = tuple(
+        CommandPaletteItemViewState(
+            label=f"result-{index:03}",
+            shortcut=None,
+            enabled=True,
+            selected=index == 0,
+        )
+        for index in range(80)
+    )
+    state = CommandPaletteViewState(
+        title="Find All",
+        query="needle",
+        items=visible,
+        empty_message="No results",
+        has_more_items=True,
+        scroll_items=all_results,
+        scroll_key="Find All:needle",
+        cursor_index=0,
+    )
+    app = _ScrollPaletteHarness(state)
+
+    async with app.run_test(size=(60, 20)) as pilot:
+        await pilot.pause()
+        scroll = app.query_one("#command-palette-items-scroll", VerticalScroll)
+        await pilot._post_mouse_events(
+            [MouseScrollDown], widget="#command-palette-items-scroll"
+        )
+        for _ in range(24):
+            await pilot._post_mouse_events(
+                [MouseScrollDown], widget="#command-palette-items-scroll"
+            )
+        await pilot.pause(0.05)
+        scroll_y = scroll.scroll_y
+        assert scroll_y > 10
+
+        palette = app.query_one("#command-palette", CommandPalette)
+        selected_index = int(scroll_y) + 2
+        next_items = tuple(
+            replace(item, selected=index == selected_index)
+            for index, item in enumerate(visible)
+        )
+        next_scroll_items = tuple(
+            replace(item, selected=index == selected_index)
+            for index, item in enumerate(all_results)
+        )
+        palette.set_state(
+            replace(
+                state,
+                items=next_items,
+                scroll_items=next_scroll_items,
+                cursor_index=selected_index,
+            )
+        )
+        await pilot.pause(0.05)
+
+        assert scroll.scroll_y == scroll_y
 
 
 @pytest.mark.asyncio

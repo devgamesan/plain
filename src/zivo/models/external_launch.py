@@ -9,6 +9,7 @@ ExternalLaunchKind = Literal[
     "open_gui_editor",
     "open_terminal",
     "copy_paths",
+    "copy_text",
 ]
 TerminalLaunchMode = Literal["window", "foreground"]
 
@@ -20,6 +21,7 @@ class ExternalLaunchRequest:
     kind: ExternalLaunchKind
     path: str | None = None
     paths: tuple[str, ...] = ()
+    text: str = ""
     line_number: int | None = None
     column_number: int | None = None
     terminal_launch_mode: TerminalLaunchMode | None = None

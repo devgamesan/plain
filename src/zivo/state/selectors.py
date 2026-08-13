@@ -40,6 +40,7 @@ from .selectors_panes import (
     select_current_summary_state,
     select_parent_entries,
     select_parent_entry_count,
+    select_parent_scroll_entries,
     select_tab_bar_state,
 )
 from .selectors_panes import (
@@ -146,6 +147,9 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
     )
     current_status_label = _current_cursor_status_label(current_pane)
     parent_entries = select_parent_entries(state) if responsive_layout.show_parent else ()
+    parent_scroll_entries = (
+        select_parent_scroll_entries(state) if responsive_layout.show_parent else None
+    )
     parent_entry_count = (
         select_parent_entry_count(state) if responsive_layout.show_parent else 0
     )
@@ -166,6 +170,7 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
         current_path=state.current_pane.directory_path,
         path_bar=select_path_bar_state(state),
         parent_entries=parent_entries,
+        parent_scroll_entries=parent_scroll_entries,
         current_entries=(
             _select_current_pane_entries(
                 current_pane.projected_entries,
@@ -178,6 +183,14 @@ def select_shell_data(state: AppState) -> ThreePaneShellData:
             else None
         ),
         child_pane=child_pane,
+        current_scroll_entries=_select_current_pane_entries(
+            current_pane.visible_entries,
+            state.directory_size_cache,
+            display_directory_sizes,
+            state.current_pane.selected_paths,
+            frozenset() if state.clipboard.mode != "cut" else frozenset(state.clipboard.paths),
+        ),
+        current_scroll_cursor_index=current_pane.global_cursor_index,
         current_cursor_index=current_pane.cursor_index,
         current_cursor_visible=state.ui_mode != "FILTER",
         current_pane_update=current_pane_update,

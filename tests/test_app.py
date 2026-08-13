@@ -11,7 +11,7 @@ from rich.style import Style
 from rich.text import Text
 from textual.containers import VerticalScroll
 from textual.css.query import NoMatches
-from textual.events import Click
+from textual.events import Click, MouseMove
 from textual.widgets import DataTable, Label, Static
 
 from zivo import create_app
@@ -1073,9 +1073,11 @@ async def test_app_renders_text_preview_in_child_pane_for_file_cursor() -> None:
         await _wait_for_child_preview(app, "Preview · README.md", "# Title")
 
         child_list = app.query_one("#child-pane-list", Static)
+        child_list_scroll = app.query_one("#child-pane-list-scroll")
         child_preview_scroll = app.query_one("#child-pane-preview-scroll", VerticalScroll)
 
         assert child_list.display is False
+        assert child_list_scroll.display is False
         assert child_preview_scroll.display is True
 
 
@@ -1302,7 +1304,9 @@ async def test_app_browsing_preview_scrolls_with_brackets() -> None:
         await _wait_for_child_preview(app, "Preview · README.md", "line 000")
 
         preview_help = app.query_one("#child-pane-preview-help", Label)
-        assert str(preview_help.renderable) == "Ctrl+J/K scroll preview"
+        assert str(preview_help.renderable) == (
+            "Ctrl+J/K scroll preview  ·  [c] Copy selection"
+        )
         assert preview_help.display is True
 
         child_preview_scroll = app.query_one("#child-pane-preview-scroll", VerticalScroll)
@@ -1316,6 +1320,74 @@ async def test_app_browsing_preview_scrolls_with_brackets() -> None:
         await app.action_dispatch_bound_key("ctrl+j")
         await asyncio.sleep(0.05)
         assert child_preview_scroll.scroll_y < scrolled_down_y
+
+
+@pytest.mark.asyncio
+async def test_app_selects_preview_text_and_copies_with_existing_copy_key() -> None:
+    path = str(Path("/tmp/zivo-preview-selection").resolve())
+    readme = f"{path}/README.md"
+    selected_source = "alpha beta\ngamma delta\nthird line"
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={
+            path: BrowserSnapshot(
+                current_path=path,
+                parent_pane=PaneState(
+                    directory_path=str(Path(path).parent),
+                    entries=(DirectoryEntryState(path, Path(path).name, "dir"),),
+                    cursor_path=path,
+                ),
+                current_pane=PaneState(
+                    directory_path=path,
+                    entries=(DirectoryEntryState(readme, "README.md", "file"),),
+                    cursor_path=readme,
+                ),
+                child_pane=PaneState(
+                    directory_path=path,
+                    entries=(),
+                    mode="preview",
+                    preview_path=readme,
+                    preview_content=selected_source,
+                ),
+            )
+        }
+    )
+    launch_service = FakeExternalLaunchService()
+    app = create_app(
+        snapshot_loader=loader,
+        external_launch_service=launch_service,
+        initial_path=path,
+    )
+
+    async with app.run_test(size=(120, 30)) as pilot:
+        await _wait_for_snapshot_loaded(app, path)
+        await _wait_for_child_preview(app, "Preview · README.md", "alpha beta")
+        preview = app.query_one("#child-pane-preview", Static)
+
+        await pilot.mouse_down("#child-pane-preview", offset=(2, 0))
+        await pilot._post_mouse_events(
+            [MouseMove],
+            widget="#child-pane-preview",
+            offset=(10, 0),
+            button=1,
+        )
+        await pilot.mouse_up("#child-pane-preview", offset=(10, 0))
+
+        selected_text = app.query_one("#child-pane", ChildPane).selected_preview_text()
+        assert selected_text
+        assert selected_text in selected_source
+
+        await app.action_dispatch_bound_key("c")
+        await _wait_for_external_launch_count(app, 1)
+
+        assert launch_service.executed_requests[0] == ExternalLaunchRequest(
+            kind="copy_text",
+            text=selected_text,
+        )
+        await _wait_for_notification_message(app, "Copied selection to system clipboard")
+
+        await app.action_dispatch_bound_key("escape")
+        assert app.query_one("#child-pane", ChildPane).selected_preview_text() is None
+        assert preview.display is True
 
 
 @pytest.mark.asyncio

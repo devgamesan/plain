@@ -17,6 +17,7 @@ from .actions import (
     ConfigSaveCompleted,
     ConfigSaveFailed,
     CopyPathsToClipboard,
+    CopyTextToClipboard,
     CycleConfigEditorValue,
     DismissConfigEditor,
     ExternalLaunchCompleted,
@@ -575,6 +576,24 @@ def _handle_copy_paths_to_clipboard(
     )
 
 
+def _handle_copy_text_to_clipboard(
+    state: AppState,
+    action: CopyTextToClipboard,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    if not action.text.strip():
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(level="warning", message="Nothing to copy"),
+            )
+        )
+    return run_external_launch_request(
+        replace(state, notification=None),
+        ExternalLaunchRequest(kind="copy_text", text=action.text),
+    )
+
+
 def _handle_external_launch_completed(
     state: AppState,
     action: ExternalLaunchCompleted,
@@ -940,6 +959,7 @@ _TERMINAL_CONFIG_HANDLERS: dict[type[Action], _TerminalConfigHandler] = {
     OpenPathInGuiEditor: _handle_open_path_in_gui_editor,
     OpenTerminalAtPath: _handle_open_terminal_at_path,
     CopyPathsToClipboard: _handle_copy_paths_to_clipboard,
+    CopyTextToClipboard: _handle_copy_text_to_clipboard,
     ExternalLaunchCompleted: _handle_external_launch_completed,
     ConfigReloadCompleted: _handle_config_reload_completed,
     ConfigReloadFailed: _handle_config_reload_failed,

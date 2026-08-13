@@ -16,6 +16,7 @@ from zivo.models import (
     PaneEntry,
     PaneStatusViewState,
 )
+from zivo.ui.child_pane import _SelectablePreviewTextArea
 from zivo.ui.help_bar import HelpBar
 from zivo.ui.pane_rendering import _FileEntryLabelCache
 from zivo.ui.panes import (
@@ -251,6 +252,37 @@ def test_child_pane_renders_image_preview_as_ansi() -> None:
     assert isinstance(renderable, Text)
     assert renderable.plain == "@@\n"
     assert renderable.no_wrap is True
+
+
+def test_child_pane_text_preview_keeps_line_numbers_when_context_has_start_line() -> None:
+    pane = ChildPane(
+        ChildPaneViewState(
+            title="Preview",
+            preview_path="/tmp/example.py",
+            preview_content="first\nsecond\n",
+            preview_start_line=41,
+            preview_highlight_line=42,
+            view_kind="preview",
+        ),
+        id="child-pane",
+    )
+
+    assert pane._is_selectable_text_preview(pane._state)
+
+    widget = _SelectablePreviewTextArea(id="preview")
+    widget.set_text_preview(
+        pane._state.preview_content or "",
+        path=pane._state.preview_path,
+        syntax_theme=pane._state.syntax_theme,
+        word_wrap=pane._state.preview_word_wrap,
+        line_numbers=pane._state.preview_start_line is not None,
+        line_number_start=pane._state.preview_start_line or 1,
+        highlight_line=pane._state.preview_highlight_line,
+        renderable=ChildPane._render_preview(pane._state, 40),
+    )
+
+    assert widget.show_line_numbers is True
+    assert widget.line_number_start == 41
 
 
 def test_child_pane_image_preview_resize_schedules_chafa_without_loading(

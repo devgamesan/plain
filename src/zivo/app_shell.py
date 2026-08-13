@@ -73,6 +73,7 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
                 shell.parent_heading,
                 shell.parent_entries,
                 status=shell.parent_pane_status,
+                scroll_entries=shell.parent_scroll_entries,
                 id="parent-pane",
                 classes="pane side-pane",
             ),
@@ -89,6 +90,8 @@ def build_body(shell: ThreePaneShellData) -> Vertical:
                     shell.current_heading is not None and shell.current_heading.active,
                 ),
                 heading=shell.current_heading,
+                scroll_entries=shell.current_scroll_entries,
+                scroll_cursor_index=shell.current_scroll_cursor_index,
             ),
             ChildPane(
                 shell.child_pane,
@@ -322,6 +325,10 @@ async def refresh_shell(
         except NoMatches:
             pass
     else:
+        current_pane.set_scroll_entries(
+            shell.current_scroll_entries,
+            shell.current_scroll_cursor_index,
+        )
         if shell.current_pane_update.mode == "size_delta":
             current_pane.apply_size_updates(shell.current_pane_update.size_updates)
         elif shell.current_pane_update.mode == "row_delta":
@@ -349,7 +356,10 @@ async def refresh_shell(
         child_pane.display = False
     else:
         if shell.responsive_layout.show_parent:
-            await parent_pane.set_entries(shell.parent_entries)
+            await parent_pane.set_entries(
+                shell.parent_entries,
+                shell.parent_scroll_entries,
+            )
             parent_pane.set_title(shell.parent_heading)
             parent_pane.set_status(shell.parent_pane_status)
         if shell.responsive_layout.show_child:

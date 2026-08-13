@@ -57,6 +57,7 @@ from zivo.state.actions import (
     ConfigSaveFailed,
     ConfirmFilterInput,
     CopyPathsToClipboard,
+    CopyTextToClipboard,
     CutTargets,
     CycleConfigEditorValue,
     DirectorySizesFailed,
@@ -1717,6 +1718,34 @@ def test_copy_paths_to_clipboard_emits_external_launch_effect() -> None:
                 paths=("/home/tadashi/develop/zivo/docs",),
             ),
         ),
+    )
+
+
+def test_copy_text_to_clipboard_emits_external_launch_effect() -> None:
+    result = reduce_app_state(
+        build_initial_app_state(),
+        CopyTextToClipboard("selected preview text"),
+    )
+
+    assert result.state.next_request_id == 2
+    assert result.effects == (
+        RunExternalLaunchEffect(
+            request_id=1,
+            request=ExternalLaunchRequest(
+                kind="copy_text",
+                text="selected preview text",
+            ),
+        ),
+    )
+
+
+def test_copy_text_to_clipboard_ignores_whitespace_only_text() -> None:
+    result = reduce_app_state(build_initial_app_state(), CopyTextToClipboard(" \n\t"))
+
+    assert result.effects == ()
+    assert result.state.notification == NotificationState(
+        level="warning",
+        message="Nothing to copy",
     )
 
 def test_open_path_in_editor_allows_non_browser_file_path() -> None:

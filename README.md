@@ -105,7 +105,9 @@ zivo-cd
 
 The help bar keeps three logical rows with a stable order. Browsing shows navigation, file operations, and search/create actions. Search Workspace keeps only the available subset in the same relative order. Transfer adds Tab pane switching and copy/move-to-opposite-pane actions to the corresponding groups. On narrow terminals, each row elides lower-frequency items from the right without adding extra rows.
 
-When a preview is active, the footer of the right pane shows `Ctrl+J/K scroll preview`. The replace-preview screen uses `Shift+↑/↓ scroll preview`; `Ctrl+↑/↓` is an alias for the normal preview controls.
+When a text preview is active, drag over the text to select a range, then press `c` or click `Copy selection` in the preview footer to copy it. `Esc` clears the preview selection. The footer also shows `Ctrl+J/K scroll preview`; the replace-preview screen uses `Shift+↑/↓ scroll preview`, and `Ctrl+↑/↓` is an alias for the normal preview controls. Image and other non-text previews remain mouse-scrollable but do not expose text selection.
+
+The mouse wheel scrolls the pane or result list under the pointer. Wheel scrolling changes the visible position without changing the selected item; click a row to select it. Preview scrollbars remain visible, while browser and search/replace result lists keep them hidden to preserve display width.
 
 You can also press `:` to open the command palette and search for available actions.
 
@@ -195,7 +197,7 @@ Empty directories and zero-result filters show their reason and an available nex
 - **Terminal**: open the current directory with an external terminal window for independent work
 - **Run command**: run a short non-interactive command in the current directory, with retained exit/output/error details
 - **File manager**: open the current directory with the OS file manager
-- **Clipboard**: copy paths to the system clipboard
+- **Clipboard**: copy paths and selected text to the system clipboard
 
 ---
 

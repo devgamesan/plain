@@ -1,6 +1,7 @@
 """Status, palette, and dialog selectors."""
 
 import importlib.metadata
+from collections.abc import Callable
 from pathlib import Path
 
 from zivo.models import (
@@ -53,6 +54,24 @@ from .selectors_shared import (
     get_command_palette_items,
     normalize_command_palette_cursor,
 )
+
+
+def _build_result_item_views(
+    results: tuple[object, ...],
+    cursor_index: int,
+    label: Callable[[object], str],
+) -> tuple[CommandPaletteItemViewState, ...]:
+    """Build the complete result list retained for mouse-wheel expansion."""
+
+    return tuple(
+        CommandPaletteItemViewState(
+            label=label(result),
+            shortcut=None,
+            enabled=True,
+            selected=index == cursor_index,
+        )
+        for index, result in enumerate(results)
+    )
 
 
 def _format_attribute_permissions_label(state: AppState) -> str:
@@ -544,6 +563,17 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             has_more_items=len(state.command_palette.file_search.results) > len(visible_results),
             input_fields=_build_file_search_input_fields(state.command_palette),
             footer_message=_search_truncation_message(state, "file_search"),
+            scroll_items=_build_result_item_views(
+                state.command_palette.file_search.results,
+                cursor_index,
+                lambda result: (
+                    f"{result.display_path}/"
+                    if result.entry_type == "directory"
+                    else result.display_path
+                ),
+            ),
+            scroll_key=f"file_search:{state.command_palette.query}:{state.command_palette.file_search.target}",
+            cursor_index=cursor_index,
         )
     if state.command_palette.source == "grep_search":
         visible_results, title = _select_grep_search_window(
@@ -567,6 +597,19 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             input_fields=_build_grep_search_input_fields(state.command_palette),
             has_more_items=len(state.command_palette.grep_search.results) > len(visible_results),
             footer_message=_search_truncation_message(state, "grep_search"),
+            scroll_items=_build_result_item_views(
+                state.command_palette.grep_search.results,
+                cursor_index,
+                lambda result: result.display_label,
+            ),
+            scroll_key=(
+                f"grep_search:{state.command_palette.grep_search.keyword}:"
+                f"{state.command_palette.grep_search.scope}:"
+                f"{state.command_palette.grep_search.filename_filter}:"
+                f"{state.command_palette.grep_search.include_extensions}:"
+                f"{state.command_palette.grep_search.exclude_extensions}"
+            ),
+            cursor_index=cursor_index,
         )
     if state.command_palette.source == "replace_text":
         visible_results, title = _select_replace_preview_window(
@@ -592,6 +635,18 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
                 len(state.command_palette.replace_preview.preview_results) > len(visible_results)
             ),
             footer_message=_replace_result_context_message(state),
+            scroll_items=_build_result_item_views(
+                state.command_palette.replace_preview.preview_results,
+                cursor_index,
+                lambda result: result.display_label,
+            ),
+            scroll_key=(
+                f"replace_text:{state.command_palette.replace_preview.find_text}:"
+                f"{state.command_palette.replace_preview.replacement_text}:"
+                f"{state.command_palette.replace_preview.result_origin}:"
+                f"{state.command_palette.replace_preview.result_query}"
+            ),
+            cursor_index=cursor_index,
         )
     if state.command_palette.source == "replace_in_found_files":
         visible_results, title = _select_find_replace_preview_window(
@@ -616,6 +671,16 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             has_more_items=(
                 len(state.command_palette.rff.preview_results) > len(visible_results)
             ),
+            scroll_items=_build_result_item_views(
+                state.command_palette.rff.preview_results,
+                cursor_index,
+                lambda result: result.display_label,
+            ),
+            scroll_key=(
+                f"replace_in_found_files:{state.command_palette.rff.filename_query}:"
+                f"{state.command_palette.rff.find_text}:{state.command_palette.rff.replacement_text}"
+            ),
+            cursor_index=cursor_index,
         )
     if state.command_palette.source == "replace_in_grep_files":
         visible_results, title = _select_find_replace_preview_window(
@@ -640,6 +705,16 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             has_more_items=(
                 len(state.command_palette.grf.preview_results) > len(visible_results)
             ),
+            scroll_items=_build_result_item_views(
+                state.command_palette.grf.preview_results,
+                cursor_index,
+                lambda result: result.display_label,
+            ),
+            scroll_key=(
+                f"replace_in_grep_files:{state.command_palette.grf.keyword}:"
+                f"{state.command_palette.grf.replacement_text}"
+            ),
+            cursor_index=cursor_index,
         )
     if state.command_palette.source == "grep_replace_selected":
         visible_results, title = _select_find_replace_preview_window(
@@ -664,6 +739,16 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             has_more_items=(
                 len(state.command_palette.grs.preview_results) > len(visible_results)
             ),
+            scroll_items=_build_result_item_views(
+                state.command_palette.grs.preview_results,
+                cursor_index,
+                lambda result: result.display_label,
+            ),
+            scroll_key=(
+                f"grep_replace_selected:{state.command_palette.grs.keyword}:"
+                f"{state.command_palette.grs.replacement_text}"
+            ),
+            cursor_index=cursor_index,
         )
     if state.command_palette.source == "go":
         source_filter = state.command_palette.history_and_navigation.go_source_filter

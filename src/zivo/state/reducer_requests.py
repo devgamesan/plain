@@ -612,6 +612,12 @@ def format_clipboard_message(prefix: str, paths: tuple[str, ...]) -> str:
 def notification_for_external_launch(
     request: ExternalLaunchRequest,
 ) -> NotificationState | None:
+    if request.kind == "copy_text":
+        return NotificationState(
+            level="info",
+            message="Copied selection to system clipboard",
+            auto_dismiss=True,
+        )
     if request.kind != "copy_paths":
         return None
     noun = "path" if len(request.paths) == 1 else "paths"

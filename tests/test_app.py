@@ -1383,8 +1383,7 @@ async def test_app_selects_preview_text_and_copies_with_existing_copy_key() -> N
             kind="copy_text",
             text=selected_text,
         )
-        assert app.app_state.notification is not None
-        assert app.app_state.notification.message == "Copied selection to system clipboard"
+        await _wait_for_notification_message(app, "Copied selection to system clipboard")
 
         await app.action_dispatch_bound_key("escape")
         assert app.query_one("#child-pane", ChildPane).selected_preview_text() is None

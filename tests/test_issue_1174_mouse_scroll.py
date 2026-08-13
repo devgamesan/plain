@@ -13,7 +13,8 @@ from zivo.models import (
     CommandPaletteViewState,
 )
 from zivo.services import FakeBrowserSnapshotLoader
-from zivo.state import BrowserSnapshot, DirectoryEntryState, PaneState
+from zivo.state import BrowserSnapshot, DirectoryEntryState, NotificationState, PaneState
+from zivo.state.actions import MoveCursor, SetNotification
 from zivo.ui.child_pane import ChildPane
 from zivo.ui.command_palette import CommandPalette
 
@@ -105,6 +106,16 @@ async def test_issue_1174_browser_panes_expand_to_mouse_scroll_without_selection
         await pilot._post_mouse_events([MouseScrollUp], widget="#child-pane-list-scroll")
         await pilot.pause(0.05)
         assert child_scroll.scroll_y < child_scroll_y
+
+        visible_paths = tuple(entry.path for entry in app.app_state.current_pane.entries)
+        await app.dispatch_actions((MoveCursor(delta=5, visible_paths=visible_paths),))
+        await pilot.pause(0.05)
+        assert current_table.cursor_row == 5
+        await app.dispatch_actions(
+            (SetNotification(NotificationState(level="info", message="refresh shell")),)
+        )
+        await pilot.pause(0.05)
+        assert current_table.cursor_row == 5
 
 
 class _ScrollPaletteHarness(App[None]):

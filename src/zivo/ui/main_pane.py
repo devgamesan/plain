@@ -355,25 +355,24 @@ class MainPane(Vertical):
         self._has_scroll_projection = entries is not None
         next_context = self._entry_context(next_entries)
         previous_context = self._scroll_context
-        previous_cursor_index = self._scroll_cursor_index
+        entries_changed = next_entries != self._scroll_entries
         if next_context != self._scroll_context:
             self._table_expanded = entries is None
         self._scroll_entries = next_entries
         self._scroll_cursor_index = cursor_index
         self._scroll_context = next_context
-        if self._table_expanded:
+        if self._table_expanded and entries_changed:
             self._entries = next_entries
             self._cursor_index = cursor_index
+            self._path_row_index = self._build_path_row_index(self._entries)
             table = self.query_one(DataTable)
             previous_scroll_y = table.scroll_y
             self._rebuild_table(table)
             if next_context != previous_context:
                 table.scroll_home(animate=False)
-                self._apply_cursor_state(table)
-            elif cursor_index != previous_cursor_index:
-                self._apply_cursor_state(table)
             else:
                 table.scroll_to(y=previous_scroll_y, animate=False, immediate=True)
+            self._apply_cursor_state(table)
 
     def set_cursor_state(
         self,

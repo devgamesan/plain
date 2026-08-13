@@ -78,6 +78,16 @@ Screen {
     height: 1fr;
 }
 
+.pane-list-scroll {
+    height: 1fr;
+    scrollbar-size: 0 0;
+    layer: content;
+}
+
+.pane-list {
+    height: auto;
+}
+
 .side-pane .pane-list {
     layer: content;
 }
@@ -212,6 +222,10 @@ Screen {
     height: auto;
     max-height: 1fr;
     scrollbar-size-vertical: 1;
+}
+
+#command-palette.-result-list #command-palette-items-scroll {
+    scrollbar-size: 0 0;
 }
 
 #command-palette.-expanded #command-palette-items-scroll {

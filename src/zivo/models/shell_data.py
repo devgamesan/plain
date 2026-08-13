@@ -209,6 +209,9 @@ class ChildPaneViewState:
     metadata: tuple[MetadataItemViewState, ...] = ()
     header_title: str | None = None
     total_item_count: int | None = None
+    # Side-pane selectors may keep a compact projection for the initial render
+    # while retaining the complete list for mouse-wheel expansion.
+    scroll_entries: tuple[PaneEntry, ...] | None = None
 
     @property
     def is_preview(self) -> bool:
@@ -332,6 +335,11 @@ class CommandPaletteViewState:
     input_fields: tuple[CommandPaletteInputFieldViewState, ...] = ()
     has_more_items: bool = False
     footer_message: str | None = None
+    # Search/replace result views retain a bounded keyboard projection for
+    # compatibility, and expose the complete result list for mouse scrolling.
+    scroll_items: tuple[CommandPaletteItemViewState, ...] | None = None
+    scroll_key: str | None = None
+    cursor_index: int | None = None
 
 
 @dataclass(frozen=True)
@@ -462,6 +470,10 @@ class ThreePaneShellData:
     parent_pane_status: PaneStatusViewState | None = None
     transfer_left: TransferPaneViewState | None = None
     transfer_right: TransferPaneViewState | None = None
+    # Complete lists used after a mouse wheel expands a projected pane.
+    parent_scroll_entries: tuple[PaneEntry, ...] | None = None
+    current_scroll_entries: tuple[PaneEntry, ...] | None = None
+    current_scroll_cursor_index: int | None = None
 
 
 def build_dummy_shell_data() -> ThreePaneShellData:

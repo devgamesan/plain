@@ -107,6 +107,8 @@ The help bar keeps three logical rows with a stable order. Browsing shows naviga
 
 When a preview is active, the footer of the right pane shows `Ctrl+J/K scroll preview`. The replace-preview screen uses `Shift+↑/↓ scroll preview`; `Ctrl+↑/↓` is an alias for the normal preview controls.
 
+The mouse wheel scrolls the pane or result list under the pointer. Wheel scrolling changes the visible position without changing the selected item; click a row to select it. Preview scrollbars remain visible, while browser and search/replace result lists keep them hidden to preserve display width.
+
 You can also press `:` to open the command palette and search for available actions.
 
 | Key | Action |

@@ -92,6 +92,36 @@ def test_image_output_limit_does_not_render_partial_terminal_protocol(
     assert preview.content is None
 
 
+def test_image_preview_uses_a_relaxed_format_specific_budget(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    image = tmp_path / "image.png"
+    image.write_bytes(b"PNG")
+    budget = PreviewResourceBudget(
+        image_timeout_seconds=7.0,
+        image_stdout_max_bytes=2 * 1024 * 1024,
+    )
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr("zivo.services.previews.core.shutil.which", lambda _: "/fake/chafa")
+
+    def _run(command, **kwargs):
+        captured.update(kwargs)
+        return ShellCommandResult(exit_code=0, stdout="image\n")
+
+    monkeypatch.setattr("zivo.services.previews.core.run_bounded_process", _run)
+
+    preview = ChafaImagePreviewLoader(resource_budget=budget).load_preview(
+        image,
+        preview_columns=120,
+    )
+
+    assert preview == FilePreviewState.with_content("image\n", False, content_kind="image")
+    assert captured["stdout_max_output_bytes"] == budget.image_stdout_max_bytes
+    assert captured["timeout_seconds"] == budget.image_timeout_seconds
+
+
 def test_cancelled_document_preview_is_not_a_success_cache_value(
     tmp_path: Path,
     monkeypatch,

@@ -145,6 +145,10 @@ converter stdout/stderr retention, converter input size, and Pandoc's preflight 
 entry/uncompressed-size/compression-ratio checks are finite. These limits are not user
 configuration; they are tuned from measurements so normal previews remain responsive.
 
+Images use a separate budget from text converters: 2 MiB for symbols output, 32 MiB for
+the Kitty graphics protocol, and a 15-second image converter timeout. This keeps ordinary
+image review usable while still bounding retained output and execution time.
+
 Measure normal and large PDF/Office/image files in cold and warm runs, time to first useful
 content, peak memory, and rapid cursor movement. Safe text output is shown as `Preview limited`;
 partial image or Kitty graphics output is not rendered and falls back to metadata. Cancelled

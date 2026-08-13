@@ -216,6 +216,9 @@ class PreviewResourceBudget:
     timeout_seconds: float = 5.0
     stdout_max_bytes: int = 256 * 1024
     stderr_max_bytes: int = 16 * 1024
+    image_timeout_seconds: float = 15.0
+    image_stdout_max_bytes: int = 2 * 1024 * 1024
+    kitty_stdout_max_bytes: int = 32 * 1024 * 1024
     input_max_bytes: int = 256 * 1024 * 1024
     max_archive_entries: int = 4096
     max_archive_entry_bytes: int = 64 * 1024 * 1024
@@ -557,11 +560,18 @@ class ChafaImagePreviewLoader:
             chafa_format=image_preview_format,
         )
         try:
+            output_limit = (
+                self.resource_budget.kitty_stdout_max_bytes
+                if image_preview_format == "kitty"
+                else self.resource_budget.image_stdout_max_bytes
+            )
             result = _run_preview_process(
                 args,
                 path=path,
-                preview_max_bytes=self.resource_budget.stdout_max_bytes,
+                preview_max_bytes=output_limit,
                 resource_budget=self.resource_budget,
+                stdout_max_bytes=output_limit,
+                timeout_seconds=self.resource_budget.image_timeout_seconds,
                 cancel_callback=cancel_callback,
             )
             if result.exit_code != 0 and result.termination_reason == "completed":
@@ -586,8 +596,10 @@ class ChafaImagePreviewLoader:
                 result = _run_preview_process(
                     fallback_args,
                     path=path,
-                    preview_max_bytes=self.resource_budget.stdout_max_bytes,
+                    preview_max_bytes=output_limit,
                     resource_budget=self.resource_budget,
+                    stdout_max_bytes=output_limit,
+                    timeout_seconds=self.resource_budget.image_timeout_seconds,
                     cancel_callback=cancel_callback,
                 )
                 if result.exit_code != 0 and result.termination_reason == "completed":
@@ -687,6 +699,8 @@ def _run_preview_process(
     preview_max_bytes: int,
     resource_budget: PreviewResourceBudget,
     cancel_callback: CancelCallback | None,
+    stdout_max_bytes: int | None = None,
+    timeout_seconds: float | None = None,
 ) -> _PreviewProcessResult:
     """Run a converter with bounded output and process-group termination.
 
@@ -708,7 +722,20 @@ def _run_preview_process(
             stderr=_as_preview_text(getattr(completed, "stderr", None)),
         )
 
-    stdout_limit = max(1, min(preview_max_bytes, resource_budget.stdout_max_bytes))
+    stdout_limit = max(
+        1,
+        min(
+            preview_max_bytes,
+            resource_budget.stdout_max_bytes
+            if stdout_max_bytes is None
+            else stdout_max_bytes,
+        ),
+    )
+    process_timeout = (
+        resource_budget.timeout_seconds
+        if timeout_seconds is None
+        else timeout_seconds
+    )
     result = run_bounded_process(
         command,
         cwd=str(path.parent),
@@ -716,7 +743,7 @@ def _run_preview_process(
         max_output_bytes=max(stdout_limit, resource_budget.stderr_max_bytes),
         stdout_max_output_bytes=stdout_limit,
         stderr_max_output_bytes=resource_budget.stderr_max_bytes,
-        timeout_seconds=resource_budget.timeout_seconds,
+        timeout_seconds=process_timeout,
         cancel_callback=cancel_callback,
         prefix_only=True,
         terminate_on_output_limit=True,

@@ -262,6 +262,10 @@ timeout、converter の stdout/stderr 保持量、外部 converter への入力�
 実行前の OOXML ZIP entry 数・非圧縮量・圧縮率を有限にする。これらはユーザー設定へ
 追加せず、通常サイズの preview を妨げないよう実測で調整する。
 
+画像はテキスト系 converter と別の budget を使う。symbols 出力は 2 MiB、Kitty
+graphics protocol は 32 MiB、画像 converter の timeout は 15 秒を上限とし、通常の
+画像レビューを優先しながらも無制限の出力保持は行わない。
+
 性能確認では、通常サイズと大容量の PDF / Office / 画像、cold / warm の wall time、
 最初の有用な内容が表示されるまでの時間、peak memory、短時間の連続 cursor 移動を
 比較する。text converter の安全な部分出力は `Preview limited` として表示し、画像や

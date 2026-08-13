@@ -621,6 +621,20 @@ def test_live_external_launch_service_copies_paths_with_expected_payload() -> No
     assert adapter.clipboard_payloads == ["/tmp/zivo/docs\n/tmp/zivo/README.md"]
 
 
+def test_live_external_launch_service_copies_text_with_expected_payload() -> None:
+    adapter = StubExternalLaunchAdapter()
+    service = LiveExternalLaunchService(adapter=adapter)
+
+    service.execute(
+        ExternalLaunchRequest(
+            kind="copy_text",
+            text="selected line\nsecond line",
+        )
+    )
+
+    assert adapter.clipboard_payloads == ["selected line\nsecond line"]
+
+
 def test_live_external_launch_service_formats_editor_error(tmp_path) -> None:
     missing = tmp_path / "missing.txt"
     adapter = LocalExternalLaunchAdapter(

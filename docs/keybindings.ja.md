@@ -16,7 +16,7 @@ Search Workspace は `enter open`、`e edit`、`/ filter`、`s sort`、`. hidden
 
 Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q quit`、続いて `space select`、`c copy-to-pane`、`m move-to-pane`、`d trash`、`r rename`、`z undo`、最後に `G go`、`N new-dir`、`: palette` を表示します。`D` は下記のキーバインディングには残しますが、ヘルプバーには表示しません。
 
-右ペインでプレビュー中は、ペイン下部に `Ctrl+J/K scroll preview` を表示します。置換プレビューでは `Shift+↑/↓ scroll preview` を使用します。通常プレビューでは `Ctrl+↑/↓` も別名として使えます。狭い端末でも3行を維持し、各行の右端から低頻度の項目を省略します。
+テキストプレビュー中は本文をマウスドラッグして範囲選択し、`c` またはペイン下部の `Copy selection` でコピーできます。`Esc` でプレビュー選択を解除します。右ペインでプレビュー中は、ペイン下部に `Ctrl+J/K scroll preview` も表示します。置換プレビューでは `Shift+↑/↓ scroll preview` を使用します。通常プレビューでは `Ctrl+↑/↓` も別名として使えます。画像などテキスト以外のプレビューでは範囲選択を行いません。狭い端末でも3行を維持し、各行の右端から低頻度の項目を省略します。
 
 マウス操作も同じActionを使います。breadcrumb segmentまたは通常ブラウズのBack/Forwardをクリックして移動し、タブ本体で切替、hover時の`×`でclose、`+`で新規タブを実行できます。Name/Size/Modified headerのクリックはsortを変更します。Search Workspaceは専用ラベルで表示し、Transfer modeにパスバー履歴ボタンは追加しません。
 
@@ -41,7 +41,7 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 | `Space` | 選択トグル後に次行へ移動 |
 | `a` | 表示中の全エントリを選択 |
 | `Esc` | 選択解除 / フィルタ解除 |
-| `c` | 選択項目をコピー |
+| `c` | テキストプレビューで範囲選択中は選択テキストをコピー。それ以外は選択（またはフォーカス中）の項目をコピー |
 | `x` | 選択項目をカット |
 | `v` | クリップボードから貼り付け |
 | `z` | 直前の Undo 対象ファイル操作を取り消し |

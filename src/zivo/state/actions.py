@@ -144,6 +144,7 @@ __all__ = [
     "ConfirmSymlinkOverwrite",
     "ConfirmZipCompress",
     "CopyTargets",
+    "CopyTextToClipboard",
     "CutTargets",
     "DuplicateTargets",
     "PasteClipboard",
@@ -163,6 +164,7 @@ from .actions_navigation import (
     CloseCurrentTab,
     CloseTabByIndex,
     CopyPathsToClipboard,
+    CopyTextToClipboard,
     EnterCursorDirectory,
     EnterTransferDirectory,
     ExitCurrentPath,
@@ -446,6 +448,7 @@ Action = (
     | ShowAbout
     | ShowAttributes
     | CopyPathsToClipboard
+    | CopyTextToClipboard
     | AddBookmark
     | RemoveBookmark
     | ToggleHiddenFiles

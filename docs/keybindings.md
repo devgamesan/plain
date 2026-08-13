@@ -16,7 +16,7 @@ On terminals narrower than 80 columns, normal browsing uses `Tab` to toggle the 
 
 Transfer shows `enter dir`, `. hidden`, `Tab switch-pane`, `p/Esc close`, `q quit`, then `space select`, `c copy-to-pane`, `m move-to-pane`, `d trash`, `r rename`, `z undo`, and finally `G go`, `N new-dir`, `: palette`. `D` remains documented below but is intentionally omitted from the help bar.
 
-When a right-pane preview is active, its footer shows `Ctrl+J/K scroll preview`. Replace previews use `Shift+↑/↓ scroll preview`. `Ctrl+↑/↓` are aliases for normal preview scrolling. Narrow terminals keep three rows and elide lower-frequency items from the right.
+When a text preview is active, drag to select text, then press `c` or click `Copy selection` in the preview footer. `Esc` clears an active preview selection. The footer also shows `Ctrl+J/K scroll preview`. Replace previews use `Shift+↑/↓ scroll preview`; `Ctrl+↑/↓` are aliases for normal preview scrolling. Image and other non-text previews do not support text selection. Narrow terminals keep three rows and elide lower-frequency items from the right.
 
 Mouse affordances mirror these actions: click breadcrumb segments or normal-browsing Back/Forward controls to navigate, click a tab to activate it, hover a tab for `×` close, use `+` for a new tab, and click the Name/Size/Modified headers to sort. Search Workspace is shown as a dedicated label, and Transfer mode does not add path-bar history buttons.
 
@@ -39,7 +39,7 @@ Press `!` for a short non-interactive command or `t` to suspend zivo and work in
 | `Space` | Toggle selection and move down |
 | `a` | Select all visible entries |
 | `Esc` | Clear selection / Cancel filter |
-| `c` | Copy selected items |
+| `c` | Copy selected preview text when a text range is active; otherwise copy selected (or focused) filesystem items |
 | `x` | Cut selected items |
 | `v` | Paste from clipboard |
 | `z` | Undo the last reversible file operation |

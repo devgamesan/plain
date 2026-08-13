@@ -35,6 +35,13 @@ class LiveExternalLaunchService:
                 raise OSError(_format_copy_error(request.paths, str(error))) from error
             return
 
+        if request.kind == "copy_text":
+            try:
+                self.adapter.copy_to_clipboard(request.text)
+            except OSError as error:
+                raise OSError("Failed to copy text to system clipboard: " + str(error)) from error
+            return
+
         if request.kind == "open_file":
             path = _require_path(request)
             try:

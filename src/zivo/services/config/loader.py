@@ -20,6 +20,7 @@ from zivo.models import (
     GrepSearchConfig,
     GuiEditorConfig,
     LoggingConfig,
+    PreviewResourceConfig,
     TerminalConfig,
 )
 from zivo.models.config import BehaviorConfig
@@ -30,7 +31,7 @@ from zivo.theme_support import (
 
 from .path import ConfigPathResolver, resolve_config_path
 from .render import render_default_config
-from .schema import read_bool, read_enum, read_int, validate_section_dict
+from .schema import read_bool, read_enum, read_float, read_int, validate_section_dict
 from .shared import (
     VALID_CUSTOM_ACTION_MODES,
     VALID_CUSTOM_ACTION_WHEN,
@@ -96,6 +97,7 @@ class AppConfigLoader:
                 editor=load_editor_config(document.get("editor"), warnings),
                 gui_editor=load_gui_editor_config(document.get("gui_editor"), warnings),
                 display=load_display_config(document.get("display"), warnings),
+                preview=load_preview_resource_config(document.get("preview"), warnings),
                 behavior=load_behavior_config(document.get("behavior"), warnings),
                 logging=load_logging_config(document.get("logging"), warnings),
                 bookmarks=load_bookmark_config(document.get("bookmarks"), warnings),
@@ -221,6 +223,7 @@ def load_display_config(section: object, warnings: list[str]) -> DisplayConfig:
             section_name="display",
         ),
     )
+
     return replace(
         config,
         theme=read_enum(
@@ -257,6 +260,114 @@ def load_display_config(section: object, warnings: list[str]) -> DisplayConfig:
             valid_display="name, modified, size",
             section_name="display",
             warnings=warnings,
+        ),
+    )
+
+
+def load_preview_resource_config(
+    section: object,
+    warnings: list[str],
+) -> PreviewResourceConfig:
+    config = PreviewResourceConfig()
+    validated = validate_section_dict(section, "preview", warnings)
+    if validated is None:
+        return config
+    return PreviewResourceConfig(
+        timeout_seconds=read_float(
+            validated,
+            key="timeout_seconds",
+            default=config.timeout_seconds,
+            minimum=0.01,
+            warnings=warnings,
+            section_name="preview",
+        ),
+        stdout_max_kib=read_int(
+            validated,
+            key="stdout_max_kib",
+            default=config.stdout_max_kib,
+            minimum=1,
+            warnings=warnings,
+            section_name="preview",
+        ),
+        stderr_max_kib=read_int(
+            validated,
+            key="stderr_max_kib",
+            default=config.stderr_max_kib,
+            minimum=1,
+            warnings=warnings,
+            section_name="preview",
+        ),
+        image_timeout_seconds=read_float(
+            validated,
+            key="image_timeout_seconds",
+            default=config.image_timeout_seconds,
+            minimum=0.01,
+            warnings=warnings,
+            section_name="preview",
+        ),
+        image_stdout_max_mib=read_int(
+            validated,
+            key="image_stdout_max_mib",
+            default=config.image_stdout_max_mib,
+            minimum=1,
+            warnings=warnings,
+            section_name="preview",
+        ),
+        kitty_stdout_max_mib=read_int(
+            validated,
+            key="kitty_stdout_max_mib",
+            default=config.kitty_stdout_max_mib,
+            minimum=1,
+            warnings=warnings,
+            section_name="preview",
+        ),
+        input_max_mib=read_int(
+            validated,
+            key="input_max_mib",
+            default=config.input_max_mib,
+            minimum=1,
+            warnings=warnings,
+            section_name="preview",
+        ),
+        max_archive_entries=read_int(
+            validated,
+            key="max_archive_entries",
+            default=config.max_archive_entries,
+            minimum=1,
+            warnings=warnings,
+            section_name="preview",
+        ),
+        max_archive_entry_mib=read_int(
+            validated,
+            key="max_archive_entry_mib",
+            default=config.max_archive_entry_mib,
+            minimum=1,
+            warnings=warnings,
+            section_name="preview",
+        ),
+        max_archive_total_mib=read_int(
+            validated,
+            key="max_archive_total_mib",
+            default=config.max_archive_total_mib,
+            minimum=1,
+            warnings=warnings,
+            section_name="preview",
+        ),
+        max_archive_compression_ratio=read_float(
+            validated,
+            key="max_archive_compression_ratio",
+            default=config.max_archive_compression_ratio,
+            minimum=1.0,
+            warnings=warnings,
+            section_name="preview",
+        ),
+        timeout_cache_seconds=read_float(
+            validated,
+            key="timeout_cache_seconds",
+            default=config.timeout_cache_seconds,
+            minimum=0.0,
+            warnings=warnings,
+            section_name="preview",
         ),
     )
 

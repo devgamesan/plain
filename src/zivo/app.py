@@ -73,6 +73,7 @@ from zivo.services import (
     ZipCompressService,
     resolve_config_path,
 )
+from zivo.services.previews import PreviewResourceBudget
 from zivo.state import (
     AppState,
     Effect,
@@ -235,7 +236,11 @@ class zivoApp(App[None]):
             post_reload_notification=startup_notification,
             current_pane_projection_mode=current_pane_projection_mode,
         )
-        self._snapshot_loader = snapshot_loader or LiveBrowserSnapshotLoader()
+        self._snapshot_loader = snapshot_loader or LiveBrowserSnapshotLoader(
+            preview_resource_budget=PreviewResourceBudget.from_config(
+                self._app_config.preview
+            )
+        )
         self._attribute_inspection_service = (
             attribute_inspection_service or LiveAttributeInspectionService()
         )
@@ -685,6 +690,7 @@ class zivoApp(App[None]):
             self.theme = next_theme
         if previous_state.config != self._app_state.config:
             self._sync_external_launch_service()
+            self._sync_preview_resource_budget()
         if layout_changed:
             try:
                 await self.query_one("#body").remove()
@@ -707,6 +713,15 @@ class zivoApp(App[None]):
         if not self._uses_live_external_launch_service:
             return
         self._external_launch_service = self._build_external_launch_service(self._app_state.config)
+
+    def _sync_preview_resource_budget(self) -> None:
+        """Apply resource settings after config reload/save without restarting."""
+
+        update_budget = getattr(self._snapshot_loader, "update_preview_resource_budget", None)
+        if update_budget is not None:
+            update_budget(
+                PreviewResourceBudget.from_config(self._app_state.config.preview)
+            )
 
     def _apply_actions(self, actions: Sequence[Action]) -> tuple[bool, tuple[Effect, ...]]:
         state = self._app_state

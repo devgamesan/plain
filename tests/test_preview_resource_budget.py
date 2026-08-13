@@ -1,7 +1,8 @@
 import zipfile
 from pathlib import Path
 
-from zivo.models import ShellCommandResult
+from zivo.app import create_app
+from zivo.models import AppConfig, PreviewResourceConfig, ShellCommandResult
 from zivo.services.previews.core import (
     ChafaImagePreviewLoader,
     FilePreviewState,
@@ -120,6 +121,38 @@ def test_image_preview_uses_a_relaxed_format_specific_budget(
     assert preview == FilePreviewState.with_content("image\n", False, content_kind="image")
     assert captured["stdout_max_output_bytes"] == budget.image_stdout_max_bytes
     assert captured["timeout_seconds"] == budget.image_timeout_seconds
+
+
+def test_preview_resource_config_converts_user_units_to_process_limits() -> None:
+    budget = PreviewResourceBudget.from_config(
+        PreviewResourceConfig(
+            stdout_max_kib=512,
+            image_stdout_max_mib=8,
+            kitty_stdout_max_mib=64,
+            input_max_mib=512,
+            max_archive_entry_mib=128,
+            max_archive_total_mib=512,
+        )
+    )
+
+    assert budget.stdout_max_bytes == 512 * 1024
+    assert budget.image_stdout_max_bytes == 8 * 1024 * 1024
+    assert budget.kitty_stdout_max_bytes == 64 * 1024 * 1024
+    assert budget.input_max_bytes == 512 * 1024 * 1024
+    assert budget.max_archive_entry_bytes == 128 * 1024 * 1024
+    assert budget.max_archive_total_bytes == 512 * 1024 * 1024
+
+
+def test_create_app_passes_preview_resource_config_to_live_loader() -> None:
+    app = create_app(
+        app_config=AppConfig(
+            preview=PreviewResourceConfig(image_stdout_max_mib=8),
+        )
+    )
+
+    assert app._snapshot_loader.preview_resource_budget.image_stdout_max_bytes == (
+        8 * 1024 * 1024
+    )
 
 
 def test_cancelled_document_preview_is_not_a_success_cache_value(

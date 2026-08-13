@@ -20,6 +20,24 @@ DEFAULT_BACKGROUND_COMMAND_TIMEOUT_SECONDS = 300
 
 
 @dataclass(frozen=True)
+class PreviewResourceConfig:
+    """User-configurable safety limits for preview converters."""
+
+    timeout_seconds: float = 5.0
+    stdout_max_kib: int = 256
+    stderr_max_kib: int = 16
+    image_timeout_seconds: float = 15.0
+    image_stdout_max_mib: int = 2
+    kitty_stdout_max_mib: int = 32
+    input_max_mib: int = 256
+    max_archive_entries: int = 4096
+    max_archive_entry_mib: int = 64
+    max_archive_total_mib: int = 256
+    max_archive_compression_ratio: float = 100.0
+    timeout_cache_seconds: float = 1.0
+
+
+@dataclass(frozen=True)
 class TerminalConfig:
     """Terminal launch command templates keyed by target platform."""
 
@@ -139,6 +157,7 @@ class AppConfig:
     editor: EditorConfig = field(default_factory=EditorConfig)
     gui_editor: GuiEditorConfig = field(default_factory=GuiEditorConfig)
     display: DisplayConfig = field(default_factory=DisplayConfig)
+    preview: PreviewResourceConfig = field(default_factory=PreviewResourceConfig)
     behavior: BehaviorConfig = field(default_factory=BehaviorConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     bookmarks: BookmarkConfig = field(default_factory=BookmarkConfig)

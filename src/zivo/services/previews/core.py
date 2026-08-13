@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Protocol
 
-from zivo.models.config import ImagePreviewMode
+from zivo.models.config import ImagePreviewMode, PreviewResourceConfig
 from zivo.services.bounded_process import run_bounded_process
 from zivo.services.terminal_detection import supports_kitty_graphics
 
@@ -209,8 +209,8 @@ CancelCallback = Callable[[], bool]
 class PreviewResourceBudget:
     """Fixed safety limits shared by preview backends.
 
-    These values are intentionally internal defaults.  They are adjusted from
-    measured preview behavior instead of being exposed as user configuration.
+    These are normalized process limits.  Built-in defaults can be overridden by
+    the advanced ``[preview]`` configuration section.
     """
 
     timeout_seconds: float = 5.0
@@ -225,6 +225,27 @@ class PreviewResourceBudget:
     max_archive_total_bytes: int = 256 * 1024 * 1024
     max_archive_compression_ratio: float = 100.0
     timeout_cache_seconds: float = 1.0
+
+    @classmethod
+    def from_config(cls, config: PreviewResourceConfig) -> "PreviewResourceBudget":
+        """Convert user-facing KiB/MiB config values into process limits."""
+
+        kib = 1024
+        mib = 1024 * kib
+        return cls(
+            timeout_seconds=config.timeout_seconds,
+            stdout_max_bytes=config.stdout_max_kib * kib,
+            stderr_max_bytes=config.stderr_max_kib * kib,
+            image_timeout_seconds=config.image_timeout_seconds,
+            image_stdout_max_bytes=config.image_stdout_max_mib * mib,
+            kitty_stdout_max_bytes=config.kitty_stdout_max_mib * mib,
+            input_max_bytes=config.input_max_mib * mib,
+            max_archive_entries=config.max_archive_entries,
+            max_archive_entry_bytes=config.max_archive_entry_mib * mib,
+            max_archive_total_bytes=config.max_archive_total_mib * mib,
+            max_archive_compression_ratio=config.max_archive_compression_ratio,
+            timeout_cache_seconds=config.timeout_cache_seconds,
+        )
 
 
 DEFAULT_PREVIEW_RESOURCE_BUDGET = PreviewResourceBudget()

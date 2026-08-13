@@ -170,6 +170,7 @@ class LiveBrowserSnapshotLoader:
         repr=False,
         compare=False,
     )
+
     _text_preview_cache: OrderedDict[
         tuple[
             str, int, int, int, bool, bool, bool, bool, int, str
@@ -235,6 +236,21 @@ class LiveBrowserSnapshotLoader:
         repr=False,
         compare=False,
     )
+
+    def update_preview_resource_budget(
+        self,
+        resource_budget: PreviewResourceBudget,
+    ) -> None:
+        """Apply changed config limits to this loader and its live backends."""
+
+        self.preview_resource_budget = resource_budget
+        for loader in (
+            self.document_preview_loader,
+            self.pdf_preview_loader,
+            self.image_preview_loader,
+        ):
+            if loader is not None and hasattr(loader, "resource_budget"):
+                loader.resource_budget = resource_budget
 
     def load_browser_snapshot(
         self,

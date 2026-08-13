@@ -260,9 +260,9 @@ uv run python scripts/benchmark_go_completion.py --dirs 5000 --iterations 10
 Preview はブラウジングを補助する機能として、backend 共通の内部 budget を持つ。
 timeout、converter の stdout/stderr 保持量、外部 converter への入力サイズ、Pandoc
 実行前の OOXML ZIP entry 数・非圧縮量・圧縮率を有限にする。これらはユーザー設定へ
-追加せず、通常サイズの preview を妨げないよう実測で調整する。
+追加し、通常サイズの preview を妨げない安全な既定値を提供する。
 
-画像はテキスト系 converter と別の budget を使う。symbols 出力は 2 MiB、Kitty
+画像はテキスト系 converter と別の既定 budget を使う。symbols 出力は 2 MiB、Kitty
 graphics protocol は 32 MiB、画像 converter の timeout は 15 秒を上限とし、通常の
 画像レビューを優先しながらも無制限の出力保持は行わない。
 

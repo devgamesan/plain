@@ -142,8 +142,8 @@ On 2026-08-12 (macOS, 5,000 directories, 10 iterations), the local run measured 
 
 Preview is a supporting feature and uses one internal budget across backends. Timeout,
 converter stdout/stderr retention, converter input size, and Pandoc's preflight OOXML ZIP
-entry/uncompressed-size/compression-ratio checks are finite. These limits are not user
-configuration; they are tuned from measurements so normal previews remain responsive.
+entry/uncompressed-size/compression-ratio checks are finite. These limits are exposed as
+advanced `[preview]` settings with safe defaults tuned so normal previews remain responsive.
 
 Images use a separate budget from text converters: 2 MiB for symbols output, 32 MiB for
 the Kitty graphics protocol, and a 15-second image converter timeout. This keeps ordinary

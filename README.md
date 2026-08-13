@@ -31,7 +31,7 @@ By default, it keeps a stable, mode-specific set of standard shortcuts visible i
 - **Context-aware command palette**: press `:` to browse fixed Navigate, File, Search, View, System, and Custom actions sections
 - **Three-pane preview**: preview directories, text, images, PDF, and Office files
 - **Responsive panes**: 120+ columns show Parent / Current / Contents, 80–119 show Current / Contents, and narrower terminals use `Tab` to switch between the current file list and Details
-- **Explicit pane states**: distinguish empty, filtered, loading, disabled, unsupported, dependency-missing, and permission-denied states; unavailable previews fall back to compact file metadata
+- **Explicit pane states**: distinguish empty, filtered, loading, disabled, unsupported, dependency-missing, permission-denied, timeout, and resource-limit states; safe partial text is labeled `Preview limited`, while unavailable previews fall back to compact file metadata
 - **Transfer mode**: copy and move files between two directories side by side
 - **Search and grep**: find files, grep recursively, and continue from visible results
 - **Replace with preview**: pass Find/Grep/Workspace results into one flow, review diffs, then apply a batch replacement
@@ -174,7 +174,7 @@ Long-running Copy, Move, Compress, Extract, and Replace operations show their op
 
 ### Preview
 
-Empty directories and zero-result filters show their reason and an available next action. When all current entries are hidden, the current pane offers `[.] Show hidden files`. The parent pane distinguishes loading, permission denied, no parent directory, and no visible items; cached parent entries remain visible during refresh. The right pane shows loading state explicitly and, when content preview is unavailable, falls back to a compact summary such as type, size, modified time, permissions, owner/group, symlink target, or archive entry count. Missing optional commands are reported without crashing the application.
+Empty directories and zero-result filters show their reason and an available next action. When all current entries are hidden, the current pane offers `[.] Show hidden files`. The parent pane distinguishes loading, permission denied, no parent directory, and no visible items; cached parent entries remain visible during refresh. The right pane shows loading state explicitly, enforces finite preview time/output/resource limits, labels safe partial text as `Preview limited`, and falls back to a compact summary such as type, size, modified time, permissions, owner/group, symlink target, or archive entry count when content preview is unavailable. Missing optional commands are reported without crashing the application.
 - Text, images (chafa; optional Kitty graphics protocol on compatible terminals), PDF (pdftotext), Office (pandoc)
 
 ### Transfer mode

@@ -31,7 +31,7 @@ zivo は、キーバインドをたくさん覚えなくても使える TUI フ�
 - **状況適応コマンドパレット**: `:` を押すと、Navigate / File / Search / View / System / Custom actions のカテゴリを表示
 - **3 ペインプレビュー**: ディレクトリ、テキスト、画像、PDF、Office ファイルを右ペインで確認
 - **レスポンシブペイン**: 120 列以上は Parent / Current / Contents、80〜119 列は Current / Contents、80 列未満は `Tab` で current 一覧と Details を切り替え
-- **明示的なペイン状態**: 空、フィルタ0件、読込中、設定無効、非対応、依存不足、権限不足を区別し、プレビュー不能時は概要メタデータを表示
+- **明示的なペイン状態**: 空、フィルタ0件、読込中、設定無効、非対応、依存不足、権限不足、timeout、resource limitを区別し、安全な部分テキストには `Preview limited` を表示、プレビュー不能時は概要メタデータを表示
 - **Transfer モード**: 2 つのディレクトリを並べてコピー・移動
 - **検索と grep**: ファイル検索、grep 検索、表示中の結果から次の操作へ進む
 - **置換 (プレビュー付き)**: Find / Grep / Search Workspace の結果を共通フローへ渡し、diff を確認してから実行
@@ -172,7 +172,7 @@ zivo-cd
 
 ### プレビュー
 
-空ディレクトリとフィルタ0件では理由と実行可能な次の操作を表示します。現在ペインが隠し項目だけの場合は `[.] Show hidden files` を表示します。左ペインは読込中、権限不足、親なし、表示項目なしを区別し、再読込中もキャッシュ済み一覧を維持します。右ペインは読込中を明示し、内容をプレビューできない場合は、種類、サイズ、更新日時、permission、owner/group、symlink target、archive entry countなどの概要へフォールバックします。任意の外部コマンドが不足してもアプリはクラッシュしません。
+空ディレクトリとフィルタ0件では理由と実行可能な次の操作を表示します。現在ペインが隠し項目だけの場合は `[.] Show hidden files` を表示します。左ペインは読込中、権限不足、親なし、表示項目なしを区別し、再読込中もキャッシュ済み一覧を維持します。右ペインは読込時間・出力・resource limitを有限にし、読込中を明示します。安全な部分テキストには `Preview limited` を表示し、内容をプレビューできない場合は、種類、サイズ、更新日時、permission、owner/group、symlink target、archive entry countなどの概要へフォールバックします。任意の外部コマンドが不足してもアプリはクラッシュしません。
 - テキスト / 画像（chafa、対応端末では Kitty graphics protocol も利用可能）/ PDF（pdftotext）/ Office（pandoc）
 
 ### Transfer モード

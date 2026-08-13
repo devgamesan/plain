@@ -134,7 +134,7 @@ def set_active_tracking(
 
 
 def cancel_active_tracking(app: Any, tracking: TrackingConfig) -> None:
-    cancel_event = getattr(app, tracking.cancel_event_attr)
+    cancel_event = getattr(app, tracking.cancel_event_attr, None)
     if cancel_event is None:
         return
     cancel_event.set()

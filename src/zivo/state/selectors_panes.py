@@ -297,6 +297,7 @@ def _select_child_pane_for_cursor_base(
             state.child_pane.preview_kind,
             state.child_pane.preview_message,
             state.child_pane.preview_truncated,
+            state.child_pane.preview_reason,
             state.child_pane.preview_start_line,
             state.child_pane.preview_highlight_line,
             syntax_theme,
@@ -551,6 +552,7 @@ def _select_file_search_preview_pane(
         state.child_pane.preview_kind,
         state.child_pane.preview_message,
         state.child_pane.preview_truncated,
+        state.child_pane.preview_reason,
         state.child_pane.preview_start_line,
         state.child_pane.preview_highlight_line,
         syntax_theme,
@@ -588,6 +590,7 @@ def _select_grep_preview_pane(
         state.child_pane.preview_kind,
         state.child_pane.preview_message,
         state.child_pane.preview_truncated,
+        state.child_pane.preview_reason,
         state.child_pane.preview_start_line,
         state.child_pane.preview_highlight_line,
         syntax_theme,
@@ -623,6 +626,7 @@ def _select_sfg_preview_pane(
         state.child_pane.preview_kind,
         state.child_pane.preview_message,
         state.child_pane.preview_truncated,
+        state.child_pane.preview_reason,
         state.child_pane.preview_start_line,
         state.child_pane.preview_highlight_line,
         syntax_theme,
@@ -662,6 +666,7 @@ def _select_replace_preview_pane(
         state.child_pane.preview_kind,
         state.child_pane.preview_message,
         state.child_pane.preview_truncated,
+        state.child_pane.preview_reason,
         state.child_pane.preview_start_line,
         state.child_pane.preview_highlight_line,
         syntax_theme,
@@ -906,6 +911,7 @@ def _build_child_preview_view(
     preview_kind: str,
     preview_message: str | None,
     preview_truncated: bool,
+    preview_reason: str | None,
     preview_start_line: int | None,
     preview_highlight_line: int | None,
     syntax_theme: str,
@@ -914,7 +920,8 @@ def _build_child_preview_view(
     preview_scroll_hint: str | None = None,
 ) -> ChildPaneViewState:
     return ChildPaneViewState(
-        title=preview_title or _format_child_preview_title(preview_path, preview_truncated),
+        title=preview_title
+        or _format_child_preview_title(preview_path, preview_truncated, preview_reason),
         preview_path=preview_path,
         preview_title=preview_title,
         preview_content=preview_content,
@@ -963,11 +970,16 @@ def _build_preview_fallback_view(
         "disabled": "Preview disabled in settings",
         "dependency_missing": message or "Preview dependency unavailable",
         "permission_denied": "Permission denied",
+        "timeout": message or "Preview stopped at a safety limit",
+        "resource_limit": message or "Preview stopped at a safety limit",
+        "cancelled": message or "Preview cancelled",
         "error": message or "Preview unavailable",
     }
     details = {
         "permission_denied": "Attributes may still be available",
         "dependency_missing": "Use attributes or open the file externally",
+        "timeout": "The file may be valid; the preview was stopped to keep browsing responsive",
+        "resource_limit": "The file may be valid; the preview reached a safety limit",
     }
     action_id = "edit_config" if reason == "disabled" else "show_attributes"
     action_label = "Edit config" if reason == "disabled" else "Show attributes"

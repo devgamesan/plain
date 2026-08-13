@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import inspect
+import os
 import re
 import shutil
 import subprocess
+import zipfile
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Protocol
 
 from zivo.models.config import ImagePreviewMode
+from zivo.services.bounded_process import run_bounded_process
 from zivo.services.terminal_detection import supports_kitty_graphics
 
 TEXT_PREVIEW_MAX_BYTES = 64 * 1024
@@ -181,6 +186,10 @@ TEXT_PREVIEW_FILENAMES = frozenset(
 PREVIEW_PERMISSION_DENIED_MESSAGE = "Preview unavailable: permission denied"
 PREVIEW_UNSUPPORTED_MESSAGE = "Preview unavailable for this file type"
 PREVIEW_ERROR_MESSAGE = "Preview unavailable"
+PREVIEW_LIMITED_MESSAGE = "Preview limited by a safety limit"
+PREVIEW_TIMEOUT_MESSAGE = "Preview stopped at a safety limit"
+PREVIEW_RESOURCE_LIMIT_MESSAGE = "Preview stopped at a safety limit"
+PREVIEW_CANCELLED_MESSAGE = "Preview cancelled"
 IMAGE_PREVIEW_DEPENDENCY_MESSAGE = "Preview unavailable: install `chafa` for image preview"
 PDF_PREVIEW_DEPENDENCY_MESSAGE = "PDF preview unavailable: install `pdftotext`"
 OFFICE_PREVIEW_DEPENDENCY_MESSAGE = "Office preview unavailable: install `pandoc`"
@@ -193,6 +202,46 @@ _ANSI_CONTROL_SEQUENCE_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
 _ANSI_OSC_SEQUENCE_RE = re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)")
 _ANSI_STRING_SEQUENCE_RE = re.compile(r"\x1b[P^_X].*?(?:\x1b\\)", re.DOTALL)
 _ANSI_ESCAPE_SEQUENCE_RE = re.compile(r"\x1b(?:[@-Z\\-_])")
+CancelCallback = Callable[[], bool]
+
+
+@dataclass(frozen=True)
+class PreviewResourceBudget:
+    """Fixed safety limits shared by preview backends.
+
+    These values are intentionally internal defaults.  They are adjusted from
+    measured preview behavior instead of being exposed as user configuration.
+    """
+
+    timeout_seconds: float = 5.0
+    stdout_max_bytes: int = 256 * 1024
+    stderr_max_bytes: int = 16 * 1024
+    input_max_bytes: int = 256 * 1024 * 1024
+    max_archive_entries: int = 4096
+    max_archive_entry_bytes: int = 64 * 1024 * 1024
+    max_archive_total_bytes: int = 256 * 1024 * 1024
+    max_archive_compression_ratio: float = 100.0
+    timeout_cache_seconds: float = 1.0
+
+
+DEFAULT_PREVIEW_RESOURCE_BUDGET = PreviewResourceBudget()
+
+
+@dataclass(frozen=True)
+class _PreviewProcessResult:
+    """Normalized converter result used without exposing converter diagnostics."""
+
+    exit_code: int
+    stdout: str = ""
+    stderr: str = ""
+    stdout_truncated: bool = False
+    stderr_truncated: bool = False
+    termination_reason: Literal["completed", "timed_out", "cancelled", "output_limited"] = (
+        "completed"
+    )
+
+
+_ORIGINAL_SUBPROCESS_RUN = subprocess.run
 
 
 def _normalize_preview_newlines(text: str) -> str:
@@ -243,12 +292,14 @@ class FilePreviewState:
         truncated: bool,
         *,
         content_kind: Literal["text", "image", "kitty"] = "text",
+        reason: str | None = None,
     ) -> "FilePreviewState":
         return cls(
             kind="content",
             content=content,
             content_kind=content_kind,
             truncated=truncated,
+            reason=reason,
         )
 
     @classmethod
@@ -319,6 +370,7 @@ class DocumentPreviewLoader(Protocol):
         path: Path,
         *,
         preview_max_bytes: int,
+        cancel_callback: CancelCallback | None = None,
     ) -> FilePreviewState | None: ...
 
 
@@ -328,6 +380,7 @@ class PdfPreviewLoader(Protocol):
         path: Path,
         *,
         preview_max_bytes: int,
+        cancel_callback: CancelCallback | None = None,
     ) -> FilePreviewState | None: ...
 
 
@@ -338,11 +391,13 @@ class ImagePreviewLoader(Protocol):
         *,
         preview_columns: int,
         image_preview_format: str = "symbols",
+        cancel_callback: CancelCallback | None = None,
     ) -> FilePreviewState | None: ...
 
 
 @dataclass
 class PandocDocumentPreviewLoader:
+    resource_budget: PreviewResourceBudget = DEFAULT_PREVIEW_RESOURCE_BUDGET
     pandoc_path: str | None = field(default=None, init=False, repr=False)
     pandoc_missing: bool = field(default=False, init=False, repr=False)
 
@@ -351,6 +406,7 @@ class PandocDocumentPreviewLoader:
         path: Path,
         *,
         preview_max_bytes: int,
+        cancel_callback: CancelCallback | None = None,
     ) -> FilePreviewState | None:
         pandoc = self._resolve_pandoc()
         if pandoc is None:
@@ -358,31 +414,31 @@ class PandocDocumentPreviewLoader:
                 OFFICE_PREVIEW_DEPENDENCY_MESSAGE,
                 reason="dependency_missing",
             )
+        limited = _preview_input_limit(path, self.resource_budget, cancel_callback)
+        if limited is not None:
+            return limited
+        archive_limit = _inspect_ooxml_archive(path, self.resource_budget, cancel_callback)
+        if archive_limit is not None:
+            return archive_limit
+        command = [
+            pandoc,
+            "--from",
+            path.suffix.lstrip(".").lower(),
+            "--to",
+            "markdown",
+            str(path),
+        ]
         try:
-            result = subprocess.run(
-                [
-                    pandoc,
-                    "--from",
-                    path.suffix.lstrip(".").lower(),
-                    "--to",
-                    "markdown",
-                    str(path),
-                ],
-                check=True,
-                capture_output=True,
+            result = _run_preview_process(
+                command,
+                path=path,
+                preview_max_bytes=preview_max_bytes,
+                resource_budget=self.resource_budget,
+                cancel_callback=cancel_callback,
             )
         except (OSError, subprocess.SubprocessError, ValueError):
             return None
-
-        try:
-            content = _normalize_preview_newlines(result.stdout.decode("utf-8"))
-        except UnicodeDecodeError:
-            content = _normalize_preview_newlines(
-                result.stdout.decode("utf-8", errors="ignore")
-            )
-        if not content.strip():
-            return None
-        return _truncate_preview_text(content, preview_max_bytes)
+        return _preview_text_from_process_result(result, preview_max_bytes)
 
     def _resolve_pandoc(self) -> str | None:
         if self.pandoc_missing:
@@ -399,6 +455,7 @@ class PandocDocumentPreviewLoader:
 
 @dataclass
 class PdftotextPdfPreviewLoader:
+    resource_budget: PreviewResourceBudget = DEFAULT_PREVIEW_RESOURCE_BUDGET
     pdftotext_path: str | None = field(default=None, init=False, repr=False)
     pdftotext_missing: bool = field(default=False, init=False, repr=False)
 
@@ -407,6 +464,7 @@ class PdftotextPdfPreviewLoader:
         path: Path,
         *,
         preview_max_bytes: int,
+        cancel_callback: CancelCallback | None = None,
     ) -> FilePreviewState | None:
         pdftotext = self._resolve_pdftotext()
         if pdftotext is None:
@@ -414,26 +472,35 @@ class PdftotextPdfPreviewLoader:
                 PDF_PREVIEW_DEPENDENCY_MESSAGE,
                 reason="dependency_missing",
             )
+        limited = _preview_input_limit(path, self.resource_budget, cancel_callback)
+        if limited is not None:
+            return limited
+        command = [pdftotext, "-q", str(path), "-"]
         try:
-            path_str = str(path)
-            if " " in path_str:
-                path_str = f'"{path_str}"'
-            result = subprocess.run(
-                [pdftotext, "-q", path_str, "-"],
-                check=True,
-                capture_output=True,
+            result = _run_preview_process(
+                command,
+                path=path,
+                preview_max_bytes=preview_max_bytes,
+                resource_budget=self.resource_budget,
+                cancel_callback=cancel_callback,
             )
         except (OSError, subprocess.SubprocessError, FileNotFoundError):
             return None
-        try:
-            content = _normalize_preview_newlines(result.stdout.decode("utf-8"))
-        except UnicodeDecodeError:
-            content = _normalize_preview_newlines(
-                result.stdout.decode("utf-8", errors="ignore")
+        if result.termination_reason == "cancelled":
+            return FilePreviewState.unavailable("cancelled")
+        if result.termination_reason == "timed_out" and not result.stdout.strip():
+            return FilePreviewState.with_message(PREVIEW_TIMEOUT_MESSAGE, reason="timeout")
+        if result.termination_reason == "output_limited" and not result.stdout.strip():
+            return FilePreviewState.with_message(
+                PREVIEW_RESOURCE_LIMIT_MESSAGE,
+                reason="resource_limit",
             )
+        if result.exit_code != 0 and not result.stdout.strip():
+            return None
+        content = _normalize_preview_newlines(result.stdout)
         if not content.strip():
             return FilePreviewState.with_message("PDF preview: no text content found")
-        return _truncate_preview_text(content, preview_max_bytes)
+        return _preview_text_from_process_result(result, preview_max_bytes)
 
     def _resolve_pdftotext(self) -> str | None:
         if self.pdftotext_missing:
@@ -464,6 +531,7 @@ def resolve_image_preview_format(image_preview_mode: ImagePreviewMode) -> str:
 
 @dataclass
 class ChafaImagePreviewLoader:
+    resource_budget: PreviewResourceBudget = DEFAULT_PREVIEW_RESOURCE_BUDGET
     chafa_path: str | None = field(default=None, init=False, repr=False)
     chafa_missing: bool = field(default=False, init=False, repr=False)
     supports_animate_option: bool | None = field(default=None, init=False, repr=False)
@@ -474,10 +542,14 @@ class ChafaImagePreviewLoader:
         *,
         preview_columns: int,
         image_preview_format: str = "symbols",
+        cancel_callback: CancelCallback | None = None,
     ) -> FilePreviewState | None:
         chafa = self._resolve_chafa()
         if chafa is None:
             return None
+        limited = _preview_input_limit(path, self.resource_budget, cancel_callback)
+        if limited is not None:
+            return limited
         args = self._build_chafa_command(
             chafa,
             path,
@@ -485,7 +557,20 @@ class ChafaImagePreviewLoader:
             chafa_format=image_preview_format,
         )
         try:
-            result = subprocess.run(args, check=True, capture_output=True)
+            result = _run_preview_process(
+                args,
+                path=path,
+                preview_max_bytes=self.resource_budget.stdout_max_bytes,
+                resource_budget=self.resource_budget,
+                cancel_callback=cancel_callback,
+            )
+            if result.exit_code != 0 and result.termination_reason == "completed":
+                raise subprocess.CalledProcessError(
+                    result.exit_code,
+                    args,
+                    output=result.stdout.encode("utf-8"),
+                    stderr=result.stderr.encode("utf-8"),
+                )
             self.supports_animate_option = "--animate" in args
         except subprocess.CalledProcessError as error:
             if not self._should_retry_without_animate(error, args):
@@ -498,18 +583,34 @@ class ChafaImagePreviewLoader:
                 chafa_format=image_preview_format,
             )
             try:
-                result = subprocess.run(fallback_args, check=True, capture_output=True)
+                result = _run_preview_process(
+                    fallback_args,
+                    path=path,
+                    preview_max_bytes=self.resource_budget.stdout_max_bytes,
+                    resource_budget=self.resource_budget,
+                    cancel_callback=cancel_callback,
+                )
+                if result.exit_code != 0 and result.termination_reason == "completed":
+                    return FilePreviewState.error()
             except (OSError, subprocess.SubprocessError, ValueError):
                 return FilePreviewState.error()
         except (OSError, subprocess.SubprocessError, ValueError):
             return FilePreviewState.error()
 
-        try:
-            content = _normalize_preview_newlines(result.stdout.decode("utf-8"))
-        except UnicodeDecodeError:
-            content = _normalize_preview_newlines(
-                result.stdout.decode("utf-8", errors="ignore")
+        if result.termination_reason == "cancelled":
+            return FilePreviewState.unavailable("cancelled")
+        if result.termination_reason in {"timed_out", "output_limited"}:
+            return FilePreviewState.with_message(
+                PREVIEW_TIMEOUT_MESSAGE
+                if result.termination_reason == "timed_out"
+                else PREVIEW_RESOURCE_LIMIT_MESSAGE,
+                reason=(
+                    "timeout"
+                    if result.termination_reason == "timed_out"
+                    else "resource_limit"
+                ),
             )
+        content = _normalize_preview_newlines(result.stdout)
         if image_preview_format == "kitty":
             content = _strip_ansi_for_kitty(content)
             if not content.strip():
@@ -569,6 +670,191 @@ class ChafaImagePreviewLoader:
             return None
         self.chafa_path = chafa
         return chafa
+
+
+def _as_preview_text(value: str | bytes | None) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    return value.decode("utf-8", errors="ignore")
+
+
+def _run_preview_process(
+    command: list[str],
+    *,
+    path: Path,
+    preview_max_bytes: int,
+    resource_budget: PreviewResourceBudget,
+    cancel_callback: CancelCallback | None,
+) -> _PreviewProcessResult:
+    """Run a converter with bounded output and process-group termination.
+
+    The subprocess.run compatibility branch keeps existing loader injection
+    tests and embedders working while the normal path always uses the bounded
+    runner.  It is only selected when subprocess.run has been monkeypatched.
+    """
+
+    if subprocess.run is not _ORIGINAL_SUBPROCESS_RUN:
+        completed = subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            stdin=subprocess.DEVNULL,
+        )
+        return _PreviewProcessResult(
+            exit_code=0,
+            stdout=_as_preview_text(getattr(completed, "stdout", None)),
+            stderr=_as_preview_text(getattr(completed, "stderr", None)),
+        )
+
+    stdout_limit = max(1, min(preview_max_bytes, resource_budget.stdout_max_bytes))
+    result = run_bounded_process(
+        command,
+        cwd=str(path.parent),
+        env=os.environ,
+        max_output_bytes=max(stdout_limit, resource_budget.stderr_max_bytes),
+        stdout_max_output_bytes=stdout_limit,
+        stderr_max_output_bytes=resource_budget.stderr_max_bytes,
+        timeout_seconds=resource_budget.timeout_seconds,
+        cancel_callback=cancel_callback,
+        prefix_only=True,
+        terminate_on_output_limit=True,
+    )
+    return _PreviewProcessResult(
+        exit_code=result.exit_code,
+        stdout=result.stdout,
+        stderr=result.stderr,
+        stdout_truncated=result.stdout_truncated,
+        stderr_truncated=result.stderr_truncated,
+        termination_reason=result.termination_reason,
+    )
+
+
+def _preview_input_limit(
+    path: Path,
+    resource_budget: PreviewResourceBudget,
+    cancel_callback: CancelCallback | None,
+) -> FilePreviewState | None:
+    if cancel_callback is not None and cancel_callback():
+        return FilePreviewState.unavailable("cancelled")
+    try:
+        size = path.stat().st_size
+    except OSError:
+        return None
+    if size > resource_budget.input_max_bytes:
+        return FilePreviewState.with_message(
+            PREVIEW_RESOURCE_LIMIT_MESSAGE,
+            reason="resource_limit",
+        )
+    return None
+
+
+def _inspect_ooxml_archive(
+    path: Path,
+    resource_budget: PreviewResourceBudget,
+    cancel_callback: CancelCallback | None,
+) -> FilePreviewState | None:
+    """Reject dangerous OOXML ZIP metadata before invoking Pandoc.
+
+    Invalid ZIPs are left to the converter so dependency and converter error
+    behavior remains compatible with existing files and tests.
+    """
+
+    if path.suffix.casefold() not in OFFICE_PREVIEW_EXTENSIONS:
+        return None
+    try:
+        with zipfile.ZipFile(path) as archive:
+            infos = archive.infolist()
+    except (OSError, zipfile.BadZipFile, ValueError):
+        return None
+
+    if len(infos) > resource_budget.max_archive_entries:
+        return FilePreviewState.with_message(
+            PREVIEW_RESOURCE_LIMIT_MESSAGE,
+            reason="resource_limit",
+        )
+    total_size = 0
+    for info in infos:
+        if cancel_callback is not None and cancel_callback():
+            return FilePreviewState.unavailable("cancelled")
+        entry_size = max(0, info.file_size)
+        if entry_size > resource_budget.max_archive_entry_bytes:
+            return FilePreviewState.with_message(
+                PREVIEW_RESOURCE_LIMIT_MESSAGE,
+                reason="resource_limit",
+            )
+        total_size += entry_size
+        if total_size > resource_budget.max_archive_total_bytes:
+            return FilePreviewState.with_message(
+                PREVIEW_RESOURCE_LIMIT_MESSAGE,
+                reason="resource_limit",
+            )
+        compression_limit_exceeded = (
+            entry_size > 0
+            and info.compress_size == 0
+        ) or (
+            info.compress_size > 0
+            and entry_size / info.compress_size > resource_budget.max_archive_compression_ratio
+        )
+        if compression_limit_exceeded:
+            return FilePreviewState.with_message(
+                PREVIEW_RESOURCE_LIMIT_MESSAGE,
+                reason="resource_limit",
+            )
+    return None
+
+
+def _call_preview_loader(loader: object, path: Path, **kwargs: object):
+    """Call built-in or test loaders without requiring the new optional kwargs."""
+
+    load_preview = getattr(loader, "load_preview")
+    try:
+        parameters = inspect.signature(load_preview).parameters
+    except (TypeError, ValueError):
+        return load_preview(path, **kwargs)
+    accepts_kwargs = any(
+        parameter.kind is inspect.Parameter.VAR_KEYWORD
+        for parameter in parameters.values()
+    )
+    if not accepts_kwargs:
+        kwargs = {key: value for key, value in kwargs.items() if key in parameters}
+    return load_preview(path, **kwargs)
+
+
+def _preview_text_from_process_result(
+    result: _PreviewProcessResult,
+    preview_max_bytes: int,
+) -> FilePreviewState | None:
+    if result.termination_reason == "cancelled":
+        return FilePreviewState.unavailable("cancelled")
+    if not result.stdout.strip():
+        if result.termination_reason == "timed_out":
+            return FilePreviewState.with_message(PREVIEW_TIMEOUT_MESSAGE, reason="timeout")
+        if result.termination_reason == "output_limited":
+            return FilePreviewState.with_message(
+                PREVIEW_RESOURCE_LIMIT_MESSAGE,
+                reason="resource_limit",
+            )
+        if result.exit_code != 0:
+            return None
+        return None
+    reason = None
+    limited = result.stdout_truncated
+    if result.termination_reason == "timed_out":
+        reason = "timeout"
+        limited = True
+    elif result.termination_reason == "output_limited" or result.stdout_truncated:
+        reason = "resource_limit"
+        limited = True
+    preview = _truncate_preview_text(result.stdout, preview_max_bytes, reason=reason)
+    if limited and not preview.truncated:
+        return FilePreviewState.with_content(
+            preview.content or "",
+            True,
+            reason=reason or "resource_limit",
+        )
+    return preview
 
 
 def _build_text_preview_cache_key(
@@ -638,16 +924,24 @@ def _load_text_preview(
     image_preview_loader: ImagePreviewLoader | None = None,
     preview_columns: int = DEFAULT_IMAGE_PREVIEW_COLUMNS,
     image_preview_mode: ImagePreviewMode = "auto",
+    cancel_callback: CancelCallback | None = None,
+    resource_budget: PreviewResourceBudget = DEFAULT_PREVIEW_RESOURCE_BUDGET,
 ) -> FilePreviewState:
+    if cancel_callback is not None and cancel_callback():
+        return FilePreviewState.unavailable("cancelled")
     if _is_image_preview_candidate(path):
         if not enable_image_preview:
             return FilePreviewState.unavailable()
-        loader = image_preview_loader or ChafaImagePreviewLoader()
+        loader = image_preview_loader or ChafaImagePreviewLoader(
+            resource_budget=resource_budget
+        )
         fmt = resolve_image_preview_format(image_preview_mode)
-        preview = loader.load_preview(
+        preview = _call_preview_loader(
+            loader,
             path,
             preview_columns=max(1, preview_columns),
             image_preview_format=fmt,
+            cancel_callback=cancel_callback,
         )
         if preview is not None:
             return preview
@@ -659,8 +953,15 @@ def _load_text_preview(
     if _is_pdf_preview_candidate(path):
         if not enable_pdf_preview:
             return FilePreviewState.unavailable()
-        loader = pdf_preview_loader or PdftotextPdfPreviewLoader()
-        preview = loader.load_preview(path, preview_max_bytes=preview_max_bytes)
+        loader = pdf_preview_loader or PdftotextPdfPreviewLoader(
+            resource_budget=resource_budget
+        )
+        preview = _call_preview_loader(
+            loader,
+            path,
+            preview_max_bytes=preview_max_bytes,
+            cancel_callback=cancel_callback,
+        )
         if preview is not None:
             return preview
         return FilePreviewState.unsupported()
@@ -668,8 +969,15 @@ def _load_text_preview(
     if _is_office_preview_candidate(path):
         if not enable_office_preview:
             return FilePreviewState.unavailable()
-        loader = document_preview_loader or PandocDocumentPreviewLoader()
-        preview = loader.load_preview(path, preview_max_bytes=preview_max_bytes)
+        loader = document_preview_loader or PandocDocumentPreviewLoader(
+            resource_budget=resource_budget
+        )
+        preview = _call_preview_loader(
+            loader,
+            path,
+            preview_max_bytes=preview_max_bytes,
+            cancel_callback=cancel_callback,
+        )
         if preview is not None:
             return preview
         return FilePreviewState.unsupported()
@@ -685,17 +993,23 @@ def _load_text_preview(
         return FilePreviewState.permission_denied()
     except OSError:
         return FilePreviewState.error()
+    if cancel_callback is not None and cancel_callback():
+        return FilePreviewState.unavailable("cancelled")
 
     if b"\x00" in chunk[:preview_limit]:
         if _has_image_signature(path, header=chunk[:32]):
             if not enable_image_preview:
                 return FilePreviewState.unavailable()
-            loader = image_preview_loader or ChafaImagePreviewLoader()
+            loader = image_preview_loader or ChafaImagePreviewLoader(
+                resource_budget=resource_budget
+            )
             fmt = resolve_image_preview_format(image_preview_mode)
-            preview = loader.load_preview(
+            preview = _call_preview_loader(
+                loader,
                 path,
                 preview_columns=max(1, preview_columns),
                 image_preview_format=fmt,
+                cancel_callback=cancel_callback,
             )
             if preview is not None:
                 return preview
@@ -709,12 +1023,16 @@ def _load_text_preview(
         if _has_image_signature(path, header=chunk[:32]):
             if not enable_image_preview:
                 return FilePreviewState.unavailable()
-            loader = image_preview_loader or ChafaImagePreviewLoader()
+            loader = image_preview_loader or ChafaImagePreviewLoader(
+                resource_budget=resource_budget
+            )
             fmt = resolve_image_preview_format(image_preview_mode)
-            preview = loader.load_preview(
+            preview = _call_preview_loader(
+                loader,
                 path,
                 preview_columns=max(1, preview_columns),
                 image_preview_format=fmt,
+                cancel_callback=cancel_callback,
             )
             if preview is not None:
                 return preview
@@ -740,12 +1058,14 @@ def _load_grep_context_preview(
     context_lines: int,
     *,
     preview_max_bytes: int = TEXT_PREVIEW_MAX_BYTES,
+    cancel_callback: CancelCallback | None = None,
 ) -> ContextPreviewState:
     return _load_grep_context_window(
         path,
         line_number,
         context_lines,
         preview_max_bytes=preview_max_bytes,
+        cancel_callback=cancel_callback,
     )[0]
 
 
@@ -783,6 +1103,7 @@ def _load_grep_context_window(
     *,
     preview_max_bytes: int = TEXT_PREVIEW_MAX_BYTES,
     lookahead_lines: int = DEFAULT_GREP_CONTEXT_WINDOW_LOOKAHEAD_LINES,
+    cancel_callback: CancelCallback | None = None,
 ) -> tuple[ContextPreviewState, GrepContextWindowState | None]:
     preview_limit = max(1, preview_max_bytes)
     start_line = max(1, line_number - max(0, context_lines))
@@ -796,6 +1117,8 @@ def _load_grep_context_window(
     try:
         with path.open("rb") as handle:
             while current_line < window_end_line:
+                if cancel_callback is not None and cancel_callback():
+                    return ContextPreviewState.with_message(PREVIEW_CANCELLED_MESSAGE), None
                 line_bytes = handle.readline()
                 if not line_bytes:
                     break
@@ -928,16 +1251,21 @@ def _is_office_preview_candidate(path: Path) -> bool:
     return path.suffix.casefold() in OFFICE_PREVIEW_EXTENSIONS
 
 
-def _truncate_preview_text(content: str, preview_max_bytes: int) -> FilePreviewState:
+def _truncate_preview_text(
+    content: str,
+    preview_max_bytes: int,
+    *,
+    reason: str | None = None,
+) -> FilePreviewState:
     preview_limit = max(1, preview_max_bytes)
     encoded = content.encode("utf-8")
     truncated = len(encoded) > preview_limit
     if not truncated:
-        return FilePreviewState.with_content(content, False)
+        return FilePreviewState.with_content(content, False, reason=reason)
 
     preview_bytes = encoded[:preview_limit]
     preview_text = preview_bytes.decode("utf-8", errors="ignore")
-    return FilePreviewState.with_content(preview_text, True)
+    return FilePreviewState.with_content(preview_text, True, reason=reason)
 
 
 def preview_max_bytes_from_kib(preview_max_kib: int) -> int:

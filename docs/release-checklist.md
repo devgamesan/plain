@@ -127,12 +127,15 @@
 - [ ] [/] キーでプレビューがスクロールできること
 - [ ] 大きなファイルの場合、設定された上限までプレビューが表示されること
 - [ ] 設定で `enable_text_preview = false` の場合、プレビューが無効になること
+- [ ] converter の timeout / stdout / stderr 上限があり、上限到達時もブラウジングを継続できること
+- [ ] 安全な部分出力には `Preview limited` 相当の状態が示されること
 
 #### 画像プレビュー（chafa がある場合）
 - [ ] 画像ファイル（.png, .jpg, .gif など）を選択すると、右ペインにプレビューが表示されること
 - [ ] chafa による文字アートが正しく表示されること
 - [ ] 設定で `enable_image_preview = false` の場合、プレビューが無効になること
 - [ ] chafa がない場合、「install `chafa` for image preview」メッセージが表示されること
+- [ ] timeout または出力上限時に壊れた途中画像を表示せず、metadata fallback になること
 
 #### PDF プレビュー（pdftotext がある場合）
 - [ ] PDF ファイルを選択すると、右ペインにテキストプレビューが表示されること
@@ -143,6 +146,9 @@
 - [ ] .docx/.xlsx/.pptx ファイルを選択すると、右ペインにテキストプレビューが表示されること
 - [ ] 設定で `enable_office_preview = false` の場合、プレビューが無効になること
 - [ ] pandoc がない場合、適切なメッセージが表示されること
+- [ ] Pandoc 実行前に OOXML の entry 数・展開量・圧縮率上限が検査されること
+- [ ] timeout / resource limit が dependency missing や unsupported と混同されないこと
+- [ ] cursor を連続移動したとき、古い preview の converter が cancel され結果が表示されないこと
 
 ### 検索機能
 

@@ -25,7 +25,9 @@ custom actions, or future settings. Saving basic settings from the UI updates on
 those settings and preserves advanced, unknown, and custom TOML values.
 
 If the Config Editor has unsaved changes, save or close them before opening the
-raw file with `e`. When the external editor exits, zivo reloads `config.toml`
+raw file with `e`. Preview resource limits, terminal templates, paste behavior,
+logging, file-search limits, background-command limits, custom actions, and future
+settings are managed there. When the external editor exits, zivo reloads `config.toml`
 and applies the result to the running app and Config Editor. If the TOML is
 invalid, zivo keeps the current active configuration and shows a warning. Some
 settings require restarting zivo.
@@ -51,6 +53,13 @@ settings require restarting zivo.
 | `display` | `theme` | Any built-in Textual theme, for example `textual-dark`, `textual-light`, `dracula`, or `tokyo-night` | Default UI theme applied on startup. In the settings editor, theme changes are previewed immediately and are persisted when you save. |
 | `display` | `preview_syntax_theme` | `auto` or a supported Pygments style, for example `one-dark`, `xcode`, `nord`, or `gruvbox-dark` | Syntax-highlighting colors used by the right-pane text preview. `auto` keeps the current light/dark-based default selection. In the settings editor, changes are previewed immediately when a text preview is visible. |
 | `display` | `preview_max_kib` | `64` / `128` / `256` / `512` / `1024` | Maximum amount of text read for right-pane file previews and preview sampling. Defaults to `64`. Larger values allow deeper previews at the cost of more I/O. |
+| `preview` | `timeout_seconds` / `image_timeout_seconds` | Positive number | Maximum converter execution time in seconds for text/PDF/Office and image previews. Defaults to `5` / `15`. |
+| `preview` | `stdout_max_kib` / `stderr_max_kib` | Integer >= 1 | Retained stdout/stderr limits in KiB for text/PDF/Office converters. Defaults to `256` / `16`. |
+| `preview` | `image_stdout_max_mib` / `kitty_stdout_max_mib` | Integer >= 1 | Retained output limits in MiB for chafa symbols and the Kitty graphics protocol. Defaults to `2` / `32`. |
+| `preview` | `input_max_mib` | Integer >= 1 | Maximum input file size in MiB passed to a converter. |
+| `preview` | `max_archive_entries` / `max_archive_entry_mib` / `max_archive_total_mib` | Integer >= 1 | OOXML ZIP entry-count, per-entry expanded-size, and total expanded-size limits. |
+| `preview` | `max_archive_compression_ratio` | Number >= 1 | Maximum OOXML ZIP compression ratio. |
+| `preview` | `timeout_cache_seconds` | Number >= 0 | Seconds to reuse timeout results; `0` disables reuse. |
 | `display` | `default_sort_field` | `name` / `modified` / `size` | Default sort field for the main pane. The `name` field uses natural sort (numeric runs ordered by value, e.g. `file2` before `file10`). |
 | `display` | `default_sort_descending` | `true` / `false` | Starts the main-pane sort in descending order when enabled. |
 | `display` | `directories_first` | `true` / `false` | Keeps directories grouped before files in the main pane. |
@@ -97,6 +106,20 @@ preview_max_kib = 64
 default_sort_field = "name"
 default_sort_descending = false
 directories_first = true
+
+[preview]
+timeout_seconds = 5
+stdout_max_kib = 256
+stderr_max_kib = 16
+image_timeout_seconds = 15
+image_stdout_max_mib = 2
+kitty_stdout_max_mib = 32
+input_max_mib = 256
+max_archive_entries = 4096
+max_archive_entry_mib = 64
+max_archive_total_mib = 256
+max_archive_compression_ratio = 100
+timeout_cache_seconds = 1
 
 [behavior]
 confirm_delete = true

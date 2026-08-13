@@ -21,6 +21,7 @@ from .config import (
     LoggingConfig,
     PasteConflictAction,
     PreviewMaxKiB,
+    PreviewResourceConfig,
     PreviewSyntaxTheme,
     TerminalConfig,
 )
@@ -220,6 +221,7 @@ __all__ = [
     "NotificationDetailsDialogState",
     "PasteConflictAction",
     "PreviewMaxKiB",
+    "PreviewResourceConfig",
     "PreviewSyntaxTheme",
     "PasteConflict",
     "PasteConflictPrompt",

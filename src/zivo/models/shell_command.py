@@ -3,7 +3,12 @@
 from dataclasses import dataclass
 from typing import Literal
 
-CommandTerminationReason = Literal["completed", "timed_out", "cancelled"]
+CommandTerminationReason = Literal[
+    "completed",
+    "timed_out",
+    "cancelled",
+    "output_limited",
+]
 
 
 @dataclass(frozen=True)
@@ -17,4 +22,4 @@ class ShellCommandResult:
     stderr_truncated: bool = False
     termination_reason: CommandTerminationReason = "completed"
     output_limit_bytes: int | None = None
-    timeout_seconds: int | None = None
+    timeout_seconds: float | None = None

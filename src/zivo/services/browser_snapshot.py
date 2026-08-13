@@ -7,7 +7,7 @@ import threading
 from collections import OrderedDict
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from time import sleep
+from time import monotonic, sleep
 from typing import Mapping, Protocol
 
 from zivo.adapters import DirectoryReader, LocalFilesystemAdapter
@@ -15,6 +15,7 @@ from zivo.archive_utils import is_supported_archive_path
 from zivo.services import ArchiveListService, LiveArchiveListService
 from zivo.services.previews import (
     DEFAULT_IMAGE_PREVIEW_COLUMNS,
+    DEFAULT_PREVIEW_RESOURCE_BUDGET,
     PREVIEW_PERMISSION_DENIED_MESSAGE,
     TEXT_PREVIEW_MAX_BYTES,
     ChafaImagePreviewLoader,
@@ -28,6 +29,7 @@ from zivo.services.previews import (
     PandocDocumentPreviewLoader,
     PdfPreviewLoader,
     PdftotextPdfPreviewLoader,
+    PreviewResourceBudget,
     _build_grep_context_cache_key,
     _build_grep_context_preview_from_window,
     _build_text_preview_cache_key,
@@ -41,6 +43,7 @@ from zivo.services.previews import (
 from zivo.services.previews import (
     preview_max_bytes_from_kib as _preview_max_bytes_from_kib,
 )
+from zivo.services.previews.core import CancelCallback
 from zivo.state.models import (
     AppState,
     BrowserSnapshot,
@@ -80,6 +83,7 @@ class BrowserSnapshotLoader(Protocol):
         enable_image_preview: bool = True,
         enable_pdf_preview: bool = True,
         enable_office_preview: bool = True,
+        cancel_callback: CancelCallback | None = None,
     ) -> BrowserSnapshot: ...
 
     def load_child_pane_snapshot(
@@ -94,12 +98,15 @@ class BrowserSnapshotLoader(Protocol):
         enable_office_preview: bool = True,
         preview_columns: int = DEFAULT_IMAGE_PREVIEW_COLUMNS,
         image_preview_mode: str = "auto",
+        cancel_callback: CancelCallback | None = None,
     ) -> PaneState: ...
 
     def load_current_pane_snapshot(
         self,
         path: str,
         cursor_path: str | None,
+        *,
+        cancel_callback: CancelCallback | None = None,
     ) -> tuple[str, PaneState, PaneState]: ...
 
     def load_parent_child_panes(
@@ -113,6 +120,7 @@ class BrowserSnapshotLoader(Protocol):
         image_preview_mode: str = "auto",
         enable_pdf_preview: bool = True,
         enable_office_preview: bool = True,
+        cancel_callback: CancelCallback | None = None,
     ) -> tuple[PaneState, PaneState]: ...
 
     def load_grep_preview(
@@ -122,6 +130,7 @@ class BrowserSnapshotLoader(Protocol):
         *,
         context_lines: int = 3,
         preview_max_bytes: int = TEXT_PREVIEW_MAX_BYTES,
+        cancel_callback: CancelCallback | None = None,
     ) -> PaneState: ...
 
     def invalidate_directory_listing_cache(
@@ -142,6 +151,10 @@ class LiveBrowserSnapshotLoader:
     document_preview_loader: "DocumentPreviewLoader | None" = None
     pdf_preview_loader: "PdfPreviewLoader | None" = None
     image_preview_loader: "ImagePreviewLoader | None" = None
+    preview_resource_budget: PreviewResourceBudget = field(
+        default=DEFAULT_PREVIEW_RESOURCE_BUDGET,
+        kw_only=True,
+    )
     app_state: "AppState | None" = field(default=None, compare=False, repr=False)
     _directory_entries_cache: OrderedDict[
         tuple[str, bool], tuple[DirectoryEntryState, ...]
@@ -157,6 +170,7 @@ class LiveBrowserSnapshotLoader:
         repr=False,
         compare=False,
     )
+
     _text_preview_cache: OrderedDict[
         tuple[
             str, int, int, int, bool, bool, bool, bool, int, str
@@ -174,6 +188,10 @@ class LiveBrowserSnapshotLoader:
         repr=False,
         compare=False,
     )
+    _timeout_preview_cache: dict[
+        tuple[str, int, int, int, bool, bool, bool, bool, int, str],
+        tuple["FilePreviewState", float],
+    ] = field(default_factory=dict, init=False, repr=False, compare=False)
     _grep_context_cache: "OrderedDict[GrepContextCacheKey, ContextPreviewState]" = field(
         default_factory=OrderedDict,
         init=False,
@@ -219,6 +237,21 @@ class LiveBrowserSnapshotLoader:
         compare=False,
     )
 
+    def update_preview_resource_budget(
+        self,
+        resource_budget: PreviewResourceBudget,
+    ) -> None:
+        """Apply changed config limits to this loader and its live backends."""
+
+        self.preview_resource_budget = resource_budget
+        for loader in (
+            self.document_preview_loader,
+            self.pdf_preview_loader,
+            self.image_preview_loader,
+        ):
+            if loader is not None and hasattr(loader, "resource_budget"):
+                loader.resource_budget = resource_budget
+
     def load_browser_snapshot(
         self,
         path: str,
@@ -229,6 +262,7 @@ class LiveBrowserSnapshotLoader:
         image_preview_mode: str = "auto",
         enable_pdf_preview: bool = True,
         enable_office_preview: bool = True,
+        cancel_callback: CancelCallback | None = None,
     ) -> BrowserSnapshot:
         resolved_path, parent_path = resolve_parent_directory_path(path)
         current_entries = self._list_directory(resolved_path, detailed=True)
@@ -282,6 +316,7 @@ class LiveBrowserSnapshotLoader:
                 image_preview_mode=image_preview_mode,
                 enable_pdf_preview=enable_pdf_preview,
                 enable_office_preview=enable_office_preview,
+                cancel_callback=cancel_callback,
             ),
         )
 
@@ -297,9 +332,17 @@ class LiveBrowserSnapshotLoader:
         enable_pdf_preview: bool = True,
         enable_office_preview: bool = True,
         preview_columns: int = DEFAULT_IMAGE_PREVIEW_COLUMNS,
+        cancel_callback: CancelCallback | None = None,
     ) -> PaneState:
         if cursor_path is None:
             return PaneState(directory_path=current_path, entries=())
+        if cancel_callback is not None and cancel_callback():
+            return PaneState(
+                directory_path=current_path,
+                entries=(),
+                mode="preview",
+                preview_reason="cancelled",
+            )
 
         if is_windows_drive_root(cursor_path):
             try:
@@ -374,6 +417,7 @@ class LiveBrowserSnapshotLoader:
             enable_pdf_preview=enable_pdf_preview,
             enable_office_preview=enable_office_preview,
             preview_columns=preview_columns,
+            cancel_callback=cancel_callback,
         )
         if preview.kind != "unavailable":
             return PaneState(
@@ -430,6 +474,7 @@ class LiveBrowserSnapshotLoader:
         cursor_path: str | None,
         *,
         show_hidden: bool = False,
+        cancel_callback: CancelCallback | None = None,
     ) -> tuple[str, PaneState, PaneState]:
         """Load current pane + minimal parent (Phase 1 of progressive loading).
 
@@ -437,6 +482,11 @@ class LiveBrowserSnapshotLoader:
             (current_path, current_pane, parent_pane)
         """
         resolved_path, parent_path = resolve_parent_directory_path(path)
+        if cancel_callback is not None and cancel_callback():
+            return resolved_path, PaneState(directory_path=resolved_path, entries=()), PaneState(
+                directory_path=resolved_path,
+                entries=(),
+            )
         current_entries = self._list_directory(resolved_path, detailed=True)
         resolved_cursor_path = _resolve_cursor_path(current_entries, cursor_path, show_hidden)
 
@@ -482,6 +532,7 @@ class LiveBrowserSnapshotLoader:
         image_preview_mode: str = "auto",
         enable_pdf_preview: bool = True,
         enable_office_preview: bool = True,
+        cancel_callback: CancelCallback | None = None,
     ) -> tuple[PaneState, PaneState]:
         """Load complete parent + child panes (Phase 2 of progressive loading).
 
@@ -489,6 +540,11 @@ class LiveBrowserSnapshotLoader:
             (parent_pane, child_pane)
         """
         resolved_path, parent_path = resolve_parent_directory_path(path)
+        if cancel_callback is not None and cancel_callback():
+            return (
+                PaneState(directory_path=resolved_path, entries=()),
+                PaneState(directory_path=resolved_path, entries=()),
+            )
 
         # Load complete parent pane
         if parent_path is None:
@@ -538,6 +594,7 @@ class LiveBrowserSnapshotLoader:
             image_preview_mode=image_preview_mode,
             enable_pdf_preview=enable_pdf_preview,
             enable_office_preview=enable_office_preview,
+            cancel_callback=cancel_callback,
         )
 
         return parent_pane, child_pane
@@ -549,8 +606,17 @@ class LiveBrowserSnapshotLoader:
         *,
         context_lines: int = 3,
         preview_max_bytes: int = TEXT_PREVIEW_MAX_BYTES,
+        cancel_callback: CancelCallback | None = None,
     ) -> PaneState:
         child_path = Path(result.path).expanduser().resolve()
+        if cancel_callback is not None and cancel_callback():
+            return PaneState(
+                directory_path=current_path,
+                entries=(),
+                mode="preview",
+                preview_path=str(child_path),
+                preview_reason="cancelled",
+            )
 
         # Check cache first
         if self.grep_context_cache_capacity > 0:
@@ -573,14 +639,17 @@ class LiveBrowserSnapshotLoader:
                         result.line_number,
                         context_lines,
                         preview_max_bytes=preview_max_bytes,
+                        cancel_callback=cancel_callback,
                     )
-                    self._store_cached_grep_context(cache_key, preview)
+                    if cancel_callback is None or not cancel_callback():
+                        self._store_cached_grep_context(cache_key, preview)
         else:
             preview = _load_grep_context_preview(
                 child_path,
                 result.line_number,
                 context_lines,
                 preview_max_bytes=preview_max_bytes,
+                cancel_callback=cancel_callback,
             )
 
         return PaneState(
@@ -603,6 +672,7 @@ class LiveBrowserSnapshotLoader:
         context_lines: int,
         *,
         preview_max_bytes: int,
+        cancel_callback: CancelCallback | None = None,
     ) -> "ContextPreviewState":
         window_cache_key = _grep_context_window_cache_key_from_context_key(cache_key)
         cached_window = self._get_cached_grep_context_window(window_cache_key)
@@ -620,8 +690,9 @@ class LiveBrowserSnapshotLoader:
             line_number,
             context_lines,
             preview_max_bytes=preview_max_bytes,
+            cancel_callback=cancel_callback,
         )
-        if window is not None:
+        if window is not None and (cancel_callback is None or not cancel_callback()):
             self._store_cached_grep_context_window(window_cache_key, window)
         return preview
 
@@ -749,6 +820,7 @@ class LiveBrowserSnapshotLoader:
         enable_pdf_preview: bool,
         enable_office_preview: bool,
         preview_columns: int,
+        cancel_callback: CancelCallback | None = None,
     ) -> "FilePreviewState":
         if self.text_preview_cache_capacity <= 0 or image_preview_mode == "kitty":
             return _load_text_preview(
@@ -763,6 +835,8 @@ class LiveBrowserSnapshotLoader:
                 pdf_preview_loader=self._resolve_pdf_preview_loader(),
                 image_preview_loader=self._resolve_image_preview_loader(),
                 preview_columns=preview_columns,
+                cancel_callback=cancel_callback,
+                resource_budget=self.preview_resource_budget,
             )
         cache_key = _build_text_preview_cache_key(
             path,
@@ -791,6 +865,8 @@ class LiveBrowserSnapshotLoader:
             pdf_preview_loader=self._resolve_pdf_preview_loader(),
             image_preview_loader=self._resolve_image_preview_loader(),
             preview_columns=preview_columns,
+            cancel_callback=cancel_callback,
+            resource_budget=self.preview_resource_budget,
         )
         self._store_cached_text_preview(cache_key, preview)
         return preview
@@ -801,7 +877,9 @@ class LiveBrowserSnapshotLoader:
                 object.__setattr__(
                     self,
                     "document_preview_loader",
-                    PandocDocumentPreviewLoader(),
+                    PandocDocumentPreviewLoader(
+                        resource_budget=self.preview_resource_budget,
+                    ),
                 )
             return self.document_preview_loader
 
@@ -811,7 +889,9 @@ class LiveBrowserSnapshotLoader:
                 object.__setattr__(
                     self,
                     "pdf_preview_loader",
-                    PdftotextPdfPreviewLoader(),
+                    PdftotextPdfPreviewLoader(
+                        resource_budget=self.preview_resource_budget,
+                    ),
                 )
             return self.pdf_preview_loader
 
@@ -821,7 +901,9 @@ class LiveBrowserSnapshotLoader:
                 object.__setattr__(
                     self,
                     "image_preview_loader",
-                    ChafaImagePreviewLoader(),
+                    ChafaImagePreviewLoader(
+                        resource_budget=self.preview_resource_budget,
+                    ),
                 )
             return self.image_preview_loader
 
@@ -830,6 +912,12 @@ class LiveBrowserSnapshotLoader:
         cache_key: tuple[str, int, int, int, bool, bool, bool, bool, int, str],
     ) -> "FilePreviewState | None":
         with self._text_preview_cache_lock:
+            timeout_entry = self._timeout_preview_cache.get(cache_key)
+            if timeout_entry is not None:
+                preview, expires_at = timeout_entry
+                if monotonic() < expires_at:
+                    return preview
+                self._timeout_preview_cache.pop(cache_key, None)
             preview = self._text_preview_cache.get(cache_key)
             if preview is None:
                 return None
@@ -841,6 +929,16 @@ class LiveBrowserSnapshotLoader:
         cache_key: tuple[str, int, int, int, bool, bool, bool, bool, int, str],
         preview: "FilePreviewState",
     ) -> None:
+        if preview.reason in {"cancelled", "timeout"}:
+            if preview.reason == "timeout":
+                with self._text_preview_cache_lock:
+                    self._timeout_preview_cache[cache_key] = (
+                        preview,
+                        monotonic() + self.preview_resource_budget.timeout_cache_seconds,
+                    )
+                    while len(self._timeout_preview_cache) > self.text_preview_cache_capacity:
+                        self._timeout_preview_cache.pop(next(iter(self._timeout_preview_cache)))
+            return
         with self._text_preview_cache_lock:
             self._text_preview_cache[cache_key] = preview
             self._text_preview_cache.move_to_end(cache_key)

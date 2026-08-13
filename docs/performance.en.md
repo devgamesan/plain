@@ -137,3 +137,23 @@ On 2026-08-12 (macOS, 5,000 directories, 10 iterations), the local run measured 
 - Automated benchmarks remain out of CI and release workflows
 - The normal current pane uses viewport-aware projection, while summary and selected counts continue to reflect the full filtered entry set
 - Performance checks stay manual and scenario-driven when behavior changes warrant them
+
+## Preview resource budget
+
+Preview is a supporting feature and uses one internal budget across backends. Timeout,
+converter stdout/stderr retention, converter input size, and Pandoc's preflight OOXML ZIP
+entry/uncompressed-size/compression-ratio checks are finite. These limits are exposed as
+advanced `[preview]` settings with safe defaults tuned so normal previews remain responsive.
+
+Images use a separate budget from text converters: 2 MiB for symbols output, 32 MiB for
+the Kitty graphics protocol, and a 15-second image converter timeout. This keeps ordinary
+image review usable while still bounding retained output and execution time.
+
+Measure normal and large PDF/Office/image files in cold and warm runs, time to first useful
+content, peak memory, and rapid cursor movement. Safe text output is shown as `Preview limited`;
+partial image or Kitty graphics output is not rendered and falls back to metadata. Cancelled
+and stale results are not stored as successful preview cache entries.
+
+Automated tests use short timeouts, fake converters, excessive stdout/stderr, ZIP-bomb-like
+metadata, and paths containing spaces. Large performance benchmarks remain manual and are not
+added to CI.

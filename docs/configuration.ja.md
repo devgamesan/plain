@@ -18,7 +18,7 @@ zivo は起動時にユーザー設定用の `config.toml` を読み込みます
 - 既定のソート項目、順序、ディレクトリ優先
 - 削除確認
 
-Config Editor で `e` を押すと `config.toml` を開き、高度設定を編集できます。プレビュー詳細、terminal templates、貼り付け動作、logging、file search の上限、background command の制限、custom actions、将来追加される設定はここで管理します。UI で基本設定を保存しても、高度設定・未知の設定・独自の TOML 値は保持されます。
+Config Editor で `e` を押すと `config.toml` を開き、高度設定を編集できます。プレビュー詳細とresource limit、terminal templates、貼り付け動作、logging、file search の上限、background command の制限、custom actions、将来追加される設定はここで管理します。UI で基本設定を保存しても、高度設定・未知の設定・独自の TOML 値は保持されます。
 
 Config Editor に未保存の変更がある場合は、先に保存または画面を閉じてから `e` で高度設定を開きます。外部エディタを閉じると `config.toml` を再読込し、変更を実行中の zivo と Config Editor に反映します。TOML の構文が不正な場合は現在の有効設定を維持して警告を表示します。設定によっては再起動が必要です。
 
@@ -43,6 +43,13 @@ Config Editor に未保存の変更がある場合は、先に保存または画
 | `display` | `theme` | 任意の組み込み Textual テーマ（例: `textual-dark`、`textual-light`、`dracula`、`tokyo-night`） | 起動時の UI テーマです。設定エディタでは変更内容が即座にプレビューされ、`s` で保存するとこの値が永続化されます。 |
 | `display` | `preview_syntax_theme` | `auto` またはサポートされている Pygments style（例: `one-dark`、`xcode`、`nord`、`gruvbox-dark`） | 右ペインのテキストプレビューに使うシンタックスハイライト配色です。`auto` を選ぶと、現在の light/dark に応じた既定配色を使います。設定エディタで右ペインにテキストプレビューが出ている場合は、その場で即時プレビューされます。 |
 | `display` | `preview_max_kib` | `64` / `128` / `256` / `512` / `1024` | 右ペインのファイルプレビューとプレビューサンプリングで読み込む最大量です。既定値は `64` です。大きな値にするとより深くプレビューできますが、I/O コストが増加します。 |
+| `preview` | `timeout_seconds` / `image_timeout_seconds` | 0より大きい数値 | テキスト系 / 画像系 converter の最大実行時間（秒）です。既定値は `5` / `15` です。 |
+| `preview` | `stdout_max_kib` / `stderr_max_kib` | 1以上の整数 | テキスト・PDF・Office converter の stdout / stderr 保持上限（KiB）です。既定値は `256` / `16` です。 |
+| `preview` | `image_stdout_max_mib` / `kitty_stdout_max_mib` | 1以上の整数 | chafa symbols / Kitty graphics protocol の出力保持上限（MiB）です。既定値は `2` / `32` です。 |
+| `preview` | `input_max_mib` | 1以上の整数 | converter に渡す入力ファイルの上限（MiB）です。 |
+| `preview` | `max_archive_entries` / `max_archive_entry_mib` / `max_archive_total_mib` | 1以上の整数 | Office ZIP の entry 数・各entry展開量・合計展開量の上限です。 |
+| `preview` | `max_archive_compression_ratio` | 1以上の数値 | Office ZIP の圧縮率上限です。 |
+| `preview` | `timeout_cache_seconds` | 0以上の数値 | timeout結果を再利用する秒数です。`0` で再利用しません。 |
 | `display` | `default_sort_field` | `name` / `modified` / `size` | 中央ペインの初期ソート項目です。`name` は自然順（数値部分を値で比較、例: `file2` が `file10` より先）で並び替えます。 |
 | `display` | `default_sort_descending` | `true` / `false` | `true` のとき、起動時のソートを降順にします。 |
 | `display` | `directories_first` | `true` / `false` | 中央ペインでディレクトリをファイルより先にまとめて表示します。 |
@@ -89,6 +96,20 @@ preview_max_kib = 64
 default_sort_field = "name"
 default_sort_descending = false
 directories_first = true
+
+[preview]
+timeout_seconds = 5
+stdout_max_kib = 256
+stderr_max_kib = 16
+image_timeout_seconds = 15
+image_stdout_max_mib = 2
+kitty_stdout_max_mib = 32
+input_max_mib = 256
+max_archive_entries = 4096
+max_archive_entry_mib = 64
+max_archive_total_mib = 256
+max_archive_compression_ratio = 100
+timeout_cache_seconds = 1
 
 [behavior]
 confirm_delete = true

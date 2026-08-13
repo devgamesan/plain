@@ -254,3 +254,24 @@ uv run python scripts/benchmark_directory_listing.py --files 8000 --dirs 2000 --
 uv run python scripts/benchmark_progressive_loading.py --files 100 --dirs 100 --iterations 10
 uv run python scripts/benchmark_go_completion.py --dirs 5000 --iterations 10
 ```
+
+## Preview resource budget
+
+Preview はブラウジングを補助する機能として、backend 共通の内部 budget を持つ。
+timeout、converter の stdout/stderr 保持量、外部 converter への入力サイズ、Pandoc
+実行前の OOXML ZIP entry 数・非圧縮量・圧縮率を有限にする。これらはユーザー設定へ
+追加し、通常サイズの preview を妨げない安全な既定値を提供する。
+
+画像はテキスト系 converter と別の既定 budget を使う。symbols 出力は 2 MiB、Kitty
+graphics protocol は 32 MiB、画像 converter の timeout は 15 秒を上限とし、通常の
+画像レビューを優先しながらも無制限の出力保持は行わない。
+
+性能確認では、通常サイズと大容量の PDF / Office / 画像、cold / warm の wall time、
+最初の有用な内容が表示されるまでの時間、peak memory、短時間の連続 cursor 移動を
+比較する。text converter の安全な部分出力は `Preview limited` として表示し、画像や
+Kitty graphics protocol の途中出力は表示せず metadata fallback にする。cancel / stale
+結果は成功 preview cache に保存しない。
+
+自動テストでは実際の長時間待機を避け、短い timeout と fake converter、過剰な stdout /
+stderr、ZIP bomb 相当の metadata、空白を含む path を使う。大規模性能 benchmark は CI
+へ追加せず、必要な変更ごとの手動シナリオとして記録する。

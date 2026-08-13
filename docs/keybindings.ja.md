@@ -20,6 +20,8 @@ Transfer は `enter dir`、`. hidden`、`Tab switch-pane`、`p/Esc close`、`q q
 
 マウス操作も同じActionを使います。breadcrumb segmentまたは通常ブラウズのBack/Forwardをクリックして移動し、タブ本体で切替、hover時の`×`でclose、`+`で新規タブを実行できます。Name/Size/Modified headerのクリックはsortを変更します。Search Workspaceは専用ラベルで表示し、Transfer modeにパスバー履歴ボタンは追加しません。
 
+マウスホイールはポインター直下の Current / Parent / Preview ペイン、検索・置換結果、Workspace 一覧を上下にスクロールします。ホイールではカーソルや選択を変更せず、クリックした行だけが選択対象になります。Preview のスクロールバーは表示し、それ以外の一覧ではスクロールバーを表示しません。
+
 ---
 
 ## 通常モード

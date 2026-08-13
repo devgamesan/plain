@@ -29,7 +29,7 @@ from .pane_rendering import (
 )
 from .pane_status import render_pane_status
 from .resize_debounce import ResizeDebouncer
-from .side_pane import SidePane
+from .side_pane import SidePane, _PaneListScroll
 
 _SGR_SEQUENCE_RE = re.compile(r"\x1b\[([0-9;]*)m")
 _KITTY_DELETE_ALL_IMAGES = "\033_Ga=d,d=A\033\\"
@@ -82,6 +82,10 @@ class ChildPane(Vertical):
         self._last_clicked_path: str | None = None
         self._hovered_path: str | None = None
         self._label_cache = _FileEntryLabelCache()
+        self._list_expanded = state.scroll_entries is None
+        self._list_scroll_context = self._entry_context(
+            state.scroll_entries if state.scroll_entries is not None else state.entries
+        )
         self._chafa_cached_content: str | None = None
         self._last_chafa_width: int = 0
         self._chafa_resize_timer: Timer | None = None
@@ -97,6 +101,10 @@ class ChildPane(Vertical):
     @property
     def list_view_id(self) -> str | None:
         return f"{self.id}-list" if self.id else None
+
+    @property
+    def list_scroll_id(self) -> str | None:
+        return f"{self.id}-list-scroll" if self.id else None
 
     @property
     def preview_id(self) -> str | None:
@@ -149,7 +157,11 @@ class ChildPane(Vertical):
             classes="pane-preview-help",
         )
         preview_help.display = self._state.preview_scroll_hint is not None
-        yield list_content
+        yield _PaneListScroll(
+            list_content,
+            id=self.list_scroll_id,
+            classes="pane-list-scroll",
+        )
         yield preview_scroll
         yield preview_help
         metadata_bar = Static(
@@ -228,6 +240,19 @@ class ChildPane(Vertical):
             previous_state
         )
         mode_changed = state.is_preview != previous_state.is_preview
+        next_scroll_context = self._entry_context(
+            state.scroll_entries if state.scroll_entries is not None else state.entries
+        )
+        list_context_changed = next_scroll_context != self._list_scroll_context
+        if list_context_changed or mode_changed:
+            self._list_expanded = state.scroll_entries is None
+            if list_context_changed:
+                self.call_after_refresh(
+                    lambda: self.query_one(
+                        f"#{self.list_scroll_id}", _PaneListScroll
+                    ).scroll_home(animate=False)
+                )
+        self._list_scroll_context = next_scroll_context
         clear_previous_kitty_preview = self._should_clear_previous_kitty_preview(
             previous_state, state
         )
@@ -334,9 +359,14 @@ class ChildPane(Vertical):
             and render_signature == self._last_render_signature
         ):
             return True
+        rendered_entries = (
+            self._state.scroll_entries
+            if self._list_expanded and self._state.scroll_entries is not None
+            else self._state.entries
+        )
         widget.update(
             self._label_cache.rebuild(
-                self._state.entries,
+                rendered_entries,
                 render_width,
                 self._ft_styles,
                 selected_directory_style=self.SELECTED_DIRECTORY_STYLE,
@@ -376,6 +406,22 @@ class ChildPane(Vertical):
 
     def _list_widget(self) -> Static:
         return self.query_one(f"#{self.list_view_id}", Static)
+
+    def _prepare_list_scroll(self) -> bool:
+        """Expand the child directory list before its first wheel movement."""
+
+        if self._list_expanded or self._state.scroll_entries is None:
+            return False
+        self._list_expanded = True
+        self._refresh_rendered_content(force=True)
+        return True
+
+    @staticmethod
+    def _entry_context(entries) -> str | None:
+        if not entries:
+            return None
+        path = entries[0].path.replace("\\", "/")
+        return path.rsplit("/", 1)[0] if "/" in path else None
 
     def _preview_widget(self) -> Static:
         return self.query_one(f"#{self.preview_id}", Static)
@@ -740,7 +786,7 @@ class ChildPane(Vertical):
                 state.status,
                 state.metadata,
             )
-        return ("list", state.entries)
+        return ("list", state.entries, state.scroll_entries)
 
 
 def _render_kitty_preview_text(content: str) -> Text:

@@ -61,6 +61,22 @@ class _MainPaneDataTable(DataTable):
             return
         await handler(row_index)
 
+    def _on_mouse_scroll_down(self, event: events.MouseScrollDown) -> None:
+        owner = self._owner_pane()
+        if owner is not None and owner._prepare_table_scroll():
+            event.stop()
+            self.call_after_refresh(lambda: self.scroll_down(animate=False, immediate=True))
+            return
+        super()._on_mouse_scroll_down(event)
+
+    def _on_mouse_scroll_up(self, event: events.MouseScrollUp) -> None:
+        owner = self._owner_pane()
+        if owner is not None and owner._prepare_table_scroll():
+            event.stop()
+            self.call_after_refresh(lambda: self.scroll_up(animate=False, immediate=True))
+            return
+        super()._on_mouse_scroll_up(event)
+
     def _owner_pane(self) -> "MainPane | None":
         """Return the containing MainPane through the table content wrapper."""
 
@@ -133,6 +149,8 @@ class MainPane(Vertical):
         context_input: InputBarState | None = None,
         status: PaneStatusViewState | None = None,
         heading: PaneHeadingState | None = None,
+        scroll_entries: Sequence[PaneEntry] | None = None,
+        scroll_cursor_index: int | None = None,
         *,
         id: str | None = None,
         classes: str | None = None,
@@ -141,6 +159,15 @@ class MainPane(Vertical):
         self._title = title
         self._heading = heading
         self._entries = tuple(entries)
+        self._scroll_entries = (
+            tuple(scroll_entries) if scroll_entries is not None else self._entries
+        )
+        self._has_scroll_projection = scroll_entries is not None
+        self._scroll_cursor_index = (
+            scroll_cursor_index if scroll_cursor_index is not None else cursor_index
+        )
+        self._table_expanded = scroll_entries is None
+        self._scroll_context = self._entry_context(self._scroll_entries)
         self._path_row_index = self._build_path_row_index(self._entries)
         self._summary = summary
         self._cursor_index = cursor_index
@@ -203,6 +230,21 @@ class MainPane(Vertical):
 
     def on_unmount(self) -> None:
         self._resize_debouncer.stop()
+
+    def _prepare_table_scroll(self) -> bool:
+        """Expand a projected table before its first mouse-wheel movement."""
+
+        if not self._has_scroll_projection or self._table_expanded:
+            return False
+        if self._scroll_entries == self._entries:
+            return False
+        self._table_expanded = True
+        self._entries = self._scroll_entries
+        self._cursor_index = self._scroll_cursor_index
+        table = self.query_one(DataTable)
+        self._rebuild_table(table)
+        self._apply_cursor_state(table)
+        return True
 
     def _refresh_after_resize(self) -> None:
         self._refresh_table_width()
@@ -273,7 +315,13 @@ class MainPane(Vertical):
     ) -> None:
         """Replace the rendered rows without remounting the pane."""
 
-        next_entries = tuple(entries)
+        next_entries = (
+            self._scroll_entries
+            if self._has_scroll_projection and self._table_expanded
+            else tuple(entries)
+        )
+        if self._has_scroll_projection and self._table_expanded:
+            cursor_index = self._scroll_cursor_index
         entries_changed = next_entries != self._entries
         cursor_changed = cursor_index != self._cursor_index
         if not entries_changed and not cursor_changed:
@@ -296,6 +344,37 @@ class MainPane(Vertical):
         if entries_changed or cursor_changed:
             self._apply_cursor_state(table)
 
+    def set_scroll_entries(
+        self,
+        entries: Sequence[PaneEntry] | None,
+        cursor_index: int | None = None,
+    ) -> None:
+        """Update the complete list retained for mouse-wheel expansion."""
+
+        next_entries = tuple(entries) if entries is not None else self._entries
+        self._has_scroll_projection = entries is not None
+        next_context = self._entry_context(next_entries)
+        previous_context = self._scroll_context
+        previous_cursor_index = self._scroll_cursor_index
+        if next_context != self._scroll_context:
+            self._table_expanded = entries is None
+        self._scroll_entries = next_entries
+        self._scroll_cursor_index = cursor_index
+        self._scroll_context = next_context
+        if self._table_expanded:
+            self._entries = next_entries
+            self._cursor_index = cursor_index
+            table = self.query_one(DataTable)
+            previous_scroll_y = table.scroll_y
+            self._rebuild_table(table)
+            if next_context != previous_context:
+                table.scroll_home(animate=False)
+                self._apply_cursor_state(table)
+            elif cursor_index != previous_cursor_index:
+                self._apply_cursor_state(table)
+            else:
+                table.scroll_to(y=previous_scroll_y, animate=False, immediate=True)
+
     def set_cursor_state(
         self,
         cursor_index: int | None,
@@ -310,6 +389,12 @@ class MainPane(Vertical):
         if not force_sync and not cursor_changed and not visibility_changed:
             return
 
+        if (
+            self._has_scroll_projection
+            and self._table_expanded
+            and self._scroll_cursor_index is not None
+        ):
+            cursor_index = self._scroll_cursor_index
         previous_cursor_index = self._cursor_index
         self._cursor_index = cursor_index
         self._cursor_visible = cursor_visible
@@ -341,6 +426,13 @@ class MainPane(Vertical):
             return
         clamped_index = max(0, min(len(self._entries) - 1, self._cursor_index))
         table.move_cursor(row=clamped_index, animate=False, scroll=True)
+
+    @staticmethod
+    def _entry_context(entries: Sequence[PaneEntry]) -> str | None:
+        if not entries:
+            return None
+        path = entries[0].path.replace("\\", "/")
+        return path.rsplit("/", 1)[0] if "/" in path else None
 
     def _apply_cursor_state(self, table: DataTable) -> None:
         table.show_cursor = self._cursor_visible

@@ -1,19 +1,56 @@
 """Command palette widget."""
 
+import re
+
 from rich.cells import cell_len
 from rich.style import Style
 from rich.text import Text
+from textual import events
 from textual.containers import Container, VerticalScroll
 from textual.events import Click
 from textual.widgets import Static
 
-from zivo.models import CommandPaletteInputFieldViewState, CommandPaletteViewState
+from zivo.models import (
+    CommandPaletteInputFieldViewState,
+    CommandPaletteItemViewState,
+    CommandPaletteViewState,
+)
 from zivo.state.actions import (
     BeginReplaceFromSearchResults,
     MoveCommandPaletteCursor,
     SubmitCommandPalette,
 )
 from zivo.ui.panes import truncate_middle
+
+
+class _CommandPaletteItemsScroll(VerticalScroll):
+    """Expand projected result rows before the first wheel movement."""
+
+    def _owner_palette(self) -> "CommandPalette | None":
+        for ancestor in self.ancestors:
+            if isinstance(ancestor, CommandPalette):
+                return ancestor
+        return None
+
+    def _on_mouse_scroll_down(self, event: events.MouseScrollDown) -> None:
+        owner = self._owner_palette()
+        if owner is not None and owner._prepare_result_scroll():
+            event.stop()
+            self.call_after_refresh(
+                lambda: owner._scroll_after_expand(self, down=True)
+            )
+            return
+        super()._on_mouse_scroll_down(event)
+
+    def _on_mouse_scroll_up(self, event: events.MouseScrollUp) -> None:
+        owner = self._owner_palette()
+        if owner is not None and owner._prepare_result_scroll():
+            event.stop()
+            self.call_after_refresh(
+                lambda: owner._scroll_after_expand(self, down=False)
+            )
+            return
+        super()._on_mouse_scroll_up(event)
 
 
 class CommandPalette(Container):
@@ -31,11 +68,16 @@ class CommandPalette(Container):
         super().__init__(id=id, classes=classes)
         self.state = state
         self._last_clicked_index: int = -1
+        self._scroll_items: tuple[CommandPaletteItemViewState, ...] | None = None
+        self._scroll_expanded = False
+        self._scroll_key: str | None = None
+        self._last_cursor_index: int | None = None
+        self._pending_scroll_anchor = 0
 
     def compose(self):
         yield Static("Command Palette", id="command-palette-title")
         yield Static("", id="command-palette-query")
-        yield VerticalScroll(
+        yield _CommandPaletteItemsScroll(
             Static("", id="command-palette-items"),
             id="command-palette-items-scroll",
         )
@@ -59,11 +101,7 @@ class CommandPalette(Container):
 
         event.stop()
 
-        current_cursor = 0
-        for i, item in enumerate(self.state.items):
-            if item.selected:
-                current_cursor = i
-                break
+        current_cursor = self._state_cursor_index()
 
         delta = item_index - current_cursor
 
@@ -82,6 +120,10 @@ class CommandPalette(Container):
         self.display = state is not None
         if state is None:
             self._last_clicked_index = -1
+            self._scroll_items = None
+            self._scroll_expanded = False
+            self._scroll_key = None
+            self._last_cursor_index = None
         title_widget = self.query_one("#command-palette-title", Static)
         query_widget = self.query_one("#command-palette-query", Static)
         items_widget = self.query_one("#command-palette-items", Static)
@@ -89,6 +131,7 @@ class CommandPalette(Container):
 
         if state is None:
             self.remove_class("-expanded")
+            self.remove_class("-result-list")
             title_widget.update("Command Palette")
             query_widget.update("")
             items_widget.update("")
@@ -96,7 +139,16 @@ class CommandPalette(Container):
             footer_widget.update("")
             return
 
+        context_changed = state.scroll_key != self._scroll_key
+        if context_changed:
+            self._scroll_expanded = False
+        self._scroll_items = state.scroll_items
+        self._scroll_key = state.scroll_key
+        cursor_index = self._state_cursor_index(state)
+        cursor_changed = cursor_index != self._last_cursor_index
+        self._last_cursor_index = cursor_index
         self.set_class(state.has_more_items, "-expanded")
+        self.set_class(state.scroll_items is not None, "-result-list")
         title_widget.update(state.title)
         is_search_results = state.title.startswith("Find") or state.title.startswith("Grep")
         footer_widget.display = bool(state.footer_message) or (
@@ -108,7 +160,8 @@ class CommandPalette(Container):
             query_widget.update(self._render_input_fields(state.input_fields, query_width))
         else:
             query_widget.update(self._render_query_line(state, query_width))
-        items_widget.update(self._render_items(state, items_width))
+        rendered_items, index_offset = self._rendered_items(state)
+        items_widget.update(self._render_items(state, items_width, rendered_items, index_offset))
         footer_text = Text()
         if is_search_results and state.items:
             footer_text.append(
@@ -126,7 +179,74 @@ class CommandPalette(Container):
                 style="yellow",
             )
         footer_widget.update(footer_text if len(footer_text) else "")
-        self.call_after_refresh(self._scroll_selected_item)
+        if context_changed or cursor_changed:
+            self.call_after_refresh(self._scroll_selected_item)
+
+    def _prepare_result_scroll(self) -> bool:
+        """Expand a bounded search/replace result projection for mouse scrolling."""
+
+        if self._scroll_expanded or self._scroll_items is None:
+            return False
+        state = self.state
+        if state is None:
+            return False
+        _, previous_index_offset = self._rendered_items(state)
+        self._scroll_expanded = True
+        items_widget = self.query_one("#command-palette-items", Static)
+        rendered_items, index_offset = self._rendered_items(state)
+        items_widget.update(
+            self._render_items(
+                state,
+                self._resolve_render_width(items_widget),
+                rendered_items,
+                index_offset,
+            )
+        )
+        self._pending_scroll_anchor = previous_index_offset
+        return True
+
+    def _scroll_after_expand(
+        self,
+        scroll_widget: VerticalScroll,
+        *,
+        down: bool,
+    ) -> None:
+        """Restore the previous result window before applying wheel movement."""
+
+        scroll_widget.scroll_to(
+            y=self._pending_scroll_anchor,
+            animate=False,
+            force=True,
+            immediate=True,
+        )
+        if down:
+            scroll_widget.scroll_down(animate=False, immediate=True)
+        else:
+            scroll_widget.scroll_up(animate=False, immediate=True)
+
+    def _rendered_items(
+        self,
+        state: CommandPaletteViewState,
+    ) -> tuple[tuple[CommandPaletteItemViewState, ...], int]:
+        if self._scroll_expanded and self._scroll_items is not None:
+            return self._scroll_items, 0
+        return state.items, self._result_index_offset(state.title)
+
+    def _state_cursor_index(self, state: CommandPaletteViewState | None = None) -> int:
+        current_state = state or self.state
+        if current_state is None:
+            return 0
+        if current_state.cursor_index is not None:
+            return current_state.cursor_index
+        for index, item in enumerate(current_state.items):
+            if item.selected:
+                return index + self._result_index_offset(current_state.title)
+        return 0
+
+    @staticmethod
+    def _result_index_offset(title: str) -> int:
+        match = re.search(r"\((\d+)-\d+ / \d+\)$", title)
+        return int(match.group(1)) - 1 if match else 0
 
     def _scroll_selected_item(self) -> None:
         """Keep the selected row visible when cursor navigation crosses the fold."""
@@ -134,19 +254,18 @@ class CommandPalette(Container):
         if self.state is None:
             return
         scroll_widget = self.query_one("#command-palette-items-scroll", VerticalScroll)
-        selected_index = next(
-            (index for index, item in enumerate(self.state.items) if item.selected),
-            None,
-        )
-        if selected_index is None:
+        rendered_items, index_offset = self._rendered_items(self.state)
+        selected_index = self._state_cursor_index()
+        local_selected_index = selected_index - index_offset
+        if local_selected_index < 0 or local_selected_index >= len(rendered_items):
             return
         show_sections = (
             self.state.title.startswith("Command Palette") and not self.state.query.strip()
         )
-        selected_line = selected_index
+        selected_line = local_selected_index
         if show_sections:
             current_section: str | None = None
-            for item in self.state.items[: selected_index + 1]:
+            for item in rendered_items[: local_selected_index + 1]:
                 if item.category != current_section:
                     if current_section is not None:
                         selected_line += 1
@@ -224,14 +343,22 @@ class CommandPalette(Container):
         return rendered
 
     @classmethod
-    def _render_items(cls, state: CommandPaletteViewState, render_width: int) -> Text:
-        if not state.items:
+    def _render_items(
+        cls,
+        state: CommandPaletteViewState,
+        render_width: int,
+        items: tuple[CommandPaletteItemViewState, ...] | None = None,
+        index_offset: int = 0,
+    ) -> Text:
+        rendered_items = items if items is not None else state.items
+        if not rendered_items:
             return Text(state.empty_message, style="dim", no_wrap=True, overflow="ellipsis")
 
         rendered = Text(no_wrap=True, overflow="ellipsis")
         show_sections = state.title.startswith("Command Palette") and not state.query.strip()
         current_section: str | None = None
-        for index, item in enumerate(state.items):
+        for local_index, item in enumerate(rendered_items):
+            index = local_index + index_offset
             section = item.category
             if show_sections and section != current_section:
                 if len(rendered):
@@ -268,6 +395,6 @@ class CommandPalette(Container):
                 combined_shortcut += Style.parse(f"{style} dim" if style else "dim")
                 line.append(shortcut_suffix, style=combined_shortcut)
             rendered.append_text(line)
-            if index < len(state.items) - 1:
+            if local_index < len(rendered_items) - 1:
                 rendered.append("\n")
         return rendered

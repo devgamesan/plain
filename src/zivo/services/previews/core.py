@@ -414,6 +414,7 @@ class ImagePreviewLoader(Protocol):
         path: Path,
         *,
         preview_columns: int,
+        preview_rows: int | None = None,
         image_preview_format: str = "symbols",
         cancel_callback: CancelCallback | None = None,
     ) -> FilePreviewState | None: ...
@@ -565,6 +566,7 @@ class ChafaImagePreviewLoader:
         path: Path,
         *,
         preview_columns: int,
+        preview_rows: int | None = None,
         image_preview_format: str = "symbols",
         cancel_callback: CancelCallback | None = None,
     ) -> FilePreviewState | None:
@@ -578,6 +580,7 @@ class ChafaImagePreviewLoader:
             chafa,
             path,
             preview_columns=preview_columns,
+            preview_rows=preview_rows,
             chafa_format=image_preview_format,
         )
         try:
@@ -611,6 +614,7 @@ class ChafaImagePreviewLoader:
                 chafa,
                 path,
                 preview_columns=preview_columns,
+                preview_rows=preview_rows,
                 chafa_format=image_preview_format,
             )
             try:
@@ -660,6 +664,7 @@ class ChafaImagePreviewLoader:
         path: Path,
         *,
         preview_columns: int,
+        preview_rows: int | None = None,
         chafa_format: str = "symbols",
     ) -> list[str]:
         args = [
@@ -673,13 +678,10 @@ class ChafaImagePreviewLoader:
             args.extend(["--duration", "0"])
         else:
             args.extend(["--animate", "off"])
-        args.extend(
-            [
-                "--size",
-                f"{max(1, preview_columns)}x",
-                str(path),
-            ]
-        )
+        size = f"{max(1, preview_columns)}x"
+        if chafa_format == "kitty" and preview_rows is not None:
+            size += str(max(1, preview_rows))
+        args.extend(["--size", size, str(path)])
         return args
 
     def _should_retry_without_animate(

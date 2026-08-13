@@ -14,7 +14,7 @@ from textual.containers import Vertical, VerticalScroll
 from textual.css.query import NoMatches
 from textual.message import Message
 from textual.timer import Timer
-from textual.widgets import Label, Static
+from textual.widgets import Label, Static, TextArea
 
 from zivo.models.shell_data import ChildPaneViewState, MetadataItemViewState
 from zivo.services.previews.core import ChafaImagePreviewLoader, ImagePreviewLoader
@@ -34,6 +34,120 @@ from .side_pane import SidePane, _PaneListScroll
 _SGR_SEQUENCE_RE = re.compile(r"\x1b\[([0-9;]*)m")
 _KITTY_DELETE_ALL_IMAGES = "\033_Ga=d,d=A\033\\"
 _CHAFA_RESIZE_DEBOUNCE_SECONDS = 0.08
+
+
+class _SelectablePreviewTextArea(TextArea, Static):
+    """Read-only text preview with mouse selection and Rich syntax styling.
+
+    ``TextArea`` supplies the selection, mouse capture, and selected-text
+    extraction behavior.  The additional ``Static`` base keeps the historical
+    ``#child-pane-preview`` type contract for callers that inspect the preview
+    renderable.  Rich ``Syntax`` remains the source of the displayed theme,
+    while the text area's renderer applies the selection highlight on top.
+    """
+
+    DEFAULT_CSS = """
+    _SelectablePreviewTextArea {
+        width: 1fr;
+        height: auto;
+        min-height: 1;
+        padding: 0 1;
+        border: none;
+        background: transparent;
+        scrollbar-size: 0 0;
+    }
+
+    _SelectablePreviewTextArea.-collapsed {
+        width: 0;
+        height: 0;
+        min-height: 0;
+        padding: 0;
+        border: none;
+    }
+    """
+
+    def __init__(self, *, id: str | None = None, classes: str | None = None) -> None:
+        self._syntax_lines: tuple[Text, ...] = ()
+        super().__init__(
+            "",
+            read_only=True,
+            soft_wrap=False,
+            show_line_numbers=False,
+            id=id,
+            classes=classes,
+        )
+        self.show_vertical_scrollbar = False
+        self.show_horizontal_scrollbar = False
+
+    def set_text_preview(
+        self,
+        content: str,
+        *,
+        path: str | None,
+        syntax_theme: str,
+        word_wrap: bool,
+        line_numbers: bool,
+        line_number_start: int,
+        highlight_line: int | None,
+        renderable: Syntax,
+    ) -> None:
+        """Load selectable content and retain the existing Rich preview renderable."""
+
+        lexer = _guess_preview_lexer(path) if path is not None else "text"
+        syntax = Syntax(
+            content,
+            lexer=lexer,
+            theme=syntax_theme,
+            word_wrap=word_wrap,
+            highlight_lines={highlight_line} if highlight_line is not None else None,
+        )
+        highlighted = syntax.highlight(content)
+        self._syntax_lines = tuple(line.copy() for line in highlighted.split("\n"))
+        self.soft_wrap = word_wrap
+        self.show_line_numbers = line_numbers
+        self.line_number_start = line_number_start
+        if self.text != content:
+            self.load_text(content)
+        else:
+            self.refresh()
+        # Keep the historical Rich renderable available to tests and callers.
+        self.update(renderable)
+        self.remove_class("-collapsed")
+
+    def set_fallback_renderable(self, renderable: object) -> None:
+        """Mirror a non-text preview while collapsing the selectable surface."""
+
+        if self.text:
+            self._syntax_lines = ()
+            self.load_text("")
+        self.update(renderable)
+        self.add_class("-collapsed")
+
+    def get_line(self, line_index: int) -> Text:
+        if 0 <= line_index < len(self._syntax_lines):
+            return self._syntax_lines[line_index].copy()
+        return super().get_line(line_index)
+
+    def selected_preview_text(self) -> str | None:
+        """Return selected source text, or ``None`` when no range is active."""
+
+        if self.selection.start == self.selection.end:
+            return None
+        return self.selected_text
+
+    def clear_preview_selection(self) -> bool:
+        """Clear the active range and report whether anything changed."""
+
+        if self.selection.start == self.selection.end:
+            return False
+        self.selection = (self.selection.end, self.selection.end)
+        self.refresh()
+        return True
+
+    def on_click(self, event: events.Click) -> None:
+        # Keep a click in the selectable surface from bubbling to ChildPane,
+        # whose generic preview handler would steal focus after a drag.
+        event.stop()
 
 
 class ChildPane(Vertical):
@@ -111,6 +225,10 @@ class ChildPane(Vertical):
         return f"{self.id}-preview" if self.id else None
 
     @property
+    def preview_fallback_id(self) -> str | None:
+        return f"{self.id}-preview-fallback" if self.id else None
+
+    @property
     def preview_scroll_id(self) -> str | None:
         return f"{self.id}-preview-scroll" if self.id else None
 
@@ -137,14 +255,34 @@ class ChildPane(Vertical):
             classes="pane-list",
         )
         list_content.can_focus = False
-        preview_content = Static(
-            self._render_preview(self._state, 0),
+        preview_renderable = self._render_preview(self._state, 0)
+        preview_content = _SelectablePreviewTextArea(
             id=self.preview_id,
-            classes="pane-preview",
+            classes="pane-preview pane-preview-text",
         )
-        preview_content.can_focus = False
+        if self._is_selectable_text_preview(self._state):
+            preview_content.set_text_preview(
+                self._state.preview_content or "",
+                path=self._state.preview_path,
+                syntax_theme=self._state.syntax_theme,
+                word_wrap=self._state.preview_word_wrap,
+                line_numbers=self._state.preview_start_line is not None,
+                line_number_start=self._state.preview_start_line or 1,
+                highlight_line=self._state.preview_highlight_line,
+                renderable=preview_renderable,
+            )
+        else:
+            preview_content.set_fallback_renderable(preview_renderable)
+        preview_content.can_focus = self._is_selectable_text_preview(self._state)
+        preview_fallback = Static(
+            preview_renderable,
+            id=self.preview_fallback_id,
+            classes="pane-preview pane-preview-fallback",
+        )
+        preview_fallback.display = not self._is_selectable_text_preview(self._state)
         preview_scroll = VerticalScroll(
             preview_content,
+            preview_fallback,
             id=self.preview_scroll_id,
             classes="pane-preview-scroll",
         )
@@ -152,11 +290,11 @@ class ChildPane(Vertical):
         preview_scroll.display = self._state.is_preview
         list_content.display = not self._state.is_preview
         preview_help = Label(
-            self._state.preview_scroll_hint or "",
+            self._render_preview_help(self._state),
             id=self.preview_help_id,
             classes="pane-preview-help",
         )
-        preview_help.display = self._state.preview_scroll_hint is not None
+        preview_help.display = self._has_preview_help(self._state)
         list_scroll = _PaneListScroll(
             list_content,
             id=self.list_scroll_id,
@@ -259,6 +397,11 @@ class ChildPane(Vertical):
             previous_state, state
         )
         self._state = state
+        if preview_identity_changed:
+            try:
+                self._preview_text_widget().clear_preview_selection()
+            except NoMatches:
+                pass
         if clear_previous_kitty_preview:
             self.call_after_refresh(self._clear_kitty_content)
         if state.display_title != previous_state.display_title:
@@ -282,9 +425,11 @@ class ChildPane(Vertical):
         if preview_help is not None and (
             state.preview_scroll_hint != previous_state.preview_scroll_hint
             or mode_changed
+            or self._is_selectable_text_preview(state)
+            != self._is_selectable_text_preview(previous_state)
         ):
-            preview_help.update(state.preview_scroll_hint or "")
-            preview_help.display = state.preview_scroll_hint is not None
+            preview_help.update(self._render_preview_help(state))
+            preview_help.display = self._has_preview_help(state)
         if state.metadata_bar != previous_state.metadata_bar:
             try:
                 self._refresh_metadata_bar(force=True)
@@ -315,11 +460,39 @@ class ChildPane(Vertical):
         try:
             if self._state.is_preview:
                 widget = self._preview_widget()
+                selectable_text = self._is_selectable_text_preview(self._state)
+                try:
+                    preview_text = self._preview_text_widget()
+                    preview_fallback = self._preview_fallback_widget()
+                except NoMatches:
+                    preview_text = None
+                    preview_fallback = None
+                if preview_text is not None and preview_fallback is not None:
+                    preview_text.can_focus = selectable_text
+                    preview_text.display = True
+                    preview_fallback.display = not selectable_text
                 render_width = max(0, widget.size.width - self.PREVIEW_HORIZONTAL_PADDING)
                 if render_width <= 0:
                     if self._state.status is None:
                         return False
-                    widget.update(self._render_preview(self._state, 0))
+                    rendered = self._render_preview(self._state, 0)
+                    if selectable_text and preview_text is not None:
+                        preview_text.set_text_preview(
+                            self._state.preview_content or "",
+                            path=self._state.preview_path,
+                            syntax_theme=self._state.syntax_theme,
+                            word_wrap=self._state.preview_word_wrap,
+                            line_numbers=self._state.preview_start_line is not None,
+                            line_number_start=self._state.preview_start_line or 1,
+                            highlight_line=self._state.preview_highlight_line,
+                            renderable=rendered,
+                        )
+                    elif preview_fallback is not None:
+                        preview_fallback.update(rendered)
+                        if preview_text is not None:
+                            preview_text.set_fallback_renderable(rendered)
+                    else:
+                        widget.update(rendered)
                     self._last_render_width = render_width
                     self._last_render_signature = render_signature
                     return True
@@ -340,13 +513,28 @@ class ChildPane(Vertical):
                         "symbols",
                     )
 
-                widget.update(
-                    self._render_preview(
-                        self._state,
-                        render_width,
-                        chafa_override=self._chafa_cached_content,
-                    )
+                rendered = self._render_preview(
+                    self._state,
+                    render_width,
+                    chafa_override=self._chafa_cached_content,
                 )
+                if selectable_text and preview_text is not None:
+                    preview_text.set_text_preview(
+                        self._state.preview_content or "",
+                        path=self._state.preview_path,
+                        syntax_theme=self._state.syntax_theme,
+                        word_wrap=self._state.preview_word_wrap,
+                        line_numbers=self._state.preview_start_line is not None,
+                        line_number_start=self._state.preview_start_line or 1,
+                        highlight_line=self._state.preview_highlight_line,
+                        renderable=rendered,
+                    )
+                elif preview_fallback is not None:
+                    preview_fallback.update(rendered)
+                    if preview_text is not None:
+                        preview_text.set_fallback_renderable(rendered)
+                else:
+                    widget.update(rendered)
                 self._last_render_width = render_width
                 self._last_render_signature = render_signature
                 if self._state.preview_kind == "kitty" and self._state.preview_content:
@@ -436,13 +624,71 @@ class ChildPane(Vertical):
         return path.rsplit("/", 1)[0] if "/" in path else None
 
     def _preview_widget(self) -> Static:
-        return self.query_one(f"#{self.preview_id}", Static)
+        if self._is_selectable_text_preview(self._state):
+            return self.query_one(f"#{self.preview_id}", Static)
+        return self._preview_fallback_widget()
+
+    def _preview_text_widget(self) -> _SelectablePreviewTextArea:
+        return self.query_one(f"#{self.preview_id}", _SelectablePreviewTextArea)
+
+    def _preview_fallback_widget(self) -> Static:
+        return self.query_one(f"#{self.preview_fallback_id}", Static)
 
     def _preview_scroll_widget(self) -> VerticalScroll:
         return self.query_one(f"#{self.preview_scroll_id}", VerticalScroll)
 
     def _preview_help_widget(self) -> Label:
         return self.query_one(f"#{self.preview_help_id}", Label)
+
+    def selected_preview_text(self) -> str | None:
+        """Return the active text-preview selection, if any."""
+
+        if not self._is_selectable_text_preview(self._state):
+            return None
+        try:
+            return self._preview_text_widget().selected_preview_text()
+        except NoMatches:
+            return None
+
+    def clear_preview_selection(self) -> bool:
+        """Clear a text-preview selection and report whether it was active."""
+
+        try:
+            return self._preview_text_widget().clear_preview_selection()
+        except NoMatches:
+            return False
+
+    @staticmethod
+    def _is_selectable_text_preview(state: ChildPaneViewState) -> bool:
+        return (
+            state.is_preview
+            and state.preview_content is not None
+            and state.preview_kind not in {"image", "kitty"}
+            and state.preview_message is None
+            and state.status is None
+        )
+
+    @staticmethod
+    def _render_preview_help(state: ChildPaneViewState) -> Text:
+        text = Text()
+        if state.preview_scroll_hint:
+            text.append(state.preview_scroll_hint)
+        if ChildPane._is_selectable_text_preview(state):
+            if text:
+                text.append("  ·  ")
+            text.append(
+                "[c] Copy selection",
+                style=Style(
+                    bold=True,
+                    underline=True,
+                    meta={"pane_action_id": "copy_preview_selection"},
+                ),
+            )
+        return text
+
+    @staticmethod
+    def _has_preview_help(state: ChildPaneViewState) -> bool:
+        return bool(state.preview_scroll_hint) or ChildPane._is_selectable_text_preview(state)
 
     def _metadata_bar_widget(self) -> Static:
         return self.query_one(f"#{self.metadata_bar_id}", Static)

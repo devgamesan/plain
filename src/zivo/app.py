@@ -93,6 +93,7 @@ from zivo.state.actions import (
     BeginCreateInput,
     CancelFilterInput,
     CloseTabByIndex,
+    CopyTextToClipboard,
     EnterCursorDirectory,
     EnterTransferDirectory,
     ExitCurrentPath,
@@ -583,6 +584,25 @@ class zivoApp(App[None]):
     async def action_dispatch_bound_key(self, key: str) -> None:
         """Handle priority key bindings through the central dispatcher."""
 
+        if key == "c" and self._app_state.ui_mode == "BROWSING":
+            try:
+                child_pane = self.query_one("#child-pane", ChildPane)
+            except NoMatches:
+                child_pane = None
+            if child_pane is not None:
+                selected_text = child_pane.selected_preview_text()
+                if selected_text is not None:
+                    await self.dispatch_actions((CopyTextToClipboard(selected_text),))
+                    return
+
+        if key in {"escape", "esc"} and self._app_state.ui_mode == "BROWSING":
+            try:
+                child_pane = self.query_one("#child-pane", ChildPane)
+            except NoMatches:
+                child_pane = None
+            if child_pane is not None and child_pane.clear_preview_selection():
+                return
+
         scroll_delta = _preview_scroll_delta(self._app_state, key)
         if scroll_delta is not None:
             try:
@@ -796,6 +816,15 @@ class zivoApp(App[None]):
 
     async def on_child_pane_action_clicked(self, message: ChildPane.ActionClicked) -> None:
         """Run a child-pane fallback action through the reducer."""
+
+        if message.action_id == "copy_preview_selection":
+            try:
+                child_pane = self.query_one("#child-pane", ChildPane)
+            except NoMatches:
+                return
+            selected_text = child_pane.selected_preview_text()
+            await self.dispatch_actions((CopyTextToClipboard(selected_text or ""),))
+            return
 
         await self._dispatch_pane_action(message.action_id)
 

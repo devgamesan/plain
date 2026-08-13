@@ -165,6 +165,13 @@ class CopyPathsToClipboard:
 
 
 @dataclass(frozen=True)
+class CopyTextToClipboard:
+    """Copy arbitrary selected preview text to the system clipboard."""
+
+    text: str
+
+
+@dataclass(frozen=True)
 class AddBookmark:
     """Persist the supplied directory path as a bookmark."""
 

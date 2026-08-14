@@ -1691,45 +1691,40 @@ def test_select_command_palette_state_marks_selected_and_enabled_items() -> None
 
     assert palette_state is not None
     assert palette_state.title.startswith("Command Palette")
-    assert [item.category for item in palette_state.items[:3]] == [
-        "Navigate",
-        "Navigate",
-        "Navigate",
-    ]
+    assert len(palette_state.items) > 5
+    assert all(item.category == "Suggested" for item in palette_state.items[:5])
     assert palette_state.items[0].selected is True
     assert palette_state.items[0].enabled is True
-    assert any(item.label == "Go back" and not item.enabled for item in palette_state.items)
-    assert any(item.label == "Go forward" and not item.enabled for item in palette_state.items)
+    assert palette_state.context_lines
+    assert palette_state.category_hint is None
 
 
 def test_removed_direct_shortcuts_remain_available_without_palette_shortcuts() -> None:
-    state = replace(build_initial_app_state(), command_palette=CommandPaletteState())
-    items = {
-        item.label: item
-        for item in command_palette_module.get_command_palette_items(state)
+    base = replace(build_initial_app_state(), command_palette=CommandPaletteState())
+    expected = {
+        "Show attributes": ("attributes", None),
+        "Copy path": ("copy path", None),
+        "Bookmark this directory": ("bookmark", None),
+        "Go": ("go", "G"),
+        "Open current directory with file manager": ("file manager", None),
+        "Edit with GUI editor": ("gui editor", None),
+        "Open current directory with terminal": ("terminal", None),
+        "Reload directory": ("reload", None),
     }
-
-    labels = {
-        "Show attributes",
-        "Copy path",
-        "Bookmark this directory",
-        "Go",
-        "Open current directory with file manager",
-        "Edit with GUI editor",
-        "Open current directory with terminal",
-        "Reload directory",
-    }
-
-    assert labels <= items.keys()
-    assert all(items[label].shortcut is None for label in labels - {"Go"})
-    assert items["Go"].shortcut == "G"
+    for label, (query, shortcut) in expected.items():
+        state = replace(base, command_palette=replace(base.command_palette, query=query))
+        items = {
+            item.label: item
+            for item in command_palette_module.get_command_palette_items(state)
+        }
+        assert items[label].shortcut == shortcut
 
 
 def test_command_palette_exposes_one_dynamic_narrow_view_command() -> None:
     state = replace(
         build_initial_app_state(),
         terminal_width=72,
-        command_palette=CommandPaletteState(),
+        command_palette=CommandPaletteState(query="preview"),
     )
 
     items = command_palette_module.get_command_palette_items(state)
@@ -1740,7 +1735,11 @@ def test_command_palette_exposes_one_dynamic_narrow_view_command() -> None:
     assert narrow_items[0].shortcut == "tab"
     assert narrow_items[0].enabled is True
 
-    details = replace(state, narrow_pane_view="details")
+    details = replace(
+        state,
+        narrow_pane_view="details",
+        command_palette=replace(state.command_palette, query="preview"),
+    )
     details_item = next(
         item
         for item in command_palette_module.get_command_palette_items(details)
@@ -1957,6 +1956,10 @@ def test_select_command_palette_state_enables_history_navigation_items() -> None
         history=HistoryState(
             back=("/tmp/a",),
             forward=("/tmp/b",),
+        ),
+        command_palette=replace(
+            _reduce_state(build_initial_app_state(), BeginCommandPalette()).command_palette,
+            query="go",
         ),
     )
 
@@ -3385,8 +3388,8 @@ class TestSelectCommandPaletteWindow:
 class TestCommandPaletteDynamicWindow:
     """コマンドパレットの動的表示ウィンドウ計算のテスト."""
 
-    def test_default_command_palette_keeps_all_commands_scrollable(self) -> None:
-        """通常のコマンド一覧は末尾までスクロールできること."""
+    def test_default_command_palette_keeps_discoverable_command_catalog(self) -> None:
+        """空クエリは文脈候補の下に全コマンドを保持する."""
 
         state = replace(
             _reduce_state(build_initial_app_state(), BeginCommandPalette()),
@@ -3396,7 +3399,8 @@ class TestCommandPaletteDynamicWindow:
         palette_state = select_command_palette_state(state)
 
         assert palette_state is not None
-        assert len(palette_state.items) > 14
+        assert len(palette_state.items) > 5
+        assert all(item.category == "Suggested" for item in palette_state.items[:5])
         assert palette_state.has_more_items is True
 
 
@@ -3411,6 +3415,7 @@ def test_select_tab_bar_state_marks_active_tab() -> None:
 
 def test_command_palette_tab_commands_have_no_direct_shortcut() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = replace(state, command_palette=replace(state.command_palette, query="tab"))
 
     palette_state = select_command_palette_state(state)
 
@@ -3425,6 +3430,7 @@ def test_command_palette_tab_commands_have_no_direct_shortcut() -> None:
 
 def test_command_palette_includes_undo_item_and_disables_when_empty() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = replace(state, command_palette=replace(state.command_palette, query="undo"))
 
     items = {
         item.label: item for item in command_palette_module.get_command_palette_items(state)
@@ -3439,6 +3445,7 @@ def test_command_palette_enables_undo_item_when_stack_is_present() -> None:
         _reduce_state(build_initial_app_state(), BeginCommandPalette()),
         undo_stack=(UndoEntry(kind="paste_copy", steps=(UndoDeletePathStep("/tmp/copied"),)),),
     )
+    state = replace(state, command_palette=replace(state.command_palette, query="undo"))
 
     items = {
         item.label: item for item in command_palette_module.get_command_palette_items(state)

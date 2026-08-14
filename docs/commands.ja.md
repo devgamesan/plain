@@ -9,13 +9,13 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 
 通常ブラウズでは、パスバーにクリック可能な breadcrumb segment と Back/Forward を表示します。タブバーではタブ切替、hover 時の close、新規タブの affordance を利用できます。中央ペインの `Name`、`Size`、`Modified` header は sort に使えます。これらのマウス操作は、対応するキー操作・パレット操作と同じ Action を使用します。Transfer modeでも既存のキーボード・パレットの意味を維持し、パスバーに履歴ボタンは追加しません。
 
-クエリが空の場合は、`Navigate`、`File`、`Search`、`View`、`System`、`Custom actions` の固定カテゴリを表示します。カテゴリ順とコマンド順位は決定的で、利用履歴やテレメトリは使用しません。
+クエリが空の場合は、実効対象（`Selection`、`Target`、`Current folder`）と、実行可能な `Suggested` 操作を最大5件表示し、その下に残りのコマンドをカテゴリ別に表示します。Suggested に表示したコマンドは一覧で重複させません。明示選択の外側にあるフォーカスは `not included` と明示します。Pasteは現在のフォルダへの操作として `Paste 2 items here` のように表示します。文字を入力すると全コマンドを絞り込め、無効なコマンドも理由付きで表示されます。カテゴリ順とコマンド順位は決定的で、利用履歴やテレメトリは使用しません。
 
 Directory History と Go の最近の履歴は、最後に訪問したディレクトリから新しい順に表示します。各タブと Transfer の各ペインは、最新の重複しないディレクトリパスを100件までメモリに保持し、古い項目を自動的に破棄します。
 
 待機する terminal editor、foreground terminal、shell command、`terminal` / `background` のカスタムアクションが完了したとき、実行 cwd または編集対象ファイルの親が表示中の実ディレクトリと一致すれば、そのディレクトリを1回だけ再読込します。既存のカーソル、選択、filter、sort は再読込後も適用されます。GUI editor、新しい terminal window、既定アプリ起動、configだけを更新するoverlay完了、Search Workspace、archive 専用表示はこの完了時再読込の対象外です。
 
-最新の操作に次アクションがある場合、通常の `commands` パレットの先頭に条件付きで `Suggested` を1件だけ表示します。表示優先順位は `Undo`、`Open destination`、安全な `Retry`、`Details` です。Detailsには安全な復旧Actionを最大1件だけ表示し、`[z] Undo completed items` または `[r] Retry` として実行できます。`Enter` / `Esc` はDetailsを閉じます。StatusBar、Details、条件付き `Suggested` は同じ stable action ID と reducer 経路を共有し、既存のグローバルキーボード経路は現在の意味を維持します。新しいグローバルキーは追加しません。表示開始から5秒で自動消去するのは最終成功通知だけで、処理中・warning/error・partial success は自動消去しません。
+最新の操作に次アクションがある場合、空の `commands` パレットではそのActionを `Suggested` の先頭に置き、残りを文脈操作で補充して、実行可能な項目を合計最大5件表示します。通知の優先順位は `Undo`、`Open destination`、安全な `Retry`、`Details` です。Detailsには安全な復旧Actionを最大1件だけ表示し、`[z] Undo completed items` または `[r] Retry` として実行できます。`Enter` / `Esc` はDetailsを閉じます。StatusBar、Details、通知由来の `Suggested` は同じ stable action ID と reducer 経路を共有し、既存のグローバルキーボード経路は現在の意味を維持します。新しいグローバルキーは追加しません。表示開始から5秒で自動消去するのは最終成功通知だけで、処理中・warning/error・partial success は自動消去しません。
 
 `Retry` は、成功・skip・overwrite がなく、元の `PasteRequest` の conflict resolution が未指定である貼り付け失敗、成功・適用済み変更がない Duplicate 失敗、archive/zip 準備失敗に限定します。Retry は毎回 fresh preparation/preflight を行い、競合や対象変更があれば既存の競合確認・再確認経路へ戻ります。`Details` は失敗件数、対象パス、理由を表示し、有効なUndoエントリがある場合だけ完了済みCopy/Move対象のUndoを提示します。`Enter` または `Esc` で閉じます。
 
@@ -35,6 +35,7 @@ Directory History と Go の最近の履歴は、最後に訪問したディレ�
 | `Go back` | ディレクトリ履歴に戻り先があるとき | 履歴を一つ戻ります。 |
 | `Go forward` | ディレクトリ履歴に進み先があるとき | 履歴を一つ進みます。 |
 | `Go to home directory` | 常に表示 | ホームディレクトリへ移動します。 |
+| `Enter folder` | 明示選択なしでディレクトリにフォーカスがあるとき | 既存のディレクトリ移動Actionを使って、フォーカス中のディレクトリへ移動します。 |
 | `Reload directory` | 常に表示 | 現在ディレクトリを再読み込みします。 |
 | `Toggle transfer mode` / `Close transfer mode` | 常に表示 | 通常の 3 ペインブラウザと 2 ペイン転送レイアウトを切り替えます。 |
 | `Show preview or contents` / `Back to file list` | 80 列未満の通常ブラウズでフォーカス対象があるとき | 狭い端末で表示するビューを current のファイル一覧と詳細ペイン（プレビュー／検索結果）の間で切り替えます。ラベルは現在のビューに応じて変わり、直接キーは `Tab` です。Search Workspace の `Tab` は入力欄移動を維持します。 |
@@ -61,6 +62,7 @@ Directory History と Go の最近の履歴は、最後に訪問したディレ�
 | カスタムアクション | 登録済みの各 `[[actions.custom]]`（`when` と `extensions` 条件に合わない項目は無効） | `config.toml` に登録した再利用可能な名前付きアクションを表示します。実行前に展開後 command/cwd/mode を確認します。定型の非対話処理には `background`、対話処理には `terminal`、独立作業には `terminal_window` を使います。詳しくは [カスタムアクション](custom-actions.ja.md) を参照してください。 |
 | `Bookmark this directory` / `Remove bookmark` | 常に表示 | 現在ディレクトリを `[bookmarks].paths` に追加または削除します。ラベルは現在状態を反映します。 |
 | `Show hidden files` / `Hide hidden files` | 常に表示 | ブラウザ 3 ペインの隠しファイル表示を切り替えます。ラベルは現在状態を反映します。 |
+| `Clear filter` | 名前フィルタが有効でクエリがあるとき | 既存の filter reducer 経路を使って、現在ペインのフィルタを解除します。 |
 | `Edit config` | 常に表示 | 起動時設定を編集するオーバーレイを開きます。優先ターミナルエディタ、GUI エディタプリセット、OS 別の外部ターミナル起動テンプレート、隠しファイル表示、ディレクトリサイズ表示、テキストプレビュー表示、画像プレビュー表示、画像プレビュー方式、PDF プレビュー表示、Office プレビュー表示、テーマ、ソート、貼り付け競合時の既定動作、削除確認の有無などを編集できます。オーバーレイ内には選択中の設定が何を変えるかの説明も表示されるため、README を見返さなくても挙動を判断できます。テーマ変更はその場で即時プレビューされます。 |
 
 空・フォールバック状態のペインには、実行可能なローカルActionだけを表示します。空の現在ディレクトリでは `Create`、フィルタ0件では `Clear filter`、隠し項目だけの場合は `[.] Show hidden files`、非対応・依存不足・変換エラー・timeout・resource limit・テキストなしのプレビューでは `Open with default app`、権限不足など診断を優先する状態では `Show attributes`、設定で無効な場合は `Edit config` を表示します。カーソルまたはプレビュー対象が変わった古いActionは起動せず、warningを表示します。クリック時も既存コマンドと同じreducer経路を使用し、共有external launcherによるディレクトリのファイルマネージャ起動は維持します。左ペインは読込中、権限不足、親なし、表示項目なしを区別し、再読込中もキャッシュ済み一覧を維持します。

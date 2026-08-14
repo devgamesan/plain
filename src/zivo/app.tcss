@@ -235,6 +235,11 @@ Screen {
     margin: 0 0 1 0;
 }
 
+#command-palette-context {
+    color: $text-muted;
+    margin: 0 0 1 0;
+}
+
 #command-palette-items-scroll {
     height: auto;
     max-height: 1fr;

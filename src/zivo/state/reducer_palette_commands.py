@@ -39,6 +39,7 @@ from .actions import (
     CopyTargets,
     CutTargets,
     DuplicateTargets,
+    EnterCursorDirectory,
     GoBack,
     GoForward,
     GoToHomeDirectory,
@@ -54,6 +55,7 @@ from .actions import (
     RemoveBookmark,
     SelectAllVisibleEntries,
     SelectAllVisibleTransferEntries,
+    SetFilterQuery,
     ShowAbout,
     ShowAttributes,
     ToggleHiddenFiles,
@@ -520,6 +522,18 @@ def _run_create_command(state: AppState, reduce_state: ReducerFn) -> ReduceResul
     return reduce_state(state, BeginCreateInput("file"))
 
 
+def _run_enter_folder_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
+    """Run the existing cursor-directory action from a contextual suggestion."""
+
+    return reduce_state(state, EnterCursorDirectory())
+
+
+def _run_clear_filter_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
+    """Clear the browser filter through the existing filter reducer path."""
+
+    return reduce_state(state, SetFilterQuery("", active=False))
+
+
 def _run_exit_command(state: AppState, reduce_state: ReducerFn) -> ReduceResult:
     return reduce_state(state, BeginExitCurrentPath())
 
@@ -589,6 +603,8 @@ def _run_palette_command_item(
         return _run_go_command(next_state, reduce_state)
     if item_id == "go_to_home_directory":
         return _run_go_to_home_directory_command(next_state, reduce_state)
+    if item_id == "enter_folder":
+        return _run_enter_folder_command(next_state, reduce_state)
     if item_id == "reload_directory":
         return _run_reload_directory_command(next_state, reduce_state)
     if item_id == "exit":
@@ -660,6 +676,8 @@ def _run_palette_command_item(
         return _run_remove_bookmark_command(next_state, reduce_state)
     if item_id == "toggle_hidden":
         return _run_toggle_hidden_command(next_state, reduce_state)
+    if item_id == "clear_filter":
+        return _run_clear_filter_command(next_state, reduce_state)
     if item_id == "edit_config":
         return _run_edit_config_command(state)
     if item_id == "create":

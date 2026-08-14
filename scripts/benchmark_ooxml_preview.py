@@ -1,8 +1,8 @@
-"""Manual comparison of the built-in OOXML preview and Pandoc.
+"""Manual benchmark of the built-in OOXML preview.
 
 This is intentionally not part of CI.  It creates deterministic, synthetic
 packages and reports cold/warm latency, synchronous time-to-first-content, and
-Python peak allocations for each backend.
+Python peak allocations for each Office format.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from zivo.services.previews import OfficeDocumentPreviewLoader, PandocDocumentPreviewLoader
+from zivo.services.previews import OfficeDocumentPreviewLoader
 
 
 def main() -> None:
@@ -33,11 +33,7 @@ def main() -> None:
         }
         for suffix, path in fixtures.items():
             print(f"[{suffix.upper()}] {path.stat().st_size} bytes, {args.items} items")
-            for label, loader in (
-                ("builtin", OfficeDocumentPreviewLoader()),
-                ("pandoc", PandocDocumentPreviewLoader()),
-            ):
-                _measure(label, loader, path)
+            _measure("builtin", OfficeDocumentPreviewLoader(), path)
 
 
 def _measure(label: str, loader, path: Path) -> None:

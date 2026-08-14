@@ -50,6 +50,8 @@ def _fallback_state(path: str, *, reason: str = "unsupported"):
         ("timeout", "open_preview_default_app", "Open with default app"),
         ("resource_limit", "open_preview_default_app", "Open with default app"),
         ("no_text_content", "open_preview_default_app", "Open with default app"),
+        ("encrypted", "open_preview_default_app", "Open with default app"),
+        ("corrupt", "open_preview_default_app", "Open with default app"),
         ("permission_denied", "show_attributes", "Show attributes"),
         ("cancelled", "show_attributes", "Show attributes"),
     ),
@@ -76,7 +78,7 @@ def test_preview_fallback_describes_no_text_content() -> None:
 
     assert status is not None
     assert status.title == "No text content found"
-    assert status.detail == "This may be a scanned or image-only document"
+    assert status.detail == "This document contains no extractable text"
 
 
 def test_archive_listing_fallback_does_not_offer_file_open() -> None:

@@ -17,6 +17,19 @@ from zivo.models.config import ImagePreviewMode, PreviewResourceConfig
 from zivo.services.bounded_process import run_bounded_process
 from zivo.services.terminal_detection import supports_kitty_graphics
 
+from .ooxml import (
+    CORRUPT_MESSAGE as _OOXML_CORRUPT_MESSAGE,
+)
+from .ooxml import (
+    ENCRYPTED_MESSAGE as _OOXML_ENCRYPTED_MESSAGE,
+)
+from .ooxml import (
+    NO_TEXT_MESSAGE as _OOXML_NO_TEXT_MESSAGE,
+)
+from .ooxml import (
+    extract_ooxml_preview,
+)
+
 TEXT_PREVIEW_MAX_BYTES = 64 * 1024
 DEFAULT_IMAGE_PREVIEW_COLUMNS = 80
 IMAGE_PREVIEW_EXTENSIONS = frozenset(
@@ -194,6 +207,9 @@ PREVIEW_NO_TEXT_CONTENT_MESSAGE = "No text content found"
 IMAGE_PREVIEW_DEPENDENCY_MESSAGE = "Preview unavailable: install `chafa` for image preview"
 PDF_PREVIEW_DEPENDENCY_MESSAGE = "PDF preview unavailable: install `pdftotext`"
 OFFICE_PREVIEW_DEPENDENCY_MESSAGE = "Office preview unavailable: install `pandoc`"
+OFFICE_PREVIEW_CORRUPT_MESSAGE = _OOXML_CORRUPT_MESSAGE
+OFFICE_PREVIEW_ENCRYPTED_MESSAGE = _OOXML_ENCRYPTED_MESSAGE
+OFFICE_PREVIEW_NO_TEXT_MESSAGE = _OOXML_NO_TEXT_MESSAGE
 GREP_PREVIEW_ERROR_MESSAGE = "Preview unavailable: failed to load context"
 
 GrepContextCacheKey = tuple[str, int, int, int, int, int]
@@ -419,6 +435,42 @@ class ImagePreviewLoader(Protocol):
         image_preview_format: str = "symbols",
         cancel_callback: CancelCallback | None = None,
     ) -> FilePreviewState | None: ...
+
+
+@dataclass
+class OfficeDocumentPreviewLoader:
+    """Extract plain text from modern Office Open XML packages in-process."""
+
+    resource_budget: PreviewResourceBudget = DEFAULT_PREVIEW_RESOURCE_BUDGET
+
+    def load_preview(
+        self,
+        path: Path,
+        *,
+        preview_max_bytes: int,
+        cancel_callback: CancelCallback | None = None,
+    ) -> FilePreviewState | None:
+        result = extract_ooxml_preview(
+            path,
+            preview_max_bytes=preview_max_bytes,
+            resource_budget=self.resource_budget,
+            cancel_callback=cancel_callback,
+        )
+        if result.content is not None:
+            if result.truncated and not result.content:
+                return FilePreviewState.with_message(
+                    PREVIEW_RESOURCE_LIMIT_MESSAGE,
+                    reason="resource_limit",
+                )
+            return FilePreviewState.with_content(
+                result.content,
+                result.truncated,
+                reason=result.reason,
+            )
+        if result.reason == "cancelled":
+            return FilePreviewState.unavailable("cancelled")
+        message = result.message or PREVIEW_ERROR_MESSAGE
+        return FilePreviewState.with_message(message, reason=result.reason)
 
 
 @dataclass
@@ -1028,7 +1080,7 @@ def _load_text_preview(
     if _is_office_preview_candidate(path):
         if not enable_office_preview:
             return FilePreviewState.unavailable()
-        loader = document_preview_loader or PandocDocumentPreviewLoader(
+        loader = document_preview_loader or OfficeDocumentPreviewLoader(
             resource_budget=resource_budget
         )
         preview = _call_preview_loader(

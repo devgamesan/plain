@@ -23,14 +23,14 @@ zivo itself can be installed and started with `uv`, but some features depend on 
 | --- | --- |
 | Image preview | `chafa` (Kitty graphics protocol on compatible terminals with `image_preview_mode = "kitty"` or `"auto"`) |
 | PDF preview | `pdftotext` / `poppler` |
-| Office preview | `pandoc` |
-
-These preview tools are optional. When one is unavailable, zivo names the missing command, keeps the application running, and shows compact metadata plus an available fallback action instead of a traceback.
+| Office preview | Built-in OOXML text extractor |
 | Grep search | `ripgrep` |
+
+Image, PDF, and grep tools are optional. When one is unavailable, zivo names the missing command, keeps the application running, and shows compact metadata plus an available fallback action instead of a traceback. Office preview does not require an external command.
 
 ### CI coverage
 
-The CI matrix runs the full `pytest` suite on Ubuntu and macOS. Native Windows runs the supported regression scope covering file operations, clipboard, archive extraction/compression, file and grep search, text replacement, and configuration (`tests/test_adapters_file_operations.py`, `tests/test_services_clipboard_operations.py`, `tests/test_services_file_mutations.py`, `tests/test_services_archive_extract.py`, `tests/test_services_zip_compress.py`, `tests/test_services_file_search.py`, `tests/test_services_grep_search.py`, `tests/test_services_text_replace.py`, and `tests/test_services_config.py`).
+The CI matrix runs the full `pytest` suite on Ubuntu and macOS. Native Windows runs the supported regression scope covering file operations, clipboard, archive extraction/compression, file and grep search, text replacement, configuration, and OOXML preview extraction (`tests/test_adapters_file_operations.py`, `tests/test_services_clipboard_operations.py`, `tests/test_services_file_mutations.py`, `tests/test_services_archive_extract.py`, `tests/test_services_zip_compress.py`, `tests/test_services_file_search.py`, `tests/test_services_grep_search.py`, `tests/test_services_text_replace.py`, `tests/test_services_config.py`, and `tests/test_ooxml_preview.py`).
 
 The full suite was evaluated for Issue #1160 and currently has 24 native-Windows failures caused by POSIX path/newline assumptions, chmod/chown semantics, and platform-specific UI timing. The Windows scope remains intentionally limited until those tests are ported. A test may be skipped on Windows only when its reason documents an OS-specific limitation, such as symlink privileges or permission semantics.
 
@@ -38,19 +38,17 @@ The full suite was evaluated for Issue #1160 and currently has 24 native-Windows
 
 ```bash
 # Ubuntu / Debian (X11)
-sudo apt install chafa pandoc poppler-utils ripgrep xclip
+sudo apt install chafa poppler-utils ripgrep xclip
 
 # Ubuntu / Debian (Wayland)
-sudo apt install chafa pandoc poppler-utils ripgrep wl-clipboard
+sudo apt install chafa poppler-utils ripgrep wl-clipboard
 
 # Ubuntu (WSL)
-sudo apt install chafa pandoc poppler-utils ripgrep wslu
+sudo apt install chafa poppler-utils ripgrep wslu
 
 # macOS
-brew install chafa pandoc poppler ripgrep
+brew install chafa poppler ripgrep
 ```
-
-**Note**: Some distributions may not provide pandoc 3.8.3+ through their package managers. If the installed version is older than 3.8.3, install the latest version manually from the [official pandoc website](https://pandoc.org/installing.html).
 
 ### OS details
 
@@ -60,7 +58,7 @@ On Windows, drive roots such as `C:\` support pressing `←` to return to the dr
 
 Install the required dependencies from their official websites:
 
-- Document preview: [pandoc](https://pandoc.org/)
+- Document preview: built-in OOXML text extraction (no external command)
 - Image preview: [chafa](https://hpjansson.org/chafa/) (the Kitty graphics protocol requires a terminal such as [Kitty](https://sw.kovidgoyal.net/kitty/), [Ghostty](https://ghostty.org/), or [WezTerm](https://wezfurlong.org/wezterm/))
 - PDF preview (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
 - Grep search: [ripgrep](https://github.com/BurntSushi/ripgrep)

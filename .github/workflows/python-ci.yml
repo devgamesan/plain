@@ -48,6 +48,12 @@ jobs:
           --disable-pip
           --requirement "$RUNNER_TEMP/zivo-production-requirements.txt"
 
+      - name: Build and verify wheel licensing
+        run: |
+          mkdir -p "$RUNNER_TEMP/zivo-wheel"
+          uv build --wheel --out-dir "$RUNNER_TEMP/zivo-wheel"
+          uv run --locked --no-sync python scripts/verify_wheel.py "$RUNNER_TEMP"/zivo-wheel/*.whl
+
   lint-and-test:
     runs-on: ${{ matrix.os }}
 

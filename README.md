@@ -250,13 +250,18 @@ zivo is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ### Third-Party Licenses
 
-zivo depends on third-party packages. For a complete list of dependencies and their licenses, see [NOTICE.txt](NOTICE.txt).
-The full pypdf BSD-3-Clause text is kept in [THIRD_PARTY_LICENSES/pypdf.txt](THIRD_PARTY_LICENSES/pypdf.txt).
+zivo depends on third-party packages. The production runtime dependency list and
+license identifiers are kept in [NOTICE.txt](NOTICE.txt). Dependencies are
+installed as separate distributions rather than bundled into the zivo wheel, so
+their full license texts remain with their respective distributions.
 
-To update NOTICE.txt after dependency changes:
+If a future distribution bundles dependency code, the bundled dependencies'
+full license texts must be included in that distribution as well.
+
+To update NOTICE.txt after production dependency changes:
 
 ```bash
-uv run pip-licenses --format=plain --from=mixed --with-urls --output-file NOTICE.txt
+uv run --locked --no-sync python scripts/update_notice.py
 ```
 
 ---

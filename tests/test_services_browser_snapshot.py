@@ -10,7 +10,11 @@ from zivo.services import (
     FakeBrowserSnapshotLoader,
     LiveBrowserSnapshotLoader,
 )
-from zivo.services.browser_snapshot import FilePreviewState, _resolve_cursor_path
+from zivo.services.browser_snapshot import (
+    FilePreviewState,
+    PdftotextPdfPreviewLoader,
+    _resolve_cursor_path,
+)
 from zivo.state import BrowserSnapshot, GrepSearchResultState
 from zivo.state.models import DirectoryEntryState, PaneState
 
@@ -577,7 +581,7 @@ def test_live_browser_snapshot_loader_uses_pdftotext_for_pdf_preview(
     project.mkdir()
     report = project / "report.pdf"
     report.write_bytes(b"%PDF-1.4")
-    loader = LiveBrowserSnapshotLoader()
+    loader = LiveBrowserSnapshotLoader(pdf_preview_loader=PdftotextPdfPreviewLoader())
 
     monkeypatch.setattr(
         "zivo.services.previews.core.shutil.which",

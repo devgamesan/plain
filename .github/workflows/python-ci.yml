@@ -136,3 +136,5 @@ jobs:
           tests/test_services_text_replace.py
           tests/test_services_config.py
           tests/test_ooxml_preview.py
+          tests/test_pdf_preview.py
+          tests/test_preview_resource_budget.py

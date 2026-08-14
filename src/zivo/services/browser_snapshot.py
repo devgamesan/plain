@@ -25,10 +25,11 @@ from zivo.services.previews import (
     GrepContextCacheKey,
     GrepContextWindowCacheKey,
     GrepContextWindowState,
+    HybridPdfPreviewLoader,
     ImagePreviewLoader,
     OfficeDocumentPreviewLoader,
     PdfPreviewLoader,
-    PdftotextPdfPreviewLoader,
+    PdftotextPdfPreviewLoader,  # noqa: F401 - preserved module-level compatibility export
     PreviewResourceBudget,
     _build_grep_context_cache_key,
     _build_grep_context_preview_from_window,
@@ -889,7 +890,7 @@ class LiveBrowserSnapshotLoader:
                 object.__setattr__(
                     self,
                     "pdf_preview_loader",
-                    PdftotextPdfPreviewLoader(
+                    HybridPdfPreviewLoader(
                         resource_budget=self.preview_resource_budget,
                     ),
                 )

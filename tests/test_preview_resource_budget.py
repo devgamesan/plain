@@ -1,8 +1,11 @@
 from pathlib import Path
 
+import pytest
+
 from zivo.app import create_app
 from zivo.models import AppConfig, PreviewResourceConfig, ShellCommandResult
 from zivo.services.previews.core import (
+    PDF_PREVIEW_ENCRYPTED_MESSAGE,
     ChafaImagePreviewLoader,
     FilePreviewState,
     PdftotextPdfPreviewLoader,
@@ -36,6 +39,41 @@ def test_pdftotext_uses_path_as_one_argv_element_and_bounded_runner(
     assert captured["command"] == ["/usr/bin/pdftotext", "-q", str(report), "-"]
     assert captured["prefix_only"] is True
     assert captured["terminate_on_output_limit"] is True
+
+
+@pytest.mark.parametrize(
+    ("stderr", "exit_code", "reason"),
+    [
+        ("Command Line Error: Incorrect password", 1, "encrypted"),
+        ("Permission denied", 1, "permission_denied"),
+        ("", 3, "permission_denied"),
+    ],
+)
+def test_pdftotext_classifies_nonzero_failures_without_fallback_reason(
+    tmp_path: Path,
+    monkeypatch,
+    stderr: str,
+    exit_code: int,
+    reason: str,
+) -> None:
+    report = tmp_path / "report.pdf"
+    report.write_bytes(b"%PDF-1.4")
+    monkeypatch.setattr(
+        "zivo.services.previews.core.run_bounded_process",
+        lambda *args, **kwargs: ShellCommandResult(
+            exit_code=exit_code,
+            stderr=stderr,
+        ),
+    )
+    loader = PdftotextPdfPreviewLoader()
+    loader.pdftotext_path = "/usr/bin/pdftotext"
+
+    preview = loader.load_preview(report, preview_max_bytes=64 * 1024)
+
+    assert preview is not None
+    assert preview.reason == reason
+    if reason == "encrypted":
+        assert preview.message == PDF_PREVIEW_ENCRYPTED_MESSAGE
 
 
 def test_image_output_limit_does_not_render_partial_terminal_protocol(

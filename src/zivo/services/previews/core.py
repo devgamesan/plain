@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -481,6 +482,12 @@ class PdftotextPdfPreviewLoader:
     resource_budget: PreviewResourceBudget = DEFAULT_PREVIEW_RESOURCE_BUDGET
     pdftotext_path: str | None = field(default=None, init=False, repr=False)
     pdftotext_missing: bool = field(default=False, init=False, repr=False)
+    _pdftotext_lock: threading.Lock = field(
+        default_factory=threading.Lock,
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     def load_preview(
         self,
@@ -518,6 +525,15 @@ class PdftotextPdfPreviewLoader:
                 PREVIEW_RESOURCE_LIMIT_MESSAGE,
                 reason="resource_limit",
             )
+        if result.exit_code != 0:
+            failure_reason = _classify_pdftotext_failure(result)
+            if failure_reason == "permission_denied":
+                return FilePreviewState.permission_denied()
+            if failure_reason == "encrypted":
+                return FilePreviewState.with_message(
+                    PDF_PREVIEW_ENCRYPTED_MESSAGE,
+                    reason="encrypted",
+                )
         if result.exit_code != 0 and not result.stdout.strip():
             return None
         content = _normalize_preview_newlines(result.stdout)
@@ -529,16 +545,22 @@ class PdftotextPdfPreviewLoader:
         return _preview_text_from_process_result(result, preview_max_bytes)
 
     def _resolve_pdftotext(self) -> str | None:
-        if self.pdftotext_missing:
-            return None
-        if self.pdftotext_path is not None:
-            return self.pdftotext_path
-        pdftotext = shutil.which("pdftotext")
-        if pdftotext is None:
-            self.pdftotext_missing = True
-            return None
-        self.pdftotext_path = pdftotext
-        return pdftotext
+        with self._pdftotext_lock:
+            if self.pdftotext_missing:
+                return None
+            if self.pdftotext_path is not None:
+                return self.pdftotext_path
+            pdftotext = shutil.which("pdftotext")
+            if pdftotext is None:
+                self.pdftotext_missing = True
+                return None
+            self.pdftotext_path = pdftotext
+            return pdftotext
+
+    def is_available(self) -> bool:
+        """Return whether the cached pdftotext executable is available."""
+
+        return self._resolve_pdftotext() is not None
 
 
 @dataclass
@@ -633,11 +655,18 @@ class PypdfPdfPreviewLoader:
 
 @dataclass
 class HybridPdfPreviewLoader:
-    """Use pypdf first, with one bounded pdftotext fallback for parser failures."""
+    """Select the fastest available PDF backend with one safe fallback."""
 
     resource_budget: PreviewResourceBudget = DEFAULT_PREVIEW_RESOURCE_BUDGET
     pypdf_loader: PdfPreviewLoader | None = None
     pdftotext_loader: PdfPreviewLoader | None = None
+    _pdftotext_available: bool | None = field(default=None, init=False, repr=False)
+    _backend_selection_lock: threading.Lock = field(
+        default_factory=threading.Lock,
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     def load_preview(
         self,
@@ -646,21 +675,48 @@ class HybridPdfPreviewLoader:
         preview_max_bytes: int,
         cancel_callback: CancelCallback | None = None,
     ) -> FilePreviewState | None:
-        primary_loader = self.pypdf_loader or PypdfPdfPreviewLoader(
-            resource_budget=self.resource_budget
-        )
+        with self._backend_selection_lock:
+            if self.pdftotext_loader is None:
+                self.pdftotext_loader = PdftotextPdfPreviewLoader(
+                    resource_budget=self.resource_budget
+                )
+            pdftotext_loader = self.pdftotext_loader
+            if self._pdftotext_available is None:
+                availability_check = getattr(pdftotext_loader, "is_available", None)
+                self._pdftotext_available = (
+                    bool(availability_check()) if availability_check is not None else True
+                )
+            if self.pypdf_loader is None:
+                self.pypdf_loader = PypdfPdfPreviewLoader(
+                    resource_budget=self.resource_budget
+                )
+            pypdf_loader = self.pypdf_loader
+        for loader in (pdftotext_loader, pypdf_loader):
+            if hasattr(loader, "resource_budget"):
+                loader.resource_budget = self.resource_budget
+        if self._pdftotext_available:
+            primary_loader = pdftotext_loader
+            fallback_loader = pypdf_loader
+        else:
+            primary_loader = pypdf_loader
+            fallback_loader = None
         primary = primary_loader.load_preview(
             path,
             preview_max_bytes=preview_max_bytes,
             cancel_callback=cancel_callback,
         )
         if primary is None:
-            return None
-        if primary.reason not in {"no_text_content", "unsupported", "corrupt"}:
+            if fallback_loader is None:
+                return None
+            return fallback_loader.load_preview(
+                path,
+                preview_max_bytes=preview_max_bytes,
+                cancel_callback=cancel_callback,
+            )
+        if primary.reason not in {"unsupported", "corrupt"}:
             return primary
-        fallback_loader = self.pdftotext_loader or PdftotextPdfPreviewLoader(
-            resource_budget=self.resource_budget
-        )
+        if fallback_loader is None:
+            return primary
         fallback = fallback_loader.load_preview(
             path,
             preview_max_bytes=preview_max_bytes,
@@ -910,6 +966,33 @@ def _run_preview_process(
         stderr_truncated=result.stderr_truncated,
         termination_reason=result.termination_reason,
     )
+
+
+def _classify_pdftotext_failure(result: _PreviewProcessResult) -> str:
+    """Classify a completed pdftotext failure without exposing diagnostics."""
+
+    diagnostics = f"{result.stderr}\n{result.stdout}".casefold()
+    if result.exit_code == 3 or any(
+        marker in diagnostics
+        for marker in (
+            "permission denied",
+            "operation not permitted",
+            "not permitted",
+            "access denied",
+        )
+    ):
+        return "permission_denied"
+    if any(
+        marker in diagnostics
+        for marker in (
+            "incorrect password",
+            "password required",
+            "encrypted",
+            "encryption",
+        )
+    ):
+        return "encrypted"
+    return "corrupt"
 
 
 def _preview_input_limit(

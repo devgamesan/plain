@@ -1,6 +1,6 @@
 # PDFプレビュー backend 判断記録
 
-Issue #1184 の実装前に、既定のPDF preview backendを比較評価した記録です。
+Issue #1184 の比較評価と、Issue #1203 による PDF preview backend 自動選択を記録します。
 
 > 想定読者: PDF プレビューの挙動、依存関係、安全上限を評価するメンテナー。
 
@@ -42,16 +42,16 @@ corpusの生成内容はこのrepositoryで作成したもので、第三者font
 - 100ページケースは64ページおよび64 KiB出力上限で停止した。
 - 1.4 MiB content streamはworkerの1 MiB上限で`resource_limit`になった。直接in-processで試した場合は5秒上限を超えたため、runtimeで直接pypdfを呼ばない。
 - worker起動を含むpypdfの通常ケースはこの環境で約0.4–0.7秒、pdftotextは約10–40msだった。これはCIの性能閾値ではなく、環境依存の参考値である。
-- 大きなcontent streamはpdftotextなら抽出できるが、pypdfのresource limit後にfallbackすると安全上限を迂回するため、再試行しない。
+- 大きなcontent streamはpdftotextなら抽出できる。pdftotextをprimaryに選んだ場合はboundedな外部processとして処理するが、pypdfを選んだ場合にresource limit後の別backend再試行は行わない。
 
 ## 判断
 
-pypdfを主要なPDF text抽出backendとして採用する。ただし、次の制約をruntime契約とする。
+pypdf と pdftotext を環境に応じて自動選択する。ただし、次の制約をruntime契約とする。
 
-1. 既存のbounded process runnerで使い捨てPython workerを起動する。timeout/cancel時はworkerを終了し、別backendを起動しない。
-2. 入力、ページ、出力、content streamの上限を適用し、worker内のpypdf decoder上限もzivoのcontent stream budgetへ下げる。
-3. pypdfがbudget内で完了し、`no_text_content`、`unsupported`、parser/corrupt errorになった場合だけpdftotextを最大1回使う。`cancelled`、`timeout`、`resource_limit`、`permission_denied`、`encrypted`、入力上限超過ではfallbackしない。
+1. 有効なPDF preview要求の最初に`pdftotext`を一度だけ検出し、process中はpathまたは不在状態を保持する。PDF preview無効時は検出しない。利用可能なら`pdftotext`、ない場合は使い捨てPython workerの`pypdf`をprimaryにする。
+2. 両backendを既存のbounded process runnerで実行し、入力、timeout、stdout/stderr、出力上限、cancelを共通適用する。pypdf workerにはページ数・content stream上限も適用し、decoder上限をzivoのcontent stream budgetに合わせる。
+3. primary成功時と`no_text_content`ではsecondaryを実行しない。`unsupported`、`corrupt`、完了済みparser failure、primaryの起動不能時だけ最大1回fallbackする。`cancelled`、`timeout`、`resource_limit`、`permission_denied`、`encrypted`、入力上限超過後はfallbackしない。
 4. pypdfは通常のproduction依存として追加し、crypto/imageのoptional extraは追加しない。tested major version内でlockする。
-5. backend選択は内部に隠し、既存のcache、無効化、reason、metadata fallback、`Open with default app`を維持する。
+5. backend選択は内部に隠し、既存のcache、無効化、reason、metadata fallback、`Open with default app`を維持する。ユーザーによるbackend選択設定は追加しない。
 
 将来のpypdfで安全上限のhookが変わる場合やcorpus基準を満たさない場合は、制限を弱めずfallback順を再評価する。

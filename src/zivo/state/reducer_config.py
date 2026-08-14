@@ -288,7 +288,9 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
     if field_id == "display.enable_pdf_preview":
         return (
             "Controls PDF preview conversion in the right pane.",
-            "Uses built-in bounded `pypdf` extraction and an optional `pdftotext` fallback.",
+            "Automatically prefers `pdftotext` when available and uses bounded "
+            "built-in `pypdf` otherwise.",
+            "Backend selection is automatic; no additional setting is required.",
             "Current behavior: PDF preview is "
             f"{'enabled' if config.display.enable_pdf_preview else 'disabled'}.",
         )

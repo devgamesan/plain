@@ -80,7 +80,7 @@ uv tool install zivo
 
 | 機能 | 追加インストール |
 | --- | --- |
-| 画像プレビュー | 画像を文字で表示する場合は `chafa`。Kitty graphics protocol 対応端末では追加インストール不要 |
+| 画像プレビュー | Kitty、Ghostty、WezTerm などの画像表示対応端末では追加インストール不要。それ以外の端末で画像を文字として表示する場合は `chafa` |
 | PDF テキストプレビュー | 組み込み機能で利用可能。PDF を読み取れない場合の補助として、任意で `pdftotext` を追加できます |
 | Office プレビュー | 追加インストール不要 |
 | grep 検索 | `ripgrep` |

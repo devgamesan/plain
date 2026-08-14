@@ -25,8 +25,8 @@ Office ファイルのテキストプレビューには追加コマンドは必�
 
 | 機能 | 追加インストール |
 | --- | --- |
-| 画像プレビュー | 記号表示には `chafa`。Kitty graphics protocol 対応端末では `image_preview_mode = "kitty"` または `"auto"` の組み込み方式を利用できます |
-| PDF の fallback 抽出 | 任意の `pdftotext`。組み込み PDF テキストプレビューはこれなしで利用できます |
+| 画像プレビュー | 画像を文字で表示する場合は `chafa`。Kitty graphics protocol 対応端末では `image_preview_mode = "kitty"` または `"auto"` で追加インストール不要 |
+| PDF テキストプレビュー | 組み込み機能で利用可能。PDF を読み取れない場合の補助として、任意で `pdftotext` を追加できます |
 | Office プレビュー | 追加インストール不要 |
 | grep 検索 | `ripgrep` |
 

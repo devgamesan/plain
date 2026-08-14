@@ -176,9 +176,10 @@ class ChildPane(Vertical):
     class ActionClicked(Message):
         """Notify the app that a fallback action was clicked."""
 
-        def __init__(self, action_id: str) -> None:
+        def __init__(self, action_id: str, target_path: str | None = None) -> None:
             super().__init__()
             self.action_id = action_id
+            self.target_path = target_path
 
     def __init__(
         self,
@@ -329,7 +330,13 @@ class ChildPane(Vertical):
         action_id = event.style.meta.get("pane_action_id")
         if action_id is not None:
             event.stop()
-            self.post_message(self.ActionClicked(str(action_id)))
+            target_path = event.style.meta.get("pane_action_path")
+            self.post_message(
+                self.ActionClicked(
+                    str(action_id),
+                    str(target_path) if target_path is not None else None,
+                )
+            )
             return
         if self._state.is_preview:
             event.stop()

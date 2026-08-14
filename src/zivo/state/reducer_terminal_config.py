@@ -4,7 +4,9 @@ from dataclasses import replace
 from textwrap import shorten
 from typing import Callable
 
+from zivo.archive_utils import is_supported_archive_path
 from zivo.models import BookmarkConfig, ExternalLaunchRequest
+from zivo.windows_paths import paths_equal
 
 from .actions import (
     Action,
@@ -27,6 +29,7 @@ from .actions import (
     OpenPathInEditor,
     OpenPathInGuiEditor,
     OpenPathWithDefaultApp,
+    OpenPreviewWithDefaultApp,
     OpenTerminalAtPath,
     PasteIntoShellCommand,
     RemoveBookmark,
@@ -481,6 +484,60 @@ def _handle_open_path_with_default_app(
     return run_external_launch_request(
         replace(state, notification=None),
         ExternalLaunchRequest(kind="open_file", path=action.path),
+    )
+
+
+def _handle_open_preview_with_default_app(
+    state: AppState,
+    action: OpenPreviewWithDefaultApp,
+    reduce_state: ReducerFn,
+) -> ReduceResult:
+    """Open a fallback target only while the displayed preview is current."""
+
+    if not (
+        state.child_pane.mode == "preview"
+        and paths_equal(state.child_pane.preview_path, action.path)
+        and paths_equal(state.current_pane.cursor_path, action.path)
+    ):
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message="Preview target changed; select the file and try again",
+                ),
+            )
+        )
+
+    entry = next(
+        (entry for entry in state.current_pane.entries if paths_equal(entry.path, action.path)),
+        None,
+    )
+    if entry is None:
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message="Preview target is no longer available",
+                ),
+            )
+        )
+    if entry.kind != "file" or is_supported_archive_path(action.path):
+        return finalize(
+            replace(
+                state,
+                notification=NotificationState(
+                    level="warning",
+                    message="This preview action is only available for files",
+                ),
+            )
+        )
+
+    return _handle_open_path_with_default_app(
+        state,
+        OpenPathWithDefaultApp(action.path),
+        reduce_state,
     )
 
 
@@ -955,6 +1012,7 @@ _TERMINAL_CONFIG_HANDLERS: dict[type[Action], _TerminalConfigHandler] = {
     AddBookmark: _handle_add_bookmark,
     RemoveBookmark: _handle_remove_bookmark,
     OpenPathWithDefaultApp: _handle_open_path_with_default_app,
+    OpenPreviewWithDefaultApp: _handle_open_preview_with_default_app,
     OpenPathInEditor: _handle_open_path_in_editor,
     OpenPathInGuiEditor: _handle_open_path_in_gui_editor,
     OpenTerminalAtPath: _handle_open_terminal_at_path,

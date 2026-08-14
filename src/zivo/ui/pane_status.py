@@ -25,8 +25,11 @@ def render_pane_status(
             if index:
                 text.append("  ")
             shortcut = action.shortcut or "click"
+            meta = {"pane_action_id": action.action_id}
+            if action.target_path is not None:
+                meta["pane_action_path"] = action.target_path
             text.append(
                 f"[{shortcut}] {action.label}",
-                style=Style(bold=True, underline=True, meta={"pane_action_id": action.action_id}),
+                style=Style(bold=True, underline=True, meta=meta),
             )
     return text

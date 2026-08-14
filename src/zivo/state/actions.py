@@ -188,6 +188,7 @@ from .actions_navigation import (
     OpenPathInEditor,
     OpenPathInGuiEditor,
     OpenPathWithDefaultApp,
+    OpenPreviewWithDefaultApp,
     OpenTerminalAtPath,
     PasteClipboardToTransferPane,
     ReloadDirectory,
@@ -442,6 +443,7 @@ Action = (
     | GoForward
     | ExitCurrentPath
     | OpenPathWithDefaultApp
+    | OpenPreviewWithDefaultApp
     | OpenPathInEditor
     | OpenPathInGuiEditor
     | OpenTerminalAtPath

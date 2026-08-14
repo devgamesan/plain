@@ -104,6 +104,7 @@ from zivo.state.actions import (
     NavigateTransferToPath,
     OpenNewTab,
     OpenPathWithDefaultApp,
+    OpenPreviewWithDefaultApp,
     RequestBrowserSnapshot,
     SetCursorPath,
     SetSort,
@@ -841,9 +842,13 @@ class zivoApp(App[None]):
             await self.dispatch_actions((CopyTextToClipboard(selected_text or ""),))
             return
 
-        await self._dispatch_pane_action(message.action_id)
+        await self._dispatch_pane_action(message.action_id, message.target_path)
 
-    async def _dispatch_pane_action(self, action_id: str) -> None:
+    async def _dispatch_pane_action(
+        self,
+        action_id: str,
+        target_path: str | None = None,
+    ) -> None:
         actions = {
             "clear_filter": CancelFilterInput(),
             "create_file": BeginCreateInput("file"),
@@ -852,6 +857,8 @@ class zivoApp(App[None]):
             "show_attributes": ShowAttributes(),
             "edit_config": BeginConfigEditor(),
         }
+        if action_id == "open_preview_default_app" and target_path is not None:
+            actions[action_id] = OpenPreviewWithDefaultApp(target_path)
         action = actions.get(action_id)
         if action is not None:
             await self.dispatch_actions((action,))

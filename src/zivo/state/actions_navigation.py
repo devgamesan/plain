@@ -125,6 +125,13 @@ class OpenPathWithDefaultApp:
 
 
 @dataclass(frozen=True)
+class OpenPreviewWithDefaultApp:
+    """Open the currently displayed preview target after stale-state checks."""
+
+    path: str
+
+
+@dataclass(frozen=True)
 class OpenPathInEditor:
     """Open a file path with the configured editor."""
 

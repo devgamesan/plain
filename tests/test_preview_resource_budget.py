@@ -123,6 +123,41 @@ def test_image_preview_uses_a_relaxed_format_specific_budget(
     assert captured["timeout_seconds"] == budget.image_timeout_seconds
 
 
+def test_kitty_image_preview_uses_the_bounded_preview_height(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    image = tmp_path / "image.png"
+    image.write_bytes(b"PNG")
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr("zivo.services.previews.core.shutil.which", lambda _: "/fake/chafa")
+
+    def _run(command, **kwargs):
+        captured["command"] = command
+        captured.update(kwargs)
+        return ShellCommandResult(
+            exit_code=0,
+            stdout="\033_Gf=100;AAAA\033\\",
+        )
+
+    monkeypatch.setattr("zivo.services.previews.core.run_bounded_process", _run)
+
+    preview = ChafaImagePreviewLoader().load_preview(
+        image,
+        preview_columns=40,
+        preview_rows=12,
+        image_preview_format="kitty",
+    )
+
+    assert preview == FilePreviewState.with_content(
+        "\033_Gf=100;AAAA\033\\",
+        False,
+        content_kind="kitty",
+    )
+    assert captured["command"][-3:] == ["--size", "40x12", str(image)]
+
+
 def test_preview_resource_config_converts_user_units_to_process_limits() -> None:
     budget = PreviewResourceBudget.from_config(
         PreviewResourceConfig(

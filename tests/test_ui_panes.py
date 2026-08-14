@@ -426,9 +426,9 @@ def test_child_pane_reuses_image_preview_loader_for_resize_workers() -> None:
     pane.run_worker = lambda worker, **_kwargs: worker()  # type: ignore[method-assign]
 
     pane._chafa_resize_request_id = 1
-    pane._pending_chafa_resize_key = ("/tmp/image.png", 40, "symbols")
+    pane._pending_chafa_resize_key = ("/tmp/image.png", 40, None, "symbols")
     pane._start_chafa_resize_worker(1, "/tmp/image.png", 40, "symbols")
-    pane._pending_chafa_resize_key = ("/tmp/image.png", 60, "symbols")
+    pane._pending_chafa_resize_key = ("/tmp/image.png", 60, None, "symbols")
     pane._start_chafa_resize_worker(1, "/tmp/image.png", 60, "symbols")
 
     assert loader.calls == [
@@ -1226,7 +1226,7 @@ def test_child_pane_clears_kitty_preview_on_unmount() -> None:
     writer.assert_called_once_with("\033_Ga=d,d=A\033\\")
 
 
-def test_child_pane_writes_new_kitty_content_when_path_changes_same_width(
+def test_child_pane_schedules_bounded_kitty_preview_when_path_changes(
     monkeypatch,
 ) -> None:
     pane = ChildPane(
@@ -1240,13 +1240,16 @@ def test_child_pane_writes_new_kitty_content_when_path_changes_same_width(
     )
     scroll_widget = SimpleNamespace(
         region=SimpleNamespace(x=4, y=2),
-        size=SimpleNamespace(width=42),
+        size=SimpleNamespace(width=42, height=10),
     )
     writer = Mock()
+    resize = Mock()
     pane._preview_scroll_widget = lambda: scroll_widget  # type: ignore[method-assign]
     pane._write_terminal_content = writer  # type: ignore[method-assign]
+    pane._schedule_chafa_resize_preview = resize  # type: ignore[method-assign]
     object.__setattr__(pane, "_last_kitty_path", "/tmp/old.png")
     object.__setattr__(pane, "_last_kitty_width", 40)
+    object.__setattr__(pane, "_last_kitty_height", 10)
     object.__setattr__(pane, "_kitty_cached", "\033_Gf=100;OLD\033\\")
     monkeypatch.setattr(
         "zivo.services.previews.core.resolve_image_preview_format",
@@ -1255,6 +1258,10 @@ def test_child_pane_writes_new_kitty_content_when_path_changes_same_width(
 
     pane._write_kitty_content("\033_Gf=100;NEW\033\\")
 
-    writer.assert_called_once()
-    assert "NEW" in writer.call_args.args[0]
-    assert "OLD" not in writer.call_args.args[0]
+    resize.assert_called_once_with(
+        "/tmp/new.png",
+        40,
+        "kitty",
+        preview_rows=10,
+    )
+    writer.assert_not_called()

@@ -22,7 +22,7 @@ zivo itself can be installed and started with `uv`, but some features depend on 
 | Feature | Tool |
 | --- | --- |
 | Image preview | `chafa` (Kitty graphics protocol on compatible terminals with `image_preview_mode = "kitty"` or `"auto"`) |
-| PDF preview | Built-in `pypdf`; optional `pdftotext` / Poppler fallback |
+| PDF preview | Built-in `pypdf`; if installed, `pdftotext` is used as a fallback when extraction fails |
 | Office preview | Built-in OOXML text extractor |
 | Grep search | `ripgrep` |
 

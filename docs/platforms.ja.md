@@ -22,7 +22,7 @@ zivo 本体の起動は `uv` だけで行えますが、一部の機能は `PATH
 | 機能 | 使用するツール |
 | --- | --- |
 | 画像プレビュー | `chafa`（`image_preview_mode = "kitty"` または `"auto"` 時、対応端末では Kitty graphics protocol を使用） |
-| PDF プレビュー | 組み込み `pypdf`、任意の `pdftotext` / Poppler fallback |
+| PDF プレビュー | 組み込み `pypdf`。抽出失敗時は、インストール済みの `pdftotext` に fallback |
 | Office プレビュー | 組み込み OOXML テキスト抽出 |
 | grep 検索 | `ripgrep` |
 

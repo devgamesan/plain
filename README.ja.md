@@ -69,7 +69,7 @@ uv tool install zivo
 | 機能 | 使用するツール |
 | --- | --- |
 | 画像プレビュー | `chafa` |
-| PDF プレビュー | 組み込み `pypdf`、任意の `pdftotext` / Poppler fallback |
+| PDF プレビュー | 組み込み `pypdf`。抽出失敗時は、インストール済みの `pdftotext` に fallback |
 | Office プレビュー | 組み込み OOXML 抽出 |
 | grep 検索 | `ripgrep` |
 
@@ -173,7 +173,7 @@ zivo-cd
 ### プレビュー
 
 空ディレクトリとフィルタ0件では理由と実行可能な次の操作を表示します。現在ペインが隠し項目だけの場合は `[.] Show hidden files` を表示します。左ペインは読込中、権限不足、親なし、表示項目なしを区別し、再読込中もキャッシュ済み一覧を維持します。右ペインは読込時間・出力・resource limitを有限にし、読込中を明示します。安全な部分テキストには `Preview limited` を表示し、内容をプレビューできない場合は、種類、サイズ、更新日時、permission、owner/group、symlink target、archive entry countなどの概要へフォールバックします。任意の外部コマンドが不足してもアプリはクラッシュしません。
-- テキスト / 画像（chafa、対応端末では Kitty graphics protocol も利用可能）/ PDF（組み込み `pypdf` と制限付き `pdftotext` fallback）/ Office（組み込み OOXML テキスト抽出）
+- テキスト / 画像（chafa、対応端末では Kitty graphics protocol も利用可能）/ PDF（組み込み `pypdf`。抽出失敗時はインストール済みの `pdftotext` に fallback）/ Office（組み込み OOXML テキスト抽出）
 
 ### Transfer モード
 - 2 ペインを左右に並べ、選択ファイルを反対側のペインへコピーまたは移動

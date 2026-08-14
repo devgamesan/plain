@@ -25,7 +25,7 @@ the following only when you need the corresponding optional feature.
 
 | Feature | Additional installation |
 | --- | --- |
-| Image preview | `chafa` for symbol output; compatible Kitty-graphics terminals can use the built-in protocol with `image_preview_mode = "kitty"` or `"auto"` |
+| Image preview | `chafa` (required for image preview; compatible terminals can render high-fidelity output) |
 | PDF fallback extraction | Optional `pdftotext`; built-in PDF text preview works without it |
 | Office preview | None |
 | Grep search | `ripgrep` |

@@ -44,9 +44,13 @@ def test_empty_palette_starts_with_contextual_suggestions() -> None:
 
     items = get_command_palette_items(state)
 
-    assert 0 < len(items) <= 5
-    assert all(item.enabled for item in items)
-    assert all(item.category == "Suggested" for item in items)
+    assert len(items) > 5
+    suggested = items[:5]
+    assert 0 < len(suggested) <= 5
+    assert all(item.enabled for item in suggested)
+    assert all(item.category == "Suggested" for item in suggested)
+    assert len({item.id for item in items}) == len(items)
+    assert {item.category for item in items} >= {"Navigate", "File", "Search", "View", "System"}
 
 
 def _palette_state_with_entries(
@@ -75,7 +79,7 @@ def test_empty_palette_suggests_file_operations_for_a_focused_file() -> None:
         cursor_path=path,
     )
 
-    assert [item.label for item in get_command_palette_items(state)] == [
+    assert [item.label for item in get_command_palette_items(state)[:5]] == [
         "Open",
         "Edit with terminal editor",
         "Copy",
@@ -91,7 +95,7 @@ def test_empty_palette_suggests_enter_folder_for_a_focused_directory() -> None:
         cursor_path=path,
     )
 
-    assert [item.label for item in get_command_palette_items(state)] == [
+    assert [item.label for item in get_command_palette_items(state)[:5]] == [
         "Enter folder",
         "Copy",
         "Rename",
@@ -112,7 +116,7 @@ def test_empty_palette_suggests_common_operations_for_multiple_mixed_targets() -
         selected_paths=frozenset({file_path, dir_path}),
     )
 
-    labels = [item.label for item in get_command_palette_items(state)]
+    labels = [item.label for item in get_command_palette_items(state)[:5]]
 
     assert labels == ["Copy", "Cut", "Rename 2 items", "Compress as zip", "Move to trash"]
     assert "Open" not in labels
@@ -149,7 +153,7 @@ def test_empty_palette_shows_current_folder_actions_without_a_target() -> None:
         command_palette=replace(state.command_palette, query=""),
     )
 
-    labels = [item.label for item in get_command_palette_items(state)]
+    labels = [item.label for item in get_command_palette_items(state)[:4]]
 
     assert labels == [
         "Create",
@@ -377,7 +381,7 @@ async def test_command_palette_scrolls_to_a_selected_tail_command() -> None:
 
 
 @pytest.mark.asyncio
-async def test_command_palette_renders_target_context_and_search_hint() -> None:
+async def test_command_palette_renders_target_context_without_redundant_search_hint() -> None:
     state = CommandPaletteViewState(
         title="Command Palette",
         query="",
@@ -392,7 +396,6 @@ async def test_command_palette_renders_target_context_and_search_hint() -> None:
         ),
         empty_message="No matching commands",
         context_lines=("Target: README.md — focused file",),
-        category_hint="Search all commands: Navigate · File · Search",
     )
 
     app = _PaletteHarness(state)
@@ -401,4 +404,4 @@ async def test_command_palette_renders_target_context_and_search_hint() -> None:
         context = app.query_one("#command-palette-context", Static)
         assert context.display is True
         assert "Target: README.md" in str(context.renderable)
-        assert "Search all commands" in str(context.renderable)
+        assert "Search all commands" not in str(context.renderable)

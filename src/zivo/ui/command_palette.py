@@ -328,7 +328,7 @@ class CommandPalette(Container):
             if state.title.startswith("Replace Text")
             else "type a path"
             if is_path_source
-            else "type a command"
+            else "type to search commands"
         )
         if state.title.startswith("Go") and not state.query:
             placeholder = "path or @bookmark @history @tab @home"

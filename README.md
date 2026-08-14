@@ -143,7 +143,7 @@ See [Keybindings](docs/keybindings.md) for the full list.
 
 ## Command palette
 
-Press `:` to search and run available actions. With an empty query, the palette explains the effective target (selection, focus, or current folder) and shows up to five executable `Suggested` actions. Category names remain visible as a search guide; type a query to search the complete command set. The selected row remains keyboard- and mouse-accessible, while `↑` / `↓` and `Ctrl+j` / `Ctrl+k` keep it visible.
+Press `:` to search and run available actions. With an empty query, the palette explains the effective target (selection, focus, or current folder), shows up to five executable `Suggested` actions, and keeps the remaining commands available below in their categories for discovery without a search term. Type to filter the complete command set. The selected row remains keyboard- and mouse-accessible, while `↑` / `↓` and `Ctrl+j` / `Ctrl+k` keep it visible.
 
 Search accepts common aliases and keywords such as `duplicate` or `clone` for Duplicate, `trash` for Move to trash, `grep` or `search contents` for Grep search, and `shell` for opening a terminal. Duplicate copies the selected targets (or the focused target) beside the originals, automatically choosing a non-conflicting `copy`, `copy 2`, and so on name. Results are ranked deterministically. Commands that do not apply remain searchable but are dimmed with a concrete reason; pressing Enter on one shows the same reason as a warning. Registered custom actions are always listed, while actions that do not satisfy their configured context conditions are disabled with a reason; they are also searchable by name.
 

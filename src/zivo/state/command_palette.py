@@ -330,11 +330,18 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
         else _build_command_palette_items(state)
     )
     if state.command_palette.source == "commands" and not query.strip():
-        if state.layout_mode != "transfer":
-            items = _build_suggested_command_items(state, items)
+        # Keep the contextual projection first, but retain the complete command
+        # catalog below it so users can discover commands without knowing a
+        # search term. Suggested commands are removed from the catalog to avoid
+        # presenting the same action twice with different labels or categories.
+        suggested_items = (
+            _build_suggested_command_items(state, items)
+            if state.layout_mode != "transfer"
+            else items
+        )
         if state.notification is not None and state.notification.action is not None:
             action = state.notification.action
-            items = (
+            suggested_items = (
                 CommandPaletteItem(
                     id=action.action_id,
                     label=action.label,
@@ -343,16 +350,17 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
                     category="Suggested",
                     context_priority=0,
                 ),
-                *items,
+                *suggested_items,
             )
-    prepared = _prepare_command_palette_items(state, items, query)
-    if (
-        state.command_palette.source == "commands"
-        and not query.strip()
-        and state.layout_mode != "transfer"
-    ):
-        return tuple(item for item in prepared if item.enabled)[:5]
-    return prepared
+        prepared_suggested = _prepare_command_palette_items(state, suggested_items, query)
+        if state.layout_mode == "transfer":
+            return prepared_suggested
+        suggested = tuple(item for item in prepared_suggested if item.enabled)[:5]
+        suggested_ids = {item.id for item in suggested}
+        catalog = _prepare_command_palette_items(state, items, query)
+        return (*suggested, *(item for item in catalog if item.id not in suggested_ids))
+
+    return _prepare_command_palette_items(state, items, query)
 
 
 def normalize_command_palette_cursor(state: AppState, cursor_index: int) -> int:
@@ -1570,15 +1578,6 @@ def command_palette_context_lines(state: AppState) -> tuple[str, ...]:
         target_kind = "file" if cursor_entry.kind == "file" else "folder"
         return (f"Target: {cursor_entry.name} — focused {target_kind}",)
     return (f"Current folder: {_display_path(state.current_path)}",)
-
-
-def command_palette_category_hint(state: AppState) -> str:
-    """Return the non-interactive category guide shown for an empty query."""
-
-    categories = ["Navigate", "File", "Search", "View", "System"]
-    if state.config.actions.custom:
-        categories.append("Custom actions")
-    return "Search all commands: " + " · ".join(categories)
 
 
 def _replace_target_file_paths(state: AppState) -> tuple[str, ...]:

@@ -1691,12 +1691,12 @@ def test_select_command_palette_state_marks_selected_and_enabled_items() -> None
 
     assert palette_state is not None
     assert palette_state.title.startswith("Command Palette")
-    assert len(palette_state.items) <= 5
-    assert all(item.category == "Suggested" for item in palette_state.items)
+    assert len(palette_state.items) > 5
+    assert all(item.category == "Suggested" for item in palette_state.items[:5])
     assert palette_state.items[0].selected is True
     assert palette_state.items[0].enabled is True
     assert palette_state.context_lines
-    assert palette_state.category_hint is not None
+    assert palette_state.category_hint is None
 
 
 def test_removed_direct_shortcuts_remain_available_without_palette_shortcuts() -> None:
@@ -3388,8 +3388,8 @@ class TestSelectCommandPaletteWindow:
 class TestCommandPaletteDynamicWindow:
     """コマンドパレットの動的表示ウィンドウ計算のテスト."""
 
-    def test_default_command_palette_starts_with_compact_suggestions(self) -> None:
-        """空クエリは文脈候補を最大5件だけ表示する."""
+    def test_default_command_palette_keeps_discoverable_command_catalog(self) -> None:
+        """空クエリは文脈候補の下に全コマンドを保持する."""
 
         state = replace(
             _reduce_state(build_initial_app_state(), BeginCommandPalette()),
@@ -3399,8 +3399,9 @@ class TestCommandPaletteDynamicWindow:
         palette_state = select_command_palette_state(state)
 
         assert palette_state is not None
-        assert 0 < len(palette_state.items) <= 5
-        assert palette_state.has_more_items is False
+        assert len(palette_state.items) > 5
+        assert all(item.category == "Suggested" for item in palette_state.items[:5])
+        assert palette_state.has_more_items is True
 
 
 def test_select_tab_bar_state_marks_active_tab() -> None:

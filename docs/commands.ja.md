@@ -9,7 +9,7 @@ Transferモードでは、アクティブな転送ペインで実行できるコ
 
 通常ブラウズでは、パスバーにクリック可能な breadcrumb segment と Back/Forward を表示します。タブバーではタブ切替、hover 時の close、新規タブの affordance を利用できます。中央ペインの `Name`、`Size`、`Modified` header は sort に使えます。これらのマウス操作は、対応するキー操作・パレット操作と同じ Action を使用します。Transfer modeでも既存のキーボード・パレットの意味を維持し、パスバーに履歴ボタンは追加しません。
 
-クエリが空の場合は、実効対象（`Selection`、`Target`、`Current folder`）と、実行可能な `Suggested` 操作を最大5件表示します。明示選択の外側にあるフォーカスは `not included` と明示します。Pasteは現在のフォルダへの操作として `Paste 2 items here` のように表示します。`Navigate`、`File`、`Search`、`View`、`System`、`Custom actions` は操作できない検索案内で、文字を入力すると全コマンドへ戻ります。カテゴリ順とコマンド順位は決定的で、利用履歴やテレメトリは使用しません。
+クエリが空の場合は、実効対象（`Selection`、`Target`、`Current folder`）と、実行可能な `Suggested` 操作を最大5件表示し、その下に残りのコマンドをカテゴリ別に表示します。Suggested に表示したコマンドは一覧で重複させません。明示選択の外側にあるフォーカスは `not included` と明示します。Pasteは現在のフォルダへの操作として `Paste 2 items here` のように表示します。文字を入力すると全コマンドを絞り込め、無効なコマンドも理由付きで表示されます。カテゴリ順とコマンド順位は決定的で、利用履歴やテレメトリは使用しません。
 
 Directory History と Go の最近の履歴は、最後に訪問したディレクトリから新しい順に表示します。各タブと Transfer の各ペインは、最新の重複しないディレクトリパスを100件までメモリに保持し、古い項目を自動的に破棄します。
 

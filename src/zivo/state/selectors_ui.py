@@ -25,7 +25,6 @@ from zivo.windows_paths import is_search_workspace_path
 
 from .command_palette import (
     _go_direct_path,
-    command_palette_category_hint,
     command_palette_context_lines,
     parse_go_query,
 )
@@ -839,7 +838,7 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
         ),
         empty_message="No matching commands",
         context_lines=command_palette_context_lines(state) if show_context else (),
-        category_hint=command_palette_category_hint(state) if show_context else None,
+        category_hint=None,
         has_more_items=rendered_line_count > visible_window,
         footer_message=(
             selected_item.disabled_reason

@@ -3598,7 +3598,7 @@ async def test_app_command_palette_overlay_stays_top_aligned_without_resizing_ma
 
         assert palette.region.y == palette_layer.region.y
         assert palette.region.bottom <= palette_layer.region.bottom
-        assert "-expanded" not in palette.classes
+        assert "-expanded" in palette.classes
         assert current_pane.region.width == main_pane_width
 
 

@@ -22,11 +22,11 @@ zivo 本体の起動は `uv` だけで行えますが、一部の機能は `PATH
 | 機能 | 使用するツール |
 | --- | --- |
 | 画像プレビュー | `chafa`（`image_preview_mode = "kitty"` または `"auto"` 時、対応端末では Kitty graphics protocol を使用） |
-| PDF プレビュー | `pdftotext` / `poppler` |
+| PDF プレビュー | 組み込み `pypdf`、任意の `pdftotext` / Poppler fallback |
 | Office プレビュー | 組み込み OOXML テキスト抽出 |
 | grep 検索 | `ripgrep` |
 
-画像、PDF、grep のツールは任意依存です。不足時はコマンド名を表示し、tracebackで終了せず、概要メタデータと利用可能な代替Actionを表示します。Office プレビューに外部コマンドは必要ありません。
+画像とgrepのツールは任意依存です。PDFテキスト抽出は組み込み`pypdf`を使い、インストール済みの`pdftotext`は完了した抽出失敗時だけ上限制付きfallbackとして使います。不足や非対応時もtracebackで終了せず、概要メタデータと利用可能な代替Actionを表示します。Officeプレビューに外部コマンドは必要ありません。
 
 ### CI のテスト範囲
 
@@ -60,7 +60,7 @@ Windows では、ドライブルート（`C:\` など）で `←` を押すと�
 
 - ドキュメントプレビュー: 組み込み OOXML テキスト抽出（外部コマンド不要）
 - 画像プレビュー: [chafa](https://hpjansson.org/chafa/)（Kitty graphics protocol の利用には [Kitty](https://sw.kovidgoyal.net/kitty/)、[Ghostty](https://ghostty.org/)、[WezTerm](https://wezfurlong.org/wezterm/) などの対応端末が必要です）
-- PDFプレビュー (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
+- PDFプレビュー fallback (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
 - grep 検索: [ripgrep](https://github.com/BurntSushi/ripgrep)
 
 #### macOS の権限設定

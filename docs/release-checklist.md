@@ -137,10 +137,15 @@
 - [ ] chafa がない場合、「install `chafa` for image preview」メッセージが表示されること
 - [ ] timeout または出力上限時に壊れた途中画像を表示せず、metadata fallback になること
 
-#### PDF プレビュー（pdftotext がある場合）
+#### PDF プレビュー（組み込み pypdf）
 - [ ] PDF ファイルを選択すると、右ペインにテキストプレビューが表示されること
 - [ ] 設定で `enable_pdf_preview = false` の場合、プレビューが無効になること
-- [ ] pdftotext がない場合、適切なメッセージが表示されること
+- [ ] pypdf が英語・日本語・複数ページPDFを抽出できること
+- [ ] scan、暗号化、破損PDFが適切なreasonと外部アプリ導線になること
+- [ ] ページ・content stream・入力・出力・timeout上限が適用されること
+- [ ] `pdftotext` がある場合、完了したno-text/parser failureだけで一度fallbackすること
+- [ ] timeout/resource limit/cancel後に`pdftotext`を再実行しないこと
+- [ ] `pdftotext`がない場合も、pypdfの結果を表示できること
 
 #### Office ドキュメントプレビュー（組み込み OOXML 抽出）
 - [ ] .docx/.xlsx/.pptx ファイルを選択すると、右ペインにテキストプレビューが表示されること
@@ -431,7 +436,7 @@
 
 ## テスト実施上の注意
 
-1. **外部ツールの確認**: 各プレビュー機能をテストする前に、対応する外部ツール（chafa、pdftotext）がインストールされているか確認してください。Office プレビューは外部コマンドを必要としません
+1. **外部ツールの確認**: 画像プレビューをテストする前に`chafa`がインストールされているか確認してください。PDF previewは組み込み`pypdf`を使い、`pdftotext`は任意fallbackです。Office プレビューは外部コマンドを必要としません
 2. **設定のリセット**: テスト前に config.toml をバックアップし、テスト後は元に戻してください
 3. **テストデータ**: 各テストケースで十分な種類のファイル（テキスト、画像、PDF、Office ドキュメントなど）を用意してください
 4. **OS バージョン**: 各 OS の複数のバージョンでテストすることが望ましいです

@@ -32,6 +32,10 @@ uv run --locked --no-sync pip-audit \
 
 生成される requirements ファイルはコミット対象外の `.venv/` 配下に置かれます。
 
+依存パッケージのライセンス一覧は `NOTICE.txt` に保持します。組み込み
+`pypdf` の BSD-3-Clause 全文は `THIRD_PARTY_LICENSES/pypdf.txt` に保持し、
+pypdf の暗号・画像向け optional extra はインストールしません。
+
 ## 脆弱性が見つかった場合
 
 `pip-audit` が脆弱性を報告した場合は、可能であれば影響を受ける production 依存を修正版へ更新し、`uv.lock` を再生成して監査を再実行します。CIログには対象パッケージ、アドバイザリ、利用可能な修正版が表示されます。

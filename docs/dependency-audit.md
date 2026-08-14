@@ -33,6 +33,11 @@ uv run --locked --no-sync pip-audit \
 
 The generated requirements file is under `.venv/`, which is not committed.
 
+License attribution is kept in `NOTICE.txt`. The full BSD-3-Clause text for the
+built-in `pypdf` dependency is tracked in
+`THIRD_PARTY_LICENSES/pypdf.txt`; optional pypdf crypto/image extras are not
+installed.
+
 ## Handling findings
 
 When `pip-audit` reports a vulnerability, update the affected production dependency to a fixed version when possible, regenerate `uv.lock`, and rerun the audit. The CI output includes the affected package, advisory, and available fixed version.

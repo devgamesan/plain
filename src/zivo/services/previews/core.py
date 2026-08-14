@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import inspect
+import json
 import os
 import re
 import shutil
 import subprocess
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -205,6 +207,7 @@ PREVIEW_CANCELLED_MESSAGE = "Preview cancelled"
 PREVIEW_NO_TEXT_CONTENT_MESSAGE = "No text content found"
 IMAGE_PREVIEW_DEPENDENCY_MESSAGE = "Preview unavailable: install `chafa` for image preview"
 PDF_PREVIEW_DEPENDENCY_MESSAGE = "PDF preview unavailable: install `pdftotext`"
+PDF_PREVIEW_ENCRYPTED_MESSAGE = "PDF preview unavailable: password-protected document"
 OFFICE_PREVIEW_CORRUPT_MESSAGE = _OOXML_CORRUPT_MESSAGE
 OFFICE_PREVIEW_ENCRYPTED_MESSAGE = _OOXML_ENCRYPTED_MESSAGE
 OFFICE_PREVIEW_NO_TEXT_MESSAGE = _OOXML_NO_TEXT_MESSAGE
@@ -235,6 +238,8 @@ class PreviewResourceBudget:
     image_stdout_max_bytes: int = 2 * 1024 * 1024
     kitty_stdout_max_bytes: int = 32 * 1024 * 1024
     input_max_bytes: int = 256 * 1024 * 1024
+    pdf_max_pages: int = 64
+    pdf_max_content_stream_bytes: int = 1 * 1024 * 1024
     max_archive_entries: int = 4096
     max_archive_entry_bytes: int = 64 * 1024 * 1024
     max_archive_total_bytes: int = 256 * 1024 * 1024
@@ -534,6 +539,136 @@ class PdftotextPdfPreviewLoader:
             return None
         self.pdftotext_path = pdftotext
         return pdftotext
+
+
+@dataclass
+class PypdfPdfPreviewLoader:
+    """Extract bounded PDF text in a disposable pypdf worker process."""
+
+    resource_budget: PreviewResourceBudget = DEFAULT_PREVIEW_RESOURCE_BUDGET
+
+    def load_preview(
+        self,
+        path: Path,
+        *,
+        preview_max_bytes: int,
+        cancel_callback: CancelCallback | None = None,
+    ) -> FilePreviewState | None:
+        limited = _preview_input_limit(path, self.resource_budget, cancel_callback)
+        if limited is not None:
+            return limited
+        command = [
+            sys.executable,
+            "-m",
+            "zivo.services.previews.pdf_worker",
+            str(path),
+            "--max-pages",
+            str(self.resource_budget.pdf_max_pages),
+            "--max-output-bytes",
+            str(max(1, preview_max_bytes)),
+            "--max-content-stream-bytes",
+            str(self.resource_budget.pdf_max_content_stream_bytes),
+        ]
+        try:
+            result = _run_preview_process(
+                command,
+                path=path,
+                preview_max_bytes=max(1, preview_max_bytes) + 4096,
+                resource_budget=self.resource_budget,
+                cancel_callback=cancel_callback,
+            )
+        except (OSError, subprocess.SubprocessError, FileNotFoundError):
+            return FilePreviewState.error()
+        if result.termination_reason == "cancelled":
+            return FilePreviewState.unavailable("cancelled")
+        if result.termination_reason == "timed_out":
+            return FilePreviewState.with_message(PREVIEW_TIMEOUT_MESSAGE, reason="timeout")
+        if result.termination_reason == "output_limited":
+            return FilePreviewState.with_message(
+                PREVIEW_RESOURCE_LIMIT_MESSAGE,
+                reason="resource_limit",
+            )
+        if result.exit_code != 0:
+            return FilePreviewState.error()
+        try:
+            payload = json.loads(result.stdout)
+        except (TypeError, ValueError):
+            return FilePreviewState.error()
+        reason = payload.get("reason")
+        if reason == "success":
+            return FilePreviewState.with_content(
+                str(payload.get("content") or ""),
+                bool(payload.get("truncated")),
+                reason="resource_limit" if payload.get("truncated") else None,
+            )
+        if reason == "no_text_content":
+            return FilePreviewState.with_message(
+                PREVIEW_NO_TEXT_CONTENT_MESSAGE,
+                reason="no_text_content",
+            )
+        if reason == "encrypted":
+            return FilePreviewState.with_message(
+                PDF_PREVIEW_ENCRYPTED_MESSAGE,
+                reason="encrypted",
+            )
+        if reason == "permission_denied":
+            return FilePreviewState.permission_denied()
+        if reason == "dependency_missing":
+            return FilePreviewState.with_message(
+                "PDF preview backend unavailable",
+                reason="dependency_missing",
+            )
+        if reason == "resource_limit":
+            content = str(payload.get("content") or "")
+            if content:
+                return FilePreviewState.with_content(content, True, reason="resource_limit")
+            return FilePreviewState.with_message(
+                PREVIEW_RESOURCE_LIMIT_MESSAGE,
+                reason="resource_limit",
+            )
+        if reason == "corrupt":
+            return FilePreviewState.with_message(PREVIEW_ERROR_MESSAGE, reason="corrupt")
+        return None
+
+
+@dataclass
+class HybridPdfPreviewLoader:
+    """Use pypdf first, with one bounded pdftotext fallback for parser failures."""
+
+    resource_budget: PreviewResourceBudget = DEFAULT_PREVIEW_RESOURCE_BUDGET
+    pypdf_loader: PdfPreviewLoader | None = None
+    pdftotext_loader: PdfPreviewLoader | None = None
+
+    def load_preview(
+        self,
+        path: Path,
+        *,
+        preview_max_bytes: int,
+        cancel_callback: CancelCallback | None = None,
+    ) -> FilePreviewState | None:
+        primary_loader = self.pypdf_loader or PypdfPdfPreviewLoader(
+            resource_budget=self.resource_budget
+        )
+        primary = primary_loader.load_preview(
+            path,
+            preview_max_bytes=preview_max_bytes,
+            cancel_callback=cancel_callback,
+        )
+        if primary is None:
+            return None
+        if primary.reason not in {"no_text_content", "unsupported", "corrupt"}:
+            return primary
+        fallback_loader = self.pdftotext_loader or PdftotextPdfPreviewLoader(
+            resource_budget=self.resource_budget
+        )
+        fallback = fallback_loader.load_preview(
+            path,
+            preview_max_bytes=preview_max_bytes,
+            cancel_callback=cancel_callback,
+        )
+        if fallback is not None and fallback.kind == "content":
+            return fallback
+        return primary
 
 
 def resolve_image_preview_format(image_preview_mode: ImagePreviewMode) -> str:
@@ -949,7 +1084,7 @@ def _load_text_preview(
     if _is_pdf_preview_candidate(path):
         if not enable_pdf_preview:
             return FilePreviewState.unavailable()
-        loader = pdf_preview_loader or PdftotextPdfPreviewLoader(
+        loader = pdf_preview_loader or HybridPdfPreviewLoader(
             resource_budget=resource_budget
         )
         preview = _call_preview_loader(
@@ -1042,7 +1177,7 @@ def _load_pdf_preview(
     *,
     preview_max_bytes: int,
 ) -> FilePreviewState | None:
-    return PdftotextPdfPreviewLoader().load_preview(
+    return HybridPdfPreviewLoader().load_preview(
         path,
         preview_max_bytes=preview_max_bytes,
     )

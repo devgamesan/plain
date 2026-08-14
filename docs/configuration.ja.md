@@ -37,7 +37,7 @@ Config Editor に未保存の変更がある場合は、先に保存または画
 | `display` | `enable_text_preview` | `true` / `false` | 右ペインのテキストファイルプレビューを表示します。既定値は `true` です。grep 結果のコンテキストプレビューも同じ設定に従います。 |
 | `display` | `enable_image_preview` | `true` / `false` | `chafa` を使った画像プレビューを右ペインで表示します。既定値は `true` です。`chafa` が未導入の場合は失敗ではなく依存不足メッセージを表示します。`image_preview_mode` を `kitty` にすると、対応端末で高精細な画像表示が可能です。 |
 | `display` | `image_preview_mode` | `auto` / `kitty` / `chafa` | 画像プレビュー方式を選択します。既定値は `auto` です。`auto` では端末を自動検出し、Kitty/Ghostty 等の対応端末では Kitty graphics protocol、非対応端末では chafa Unicode 記号を使います。`kitty` は強制的に Kitty graphics protocol を使用します（対応端末必須）。`chafa` は従来の Unicode 記号出力を使用します。 |
-| `display` | `enable_pdf_preview` | `true` / `false` | `pdftotext` を使った PDF プレビューを有効にします。既定値は `true` です。無効時は設定無効であること、概要メタデータ、`Edit config` を表示します。 |
+| `display` | `enable_pdf_preview` | `true` / `false` | `pypdf` による上限制付き組み込み PDF テキスト抽出と、完了した抽出失敗時の任意 `pdftotext` fallback を有効にします。既定値は `true` です。無効時は設定無効であること、概要メタデータ、`Edit config` を表示します。 |
 | `display` | `enable_office_preview` | `true` / `false` | 組み込み OOXML テキスト抽出による `docx` / `xlsx` / `pptx` のプレビューを有効にします。既定値は `true` です。無効時は設定無効であること、概要メタデータ、`Edit config` を表示します。 |
 | `display` | `show_help_bar` | `true` / `false` | 画面下部のヘルプバーを表示します。既定値は `true` です。コマンドパレットが開いている場合は、この設定に関係なく常に表示されます。 |
 | `display` | `theme` | 任意の組み込み Textual テーマ（例: `textual-dark`、`textual-light`、`dracula`、`tokyo-night`） | 起動時の UI テーマです。設定エディタでは変更内容が即座にプレビューされ、`s` で保存するとこの値が永続化されます。 |

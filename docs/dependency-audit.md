@@ -33,10 +33,18 @@ uv run --locked --no-sync pip-audit \
 
 The generated requirements file is under `.venv/`, which is not committed.
 
-License attribution is kept in `NOTICE.txt`. The full BSD-3-Clause text for the
-built-in `pypdf` dependency is tracked in
-`THIRD_PARTY_LICENSES/pypdf.txt`; optional pypdf crypto/image extras are not
-installed.
+License attribution for production runtime dependencies is kept in
+`NOTICE.txt`. The wheel declares `pypdf`, `send2trash`, and `textual` through
+`Requires-Dist` and does not bundle their code, so their full license texts are
+not duplicated in the zivo wheel. The NOTICE file is regenerated from the
+frozen production dependency set with:
+
+```bash
+uv run --locked --no-sync python scripts/update_notice.py
+```
+
+If a future distribution bundles dependency code, it must include the full
+license texts for all bundled dependencies in that distribution.
 
 ## Handling findings
 

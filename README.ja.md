@@ -247,13 +247,18 @@ zivo は MIT ライセンスで提供されています。詳細は [LICENSE](LI
 
 ### サードパーティーライセンス
 
-zivo はサードパーティーパッケージに依存しています。依存パッケージとそのライセンスの一覧は [NOTICE.txt](NOTICE.txt) を確認してください。
-`pypdf` の BSD-3-Clause 全文は [THIRD_PARTY_LICENSES/pypdf.txt](THIRD_PARTY_LICENSES/pypdf.txt) に保持しています。
+zivo はサードパーティーパッケージに依存しています。production runtime 依存と
+ライセンス識別子の一覧は [NOTICE.txt](NOTICE.txt) に保持しています。依存パッケージは
+zivo の wheel に同梱せず、それぞれ別の配布物としてインストールするため、ライセンス全文は
+各依存パッケージの配布物に保持されます。
 
-依存関係を更新した後に NOTICE.txt を更新するには:
+将来、依存コードを同梱した配布物を作る場合は、同梱する依存パッケージのライセンス全文も
+その配布物に含めます。
+
+production 依存関係を更新した後に NOTICE.txt を更新するには:
 
 ```bash
-uv run pip-licenses --format=plain --from=mixed --with-urls --output-file NOTICE.txt
+uv run --locked --no-sync python scripts/update_notice.py
 ```
 
 ---

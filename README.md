@@ -73,15 +73,16 @@ such as image preview and recursive grep use external commands described in
 uv tool install zivo
 ```
 
-### Recommended tools
+### Features requiring additional installation
 
-Some features use external commands.
+The core browser, PDF text preview, and Office text preview work without
+additional commands. Install external commands only for the features below.
 
-| Feature | Tool |
+| Feature | Additional installation |
 | --- | --- |
-| Image preview | `chafa` |
-| PDF preview | Built-in `pypdf`; if installed, `pdftotext` is used as a fallback when extraction fails |
-| Office preview | Built-in OOXML extractor |
+| Image preview | `chafa` (required for image preview; compatible terminals can render high-fidelity output) |
+| PDF fallback extraction | Optional `pdftotext`; the built-in PDF preview works without it |
+| Office preview | None |
 | Grep search | `ripgrep` |
 
 See [Platforms](docs/platforms.md) for OS-specific setup instructions.
@@ -185,7 +186,7 @@ Long-running Copy, Move, Compress, Extract, and Replace operations show their op
 ### Preview
 
 Empty directories and zero-result filters show their reason and an available next action. When all current entries are hidden, the current pane offers `[.] Show hidden files`. The parent pane distinguishes loading, permission denied, no parent directory, and no visible items; cached parent entries remain visible during refresh. The right pane shows loading state explicitly, enforces finite preview time/output/resource limits, labels safe partial text as `Preview limited`, and falls back to a compact summary such as type, size, modified time, permissions, owner/group, symlink target, or archive entry count when content preview is unavailable. Missing optional commands are reported without crashing the application.
-- Text, images (chafa; optional Kitty graphics protocol on compatible terminals), PDF (built-in `pypdf`; if installed, `pdftotext` is used as a fallback when extraction fails), Office (built-in OOXML text extraction)
+- Text, images (`chafa`; compatible terminals can render high-fidelity output), PDF text, and Office text previews
 
 ### Transfer mode
 - Side-by-side two-pane layout for copying or moving files between directories
@@ -248,7 +249,7 @@ zivo includes safety mechanisms to prevent data loss during file operations.
 - [Safety](docs/safety.md) — safety specifications
 - [Architecture](docs/architecture.md) — implementation structure
 - [Performance](docs/performance.md) — performance notes
-- [PDF Preview Decision](docs/pdf-preview-decision.md) — pypdf corpus evaluation and backend limits
+- [PDF Preview Decision](docs/pdf-preview-decision.md) — PDF preview backend evaluation and limits
 - [Release Checklist](docs/release-checklist.md) — release checklist
 - [Dependency and GitHub Actions Audit](docs/dependency-audit.md) — CI dependency and action supply-chain audit policy
 

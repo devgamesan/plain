@@ -288,14 +288,14 @@ def config_editor_field_description(field_index: int, config: AppConfig) -> tupl
     if field_id == "display.enable_pdf_preview":
         return (
             "Controls PDF preview conversion in the right pane.",
-            "Uses the external `pdftotext` command when available.",
+            "Uses built-in bounded `pypdf` extraction and an optional `pdftotext` fallback.",
             "Current behavior: PDF preview is "
             f"{'enabled' if config.display.enable_pdf_preview else 'disabled'}.",
         )
     if field_id == "display.enable_office_preview":
         return (
             "Controls modern Office preview conversion in the right pane.",
-            "Applies to docx, xlsx, and pptx files through pandoc.",
+            "Applies to docx, xlsx, and pptx files through the built-in OOXML extractor.",
             "Current behavior: Office preview is "
             f"{'enabled' if config.display.enable_office_preview else 'disabled'}.",
         )

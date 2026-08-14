@@ -39,6 +39,7 @@ from zivo.app_runtime_execution import (
     schedule_zip_compress_preparation,
 )
 from zivo.app_runtime_search import (
+    BROWSER_SNAPSHOT_TRACKING,
     CHILD_PANE_TRACKING,
     DIRECTORY_SIZE_TRACKING,
     FILE_SEARCH_RUNTIME,
@@ -48,6 +49,7 @@ from zivo.app_runtime_search import (
     cancel_active_grep_search,
     cancel_file_search_timer,
     cancel_grep_search_timer,
+    cancel_pending_browser_snapshot,
     cancel_pending_child_pane,
     cancel_pending_directory_size,
     cancel_pending_file_search,
@@ -103,6 +105,7 @@ from zivo.state import (
 from zivo.state.actions import ExitCurrentPath, ForegroundOperationAborted
 
 TRACKING_CONFIGS: tuple[TrackingConfig, ...] = (
+    BROWSER_SNAPSHOT_TRACKING,
     CHILD_PANE_TRACKING,
     FILE_SEARCH_RUNTIME.tracking,
     GREP_SEARCH_RUNTIME.tracking,
@@ -116,6 +119,7 @@ __all__ = [
     "cancel_file_search_timer",
     "cancel_grep_search_timer",
     "cancel_pending_child_pane",
+    "cancel_pending_browser_snapshot",
     "cancel_pending_directory_size",
     "cancel_pending_file_search",
     "cancel_pending_grep_search",
@@ -181,6 +185,11 @@ def sync_runtime_state(app: Any, previous_state: Any, next_state: Any) -> None:
         request_background_command_cancel(app, next_command.request_id)
     if previous_state.pending_child_pane_request_id != next_state.pending_child_pane_request_id:
         cancel_pending_child_pane(app)
+    if (
+        previous_state.pending_browser_snapshot_request_id
+        != next_state.pending_browser_snapshot_request_id
+    ):
+        cancel_pending_browser_snapshot(app)
     if previous_state.pending_file_search_request_id != next_state.pending_file_search_request_id:
         cancel_pending_file_search(app)
     if previous_state.pending_grep_search_request_id != next_state.pending_grep_search_request_id:
@@ -198,6 +207,7 @@ def sync_runtime_state(app: Any, previous_state: Any, next_state: Any) -> None:
 
 
 def cancel_pending_runtime_work(app: Any) -> None:
+    cancel_pending_browser_snapshot(app)
     cancel_pending_child_pane(app)
     cancel_pending_file_search(app)
     cancel_pending_grep_search(app)

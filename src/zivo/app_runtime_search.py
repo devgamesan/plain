@@ -1,5 +1,6 @@
 """Runtime scheduling helpers for search and preview effects."""
 
+import inspect
 import threading
 from dataclasses import dataclass
 from functools import partial
@@ -94,16 +95,46 @@ CHILD_PANE_TRACKING = TrackingConfig(
     request_id_attr="_active_child_pane_request_id",
 )
 
+BROWSER_SNAPSHOT_TRACKING = TrackingConfig(
+    effect_type=(LoadBrowserSnapshotEffect, LoadCurrentPaneEffect, LoadParentChildEffect),
+    cancel_event_attr="_active_browser_snapshot_cancel_event",
+    request_id_attr="_active_browser_snapshot_request_id",
+)
+
+
+def _call_loader_with_optional_cancel(
+    loader: Any,
+    *args: Any,
+    cancel_callback: Any,
+    **kwargs: Any,
+) -> Any:
+    """Pass cancellation to current loaders while preserving older test doubles."""
+
+    try:
+        parameters = inspect.signature(loader).parameters
+    except (TypeError, ValueError):
+        parameters = {}
+    accepts_kwargs = any(
+        parameter.kind is inspect.Parameter.VAR_KEYWORD
+        for parameter in parameters.values()
+    )
+    if accepts_kwargs or "cancel_callback" in parameters:
+        kwargs["cancel_callback"] = cancel_callback
+    return loader(*args, **kwargs)
+
 
 def schedule_browser_snapshot(app: Any, effect: LoadBrowserSnapshotEffect) -> None:
     if effect.invalidate_paths:
         app._snapshot_loader.invalidate_directory_listing_cache(effect.invalidate_paths)
         if hasattr(app, "_go_completion_service"):
             app._go_completion_service.invalidate(effect.invalidate_paths)
+    cancel_event = threading.Event()
+    set_active_tracking(app, BROWSER_SNAPSHOT_TRACKING, effect.request_id, cancel_event)
     run_worker(
         app,
         effect,
         partial(
+            _call_loader_with_optional_cancel,
             app._snapshot_loader.load_browser_snapshot,
             effect.path,
             effect.cursor_path,
@@ -111,6 +142,7 @@ def schedule_browser_snapshot(app: Any, effect: LoadBrowserSnapshotEffect) -> No
             enable_image_preview=effect.enable_image_preview,
             enable_pdf_preview=effect.enable_pdf_preview,
             enable_office_preview=effect.enable_office_preview,
+            cancel_callback=cancel_event.is_set,
         ),
         WorkerSpec(
             name=f"browser-snapshot:{effect.request_id}",
@@ -151,6 +183,7 @@ def start_child_pane_snapshot(
     cancel_event = threading.Event()
     set_active_tracking(app, CHILD_PANE_TRACKING, effect.request_id, cancel_event)
     loader = partial(
+        _call_loader_with_optional_cancel,
         app._snapshot_loader.load_child_pane_snapshot,
         effect.current_path,
         effect.cursor_path,
@@ -161,14 +194,17 @@ def start_child_pane_snapshot(
         enable_pdf_preview=effect.enable_pdf_preview,
         enable_office_preview=effect.enable_office_preview,
         preview_columns=_child_preview_columns(app),
+        cancel_callback=cancel_event.is_set,
     )
     if effect.grep_result is not None:
         loader = partial(
+            _call_loader_with_optional_cancel,
             app._snapshot_loader.load_grep_preview,
             effect.current_path,
             effect.grep_result,
             context_lines=effect.grep_context_lines,
             preview_max_bytes=effect.preview_max_bytes,
+            cancel_callback=cancel_event.is_set,
         )
     run_worker(
         app,
@@ -188,14 +224,18 @@ def schedule_progressive_browser_snapshot(app: Any, effect: LoadCurrentPaneEffec
     if effect.invalidate_paths:
         app._snapshot_loader.invalidate_directory_listing_cache(effect.invalidate_paths)
 
+    cancel_event = threading.Event()
+    set_active_tracking(app, BROWSER_SNAPSHOT_TRACKING, effect.request_id, cancel_event)
     run_worker(
         app,
         effect,
         partial(
+            _call_loader_with_optional_cancel,
             app._snapshot_loader.load_current_pane_snapshot,
             effect.path,
             effect.cursor_path,
             show_hidden=app._app_state.show_hidden,
+            cancel_callback=cancel_event.is_set,
         ),
         WorkerSpec(
             name=f"progressive-snapshot-phase1:{effect.request_id}",
@@ -208,10 +248,13 @@ def schedule_progressive_browser_snapshot(app: Any, effect: LoadCurrentPaneEffec
 
 def schedule_parent_child_update(app: Any, effect: LoadParentChildEffect) -> None:
     """Schedule Phase 2 of progressive loading: parent + child panes."""
+    cancel_event = threading.Event()
+    set_active_tracking(app, BROWSER_SNAPSHOT_TRACKING, effect.request_id, cancel_event)
     run_worker(
         app,
         effect,
         partial(
+            _call_loader_with_optional_cancel,
             app._snapshot_loader.load_parent_child_panes,
             effect.path,
             effect.cursor_path,
@@ -221,6 +264,7 @@ def schedule_parent_child_update(app: Any, effect: LoadParentChildEffect) -> Non
             image_preview_mode=effect.image_preview_mode,
             enable_pdf_preview=effect.enable_pdf_preview,
             enable_office_preview=effect.enable_office_preview,
+            cancel_callback=cancel_event.is_set,
         ),
         WorkerSpec(
             name=f"progressive-snapshot-phase2:{effect.request_id}",
@@ -459,6 +503,10 @@ def cancel_pending_directory_size(app: Any) -> None:
 def cancel_pending_child_pane(app: Any) -> None:
     cancel_timer(app, "_child_pane_timer")
     cancel_active_tracking(app, CHILD_PANE_TRACKING)
+
+
+def cancel_pending_browser_snapshot(app: Any) -> None:
+    cancel_active_tracking(app, BROWSER_SNAPSHOT_TRACKING)
 
 
 def cancel_pending_search(app: Any, config: SearchRuntimeConfig) -> None:

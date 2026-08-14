@@ -297,6 +297,7 @@ def _select_child_pane_for_cursor_base(
             state.child_pane.preview_kind,
             state.child_pane.preview_message,
             state.child_pane.preview_truncated,
+            state.child_pane.preview_reason,
             state.child_pane.preview_start_line,
             state.child_pane.preview_highlight_line,
             syntax_theme,
@@ -313,6 +314,7 @@ def _select_child_pane_for_cursor_base(
             state.child_pane.preview_message,
             state.child_pane.preview_metadata,
             syntax_theme,
+            allow_external_open=cursor_entry.kind == "file" and not is_archive,
         )
 
     if state.child_pane.mode == "preview" and state.child_pane.preview_reason is not None:
@@ -322,6 +324,7 @@ def _select_child_pane_for_cursor_base(
             None,
             state.child_pane.preview_metadata,
             syntax_theme,
+            allow_external_open=cursor_entry.kind == "file" and not is_archive,
         )
 
     visible_entries = _select_side_pane_entry_states(state.child_pane.entries, state.show_hidden)
@@ -551,6 +554,7 @@ def _select_file_search_preview_pane(
         state.child_pane.preview_kind,
         state.child_pane.preview_message,
         state.child_pane.preview_truncated,
+        state.child_pane.preview_reason,
         state.child_pane.preview_start_line,
         state.child_pane.preview_highlight_line,
         syntax_theme,
@@ -588,6 +592,7 @@ def _select_grep_preview_pane(
         state.child_pane.preview_kind,
         state.child_pane.preview_message,
         state.child_pane.preview_truncated,
+        state.child_pane.preview_reason,
         state.child_pane.preview_start_line,
         state.child_pane.preview_highlight_line,
         syntax_theme,
@@ -623,6 +628,7 @@ def _select_sfg_preview_pane(
         state.child_pane.preview_kind,
         state.child_pane.preview_message,
         state.child_pane.preview_truncated,
+        state.child_pane.preview_reason,
         state.child_pane.preview_start_line,
         state.child_pane.preview_highlight_line,
         syntax_theme,
@@ -662,6 +668,7 @@ def _select_replace_preview_pane(
         state.child_pane.preview_kind,
         state.child_pane.preview_message,
         state.child_pane.preview_truncated,
+        state.child_pane.preview_reason,
         state.child_pane.preview_start_line,
         state.child_pane.preview_highlight_line,
         syntax_theme,
@@ -906,6 +913,7 @@ def _build_child_preview_view(
     preview_kind: str,
     preview_message: str | None,
     preview_truncated: bool,
+    preview_reason: str | None,
     preview_start_line: int | None,
     preview_highlight_line: int | None,
     syntax_theme: str,
@@ -914,7 +922,8 @@ def _build_child_preview_view(
     preview_scroll_hint: str | None = None,
 ) -> ChildPaneViewState:
     return ChildPaneViewState(
-        title=preview_title or _format_child_preview_title(preview_path, preview_truncated),
+        title=preview_title
+        or _format_child_preview_title(preview_path, preview_truncated, preview_reason),
         preview_path=preview_path,
         preview_title=preview_title,
         preview_content=preview_content,
@@ -957,20 +966,51 @@ def _build_preview_fallback_view(
     message: str | None,
     metadata_state,
     syntax_theme: str,
+    *,
+    allow_external_open: bool = True,
 ) -> ChildPaneViewState:
     titles = {
         "unsupported": "Preview unavailable for this file type",
         "disabled": "Preview disabled in settings",
-        "dependency_missing": message or "Preview dependency unavailable",
+        "dependency_missing": "Preview backend unavailable",
         "permission_denied": "Permission denied",
+        "encrypted": message or "Password-protected document",
+        "corrupt": message or "Document could not be read",
+        "timeout": message or "Preview stopped at a safety limit",
+        "resource_limit": message or "Preview stopped at a safety limit",
+        "cancelled": message or "Preview cancelled",
         "error": message or "Preview unavailable",
+        "no_text_content": "No text content found",
     }
     details = {
         "permission_denied": "Attributes may still be available",
-        "dependency_missing": "Use attributes or open the file externally",
+        "dependency_missing": "The preview backend is not available",
+        "unsupported": "This file type cannot be previewed in zivo",
+        "encrypted": "Open the document in the default app to provide its password",
+        "corrupt": "The document may be damaged or use an unsupported package variant",
+        "error": "The preview could not be generated",
+        "no_text_content": "This document contains no extractable text",
+        "timeout": "The file may be valid; the preview was stopped to keep browsing responsive",
+        "resource_limit": "The file may be valid; the preview reached a safety limit",
     }
-    action_id = "edit_config" if reason == "disabled" else "show_attributes"
-    action_label = "Edit config" if reason == "disabled" else "Show attributes"
+    if reason == "disabled":
+        action_id = "edit_config"
+        action_label = "Edit config"
+    elif allow_external_open and reason in {
+        "dependency_missing",
+        "unsupported",
+        "encrypted",
+        "corrupt",
+        "error",
+        "timeout",
+        "resource_limit",
+        "no_text_content",
+    }:
+        action_id = "open_preview_default_app"
+        action_label = "Open with default app"
+    else:
+        action_id = "show_attributes"
+        action_label = "Show attributes"
     metadata: list[MetadataItemViewState] = []
     if metadata_state is not None:
         metadata.append(MetadataItemViewState("Name", metadata_state.display_name))
@@ -1013,7 +1053,7 @@ def _build_preview_fallback_view(
             # ``:`` is the canonical keyboard route to this command.  The
             # inline action remains clickable as a convenience, but should
             # not imply that a mouse is required for the fallback state.
-            actions=(PaneActionViewState(action_id, action_label, ":"),),
+            actions=(PaneActionViewState(action_id, action_label, ":", preview_path),),
         ),
         metadata=tuple(metadata),
     )

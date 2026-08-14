@@ -2,6 +2,8 @@
 
 OS support status and dependency installation instructions for zivo.
 
+> Audience: new users setting up zivo and checking optional tools on their OS.
+
 ---
 
 ## Supported OS
@@ -15,22 +17,24 @@ OS support status and dependency installation instructions for zivo.
 
 ---
 
-## Recommended Tools
+## Features requiring additional installation
 
-zivo itself can be installed and started with `uv`, but some features depend on external commands being available on `PATH`.
+zivo itself can be installed and started with `uv`. The core browser, PDF text
+preview, and Office text preview do not require additional commands. Install
+the following only when you need the corresponding optional feature.
 
-| Feature | Tool |
+| Feature | Additional installation |
 | --- | --- |
-| Image preview | `chafa` (Kitty graphics protocol on compatible terminals with `image_preview_mode = "kitty"` or `"auto"`) |
-| PDF preview | `pdftotext` / `poppler` |
-| Office preview | `pandoc` |
-
-These preview tools are optional. When one is unavailable, zivo names the missing command, keeps the application running, and shows compact metadata plus an available fallback action instead of a traceback.
+| Image preview | `chafa` (required for image preview; compatible terminals can render high-fidelity output) |
+| PDF fallback extraction | Optional `pdftotext`; built-in PDF text preview works without it |
+| Office preview | None |
 | Grep search | `ripgrep` |
+
+Missing optional tools or unsupported files keep zivo running and show compact metadata plus an available fallback action instead of a traceback. PDF fallback extraction is attempted only after a completed extraction failure and remains bounded.
 
 ### CI coverage
 
-The CI matrix runs the full `pytest` suite on Ubuntu and macOS. Native Windows runs the supported regression scope covering file operations, clipboard, archive extraction/compression, file and grep search, text replacement, and configuration (`tests/test_adapters_file_operations.py`, `tests/test_services_clipboard_operations.py`, `tests/test_services_file_mutations.py`, `tests/test_services_archive_extract.py`, `tests/test_services_zip_compress.py`, `tests/test_services_file_search.py`, `tests/test_services_grep_search.py`, `tests/test_services_text_replace.py`, and `tests/test_services_config.py`).
+The CI matrix runs the full `pytest` suite on Ubuntu and macOS. Native Windows runs the supported regression scope covering file operations, clipboard, archive extraction/compression, file and grep search, text replacement, configuration, and Office preview extraction (`tests/test_adapters_file_operations.py`, `tests/test_services_clipboard_operations.py`, `tests/test_services_file_mutations.py`, `tests/test_services_archive_extract.py`, `tests/test_services_zip_compress.py`, `tests/test_services_file_search.py`, `tests/test_services_grep_search.py`, `tests/test_services_text_replace.py`, `tests/test_services_config.py`, and `tests/test_ooxml_preview.py`).
 
 The full suite was evaluated for Issue #1160 and currently has 24 native-Windows failures caused by POSIX path/newline assumptions, chmod/chown semantics, and platform-specific UI timing. The Windows scope remains intentionally limited until those tests are ported. A test may be skipped on Windows only when its reason documents an OS-specific limitation, such as symlink privileges or permission semantics.
 
@@ -38,19 +42,17 @@ The full suite was evaluated for Issue #1160 and currently has 24 native-Windows
 
 ```bash
 # Ubuntu / Debian (X11)
-sudo apt install chafa pandoc poppler-utils ripgrep xclip
+sudo apt install chafa poppler-utils ripgrep xclip
 
 # Ubuntu / Debian (Wayland)
-sudo apt install chafa pandoc poppler-utils ripgrep wl-clipboard
+sudo apt install chafa poppler-utils ripgrep wl-clipboard
 
 # Ubuntu (WSL)
-sudo apt install chafa pandoc poppler-utils ripgrep wslu
+sudo apt install chafa poppler-utils ripgrep wslu
 
 # macOS
-brew install chafa pandoc poppler ripgrep
+brew install chafa poppler ripgrep
 ```
-
-**Note**: Some distributions may not provide pandoc 3.8.3+ through their package managers. If the installed version is older than 3.8.3, install the latest version manually from the [official pandoc website](https://pandoc.org/installing.html).
 
 ### OS details
 
@@ -60,9 +62,9 @@ On Windows, drive roots such as `C:\` support pressing `←` to return to the dr
 
 Install the required dependencies from their official websites:
 
-- Document preview: [pandoc](https://pandoc.org/)
+- Office preview: built-in text extraction (no external command)
 - Image preview: [chafa](https://hpjansson.org/chafa/) (the Kitty graphics protocol requires a terminal such as [Kitty](https://sw.kovidgoyal.net/kitty/), [Ghostty](https://ghostty.org/), or [WezTerm](https://wezfurlong.org/wezterm/))
-- PDF preview (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
+- PDF preview fallback (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
 - Grep search: [ripgrep](https://github.com/BurntSushi/ripgrep)
 
 #### macOS permissions
@@ -80,7 +82,7 @@ Open **System Settings > Privacy & Security > Full Disk Access** and enable the 
 
 ## Shell command syntax
 
-Run command (`!`) uses the current shell environment on macOS, Linux, and WSL (falling back to `/bin/bash`). On Windows it prefers `powershell.exe`, then `pwsh`, then `cmd.exe`; write syntax for the selected shell rather than POSIX `sh`. Run command is for short non-interactive work. Use foreground shell (`t`) for prompts or TUI applications, and an external terminal (`T`) for independent or longer-running work.
+Run command (`!`) uses the current shell environment on macOS, Linux, and WSL (falling back to `/bin/bash`). On Windows it prefers `powershell.exe`, then `pwsh`, then `cmd.exe`; write syntax for the selected shell rather than POSIX `sh`. Run command is for short non-interactive work. Use foreground shell (`t`) for prompts or TUI applications, and choose `Open current directory with terminal` from the command palette for independent or longer-running work.
 
 ---
 

@@ -28,10 +28,10 @@ zivo は、キーバインドをたくさん覚えなくても使える TUI フ�
 ## 主な特徴
 
 - **覚えなくてOK**: 関連する標準ショートカットをヘルプバーに表示
-- **状況適応コマンドパレット**: `:` を押すと、Navigate / File / Search / View / System / Custom actions のカテゴリを表示
+- **状況適応コマンドパレット**: `:` を押すと対象に応じた操作を最大5件表示し、Navigate / File / Search / View / System / Custom actions を名前またはカテゴリで検索
 - **3 ペインプレビュー**: ディレクトリ、テキスト、画像、PDF、Office ファイルを右ペインで確認
 - **レスポンシブペイン**: 120 列以上は Parent / Current / Contents、80〜119 列は Current / Contents、80 列未満は `Tab` で current 一覧と Details を切り替え
-- **明示的なペイン状態**: 空、フィルタ0件、読込中、設定無効、非対応、依存不足、権限不足を区別し、プレビュー不能時は概要メタデータを表示
+- **明示的なペイン状態**: 空、フィルタ0件、読込中、設定無効、非対応、依存不足、権限不足、timeout、resource limitを区別し、安全な部分テキストには `Preview limited` を表示、プレビュー不能時は概要メタデータを表示
 - **Transfer モード**: 2 つのディレクトリを並べてコピー・移動
 - **検索と grep**: ファイル検索、grep 検索、表示中の結果から次の操作へ進む
 - **置換 (プレビュー付き)**: Find / Grep / Search Workspace の結果を共通フローへ渡し、diff を確認してから実行
@@ -43,18 +43,29 @@ zivo は、キーバインドをたくさん覚えなくても使える TUI フ�
 
 パスバーにはクリック可能な breadcrumb segment と Back/Forward の可否を表示します。複数タブ時は active tab と、hover 時の close/new affordance を表示します。`Name`、`Size`、`Modified` の列ヘッダーをクリックしてsortでき、現在の方向と folders-first 状態も確認できます。狭い端末では現在地、active tab、Name列、sort状態を優先して表示します。
 
-![](docs/resources/basic_operation.gif)
+![基本的なディレクトリ閲覧とプレビュー](docs/resources/basic_operation.gif)
 
 キーバインドを覚えていなくても `:` のコマンドパレットから必要な操作を検索して実行できます。コマンドはインクリメンタルサーチに対応しており、素早く目的のコマンドを実行できます。
 
-![](docs/resources/command_palette.gif)
+![コマンドパレットの検索と実行](docs/resources/command_palette.gif)
 
 Transfer モードでは、2つのディレクトリを左右に並べて、選択したファイルを反対側のペインへコピーまたは移動できます。`c` でコピー、`m` で移動でき、方向・件数はヘッダーに表示されます。
-![](docs/resources/transfer_mode_operation.gif)
+![Transfer モードでのコピーと移動](docs/resources/transfer_mode_operation.gif)
 
 ---
 
 ## インストール
+
+### 前提条件
+
+- Python 3.12 以上
+- インストールと開発コマンドに使う [`uv`](https://docs.astral.sh/uv/)
+- Textual UI を表示できるターミナル
+
+zivo は Linux、macOS、Windows、Ubuntu on WSL で動作します。画像プレビューや
+再帰 grep などの任意機能には外部コマンドが必要です。詳しくは
+[Platforms](docs/platforms.ja.md) を参照してください。外部コマンドがなくても、基本的な
+ファイル閲覧機能は利用できます。
 
 ### 最小構成
 
@@ -62,15 +73,16 @@ Transfer モードでは、2つのディレクトリを左右に並べて、選�
 uv tool install zivo
 ```
 
-### 推奨ツール
+### 追加インストールが必要な機能
 
-一部の機能は外部コマンドを利用します。
+基本的なファイル閲覧、PDF のテキストプレビュー、Office ファイルのテキストプレビューは、
+追加コマンドなしで利用できます。次の機能を使う場合だけ、必要なコマンドを追加してください。
 
-| 機能 | 使用するツール |
+| 機能 | 追加インストール |
 | --- | --- |
-| 画像プレビュー | `chafa` |
-| PDF プレビュー | `pdftotext` / `poppler` |
-| Office プレビュー | `pandoc` |
+| 画像プレビュー | `chafa`（画像プレビューに必要。Kitty、Ghostty などの対応端末では高精細に表示） |
+| PDF テキストプレビュー | 組み込み機能で読み取ります。読み取りに失敗した場合は、`pdftotext` がインストールされていれば補助的に使います |
+| Office プレビュー | 追加インストール不要 |
 | grep 検索 | `ripgrep` |
 
 OS 別の詳しいセットアップは [Platforms](docs/platforms.ja.md) を参照してください。
@@ -131,7 +143,7 @@ zivo-cd
 
 ## コマンドパレット
 
-`:` を押すと、利用可能な操作を検索して実行できます。クエリが空の場合は、Navigate / File / Search / View / System / Custom actions の固定カテゴリを表示します。全コマンドはマウスホイールでスクロールでき、`↑` / `↓` と `Ctrl+j` / `Ctrl+k` では選択行が常に表示範囲へ追従します。
+`:` を押すと、利用可能な操作を検索して実行できます。クエリが空の場合は、実効対象（選択、フォーカス、または現在のフォルダ）を説明し、実行可能な `Suggested` 操作を最大5件表示した下に、検索しなくても発見できるよう残りのコマンドをカテゴリ別に表示します。文字を入力すると全コマンドを絞り込めます。選択行はキーボードとマウスから操作でき、`↑` / `↓` と `Ctrl+j` / `Ctrl+k` では選択行が常に表示範囲へ追従します。
 
 検索では一般的な別名やキーワードも使えます。たとえば `duplicate` / `clone` で Duplicate、`trash` で Move to trash、`grep` や `search contents` で Grep search、`shell` でターミナル起動を検索できます。Duplicate は選択対象（未選択時はフォーカス対象）を元の親ディレクトリ内に自動命名で複製し、既存名を上書きしません。結果の順位は決定的に計算されます。現在の状態では実行できないコマンドも検索結果に残り、dim 表示と具体的な理由を示します。無効項目で Enter を押すと、同じ理由を warning で確認できます。カスタムアクションは登録済みの項目を常に表示し、設定済みの context 条件に合わない場合は無効理由を示します。名前でも検索できます。
 
@@ -172,8 +184,8 @@ zivo-cd
 
 ### プレビュー
 
-空ディレクトリとフィルタ0件では理由と実行可能な次の操作を表示します。現在ペインが隠し項目だけの場合は `[.] Show hidden files` を表示します。左ペインは読込中、権限不足、親なし、表示項目なしを区別し、再読込中もキャッシュ済み一覧を維持します。右ペインは読込中を明示し、内容をプレビューできない場合は、種類、サイズ、更新日時、permission、owner/group、symlink target、archive entry countなどの概要へフォールバックします。任意の外部コマンドが不足してもアプリはクラッシュしません。
-- テキスト / 画像（chafa、対応端末では Kitty graphics protocol も利用可能）/ PDF（pdftotext）/ Office（pandoc）
+空ディレクトリとフィルタ0件では理由と実行可能な次の操作を表示します。現在ペインが隠し項目だけの場合は `[.] Show hidden files` を表示します。左ペインは読込中、権限不足、親なし、表示項目なしを区別し、再読込中もキャッシュ済み一覧を維持します。右ペインは読込時間・出力・resource limitを有限にし、読込中を明示します。安全な部分テキストには `Preview limited` を表示し、内容をプレビューできない場合は、種類、サイズ、更新日時、permission、owner/group、symlink target、archive entry countなどの概要へフォールバックします。任意の外部コマンドが不足してもアプリはクラッシュしません。
+- テキスト、画像（`chafa`、対応端末では高精細表示）、PDF テキスト、Office テキストのプレビュー
 
 ### Transfer モード
 - 2 ペインを左右に並べ、選択ファイルを反対側のペインへコピーまたは移動
@@ -233,8 +245,9 @@ zivo はファイル操作の事故を防ぐための安全機構を備えてい
 - [Configuration](docs/configuration.ja.md) — 設定ファイルの詳細
 - [Platforms](docs/platforms.ja.md) — OS 別セットアップ
 - [Safety](docs/safety.ja.md) — 安全仕様
-- [Architecture](docs/architecture.md) — 実装構造
-- [Performance](docs/performance.md) — 性能確認メモ
+- [Architecture](docs/architecture.ja.md) — 実装構造
+- [Performance](docs/performance.ja.md) — 性能確認メモ
+- [PDF Preview Decision](docs/pdf-preview-decision.ja.md) — PDF プレビュー方式の評価と上限
 - [Release Checklist](docs/release-checklist.md) — リリースチェックリスト
 - [Dependency and GitHub Actions Audit](docs/dependency-audit.ja.md) — CI依存関係監査とAction固定方針
 
@@ -246,12 +259,18 @@ zivo は MIT ライセンスで提供されています。詳細は [LICENSE](LI
 
 ### サードパーティーライセンス
 
-zivo はサードパーティーパッケージに依存しています。依存パッケージとそのライセンスの一覧は [NOTICE.txt](NOTICE.txt) を確認してください。
+zivo はサードパーティーパッケージに依存しています。production runtime 依存と
+ライセンス識別子の一覧は [NOTICE.txt](NOTICE.txt) に保持しています。依存パッケージは
+zivo の wheel に同梱せず、それぞれ別の配布物としてインストールするため、ライセンス全文は
+各依存パッケージの配布物に保持されます。
 
-依存関係を更新した後に NOTICE.txt を更新するには:
+将来、依存コードを同梱した配布物を作る場合は、同梱する依存パッケージのライセンス全文も
+その配布物に含めます。
+
+production 依存関係を更新した後に NOTICE.txt を更新するには:
 
 ```bash
-uv run pip-licenses --format=plain --from=mixed --with-urls --output-file NOTICE.txt
+uv run --locked --no-sync python scripts/update_notice.py
 ```
 
 ---

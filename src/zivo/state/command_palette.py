@@ -27,10 +27,12 @@ from .models import (
     select_browser_tabs,
 )
 from .selectors import (
+    select_current_entry_for_path,
     select_has_visible_current_entries,
     select_single_target_entry,
     select_target_file_paths,
     select_target_paths,
+    select_visible_current_entry_states,
 )
 
 
@@ -117,6 +119,9 @@ _COMMAND_METADATA: dict[str, CommandPaletteMetadata] = {
     "go_back": CommandPaletteMetadata("Navigate", ("back", "previous"), 32),
     "go_forward": CommandPaletteMetadata("Navigate", ("forward", "next"), 33),
     "go_to_home_directory": CommandPaletteMetadata("Navigate", ("home", "~"), 35),
+    "enter_folder": CommandPaletteMetadata(
+        "Navigate", ("enter", "folder", "directory", "open"), 6
+    ),
     "reload_directory": CommandPaletteMetadata("View", ("reload", "refresh"), 70),
     "undo_last_operation": CommandPaletteMetadata("System", ("undo", "revert"), 50),
     "new_tab": CommandPaletteMetadata("Navigate", ("tab", "open"), 60),
@@ -189,6 +194,7 @@ _COMMAND_METADATA: dict[str, CommandPaletteMetadata] = {
     "toggle_hidden": CommandPaletteMetadata(
         "View", ("hidden", "dotfiles", "show", "hide"), 71
     ),
+    "clear_filter": CommandPaletteMetadata("View", ("filter", "reset", "clear"), 72),
     "show_about": CommandPaletteMetadata("System", ("about", "version", "help"), 98),
     "edit_config": CommandPaletteMetadata(
         "System", ("config", "settings", "preferences"), 90
@@ -323,24 +329,37 @@ def get_command_palette_items(state: AppState) -> tuple[CommandPaletteItem, ...]
         if state.layout_mode == "transfer"
         else _build_command_palette_items(state)
     )
-    if (
-        state.command_palette.source == "commands"
-        and not query.strip()
-        and state.notification is not None
-        and state.notification.action is not None
-    ):
-        action = state.notification.action
-        items = (
-            CommandPaletteItem(
-                id=action.action_id,
-                label=action.label,
-                shortcut=None,
-                enabled=True,
-                category="Suggested",
-                context_priority=0,
-            ),
-            *items,
+    if state.command_palette.source == "commands" and not query.strip():
+        # Keep the contextual projection first, but retain the complete command
+        # catalog below it so users can discover commands without knowing a
+        # search term. Suggested commands are removed from the catalog to avoid
+        # presenting the same action twice with different labels or categories.
+        suggested_items = (
+            _build_suggested_command_items(state, items)
+            if state.layout_mode != "transfer"
+            else items
         )
+        if state.notification is not None and state.notification.action is not None:
+            action = state.notification.action
+            suggested_items = (
+                CommandPaletteItem(
+                    id=action.action_id,
+                    label=action.label,
+                    shortcut=None,
+                    enabled=True,
+                    category="Suggested",
+                    context_priority=0,
+                ),
+                *suggested_items,
+            )
+        prepared_suggested = _prepare_command_palette_items(state, suggested_items, query)
+        if state.layout_mode == "transfer":
+            return prepared_suggested
+        suggested = tuple(item for item in prepared_suggested if item.enabled)[:5]
+        suggested_ids = {item.id for item in suggested}
+        catalog = _prepare_command_palette_items(state, items, query)
+        return (*suggested, *(item for item in catalog if item.id not in suggested_ids))
+
     return _prepare_command_palette_items(state, items, query)
 
 
@@ -730,6 +749,17 @@ def _build_contextual_command_items(state: AppState) -> tuple[CommandPaletteItem
     chmod_supported = _is_chmod_supported()
     rename_label = f"Rename {len(target_paths)} items" if len(target_paths) >= 2 else "Rename"
     items = (
+        CommandPaletteItem(
+            "enter_folder",
+            "Enter folder",
+            "enter",
+            not state.current_pane.selected_paths
+            and bool(
+                select_current_entry_for_path(state, state.current_pane.cursor_path)
+                and select_current_entry_for_path(state, state.current_pane.cursor_path).kind
+                == "dir"
+            ),
+        ),
         CommandPaletteItem("show_attributes", "Show attributes", None, has_single_target),
         CommandPaletteItem(
             "rename",
@@ -814,8 +844,102 @@ def _build_contextual_command_items(state: AppState) -> tuple[CommandPaletteItem
             "D",
             has_target and not search_workspace,
         ),
+        CommandPaletteItem(
+            "clear_filter",
+            "Clear filter",
+            None,
+            state.filter.active and bool(state.filter.query),
+        ),
     )
     return items
+
+
+def _build_suggested_command_items(
+    state: AppState,
+    items: tuple[CommandPaletteItem, ...],
+) -> tuple[CommandPaletteItem, ...]:
+    """Return the executable, context-first command projection for an empty query."""
+
+    visible_entries = select_visible_current_entry_states(state)
+    selected_entries = tuple(
+        entry for entry in visible_entries if entry.path in state.current_pane.selected_paths
+    )
+    explicit_selection = bool(selected_entries)
+    target_entries = selected_entries or tuple(
+        entry
+        for entry in (
+            select_current_entry_for_path(state, state.current_pane.cursor_path),
+        )
+        if entry is not None
+    )
+    target_kinds = {entry.kind for entry in target_entries}
+    search_workspace = is_search_workspace_path(state.current_path)
+    item_by_id = {item.id: item for item in items}
+    candidates: list[CommandPaletteItem] = []
+
+    def add(
+        item_id: str,
+        *,
+        label: str | None = None,
+        enabled: bool | None = None,
+        priority: int,
+    ) -> None:
+        item = item_by_id.get(item_id)
+        if item is None:
+            return
+        if enabled is not None:
+            item = replace(item, enabled=enabled)
+        if label is not None:
+            item = replace(item, label=label)
+        candidates.append(
+            replace(item, category="Suggested", context_priority=priority)
+        )
+
+    if not target_entries:
+        if not search_workspace:
+            add("create", priority=10)
+        clipboard_count = len(state.clipboard.paths)
+        if clipboard_count and not search_workspace:
+            noun = "item" if clipboard_count == 1 else "items"
+            add(
+                "paste_clipboard",
+                label=f"Paste {clipboard_count} {noun} here",
+                priority=11,
+            )
+        if state.filter.active and state.filter.query:
+            add("clear_filter", priority=12)
+        hidden_only = (
+            not state.show_hidden
+            and not state.filter.active
+            and bool(state.current_pane.entries)
+            and all(entry.hidden for entry in state.current_pane.entries)
+        )
+        if hidden_only:
+            add("toggle_hidden", label="Show hidden files", priority=13)
+        if not search_workspace:
+            add("open_current_directory_with_terminal", priority=14)
+        return tuple(candidates)
+
+    if len(target_entries) == 1 and target_kinds == {"file"}:
+        add("open", priority=10)
+        add("edit_with_terminal_editor", priority=11)
+        add("copy_targets", label="Copy", priority=12)
+        add("rename", priority=13)
+        add("delete_targets", priority=14)
+    elif len(target_entries) == 1 and target_kinds == {"dir"}:
+        if not explicit_selection:
+            add("enter_folder", priority=10)
+        add("copy_targets", label="Copy", priority=11)
+        add("rename", priority=12)
+        add("compress_as_zip", priority=13)
+        add("delete_targets", priority=14)
+    else:
+        add("copy_targets", label="Copy", priority=10)
+        add("cut_targets", label="Cut", priority=11)
+        add("rename", priority=12)
+        add("compress_as_zip", priority=13)
+        add("delete_targets", priority=14)
+    return tuple(candidates)
 
 
 def _prepare_command_palette_items(
@@ -834,6 +958,7 @@ def _prepare_command_palette_items(
                 "Custom actions" if item.id.startswith("custom_action:") else item.category
             ),
         )
+        contextual_suggestion = item.category == "Suggested"
         enabled = item.enabled
         reason = item.disabled_reason
         operation = state.foreground_operation
@@ -853,9 +978,11 @@ def _prepare_command_palette_items(
             replace(
                 item,
                 enabled=enabled,
-                category=metadata.category,
+                category="Suggested" if contextual_suggestion else metadata.category,
                 keywords=metadata.keywords,
-                context_priority=metadata.context_priority,
+                context_priority=(
+                    item.context_priority if contextual_suggestion else metadata.context_priority
+                ),
                 disabled_reason=reason,
             )
         )
@@ -1380,6 +1507,7 @@ def _command_match_score(item: CommandPaletteItem, query: str) -> int | None:
     if not normalized_query:
         return 0
     label = item.label.casefold()
+    category = item.category.casefold()
     keywords = tuple(keyword.casefold() for keyword in item.keywords)
     if normalized_query == label:
         return 0
@@ -1388,7 +1516,9 @@ def _command_match_score(item: CommandPaletteItem, query: str) -> int | None:
     words = tuple(label.replace("/", " ").replace("-", " ").split())
     if any(word.startswith(normalized_query) for word in words):
         return 2
-    if normalized_query in label or any(normalized_query in keyword for keyword in keywords):
+    if normalized_query in label or normalized_query in category or any(
+        normalized_query in keyword for keyword in keywords
+    ):
         return 3
     if any(_is_subsequence(normalized_query, candidate) for candidate in (label, *keywords)):
         return 4
@@ -1416,6 +1546,38 @@ def _display_path(path: str) -> str:
 
 def _hidden_files_label(state: AppState) -> str:
     return "Hide hidden files" if state.show_hidden else "Show hidden files"
+
+
+def command_palette_context_lines(state: AppState) -> tuple[str, ...]:
+    """Describe the effective target without conflating selection and focus."""
+
+    visible_entries = select_visible_current_entry_states(state)
+    selected_entries = tuple(
+        entry for entry in visible_entries if entry.path in state.current_pane.selected_paths
+    )
+    cursor_entry = select_current_entry_for_path(state, state.current_pane.cursor_path)
+    if selected_entries:
+        file_count = sum(entry.kind == "file" for entry in selected_entries)
+        folder_count = sum(entry.kind == "dir" for entry in selected_entries)
+        count = len(selected_entries)
+        item_word = "item" if count == 1 else "items"
+        parts: list[str] = []
+        if file_count:
+            parts.append(f"{file_count} file" + ("" if file_count == 1 else "s"))
+        if folder_count:
+            parts.append(f"{folder_count} folder" + ("" if folder_count == 1 else "s"))
+        lines = [f"Selection: {count} {item_word} ({', '.join(parts)})"]
+        if cursor_entry is not None and cursor_entry.path not in {
+            entry.path for entry in selected_entries
+        }:
+            lines.append(
+                f"Focus: {cursor_entry.name} — not included"
+            )
+        return tuple(lines)
+    if cursor_entry is not None:
+        target_kind = "file" if cursor_entry.kind == "file" else "folder"
+        return (f"Target: {cursor_entry.name} — focused {target_kind}",)
+    return (f"Current folder: {_display_path(state.current_path)}",)
 
 
 def _replace_target_file_paths(state: AppState) -> tuple[str, ...]:

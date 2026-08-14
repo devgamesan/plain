@@ -10,7 +10,11 @@ from zivo.services import (
     FakeBrowserSnapshotLoader,
     LiveBrowserSnapshotLoader,
 )
-from zivo.services.browser_snapshot import FilePreviewState, _resolve_cursor_path
+from zivo.services.browser_snapshot import (
+    FilePreviewState,
+    PdftotextPdfPreviewLoader,
+    _resolve_cursor_path,
+)
 from zivo.state import BrowserSnapshot, GrepSearchResultState
 from zivo.state.models import DirectoryEntryState, PaneState
 
@@ -340,60 +344,6 @@ def test_live_browser_snapshot_loader_caches_document_previews(tmp_path) -> None
     assert preview_loader.calls == [f"{report}:{64 * 1024}"]
 
 
-def test_pandoc_document_preview_loader_reports_missing_dependency(
-    tmp_path,
-    monkeypatch,
-) -> None:
-    from zivo.services.browser_snapshot import PandocDocumentPreviewLoader
-
-    report = tmp_path / "report.docx"
-    report.write_bytes(b"placeholder")
-    loader = PandocDocumentPreviewLoader()
-
-    monkeypatch.setattr(
-        "zivo.services.previews.core.shutil.which",
-        lambda name: None,
-    )
-
-    preview = loader.load_preview(report, preview_max_bytes=64 * 1024)
-    assert preview is not None
-    assert preview.reason == "dependency_missing"
-    assert preview.message == "Office preview unavailable: install `pandoc`"
-
-
-def test_pandoc_document_preview_loader_uses_pandoc_command(tmp_path, monkeypatch) -> None:
-    from zivo.services.browser_snapshot import PandocDocumentPreviewLoader
-
-    slides = tmp_path / "slides.pptx"
-    slides.write_bytes(b"placeholder")
-    loader = PandocDocumentPreviewLoader()
-
-    monkeypatch.setattr(
-        "zivo.services.previews.core.shutil.which",
-        lambda name: "/opt/homebrew/bin/pandoc",
-    )
-
-    class _CompletedProcess:
-        stdout = b"# Slide 1\n"
-
-    def _run(args, **kwargs):
-        assert args == [
-            "/opt/homebrew/bin/pandoc",
-            "--from",
-            "pptx",
-            "--to",
-            "markdown",
-            str(slides),
-        ]
-        return _CompletedProcess()
-
-    monkeypatch.setattr("zivo.services.previews.core.subprocess.run", _run)
-
-    preview = loader.load_preview(slides, preview_max_bytes=64 * 1024)
-
-    assert preview == FilePreviewState.with_content("# Slide 1\n", False)
-
-
 def test_chafa_image_preview_loader_strips_non_sgr_control_sequences(
     tmp_path,
     monkeypatch,
@@ -631,7 +581,7 @@ def test_live_browser_snapshot_loader_uses_pdftotext_for_pdf_preview(
     project.mkdir()
     report = project / "report.pdf"
     report.write_bytes(b"%PDF-1.4")
-    loader = LiveBrowserSnapshotLoader()
+    loader = LiveBrowserSnapshotLoader(pdf_preview_loader=PdftotextPdfPreviewLoader())
 
     monkeypatch.setattr(
         "zivo.services.previews.core.shutil.which",

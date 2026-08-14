@@ -2,6 +2,8 @@
 
 CI で実施する依存関係監査と GitHub Actions のサプライチェーン対策を説明します。
 
+> 想定読者: 依存関係更新、CI変更、監査結果を確認するメンテナー。
+
 ## CI での確認内容
 
 `dependency-audit` ジョブは、Python CI workflow の対象となるすべての PR と push について、Ubuntu 上で一度だけ実行されます。
@@ -31,6 +33,19 @@ uv run --locked --no-sync pip-audit \
 ```
 
 生成される requirements ファイルはコミット対象外の `.venv/` 配下に置かれます。
+
+production runtime 依存のライセンス情報は `NOTICE.txt` に保持します。
+wheel は `pypdf`、`send2trash`、`textual` を `Requires-Dist` で宣言するだけで、
+依存コードを同梱しません。そのため、依存ライセンス全文を zivo wheel に重複収録せず、
+各依存パッケージの配布物に保持されるライセンス情報を利用します。NOTICE は固定した
+production 依存から次のコマンドで再生成します。
+
+```bash
+uv run --locked --no-sync python scripts/update_notice.py
+```
+
+将来、依存コードを同梱した配布物を作る場合は、同梱するすべての依存パッケージの
+ライセンス全文をその配布物に含めます。
 
 ## 脆弱性が見つかった場合
 

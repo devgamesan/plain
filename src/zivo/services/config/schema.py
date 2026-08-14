@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 
 def validate_section_dict(
     section: object,
@@ -68,6 +70,40 @@ def read_int(
         return default
     if key in section:
         warnings.append(f"{section_name}.{key} must be an integer; using default.")
+    return default
+
+
+def read_float(
+    section: dict[str, object],
+    *,
+    key: str,
+    default: float,
+    minimum: float = 0.0,
+    maximum: float | None = None,
+    warnings: list[str],
+    section_name: str,
+) -> float:
+    """Read a finite TOML number while preserving a safe default on errors."""
+
+    value = section.get(key, default)
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        numeric_value = float(value)
+        if (
+            math.isfinite(numeric_value)
+            and numeric_value >= minimum
+            and (maximum is None or numeric_value <= maximum)
+        ):
+            return numeric_value
+        if key in section:
+            expected = f">= {minimum:g}"
+            if maximum is not None:
+                expected = f"between {minimum:g} and {maximum:g}"
+            warnings.append(
+                f"{section_name}.{key} must be {expected}; using default."
+            )
+        return default
+    if key in section:
+        warnings.append(f"{section_name}.{key} must be a number; using default.")
     return default
 
 

@@ -13,6 +13,7 @@ from zivo.models import (
     GrepSearchConfig,
     GuiEditorConfig,
     LoggingConfig,
+    PreviewResourceConfig,
     TerminalConfig,
 )
 from zivo.models.config_editor import CONFIG_EDITOR_FIELDS
@@ -66,6 +67,8 @@ def test_loader_creates_default_config_when_missing(tmp_path) -> None:
     assert 'theme = "textual-dark"' in written
     assert 'preview_syntax_theme = "auto"' in written
     assert "preview_max_kib = 64" in written
+    assert "[preview]" in written
+    assert "image_stdout_max_mib = 2" in written
     assert "show_directory_sizes = true" in written
     assert "enable_text_preview = true" in written
     assert "enable_image_preview = true" in written
@@ -151,6 +154,20 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
         directories_first = false
         grep_preview_context_lines = 5
 
+        [preview]
+        timeout_seconds = 9.5
+        stdout_max_kib = 512
+        stderr_max_kib = 32
+        image_timeout_seconds = 20
+        image_stdout_max_mib = 8
+        kitty_stdout_max_mib = 64
+        input_max_mib = 512
+        max_archive_entries = 8192
+        max_archive_entry_mib = 128
+        max_archive_total_mib = 512
+        max_archive_compression_ratio = 200
+        timeout_cache_seconds = 2.5
+
         [behavior]
         confirm_delete = false
         paste_conflict_action = "rename"
@@ -211,6 +228,20 @@ def test_loader_reads_valid_config_values(tmp_path) -> None:
     assert result.config.display.default_sort_descending is True
     assert result.config.display.directories_first is False
     assert result.config.display.grep_preview_context_lines == 5
+    assert result.config.preview == PreviewResourceConfig(
+        timeout_seconds=9.5,
+        stdout_max_kib=512,
+        stderr_max_kib=32,
+        image_timeout_seconds=20.0,
+        image_stdout_max_mib=8,
+        kitty_stdout_max_mib=64,
+        input_max_mib=512,
+        max_archive_entries=8192,
+        max_archive_entry_mib=128,
+        max_archive_total_mib=512,
+        max_archive_compression_ratio=200.0,
+        timeout_cache_seconds=2.5,
+    )
     assert result.config.behavior.confirm_delete is False
     assert result.config.behavior.paste_conflict_action == "rename"
     assert result.config.logging.enabled is False

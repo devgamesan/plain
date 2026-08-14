@@ -2,6 +2,8 @@
 
 Custom actions let `config.toml` add command palette entries. They are intended for project-local tools such as formatters, checkers, optimizers, archive commands, and terminal apps.
 
+> Audience: users who want to add repeatable project or terminal commands to the palette.
+
 ## Configuration
 
 Add `[[actions.custom]]` tables to `config.toml`.

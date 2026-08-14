@@ -176,9 +176,10 @@ class ChildPane(Vertical):
     class ActionClicked(Message):
         """Notify the app that a fallback action was clicked."""
 
-        def __init__(self, action_id: str) -> None:
+        def __init__(self, action_id: str, target_path: str | None = None) -> None:
             super().__init__()
             self.action_id = action_id
+            self.target_path = target_path
 
     def __init__(
         self,
@@ -202,9 +203,10 @@ class ChildPane(Vertical):
         )
         self._chafa_cached_content: str | None = None
         self._last_chafa_width: int = 0
+        self._last_kitty_height: int | None = None
         self._chafa_resize_timer: Timer | None = None
         self._chafa_resize_request_id = 0
-        self._pending_chafa_resize_key: tuple[str, int, str] | None = None
+        self._pending_chafa_resize_key: tuple[str, int, int | None, str] | None = None
         self._image_preview_loader = image_preview_loader or ChafaImagePreviewLoader()
         self._resize_debouncer = ResizeDebouncer(
             self,
@@ -328,7 +330,13 @@ class ChildPane(Vertical):
         action_id = event.style.meta.get("pane_action_id")
         if action_id is not None:
             event.stop()
-            self.post_message(self.ActionClicked(str(action_id)))
+            target_path = event.style.meta.get("pane_action_path")
+            self.post_message(
+                self.ActionClicked(
+                    str(action_id),
+                    str(target_path) if target_path is not None else None,
+                )
+            )
             return
         if self._state.is_preview:
             event.stop()
@@ -446,6 +454,7 @@ class ChildPane(Vertical):
             object.__setattr__(self, "_kitty_cached", None)
             object.__setattr__(self, "_last_kitty_path", None)
             object.__setattr__(self, "_last_kitty_width", None)
+            object.__setattr__(self, "_last_kitty_height", None)
             if state.is_preview:
                 self.call_after_refresh(lambda: scroll_widget.scroll_home(animate=False))
 
@@ -496,10 +505,20 @@ class ChildPane(Vertical):
                     self._last_render_width = render_width
                     self._last_render_signature = render_signature
                     return True
+                kitty_viewport_changed = False
+                if self._state.preview_kind == "kitty":
+                    try:
+                        kitty_viewport_changed = (
+                            self._preview_scroll_widget().size.height
+                            != getattr(self, "_last_kitty_height", None)
+                        )
+                    except NoMatches:
+                        pass
                 if (
                     not force
                     and render_width == self._last_render_width
                     and render_signature == self._last_render_signature
+                    and not kitty_viewport_changed
                 ):
                     return True
                 if (
@@ -794,8 +813,8 @@ class ChildPane(Vertical):
     def _write_kitty_content(self, content: str) -> None:
         """Write Kitty graphics protocol escape sequence to the terminal.
 
-        Re-runs chafa when the available preview width changes so the
-        image always fills the pane without overflowing the terminal.
+        Re-runs chafa when the available preview viewport changes so the
+        image stays inside the pane instead of overflowing the terminal.
         """
         try:
             from zivo.services.previews.core import resolve_image_preview_format
@@ -805,7 +824,10 @@ class ChildPane(Vertical):
             if region.x < 0 or region.y < 0:
                 return
 
+            if scroll.size.width <= 0 or scroll.size.height <= 0:
+                return
             pane_width = max(1, scroll.size.width - 2)
+            pane_height = max(1, scroll.size.height)
 
             mode = getattr(self._state, "image_preview_mode", "auto")
             fmt = resolve_image_preview_format(mode)
@@ -814,18 +836,28 @@ class ChildPane(Vertical):
 
             path = self._state.preview_path
             last_width = getattr(self, "_last_kitty_width", None)
+            last_height = getattr(self, "_last_kitty_height", None)
             last_path = getattr(self, "_last_kitty_path", None)
 
-            if path == last_path and pane_width != last_width and path:
+            if (
+                path
+                and (
+                    path != last_path
+                    or pane_width != last_width
+                    or pane_height != last_height
+                )
+            ):
                 self._schedule_chafa_resize_preview(
                     path,
                     pane_width,
                     "kitty",
+                    preview_rows=pane_height,
                 )
-            else:
-                cached = getattr(self, "_kitty_cached", None)
-                if path == last_path and cached is not None:
-                    content = cached
+                return
+
+            cached = getattr(self, "_kitty_cached", None)
+            if path == last_path and cached is not None:
+                content = cached
 
             if not content:
                 return
@@ -833,6 +865,7 @@ class ChildPane(Vertical):
             object.__setattr__(self, "_kitty_cached", content)
             object.__setattr__(self, "_last_kitty_path", path)
             object.__setattr__(self, "_last_kitty_width", pane_width)
+            object.__setattr__(self, "_last_kitty_height", pane_height)
 
             row = region.y + 1
             col = region.x + 1
@@ -846,8 +879,10 @@ class ChildPane(Vertical):
         path: str,
         preview_columns: int,
         image_preview_format: str,
+        *,
+        preview_rows: int | None = None,
     ) -> None:
-        key = (path, preview_columns, image_preview_format)
+        key = (path, preview_columns, preview_rows, image_preview_format)
         if self._pending_chafa_resize_key == key:
             return
         self._chafa_resize_request_id += 1
@@ -862,6 +897,7 @@ class ChildPane(Vertical):
                 path,
                 preview_columns,
                 image_preview_format,
+                preview_rows=preview_rows,
             ),
             name=f"chafa-resize-debounce:{request_id}",
         )
@@ -872,23 +908,33 @@ class ChildPane(Vertical):
         path: str,
         preview_columns: int,
         image_preview_format: str,
+        *,
+        preview_rows: int | None = None,
     ) -> None:
         self._chafa_resize_timer = None
         if (
             request_id != self._chafa_resize_request_id
             or self._pending_chafa_resize_key
-            != (path, preview_columns, image_preview_format)
+            != (path, preview_columns, preview_rows, image_preview_format)
         ):
             return
 
         def _load_preview() -> None:
             content: str | None = None
             try:
-                result = self._image_preview_loader.load_preview(
-                    FsPath(path),
-                    preview_columns=preview_columns,
-                    image_preview_format=image_preview_format,
-                )
+                if preview_rows is None:
+                    result = self._image_preview_loader.load_preview(
+                        FsPath(path),
+                        preview_columns=preview_columns,
+                        image_preview_format=image_preview_format,
+                    )
+                else:
+                    result = self._image_preview_loader.load_preview(
+                        FsPath(path),
+                        preview_columns=preview_columns,
+                        preview_rows=preview_rows,
+                        image_preview_format=image_preview_format,
+                    )
                 if result and result.content:
                     content = result.content
             except Exception:
@@ -901,6 +947,7 @@ class ChildPane(Vertical):
                     preview_columns,
                     image_preview_format,
                     content,
+                    preview_rows=preview_rows,
                 )
             except Exception:
                 pass
@@ -921,8 +968,10 @@ class ChildPane(Vertical):
         preview_columns: int,
         image_preview_format: str,
         content: str | None,
+        *,
+        preview_rows: int | None = None,
     ) -> None:
-        key = (path, preview_columns, image_preview_format)
+        key = (path, preview_columns, preview_rows, image_preview_format)
         if (
             request_id != self._chafa_resize_request_id
             or self._pending_chafa_resize_key != key
@@ -955,6 +1004,7 @@ class ChildPane(Vertical):
             object.__setattr__(self, "_kitty_cached", content)
         object.__setattr__(self, "_last_kitty_path", path)
         object.__setattr__(self, "_last_kitty_width", preview_columns)
+        object.__setattr__(self, "_last_kitty_height", preview_rows)
         self._pending_chafa_resize_key = None
         if content:
             self._write_kitty_content(content)

@@ -1,61 +1,50 @@
-# Zivo 性能確認メモ
+# zivo Performance Notes
 
-このメモは、MVP 判定向けに Issue #24 で実施した主要フロー結合テストと 1000 件規模確認の条件を残すためのものです。
+This note records the conditions for the main-flow integration test and the 1000-entry verification that were run in Issue #24 for MVP judgement.
 
-## 目次
+> Audience: contributors comparing performance regressions against the recorded smoke tests.
 
-1. [スモークテスト（既存）](#スモークテスト既存)
-2. [Issue #304 viewport-aware projection スパイク](#issue-304-viewport-aware-projection-スパイク)
-3. [Issue #646 ディレクトリ一覧メタデータ遅延取得](#issue-646-ディレクトリ一覧メタデータ遅延取得)
-4. [Issue #647 ブラウザスナップショット段階ロード](#issue-647-ブラウザスナップショット段階ロード)
-5. [Issue #281 Go パス補完](#issue-281-go-パス補完)
-6. [現在の方針](#現在の方針)
-
----
-
-## スモークテスト（既存）
-
-### 実施日
+## Date
 
 - 2026-03-27
 - 2026-03-28
 
-### 確認環境
+## Environment
 
 - OS: Linux 6.17.0-19-generic
 - Python: 3.12.3
-- 実行方法: `uv run pytest`
+- Command: `uv run pytest`
 
-### 自動確認の内容
+## Automated Checks
 
 - `tests/test_app.py::test_app_main_flow_round_trip_on_live_filesystem`
-  - 実 filesystem を使って起動、移動、選択、copy、paste、filter、sort 切替を 1 本のシナリオで確認
+  - Uses the real filesystem to verify launch, navigation, selection, copy, paste, filter, and sort switching in one scenario
 - `tests/test_app.py::test_app_large_directory_smoke_with_1000_entries`
-  - 200 ディレクトリ + 800 ファイルの合計 1000 件を生成
-  - 初期表示、一覧 1000 件表示、150 行分のカーソル移動、子ペイン更新継続を確認
+  - Creates 200 directories and 800 files for a total of 1000 entries
+  - Verifies the initial render, a 1000-entry list, 150 cursor moves, and continued child-pane updates
 
-### 観察結果
+## Observations
 
 - `uv run pytest tests/test_app.py -k large_directory_smoke_with_1000_entries --durations=1 -q`
   - `20.30s call     tests/test_app.py::test_app_large_directory_smoke_with_1000_entries`
-  - 上記時間にはテストデータ生成、Textual headless 起動、150 回のキー送信が含まれる
+  - The time above includes test data creation, Textual headless startup, and 150 key sends
 - `uv run pytest tests/test_app.py -k 'main_flow_round_trip_on_live_filesystem or large_directory_smoke_with_1000_entries'`
   - `2 passed, 38 deselected in 21.92s`
-- 1000 件規模でも headless の結合スモークは完走し、一覧表示と子ペイン更新が途中で止まる症状は再現しなかった
-- 2026-03-28 の Issue #104 対応で、current pane の visible entries を `select_shell_data()` 内で使い回し、カーソル移動だけでは `MainPane` が `DataTable.clear()` / `add_row()` を呼ばない回帰テストを追加した
+- Even at the 1000-entry scale, the headless integration smoke test completed successfully, and the symptom where list rendering or child-pane updates stopped midway did not reproduce
+- As part of Issue #104 on 2026-03-28, we added regression coverage to reuse current-pane visible entries inside `select_shell_data()` and to ensure cursor-only movement does not call `DataTable.clear()` / `add_row()` in `MainPane`
 - `uv run python -m pytest tests/test_state_selectors.py -q`
   - `38 passed in 0.16s`
 - `uv run python -m pytest tests/test_app.py -k 'refresh or large_directory_smoke_with_1000_entries' -q`
   - `4 passed, 41 deselected in 13.49s`
-- 上記回帰確認では、1000 件一覧のスモークを維持したまま、単一カーソル移動で current pane 行を再構築しないことを検証した
+- Those checks preserved the 1000-entry smoke case while verifying that a single cursor move no longer rebuilds current-pane rows
 
-### 既知の制約
+## Known Constraints
 
-- 現在の測定は CI 向け benchmark ではなく、回帰検知用のスモーク確認である
-- 記録している時間はテスト全体の実行時間であり、純粋な描画時間だけを切り出した数値ではない
-- 実ターミナルでの体感速度やスクロール描画コストは、端末エミュレータやフォント設定の影響を受ける
+- The current measurement is a regression-oriented smoke check, not a CI benchmark
+- The recorded time is for the full test execution, not an isolated rendering-only measurement
+- Perceived speed and scroll rendering cost in a real terminal can vary with the terminal emulator and font settings
 
-### 再実行コマンド
+## Rerun Commands
 
 ```bash
 uv run pytest tests/test_app.py -k large_directory_smoke_with_1000_entries --durations=1 -q
@@ -64,39 +53,37 @@ uv run python -m pytest tests/test_state_selectors.py -q
 uv run python -m pytest tests/test_app.py -k 'refresh or large_directory_smoke_with_1000_entries' -q
 ```
 
----
+## Issue #304 Viewport-Aware Projection Spike
 
-## Issue #304 viewport-aware projection スパイク
-
-### 実施日
+### Date
 
 - 2026-04-05
 
-### 追加したもの
+### Added for the spike
 
 - `scripts/benchmark_current_pane_projection.py`
-  - current pane の `cursor move` / `page scroll` / `selection toggle` / `directory size` 反映を、`full` と `viewport` で同条件比較する手動計測スクリプト
+  - manual benchmark script comparing current-pane `cursor move`, `page scroll`, `selection toggle`, and `directory size` reflection under `full` vs `viewport`
 - `create_app(..., current_pane_projection_mode="viewport")`
-  - `DataTable` は維持したまま、current pane の表示を terminal 高さ由来の window に絞る比較用スパイク
-- Issue #326 での正式採用
-  - 2026-04-05 に viewport-aware projection を通常起動の既定経路へ昇格し、`pageup` / `pagedown` / `home` / `end` / filter / sort / hidden-file toggle / reload / resize 後も window を正規化する回帰テストを追加した
+  - comparison-only spike that keeps `DataTable` and limits current-pane rendering to a terminal-height-derived window
+- Formal adoption in Issue #326
+  - on 2026-04-05, viewport-aware projection became the default runtime path and gained regression coverage for `pageup` / `pagedown` / `home` / `end`, filter and sort changes, hidden-file toggles, reloads, and resize handling
 
-### 計測条件
+### Measurement setup
 
 - Python: `uv run python`
 - terminal height: 24
 - viewport window: 16 rows
-- 測定対象は `select_shell_data()` を中心にした projection/update hint 生成コスト
-- CI benchmark ではなく、Issue #304 の判断材料を残すためのローカル手動計測
+- the benchmark focuses on the `select_shell_data()` projection/update-hint path
+- this is a local manual benchmark for Issue #304, not a CI benchmark
 
-### 再実行コマンド
+### Re-run commands
 
 ```bash
 uv run python scripts/benchmark_current_pane_projection.py --entries 10000 --iterations 200
 uv run python scripts/benchmark_current_pane_projection.py --entries 50000 --iterations 100
 ```
 
-### 観察結果
+### Observations
 
 #### 10,000 entries
 
@@ -124,133 +111,67 @@ uv run python scripts/benchmark_current_pane_projection.py --entries 50000 --ite
 | viewport | selection toggle | 16 | 12.11 ms |
 | viewport | directory size reflect | 16 | 12.27 ms |
 
-### 判断メモ
+### Decision notes
 
-- `DataTable` 自体を置き換えなくても、current pane の projection を window 化するだけで処理時間は一貫して下がった
-- 改善幅は 10,000 entries で約 2 倍、50,000 entries では `directory size` 反映で約 3.5 倍
-- 50,000 entries では viewport 化後も 12 ms 前後かかるため、selector 以外の比較的固定コストは残る
-- つまり「仮想化は不要」とは言えず、少なくとも current pane 側で offscreen row を projection 対象から外す価値はある
-- Issue #326 で、この方針を comparison-only spike から通常実装へ昇格した
-- `current_pane_projection_mode` はベンチマークとテストのための内部切り替えとして残し、通常起動では viewport projection を使う
+- Keeping `DataTable` and windowing only the current-pane projection already lowers the cost consistently
+- The improvement is about 2x at 10,000 entries and up to about 3.5x for `directory size` reflection at 50,000 entries
+- Even after windowing, the 50,000-entry case still spends about 12 ms per call, so fixed costs outside projection remain
+- That means we cannot conclude that virtualization is unnecessary; at minimum, excluding offscreen rows from current-pane projection is worth pursuing
+- Issue #326 promoted that direction from a comparison spike to the normal implementation path
+- `current_pane_projection_mode` remains as an internal benchmark/test switch, while normal startup now uses viewport projection by default
 
----
+## Issue #281 Go path completion
 
-## Issue #646 ディレクトリ一覧メタデータ遅延取得
+Direct-path completion in the unified Go palette uses a short debounce, a worker, and a short-lived parent-directory listing cache. Results are capped at 500 entries and the UI tells users to type more characters when the cap is reached.
 
-### 実施日
-
-- 2026-04-20
-
-### 追加したもの
-
-- `scripts/benchmark_directory_listing.py`
-  - `LocalFilesystemAdapter.list_directory()` と `inspect_entry()` を同じ fixture 条件で比較する手動ベンチマーク
-- `tests/test_adapters_filesystem.py`
-  - 一覧表示で owner/group 解決を呼ばないこと
-  - ディレクトリ一覧の metadata を軽量化していること
-  - 属性ダイアログ向け詳細取得で owner/group を含む metadata を取得できること
-
-### 再実行コマンド
-
-```bash
-uv run python scripts/benchmark_directory_listing.py --files 8000 --dirs 2000 --iterations 10
-```
-
-### 判断メモ
-
-- 一覧表示で必要な軽量データと、属性ダイアログ用の重い metadata 取得を分離した
-- owner/group 解決は `Show attributes` 実行時の遅延取得へ移した
-- 比較は同じコマンドを別 commit や branch で再実行して確認する
-
----
-
-## Issue #647 ブラウザスナップショット段階ロード
-
-### 実施日
-
-- 2026-04-20
-
-### 追加したもの
-
-- `scripts/benchmark_progressive_loading.py`
-  - blocking モード（既存の同期ロード）と progressive モード（新しい段階ロード）を比較する手動ベンチマーク
-- `src/zivo/state/actions_runtime.py`
-  - `CurrentPaneSnapshotLoaded`, `ParentChildSnapshotLoaded`, `ParentChildSnapshotFailed` アクション
-  - `RequestBrowserSnapshot` に `progressive` フィールドを追加
-- `src/zivo/state/effects.py`
-  - `LoadCurrentPaneEffect`, `LoadParentChildEffect` エフェクト
-- `src/zivo/state/models.py`
-  - `BrowserTabState` に `parent_pane_loading`, `child_pane_loading` フィールドを追加
-- `src/zivo/services/browser_snapshot.py`
-  - `load_current_pane_snapshot()`, `load_parent_child_panes()` メソッド
-- `src/zivo/app_runtime_search.py`
-  - `schedule_progressive_browser_snapshot()`, `schedule_parent_child_update()` スケジューラ
-- `src/zivo/state/reducer_navigation.py`
-  - `_handle_current_pane_loaded()`, `_handle_parent_child_loaded()`, `_handle_parent_child_failed()` ハンドラー
-
-### 再実行コマンド
-
-```bash
-uv run python scripts/benchmark_progressive_loading.py --files 100 --dirs 100 --iterations 10
-```
-
-### 観察結果
-
-#### 100 files × 100 directories
-
-| mode | operation | mean_ms | p95_ms |
-| --- | --- | ---: | ---: |
-| blocking | baseline | 1.68 | 8.86 |
-| progressive | phase1 (first paint) | 0.04 | 0.04 |
-| progressive | phase2 (parent+child) | 0.07 | 0.08 |
-| progressive | total (phase1+2) | 0.11 | 0.12 |
-
-**First Paint 改善**:
-- blocking: 1.68 ms
-- progressive: 0.04 ms
-- **改善率: 42.45x 高速化**
-- **削減時間: 1.64 ms**
-
-### 判断メモ
-
-- current pane を先に表示し、parent/child はバックグラウンドで非同期ロードする段階ロードを実装した
-- First Paint レイテンシが **42.45x** に大幅改善された
-- 完全なスナップショット（phase1+2）でも blocking モードより高速化されている
-- 既存の `blocking=True` 動作は維持されている
-- 比較は同じコマンドを別 commit や branch で再実行して確認する
-
----
-
-## Issue #281 Go パス補完
-
-Go の direct path 補完は query ごとの同期 directory listing を避け、短い debounce と worker、親ディレクトリ listing の短時間 cache を使う。候補は最大 500 件まで返し、打ち切り時は入力をさらに絞るよう footer で案内する。
-
-### 手動ベンチマーク
+Run the manual comparison with:
 
 ```bash
 uv run python scripts/benchmark_go_completion.py --dirs 5000 --iterations 10
 ```
 
-この計測では cold listing と cache hit 後の prefix filtering を分け、reducer/UI event loop の計測と合わせて回帰確認する。CI の自動 benchmark には含めない。
+The benchmark separates cold listing from cached prefix filtering. It is intentionally not part of CI.
 
-2026-08-12 のローカル実測（macOS、5,000 directory、10 iterations）では、cold listing が平均 14.26 ms / p95 18.41 ms、cache hit 後の絞り込み（`directory_000`）が平均 0.31 ms / p95 0.37 ms だった。
+On 2026-08-12 (macOS, 5,000 directories, 10 iterations), the local run measured 14.26 ms mean / 18.41 ms p95 for cold listing and 0.31 ms mean / 0.37 ms p95 for cached `directory_000` filtering.
 
-## 現在の方針
+## Current policy
 
-- 自動ベンチマークは削除した
-- CI と release workflow では通常のテストのみを実行する
-- 通常起動の current pane は viewport-aware projection を使い、summary と selected count は全件基準のまま維持する
-- 性能確認は必要な変更ごとに、人手で対象シナリオを決めて実施する
-- 大規模 fixture や反復回数の多い性能計測を、日常の自動チェックへ戻さない
+- Automated benchmarks remain out of CI and release workflows
+- The normal current pane uses viewport-aware projection, while summary and selected counts continue to reflect the full filtered entry set
+- Performance checks stay manual and scenario-driven when behavior changes warrant them
 
-### 手動での性能確認例
+## Preview resource budget
 
-```bash
-uv run pytest tests/test_app.py -k large_directory_smoke_with_1000_entries --durations=1 -q
-uv run pytest tests/test_app.py -k main_flow_round_trip_on_live_filesystem -q
-uv run pytest tests/test_state_selectors.py -q
-uv run python scripts/benchmark_current_pane_projection.py --entries 10000 --iterations 200
-uv run python scripts/benchmark_directory_listing.py --files 8000 --dirs 2000 --iterations 10
-uv run python scripts/benchmark_progressive_loading.py --files 100 --dirs 100 --iterations 10
-uv run python scripts/benchmark_go_completion.py --dirs 5000 --iterations 10
-```
+Preview is a supporting feature and uses one internal budget across backends. Timeout,
+converter stdout/stderr retention, converter input size, and built-in OOXML ZIP
+entry/uncompressed-size/compression-ratio checks are finite. These limits are exposed as
+advanced `[preview]` settings with safe defaults tuned so normal previews remain responsive.
+
+Images use a separate budget from text converters: 2 MiB for symbols output, 32 MiB for
+the Kitty graphics protocol, and a 15-second image converter timeout. This keeps ordinary
+image review usable while still bounding retained output and execution time.
+
+Measure normal and large PDF/Office/image files in cold and warm runs, time to first useful
+content, peak memory, and rapid cursor movement. Safe text output is shown as `Preview limited`;
+partial image or Kitty graphics output is not rendered and falls back to metadata. Cancelled
+and stale results are not stored as successful preview cache entries.
+
+Automated tests use short timeouts, fake converters, excessive stdout/stderr, ZIP-bomb-like
+metadata, and paths containing spaces. Large performance benchmarks remain manual and are not
+added to CI.
+
+### Issue #1183 built-in OOXML benchmark
+
+The manual `scripts/benchmark_ooxml_preview.py` benchmark uses synthetic DOCX/XLSX/PPTX
+packages and measures cold/warm wall time, synchronous time-to-first-useful-content, and
+Python peak allocations for the built-in loader:
+
+| fixture | items | cold / warm |
+| --- | ---: | ---: |
+| DOCX | 1,000 | 16.29 / 14.81 ms |
+| XLSX | 1,000 | 19.66 / 17.07 ms |
+| PPTX | 1,000 | 110.58 / 107.31 ms |
+
+The required text-order and representative-cell/slide/paragraph fixtures pass in
+`tests/test_ooxml_preview.py`. Office previews use this in-process backend and do not require
+an external document converter.

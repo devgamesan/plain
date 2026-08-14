@@ -841,6 +841,8 @@ def _select_child_syntax_theme(app_theme: str, preview_syntax_theme: str) -> str
 
 
 @lru_cache(maxsize=256)
-def _format_child_preview_title(path: str, truncated: bool) -> str:
+def _format_child_preview_title(path: str, truncated: bool, reason: str | None = None) -> str:
+    if reason in {"timeout", "resource_limit"}:
+        return f"Preview limited: {Path(path).name}"
     suffix = " (truncated)" if truncated else ""
     return f"Preview: {Path(path).name}{suffix}"

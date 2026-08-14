@@ -19,6 +19,7 @@ def render_app_config(config: AppConfig) -> str:
         render_editor_section(config),
         render_gui_editor_section(config),
         render_display_section(config),
+        render_preview_section(config),
         render_behavior_section(config),
         render_logging_section(config),
         render_bookmarks_section(config),
@@ -106,6 +107,26 @@ def render_behavior_section(config: AppConfig) -> str:
         f"confirm_delete = {render_bool(config.behavior.confirm_delete)}\n"
         f"confirm_exit = {render_bool(config.behavior.confirm_exit)}\n"
         f'paste_conflict_action = "{config.behavior.paste_conflict_action}"'
+    )
+
+
+def render_preview_section(config: AppConfig) -> str:
+    preview = config.preview
+    return (
+        "[preview]\n"
+        "# Resource limits for preview converters. Values are advanced settings.\n"
+        f"timeout_seconds = {preview.timeout_seconds:g}\n"
+        f"stdout_max_kib = {preview.stdout_max_kib}\n"
+        f"stderr_max_kib = {preview.stderr_max_kib}\n"
+        f"image_timeout_seconds = {preview.image_timeout_seconds:g}\n"
+        f"image_stdout_max_mib = {preview.image_stdout_max_mib}\n"
+        f"kitty_stdout_max_mib = {preview.kitty_stdout_max_mib}\n"
+        f"input_max_mib = {preview.input_max_mib}\n"
+        f"max_archive_entries = {preview.max_archive_entries}\n"
+        f"max_archive_entry_mib = {preview.max_archive_entry_mib}\n"
+        f"max_archive_total_mib = {preview.max_archive_total_mib}\n"
+        f"max_archive_compression_ratio = {preview.max_archive_compression_ratio:g}\n"
+        f"timeout_cache_seconds = {preview.timeout_cache_seconds:g}"
     )
 
 

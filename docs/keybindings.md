@@ -2,6 +2,8 @@
 
 Complete list of keybindings for all zivo modes.
 
+> Audience: users who want the complete keyboard reference after trying the quick start.
+
 ## Help Bar
 
 The three-row help bar keeps a stable order. Browsing uses these groups:

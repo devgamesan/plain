@@ -2,6 +2,8 @@
 
 This document describes the dependency audit and GitHub Actions supply-chain policy used by CI.
 
+> Audience: maintainers reviewing dependency updates, CI changes, or audit findings.
+
 ## CI coverage
 
 The `dependency-audit` job runs once on Ubuntu for every pull request and push covered by the Python CI workflow.
@@ -32,6 +34,19 @@ uv run --locked --no-sync pip-audit \
 ```
 
 The generated requirements file is under `.venv/`, which is not committed.
+
+License attribution for production runtime dependencies is kept in
+`NOTICE.txt`. The wheel declares `pypdf`, `send2trash`, and `textual` through
+`Requires-Dist` and does not bundle their code, so their full license texts are
+not duplicated in the zivo wheel. The NOTICE file is regenerated from the
+frozen production dependency set with:
+
+```bash
+uv run --locked --no-sync python scripts/update_notice.py
+```
+
+If a future distribution bundles dependency code, it must include the full
+license texts for all bundled dependencies in that distribution.
 
 ## Handling findings
 

@@ -9,6 +9,8 @@ If the file does not exist yet, zivo creates it automatically with default value
 - macOS: `~/Library/Application Support/zivo/config.toml`
 - Windows: `%APPDATA%\\zivo\\config.toml`
 
+> Audience: users who want to change startup defaults or advanced resource limits.
+
 ## Config Editor scope
 
 The in-app Config Editor is intentionally limited to frequently changed basic settings:
@@ -24,8 +26,14 @@ preview details, terminal templates, paste behavior, logging, file-search limits
 custom actions, or future settings. Saving basic settings from the UI updates only
 those settings and preserves advanced, unknown, and custom TOML values.
 
+The `[terminal]` section contains only OS-specific command templates (`linux`,
+`macos`, and `windows`). There is no `launch_mode` setting; zivo chooses the
+configured template or a platform fallback when an external terminal is opened.
+
 If the Config Editor has unsaved changes, save or close them before opening the
-raw file with `e`. When the external editor exits, zivo reloads `config.toml`
+raw file with `e`. Preview resource limits, terminal templates, paste behavior,
+logging, file-search limits, background-command limits, custom actions, and future
+settings are managed there. When the external editor exits, zivo reloads `config.toml`
 and applies the result to the running app and Config Editor. If the TOML is
 invalid, zivo keeps the current active configuration and shows a warning. Some
 settings require restarting zivo.
@@ -45,16 +53,26 @@ settings require restarting zivo.
 | `display` | `enable_text_preview` | `true` / `false` | Shows text-file previews in the right pane. Defaults to `true`. grep result context preview follows the same setting. |
 | `display` | `enable_image_preview` | `true` / `false` | Shows image-file previews in the right pane through `chafa`. Defaults to `true`. When `chafa` is missing, zivo shows a dependency message instead of failing. Set `image_preview_mode` to `kitty` for high-fidelity image rendering on compatible terminals. |
 | `display` | `image_preview_mode` | `auto` / `kitty` / `chafa` | Selects the image preview backend. Defaults to `auto`. `auto` detects terminal support — uses the Kitty graphics protocol on Kitty, Ghostty, or compatible terminals; falls back to chafa Unicode symbols otherwise. `kitty` forces Kitty graphics protocol (requires a compatible terminal). `chafa` forces the legacy Unicode symbol output. |
-| `display` | `enable_pdf_preview` | `true` / `false` | Enables PDF preview conversion through `pdftotext`. Defaults to `true`. When disabled, the pane reports that preview is disabled and offers `Edit config` with compact metadata. |
-| `display` | `enable_office_preview` | `true` / `false` | Enables `pandoc`-based preview conversion for `docx`, `xlsx`, and `pptx` files. Defaults to `true`. When disabled, the pane reports that preview is disabled and offers `Edit config` with compact metadata. |
+| `display` | `enable_pdf_preview` | `true` / `false` | Enables bounded built-in PDF text extraction, with an optional fallback for completed extraction failures. Defaults to `true`. When disabled, the pane reports that preview is disabled and offers `Edit config` with compact metadata. |
+| `display` | `enable_office_preview` | `true` / `false` | Enables built-in text extraction for `docx`, `xlsx`, and `pptx` files. Defaults to `true`. When disabled, the pane reports that preview is disabled and offers `Edit config` with compact metadata. |
 | `display` | `show_help_bar` | `true` / `false` | Shows the help bar at the bottom of the screen. Defaults to `true`. The help bar is always shown when the command palette is open, regardless of this setting. |
 | `display` | `theme` | Any built-in Textual theme, for example `textual-dark`, `textual-light`, `dracula`, or `tokyo-night` | Default UI theme applied on startup. In the settings editor, theme changes are previewed immediately and are persisted when you save. |
 | `display` | `preview_syntax_theme` | `auto` or a supported Pygments style, for example `one-dark`, `xcode`, `nord`, or `gruvbox-dark` | Syntax-highlighting colors used by the right-pane text preview. `auto` keeps the current light/dark-based default selection. In the settings editor, changes are previewed immediately when a text preview is visible. |
 | `display` | `preview_max_kib` | `64` / `128` / `256` / `512` / `1024` | Maximum amount of text read for right-pane file previews and preview sampling. Defaults to `64`. Larger values allow deeper previews at the cost of more I/O. |
+| `preview` | `timeout_seconds` / `image_timeout_seconds` | Positive number | Maximum processing time in seconds for text/PDF converters, the built-in Office extractor, and image previews. Defaults to `5` / `15`. |
+| `preview` | `stdout_max_kib` / `stderr_max_kib` | Integer >= 1 | Retained stdout/stderr limits in KiB for text/PDF converters. Defaults to `256` / `16`. |
+| `preview` | `image_stdout_max_mib` / `kitty_stdout_max_mib` | Integer >= 1 | Retained output limits in MiB for chafa symbols and the Kitty graphics protocol. Defaults to `2` / `32`. |
+| `preview` | `input_max_mib` | Integer >= 1 | Maximum input file size in MiB processed by a preview backend. |
+| `preview` | `max_archive_entries` / `max_archive_entry_mib` / `max_archive_total_mib` | Integer >= 1 | Office archive entry-count, per-entry expanded-size, and total expanded-size limits. |
+| `preview` | `max_archive_compression_ratio` | Number >= 1 | Maximum Office archive compression ratio. |
+| `preview` | `timeout_cache_seconds` | Number >= 0 | Seconds to reuse timeout results; `0` disables reuse. |
 | `display` | `default_sort_field` | `name` / `modified` / `size` | Default sort field for the main pane. The `name` field uses natural sort (numeric runs ordered by value, e.g. `file2` before `file10`). |
 | `display` | `default_sort_descending` | `true` / `false` | Starts the main-pane sort in descending order when enabled. |
 | `display` | `directories_first` | `true` / `false` | Keeps directories grouped before files in the main pane. |
+| `display` | `grep_preview_context_lines` | Integer >= 0 | Number of context lines shown around each grep match. Defaults to `3`. |
+| `display` | `preview_word_wrap` | `true` / `false` | Wraps long lines in text and grep previews. Defaults to `false`. |
 | `behavior` | `confirm_delete` | `true` / `false` | Shows a confirmation dialog before moving items to trash. Permanently delete via `D` / `Shift+Delete` always asks for confirmation. |
+| `behavior` | `confirm_exit` | `true` / `false` | Asks for confirmation before quitting zivo. Defaults to `true`. |
 | `behavior` | `paste_conflict_action` | `prompt` / `overwrite` / `skip` / `rename` | Chooses the default paste-conflict behavior. `prompt` keeps the conflict dialog enabled. |
 | `logging` | `enabled` | `true` / `false` | Enables file output for startup failures and unhandled exceptions. |
 | `logging` | `level` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` | Log level for file output. Defaults to `ERROR`. Requires app restart to take effect. |
@@ -70,7 +88,6 @@ settings require restarting zivo.
 
 ```toml
 [terminal]
-launch_mode = "window"
 linux = ["konsole --working-directory {path}", "gnome-terminal --working-directory={path}"]
 macos = ["open -a Terminal {path}"]
 windows = ["wt -d {path}"]
@@ -97,10 +114,31 @@ preview_max_kib = 64
 default_sort_field = "name"
 default_sort_descending = false
 directories_first = true
+grep_preview_context_lines = 3
+preview_word_wrap = false
+
+[preview]
+timeout_seconds = 5
+stdout_max_kib = 256
+stderr_max_kib = 16
+image_timeout_seconds = 15
+image_stdout_max_mib = 2
+kitty_stdout_max_mib = 32
+input_max_mib = 256
+max_archive_entries = 4096
+max_archive_entry_mib = 64
+max_archive_total_mib = 256
+max_archive_compression_ratio = 100
+timeout_cache_seconds = 1
 
 [behavior]
 confirm_delete = true
+confirm_exit = true
 paste_conflict_action = "prompt"
+
+[file_search]
+# Leave empty for the default limit of 1,000 results.
+# max_results = 1000
 
 [grep_search]
 # Leave empty for unlimited results (default).

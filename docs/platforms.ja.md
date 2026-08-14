@@ -2,6 +2,8 @@
 
 zivo の OS サポート状況と、各 OS で必要になる依存関係・セットアップ手順を説明します。
 
+> 想定読者: zivo を初めてセットアップし、OS 別の任意ツールを確認する利用者。
+
 ---
 
 ## サポート状況
@@ -15,22 +17,24 @@ zivo の OS サポート状況と、各 OS で必要になる依存関係・セ�
 
 ---
 
-## 推奨ツール
+## 追加インストールが必要な機能
 
-zivo 本体の起動は `uv` だけで行えますが、一部の機能は `PATH` 上の外部コマンドに依存します。
+zivo 本体は `uv` だけで起動できます。基本的なファイル閲覧、PDF のテキストプレビュー、
+Office ファイルのテキストプレビューには追加コマンドは必要ありません。次の機能を使う場合だけ、
+対応するコマンドを追加してください。
 
-| 機能 | 使用するツール |
+| 機能 | 追加インストール |
 | --- | --- |
-| 画像プレビュー | `chafa`（`image_preview_mode = "kitty"` または `"auto"` 時、対応端末では Kitty graphics protocol を使用） |
-| PDF プレビュー | `pdftotext` / `poppler` |
-| Office プレビュー | `pandoc` |
-
-これらのプレビュー用コマンドは任意依存です。不足時はコマンド名を表示し、tracebackで終了せず、概要メタデータと利用可能な代替Actionを表示します。
+| 画像プレビュー | `chafa`（画像プレビューに必要。Kitty、Ghostty などの対応端末では高精細に表示） |
+| PDF テキストプレビュー | 組み込み機能で読み取ります。読み取りに失敗した場合は、`pdftotext` がインストールされていれば補助的に使います |
+| Office プレビュー | 追加インストール不要 |
 | grep 検索 | `ripgrep` |
+
+任意コマンドがない場合や非対応ファイルでも zivo は終了せず、概要メタデータと利用可能な代替 Action を表示します。PDF は組み込み機能で読み取り、失敗した場合に `pdftotext` がインストールされていれば補助的に使います。処理には上限があります。
 
 ### CI のテスト範囲
 
-CI の matrix では Ubuntu と macOS で `pytest` のフルスイートを実行します。ネイティブ Windows では、ファイル操作、クリップボード、アーカイブ展開・圧縮、ファイル検索・grep 検索、テキスト置換、設定を対象にしたサポート対象の回帰テスト範囲を実行します（`tests/test_adapters_file_operations.py`、`tests/test_services_clipboard_operations.py`、`tests/test_services_file_mutations.py`、`tests/test_services_archive_extract.py`、`tests/test_services_zip_compress.py`、`tests/test_services_file_search.py`、`tests/test_services_grep_search.py`、`tests/test_services_text_replace.py`、`tests/test_services_config.py`）。
+CI の matrix では Ubuntu と macOS で `pytest` のフルスイートを実行します。ネイティブ Windows では、ファイル操作、クリップボード、アーカイブ展開・圧縮、ファイル検索・grep 検索、テキスト置換、設定、Office プレビュー抽出を対象にしたサポート対象の回帰テスト範囲を実行します（`tests/test_adapters_file_operations.py`、`tests/test_services_clipboard_operations.py`、`tests/test_services_file_mutations.py`、`tests/test_services_archive_extract.py`、`tests/test_services_zip_compress.py`、`tests/test_services_file_search.py`、`tests/test_services_grep_search.py`、`tests/test_services_text_replace.py`、`tests/test_services_config.py`、`tests/test_ooxml_preview.py`）。
 
 Issue #1160 でフルスイートも検証しましたが、POSIX パス・改行の前提、chmod/chown のセマンティクス、OS 固有の UI タイミングにより、ネイティブ Windows で 24 件の失敗がありました。これらのテストを移植するまで、Windows の対象範囲は意図的に制限します。Windows でテストを skip する場合は、symlink 権限や権限セマンティクスなど、OS 固有の制約を理由としてテスト側に明記します。
 
@@ -38,19 +42,17 @@ Issue #1160 でフルスイートも検証しましたが、POSIX パス・改�
 
 ```bash
 # Ubuntu / Debian (X11)
-sudo apt install chafa pandoc poppler-utils ripgrep xclip
+sudo apt install chafa poppler-utils ripgrep xclip
 
 # Ubuntu / Debian (Wayland)
-sudo apt install chafa pandoc poppler-utils ripgrep wl-clipboard
+sudo apt install chafa poppler-utils ripgrep wl-clipboard
 
 # Ubuntu (WSL)
-sudo apt install chafa pandoc poppler-utils ripgrep wslu
+sudo apt install chafa poppler-utils ripgrep wslu
 
 # macOS
-brew install chafa pandoc poppler ripgrep
+brew install chafa poppler ripgrep
 ```
-
-**注**: 一部のディストリビューションでは、パッケージマネージャー経由で pandoc 3.8.3 以上が提供されない場合があります。インストールされたバージョンが 3.8.3 より古い場合は、[公式 pandoc ウェブサイト](https://pandoc.org/installing.html) から最新版を手動でインストールしてください。
 
 ### OS 別の詳細
 
@@ -60,9 +62,9 @@ Windows では、ドライブルート（`C:\` など）で `←` を押すと�
 
 依存ツールは各公式サイトからインストールしてください。
 
-- ドキュメントプレビュー: [pandoc](https://pandoc.org/)
+- Office プレビュー: 組み込みテキスト抽出（外部コマンド不要）
 - 画像プレビュー: [chafa](https://hpjansson.org/chafa/)（Kitty graphics protocol の利用には [Kitty](https://sw.kovidgoyal.net/kitty/)、[Ghostty](https://ghostty.org/)、[WezTerm](https://wezfurlong.org/wezterm/) などの対応端末が必要です）
-- PDFプレビュー (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
+- PDFプレビュー fallback (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
 - grep 検索: [ripgrep](https://github.com/BurntSushi/ripgrep)
 
 #### macOS の権限設定
@@ -80,7 +82,7 @@ macOS では、使用しているターミナルアプリに **フルディス�
 
 ## シェルコマンドの構文
 
-Run command（`!`）は macOS・Linux・WSL では現在の shell 環境を使い、未設定時は `/bin/bash` にフォールバックします。Windows では `powershell.exe`、`pwsh`、`cmd.exe` の順に優先するため、POSIX `sh` ではなく選ばれた shell の構文で入力してください。Run command は短い非対話作業向けです。プロンプトや TUI アプリには foreground shell（`t`）、独立した長時間作業には外部ターミナル（`T`）を使います。
+Run command（`!`）は macOS・Linux・WSL では現在の shell 環境を使い、未設定時は `/bin/bash` にフォールバックします。Windows では `powershell.exe`、`pwsh`、`cmd.exe` の順に優先するため、POSIX `sh` ではなく選ばれた shell の構文で入力してください。Run command は短い非対話作業向けです。プロンプトや TUI アプリには foreground shell（`t`）、独立した長時間作業にはコマンドパレットの `Open current directory with terminal` を使います。
 
 ---
 

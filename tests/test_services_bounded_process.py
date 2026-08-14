@@ -99,3 +99,24 @@ def test_bounded_process_replaces_invalid_output_bytes(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     assert "�" in result.stdout
+
+
+def test_bounded_process_supports_prefix_only_stream_limits_and_stops_writer(
+    tmp_path: Path,
+) -> None:
+    result = _run_python(
+        tmp_path,
+        "import sys; sys.stdout.write('A'*100000); sys.stderr.write('B'*100000)",
+        max_output_bytes=64,
+        stdout_max_output_bytes=16,
+        stderr_max_output_bytes=24,
+        prefix_only=True,
+        terminate_on_output_limit=True,
+    )
+
+    assert result.termination_reason == "output_limited"
+    assert result.stdout.startswith("A")
+    assert len(result.stdout) <= 16
+    assert result.stderr.startswith("B")
+    assert len(result.stderr) <= 24
+    assert result.stdout_truncated is True or result.stderr_truncated is True

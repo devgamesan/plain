@@ -24,10 +24,15 @@ _OMISSION_MARKER = b"\n[... middle output omitted ...]\n"
 @dataclass
 class _BoundedStreamBuffer:
     limit: int
+    prefix_only: bool = False
 
     def __post_init__(self) -> None:
-        self._prefix_limit = (self.limit + 1) // 2
-        self._suffix_limit = self.limit - self._prefix_limit
+        if self.prefix_only:
+            self._prefix_limit = self.limit
+            self._suffix_limit = 0
+        else:
+            self._prefix_limit = (self.limit + 1) // 2
+            self._suffix_limit = self.limit - self._prefix_limit
         self._prefix = bytearray()
         self._suffix = bytearray()
         self.total_bytes = 0
@@ -52,6 +57,8 @@ class _BoundedStreamBuffer:
         return self.total_bytes > self.limit
 
     def value(self) -> bytes:
+        if self.prefix_only:
+            return bytes(self._prefix)
         if not self.truncated:
             return bytes(self._prefix) + bytes(self._suffix)
         return bytes(self._prefix) + _OMISSION_MARKER + bytes(self._suffix)
@@ -63,16 +70,24 @@ def run_bounded_process(
     cwd: str,
     env: Mapping[str, str],
     max_output_bytes: int,
-    timeout_seconds: int,
+    timeout_seconds: float,
     cancel_callback: CancelCallback | None = None,
     os_name: str = os.name,
+    stdout_max_output_bytes: int | None = None,
+    stderr_max_output_bytes: int | None = None,
+    prefix_only: bool = False,
+    terminate_on_output_limit: bool = False,
 ) -> ShellCommandResult:
     """Run a non-interactive command while bounding retained output and time."""
 
     if max_output_bytes < 1:
         raise ValueError("max_output_bytes must be positive")
-    if timeout_seconds < 1:
+    if timeout_seconds <= 0:
         raise ValueError("timeout_seconds must be positive")
+    stdout_limit = stdout_max_output_bytes or max_output_bytes
+    stderr_limit = stderr_max_output_bytes or max_output_bytes
+    if stdout_limit < 1 or stderr_limit < 1:
+        raise ValueError("stream output limits must be positive")
 
     popen_kwargs: dict[str, object] = {
         "cwd": cwd,
@@ -88,8 +103,8 @@ def run_bounded_process(
         popen_kwargs["start_new_session"] = True
 
     process = subprocess.Popen(list(command), **popen_kwargs)
-    stdout_buffer = _BoundedStreamBuffer(max_output_bytes)
-    stderr_buffer = _BoundedStreamBuffer(max_output_bytes)
+    stdout_buffer = _BoundedStreamBuffer(stdout_limit, prefix_only=prefix_only)
+    stderr_buffer = _BoundedStreamBuffer(stderr_limit, prefix_only=prefix_only)
     stdout_thread = _start_reader(process.stdout, stdout_buffer, "stdout")
     stderr_thread = _start_reader(process.stderr, stderr_buffer, "stderr")
 
@@ -108,11 +123,24 @@ def run_bounded_process(
             reason = "timed_out"
             _stop_process(process, os_name=os_name)
             break
+        if terminate_on_output_limit and (
+            stdout_buffer.truncated or stderr_buffer.truncated
+        ):
+            if process.poll() is not None:
+                break
+            reason = "output_limited"
+            _stop_process(process, os_name=os_name)
+            break
         sleep(_POLL_INTERVAL_SECONDS)
 
     _finish_process(process)
     _finish_reader(stdout_thread, process.stdout)
     _finish_reader(stderr_thread, process.stderr)
+
+    if reason == "completed" and terminate_on_output_limit and (
+        stdout_buffer.truncated or stderr_buffer.truncated
+    ):
+        reason = "output_limited"
 
     encoding = locale.getpreferredencoding(False)
     return ShellCommandResult(
@@ -122,7 +150,7 @@ def run_bounded_process(
         stdout_truncated=stdout_buffer.truncated,
         stderr_truncated=stderr_buffer.truncated,
         termination_reason=reason,
-        output_limit_bytes=max_output_bytes,
+        output_limit_bytes=max(stdout_limit, stderr_limit),
         timeout_seconds=timeout_seconds,
     )
 

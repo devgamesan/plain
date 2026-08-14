@@ -28,10 +28,10 @@ By default, it keeps a stable, mode-specific set of standard shortcuts visible i
 ## Highlights
 
 - **No memorization required**: relevant standard shortcuts are shown in the help bar
-- **Context-aware command palette**: press `:` to browse fixed Navigate, File, Search, View, System, and Custom actions sections
+- **Context-aware command palette**: press `:` to see up to five target-aware suggestions, then search Navigate, File, Search, View, System, and Custom actions by name or category
 - **Three-pane preview**: preview directories, text, images, PDF, and Office files
 - **Responsive panes**: 120+ columns show Parent / Current / Contents, 80–119 show Current / Contents, and narrower terminals use `Tab` to switch between the current file list and Details
-- **Explicit pane states**: distinguish empty, filtered, loading, disabled, unsupported, dependency-missing, and permission-denied states; unavailable previews fall back to compact file metadata
+- **Explicit pane states**: distinguish empty, filtered, loading, disabled, unsupported, dependency-missing, permission-denied, timeout, and resource-limit states; safe partial text is labeled `Preview limited`, while unavailable previews fall back to compact file metadata
 - **Transfer mode**: copy and move files between two directories side by side
 - **Search and grep**: find files, grep recursively, and continue from visible results
 - **Replace with preview**: pass Find/Grep/Workspace results into one flow, review diffs, then apply a batch replacement
@@ -43,19 +43,29 @@ Browse directories across three panes while previewing files on the right. Use f
 
 The path bar exposes clickable breadcrumb segments and Back/Forward availability. When multiple tabs are open, the tab strip shows the active tab and mouse-only close/new affordances. Click `Name`, `Size`, or `Modified` headers to sort; the active direction and folders-first state remain visible. Narrow terminals keep the current path, active tab, Name column, and sort state visible while eliding lower-priority details.
 
-![](docs/resources/basic_operation.gif)
+![Basic directory browsing and preview](docs/resources/basic_operation.gif)
 
 Press `:` to search and run any action from the command palette. The palette supports incremental search, letting you find and execute commands quickly without memorizing keybindings.
 
-![](docs/resources/command_palette.gif)
+![Command palette search and execution](docs/resources/command_palette.gif)
 
 Transfer mode puts two directories side by side for easy copy and move operations.
 Press `c` to copy or `m` to move selected items to the opposite pane; the header shows the direction and counts.
-![](docs/resources/transfer_mode_operation.gif)
+![Transfer mode copy and move](docs/resources/transfer_mode_operation.gif)
 
 ---
 
 ## Installation
+
+### Requirements
+
+- Python 3.12 or newer
+- [`uv`](https://docs.astral.sh/uv/) for installation and development commands
+- A terminal that supports the Textual UI
+
+zivo runs on Linux, macOS, Windows, and Ubuntu under WSL. Optional features
+such as image preview and recursive grep use external commands described in
+[Platforms](docs/platforms.md). They are not required for the core file browser.
 
 ### Minimal installation
 
@@ -63,15 +73,16 @@ Press `c` to copy or `m` to move selected items to the opposite pane; the header
 uv tool install zivo
 ```
 
-### Recommended tools
+### Features requiring additional installation
 
-Some features use external commands.
+The core browser, PDF text preview, and Office text preview work without
+additional commands. Install external commands only for the features below.
 
-| Feature | Tool |
+| Feature | Additional installation |
 | --- | --- |
-| Image preview | `chafa` |
-| PDF preview | `pdftotext` / `poppler` |
-| Office preview | `pandoc` |
+| Image preview | `chafa` (required for image preview; compatible terminals can render high-fidelity output) |
+| PDF fallback extraction | Optional `pdftotext`; the built-in PDF preview works without it |
+| Office preview | None |
 | Grep search | `ripgrep` |
 
 See [Platforms](docs/platforms.md) for OS-specific setup instructions.
@@ -132,7 +143,7 @@ See [Keybindings](docs/keybindings.md) for the full list.
 
 ## Command palette
 
-Press `:` to search and run available actions. With an empty query, the palette shows fixed Navigate, File, Search, View, System, and Custom actions sections. The full list is scrollable with the mouse wheel; `↑` / `↓` and `Ctrl+j` / `Ctrl+k` keep the selected row visible.
+Press `:` to search and run available actions. With an empty query, the palette explains the effective target (selection, focus, or current folder), shows up to five executable `Suggested` actions, and keeps the remaining commands available below in their categories for discovery without a search term. Type to filter the complete command set. The selected row remains keyboard- and mouse-accessible, while `↑` / `↓` and `Ctrl+j` / `Ctrl+k` keep it visible.
 
 Search accepts common aliases and keywords such as `duplicate` or `clone` for Duplicate, `trash` for Move to trash, `grep` or `search contents` for Grep search, and `shell` for opening a terminal. Duplicate copies the selected targets (or the focused target) beside the originals, automatically choosing a non-conflicting `copy`, `copy 2`, and so on name. Results are ranked deterministically. Commands that do not apply remain searchable but are dimmed with a concrete reason; pressing Enter on one shows the same reason as a warning. Registered custom actions are always listed, while actions that do not satisfy their configured context conditions are disabled with a reason; they are also searchable by name.
 
@@ -174,8 +185,8 @@ Long-running Copy, Move, Compress, Extract, and Replace operations show their op
 
 ### Preview
 
-Empty directories and zero-result filters show their reason and an available next action. When all current entries are hidden, the current pane offers `[.] Show hidden files`. The parent pane distinguishes loading, permission denied, no parent directory, and no visible items; cached parent entries remain visible during refresh. The right pane shows loading state explicitly and, when content preview is unavailable, falls back to a compact summary such as type, size, modified time, permissions, owner/group, symlink target, or archive entry count. Missing optional commands are reported without crashing the application.
-- Text, images (chafa; optional Kitty graphics protocol on compatible terminals), PDF (pdftotext), Office (pandoc)
+Empty directories and zero-result filters show their reason and an available next action. When all current entries are hidden, the current pane offers `[.] Show hidden files`. The parent pane distinguishes loading, permission denied, no parent directory, and no visible items; cached parent entries remain visible during refresh. The right pane shows loading state explicitly, enforces finite preview time/output/resource limits, labels safe partial text as `Preview limited`, and falls back to a compact summary such as type, size, modified time, permissions, owner/group, symlink target, or archive entry count when content preview is unavailable. Missing optional commands are reported without crashing the application.
+- Text, images (`chafa`; compatible terminals can render high-fidelity output), PDF text, and Office text previews
 
 ### Transfer mode
 - Side-by-side two-pane layout for copying or moving files between directories
@@ -236,8 +247,9 @@ zivo includes safety mechanisms to prevent data loss during file operations.
 - [Custom Actions](docs/custom-actions.md) — command palette custom action guide
 - [Platforms](docs/platforms.md) — OS-specific setup
 - [Safety](docs/safety.md) — safety specifications
-- [Architecture](docs/architecture.en.md) — implementation structure
-- [Performance](docs/performance.en.md) — performance notes
+- [Architecture](docs/architecture.md) — implementation structure
+- [Performance](docs/performance.md) — performance notes
+- [PDF Preview Decision](docs/pdf-preview-decision.md) — PDF preview backend evaluation and limits
 - [Release Checklist](docs/release-checklist.md) — release checklist
 - [Dependency and GitHub Actions Audit](docs/dependency-audit.md) — CI dependency and action supply-chain audit policy
 
@@ -249,12 +261,18 @@ zivo is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ### Third-Party Licenses
 
-zivo depends on third-party packages. For a complete list of dependencies and their licenses, see [NOTICE.txt](NOTICE.txt).
+zivo depends on third-party packages. The production runtime dependency list and
+license identifiers are kept in [NOTICE.txt](NOTICE.txt). Dependencies are
+installed as separate distributions rather than bundled into the zivo wheel, so
+their full license texts remain with their respective distributions.
 
-To update NOTICE.txt after dependency changes:
+If a future distribution bundles dependency code, the bundled dependencies'
+full license texts must be included in that distribution as well.
+
+To update NOTICE.txt after production dependency changes:
 
 ```bash
-uv run pip-licenses --format=plain --from=mixed --with-urls --output-file NOTICE.txt
+uv run --locked --no-sync python scripts/update_notice.py
 ```
 
 ---

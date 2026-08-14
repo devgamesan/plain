@@ -26,11 +26,11 @@ Office ファイルのテキストプレビューには追加コマンドは必�
 | 機能 | 追加インストール |
 | --- | --- |
 | 画像プレビュー | `chafa`（画像プレビューに必要。Kitty、Ghostty などの対応端末では高精細に表示） |
-| PDF テキストプレビュー | 組み込み機能で読み取ります。読み取りに失敗した場合は、`pdftotext` がインストールされていれば補助的に使います |
+| PDF テキストプレビュー | `pdftotext` があれば高速化のため自動的に優先します。未導入でも組み込みの `pypdf` で利用でき、backend選択は不要です |
 | Office プレビュー | 追加インストール不要 |
 | grep 検索 | `ripgrep` |
 
-任意コマンドがない場合や非対応ファイルでも zivo は終了せず、概要メタデータと利用可能な代替 Action を表示します。PDF は組み込み機能で読み取り、失敗した場合に `pdftotext` がインストールされていれば補助的に使います。処理には上限があります。
+任意コマンドがない場合や非対応ファイルでも zivo は終了せず、概要メタデータと利用可能な代替 Action を表示します。PDF は `pdftotext` が利用可能なら自動的に優先し、ない場合は上限制付きの組み込み `pypdf` を使います。backend選択や追加設定は不要で、入力・時間・出力・キャンセルの上限はどちらにも適用されます。
 
 ### CI のテスト範囲
 
@@ -64,7 +64,7 @@ Windows では、ドライブルート（`C:\` など）で `←` を押すと�
 
 - Office プレビュー: 組み込みテキスト抽出（外部コマンド不要）
 - 画像プレビュー: [chafa](https://hpjansson.org/chafa/)（Kitty graphics protocol の利用には [Kitty](https://sw.kovidgoyal.net/kitty/)、[Ghostty](https://ghostty.org/)、[WezTerm](https://wezfurlong.org/wezterm/) などの対応端末が必要です）
-- PDFプレビュー fallback (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
+- 任意の高速PDFプレビューbackend (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
 - grep 検索: [ripgrep](https://github.com/BurntSushi/ripgrep)
 
 #### macOS の権限設定

@@ -1,7 +1,7 @@
 # PDF Preview Backend Decision
 
-This record captures the Issue #1184 evaluation before changing the default PDF
-preview backend.
+This record captures the Issue #1184 evaluation and the Issue #1203 change to
+automatic PDF preview backend selection.
 
 > Audience: maintainers evaluating PDF preview behavior, dependencies, and safety limits.
 
@@ -61,22 +61,26 @@ is part of the PDF format and is not a bundled font asset.
   roughly 10–40 ms. These are local observations, not CI performance gates.
 - The existing Poppler fallback recovered text from the large content stream,
   but the safety policy intentionally does not retry after a pypdf resource
-  limit. The user receives the safety-limit state and can use the existing
-  external-app action.
+  limit. When pdftotext is selected as the primary backend, its bounded
+  external process may extract that case; the user still receives the
+  pypdf safety-limit state when pypdf is the selected backend.
 
 ## Decision
 
-Adopt pypdf as the primary PDF text extraction backend, subject to the runtime
+Select the PDF text extraction backend automatically, subject to the runtime
 constraints below:
 
-1. Run extraction in a disposable Python worker with the existing bounded
-   process runner. Timeout or cancellation terminates the worker and does not
-   invoke another backend.
-2. Apply input, page, output, and content-stream limits before/through the
-   pypdf extraction path. The worker caps pypdf's decoder limits to the zivo
-   content-stream budget.
-3. Use `pdftotext` at most once only when pypdf completed within budget with
-   `no_text_content`, `unsupported`, or a parser/corrupt error. Do not fallback
+1. On the first enabled PDF preview request, detect `pdftotext` once and keep
+   the executable path or missing state for the process lifetime. Do not detect
+   it when PDF preview is disabled. Prefer `pdftotext` when available; use the
+   disposable Python `pypdf` worker otherwise.
+2. Run both backends through the existing bounded process runner. Input size,
+   timeout, stdout/stderr, output-limit, and cancellation controls apply to
+   both paths. The pypdf worker additionally applies page and content-stream
+   limits and caps pypdf decoder limits to the zivo content-stream budget.
+3. Do not run a secondary backend after primary success or `no_text_content`.
+   Fallback is allowed at most once for `unsupported`, `corrupt`, completed
+   parser failure, or a primary backend that cannot be started. Do not fallback
    after `cancelled`, `timeout`, `resource_limit`, `permission_denied`,
    `encrypted`, or input-size rejection.
 4. Add `pypdf` as a normal production dependency without optional crypto/image

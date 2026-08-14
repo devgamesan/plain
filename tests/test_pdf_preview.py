@@ -40,11 +40,19 @@ def test_pypdf_worker_extracts_text_and_keeps_page_boundaries(tmp_path: Path) ->
     )
 
 
-def test_live_snapshot_uses_hybrid_pdf_loader_by_default(tmp_path: Path) -> None:
+def test_live_snapshot_uses_pypdf_when_pdftotext_is_unavailable(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
     project = tmp_path / "project"
     project.mkdir()
     report = project / "report.pdf"
     report.write_bytes(_PdfBuilder().build([_text_page("default backend")]))
+
+    monkeypatch.setattr(
+        "zivo.services.previews.core.shutil.which",
+        lambda name: None,
+    )
 
     pane = LiveBrowserSnapshotLoader().load_child_pane_snapshot(
         str(project),
@@ -145,9 +153,15 @@ def test_pypdf_worker_stops_at_content_stream_limit(tmp_path: Path) -> None:
 
 
 class _StubLoader:
-    def __init__(self, preview: FilePreviewState | None) -> None:
+    def __init__(self, preview: FilePreviewState | None, *, available: bool = True) -> None:
         self.preview = preview
+        self.available = available
+        self.availability_calls = 0
         self.calls = 0
+
+    def is_available(self) -> bool:
+        self.availability_calls += 1
+        return self.available
 
     def load_preview(self, path: Path, **kwargs: object) -> FilePreviewState | None:
         self.calls += 1
@@ -160,8 +174,25 @@ def test_hybrid_loader_falls_back_once_after_completed_parser_failure(tmp_path: 
     primary = _StubLoader(FilePreviewState.with_message("broken", reason="corrupt"))
     fallback = _StubLoader(FilePreviewState.with_content("fallback\n", False))
     loader = HybridPdfPreviewLoader(
-        pypdf_loader=primary,
-        pdftotext_loader=fallback,
+        pypdf_loader=fallback,
+        pdftotext_loader=primary,
+    )
+
+    preview = loader.load_preview(report, preview_max_bytes=64 * 1024)
+
+    assert preview == FilePreviewState.with_content("fallback\n", False)
+    assert fallback.calls == 1
+    assert primary.calls == 1
+
+
+def test_hybrid_loader_falls_back_when_primary_cannot_start(tmp_path: Path) -> None:
+    report = tmp_path / "report.pdf"
+    report.write_bytes(b"pdf")
+    primary = _StubLoader(None)
+    fallback = _StubLoader(FilePreviewState.with_content("fallback\n", False))
+    loader = HybridPdfPreviewLoader(
+        pypdf_loader=fallback,
+        pdftotext_loader=primary,
     )
 
     preview = loader.load_preview(report, preview_max_bytes=64 * 1024)
@@ -184,8 +215,8 @@ def test_hybrid_loader_does_not_fallback_after_safety_stop(
     primary = _StubLoader(FilePreviewState.with_message("stopped", reason=reason))
     fallback = _StubLoader(FilePreviewState.with_content("fallback\n", False))
     loader = HybridPdfPreviewLoader(
-        pypdf_loader=primary,
-        pdftotext_loader=fallback,
+        pypdf_loader=fallback,
+        pdftotext_loader=primary,
     )
 
     preview = loader.load_preview(report, preview_max_bytes=64 * 1024)
@@ -194,7 +225,7 @@ def test_hybrid_loader_does_not_fallback_after_safety_stop(
     assert fallback.calls == 0
 
 
-def test_hybrid_loader_keeps_primary_no_text_when_fallback_missing(tmp_path: Path) -> None:
+def test_hybrid_loader_does_not_fallback_after_no_text(tmp_path: Path) -> None:
     report = tmp_path / "report.pdf"
     report.write_bytes(b"pdf")
     primary = _StubLoader(
@@ -204,14 +235,88 @@ def test_hybrid_loader_keeps_primary_no_text_when_fallback_missing(tmp_path: Pat
         FilePreviewState.with_message("missing", reason="dependency_missing")
     )
     loader = HybridPdfPreviewLoader(
-        pypdf_loader=primary,
-        pdftotext_loader=fallback,
+        pypdf_loader=fallback,
+        pdftotext_loader=primary,
     )
 
     preview = loader.load_preview(report, preview_max_bytes=64 * 1024)
 
     assert preview == primary.preview
-    assert fallback.calls == 1
+    assert fallback.calls == 0
+
+
+def test_hybrid_loader_prefers_pdftotext_and_caches_backend_detection(
+    tmp_path: Path,
+) -> None:
+    report = tmp_path / "report.pdf"
+    report.write_bytes(b"pdf")
+    pdftotext = _StubLoader(FilePreviewState.with_content("fast\n", False))
+    pypdf = _StubLoader(FilePreviewState.with_content("fallback\n", False))
+    loader = HybridPdfPreviewLoader(
+        pypdf_loader=pypdf,
+        pdftotext_loader=pdftotext,
+    )
+
+    assert loader.load_preview(report, preview_max_bytes=64 * 1024) == (
+        FilePreviewState.with_content("fast\n", False)
+    )
+    assert loader.load_preview(report, preview_max_bytes=64 * 1024) == (
+        FilePreviewState.with_content("fast\n", False)
+    )
+
+    assert pdftotext.availability_calls == 1
+    assert pdftotext.calls == 2
+    assert pypdf.calls == 0
+
+
+def test_hybrid_loader_uses_pypdf_when_pdftotext_is_missing(tmp_path: Path) -> None:
+    report = tmp_path / "report.pdf"
+    report.write_bytes(b"pdf")
+    pdftotext = _StubLoader(None, available=False)
+    pypdf = _StubLoader(FilePreviewState.with_content("built-in\n", False))
+    loader = HybridPdfPreviewLoader(
+        pypdf_loader=pypdf,
+        pdftotext_loader=pdftotext,
+    )
+
+    preview = loader.load_preview(report, preview_max_bytes=64 * 1024)
+
+    assert preview == FilePreviewState.with_content("built-in\n", False)
+    assert pdftotext.availability_calls == 1
+    assert pdftotext.calls == 0
+    assert pypdf.calls == 1
+
+
+def test_default_hybrid_loader_detects_pdftotext_once(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    report = tmp_path / "report.pdf"
+    report.write_bytes(b"pdf")
+    which_calls: list[str] = []
+
+    def _which(name: str) -> str:
+        which_calls.append(name)
+        return "/usr/bin/pdftotext"
+
+    monkeypatch.setattr("zivo.services.previews.core.shutil.which", _which)
+    monkeypatch.setattr(
+        "zivo.services.previews.core.run_bounded_process",
+        lambda *args, **kwargs: ShellCommandResult(
+            exit_code=0,
+            stdout="fast\n",
+        ),
+    )
+    loader = HybridPdfPreviewLoader()
+
+    assert loader.load_preview(report, preview_max_bytes=64 * 1024) == (
+        FilePreviewState.with_content("fast\n", False)
+    )
+    assert loader.load_preview(report, preview_max_bytes=64 * 1024) == (
+        FilePreviewState.with_content("fast\n", False)
+    )
+
+    assert which_calls == ["pdftotext"]
 
 
 def test_pypdf_process_result_output_limit_is_not_treated_as_success(

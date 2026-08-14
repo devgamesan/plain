@@ -81,7 +81,7 @@ additional commands. Install external commands only for the features below.
 | Feature | Additional installation |
 | --- | --- |
 | Image preview | `chafa` (required for image preview; compatible terminals can render high-fidelity output) |
-| PDF fallback extraction | Optional `pdftotext`; the built-in PDF preview works without it |
+| PDF text preview | Optional `pdftotext`; when installed, zivo automatically uses it first for faster previews. The built-in `pypdf` preview works without it |
 | Office preview | None |
 | Grep search | `ripgrep` |
 

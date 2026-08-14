@@ -698,10 +698,13 @@ def test_live_browser_snapshot_loader_skips_pdf_preview_when_disabled(
     report.write_bytes(b"%PDF-1.4")
     loader = LiveBrowserSnapshotLoader()
 
-    monkeypatch.setattr(
-        "zivo.services.previews.core.shutil.which",
-        lambda name: "/usr/bin/pdftotext",
-    )
+    which_calls: list[str] = []
+
+    def _which(name: str) -> str:
+        which_calls.append(name)
+        return "/usr/bin/pdftotext"
+
+    monkeypatch.setattr("zivo.services.previews.core.shutil.which", _which)
 
     pane = loader.load_child_pane_snapshot(
         str(project),
@@ -712,6 +715,7 @@ def test_live_browser_snapshot_loader_skips_pdf_preview_when_disabled(
     assert pane.mode == "preview"
     assert pane.preview_reason == "disabled"
     assert pane.entries == ()
+    assert which_calls == []
 
 
 def test_live_browser_snapshot_loader_builds_grep_context_preview(tmp_path) -> None:

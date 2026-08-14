@@ -26,11 +26,11 @@ the following only when you need the corresponding optional feature.
 | Feature | Additional installation |
 | --- | --- |
 | Image preview | `chafa` (required for image preview; compatible terminals can render high-fidelity output) |
-| PDF fallback extraction | Optional `pdftotext`; built-in PDF text preview works without it |
+| PDF text preview | Optional `pdftotext`; when installed, zivo automatically prefers it for faster previews. Built-in `pypdf` works without it, and no backend setting is required |
 | Office preview | None |
 | Grep search | `ripgrep` |
 
-Missing optional tools or unsupported files keep zivo running and show compact metadata plus an available fallback action instead of a traceback. PDF fallback extraction is attempted only after a completed extraction failure and remains bounded.
+Missing optional tools or unsupported files keep zivo running and show compact metadata plus an available fallback action instead of a traceback. PDF preview automatically selects `pdftotext` when available and uses bounded built-in `pypdf` otherwise. The selection remains internal and the input, time, output, and cancellation limits apply to both paths.
 
 ### CI coverage
 
@@ -64,7 +64,7 @@ Install the required dependencies from their official websites:
 
 - Office preview: built-in text extraction (no external command)
 - Image preview: [chafa](https://hpjansson.org/chafa/) (the Kitty graphics protocol requires a terminal such as [Kitty](https://sw.kovidgoyal.net/kitty/), [Ghostty](https://ghostty.org/), or [WezTerm](https://wezfurlong.org/wezterm/))
-- PDF preview fallback (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
+- Optional faster PDF preview backend (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
 - Grep search: [ripgrep](https://github.com/BurntSushi/ripgrep)
 
 #### macOS permissions

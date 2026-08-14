@@ -17,22 +17,24 @@ OS support status and dependency installation instructions for zivo.
 
 ---
 
-## Recommended Tools
+## Features requiring additional installation
 
-zivo itself can be installed and started with `uv`, but some features depend on external commands being available on `PATH`.
+zivo itself can be installed and started with `uv`. The core browser, PDF text
+preview, and Office text preview do not require additional commands. Install
+the following only when you need the corresponding optional feature.
 
-| Feature | Tool |
+| Feature | Additional installation |
 | --- | --- |
-| Image preview | `chafa` (Kitty graphics protocol on compatible terminals with `image_preview_mode = "kitty"` or `"auto"`) |
-| PDF preview | Built-in `pypdf`; if installed, `pdftotext` is used as a fallback when extraction fails |
-| Office preview | Built-in OOXML text extractor |
+| Image preview | `chafa` for symbol output; compatible Kitty-graphics terminals can use the built-in protocol with `image_preview_mode = "kitty"` or `"auto"` |
+| PDF fallback extraction | Optional `pdftotext`; built-in PDF text preview works without it |
+| Office preview | None |
 | Grep search | `ripgrep` |
 
-Image and grep tools are optional. PDF text preview uses the built-in `pypdf`; an installed `pdftotext` is used only as a bounded fallback after a completed extraction failure. Missing tools or unsupported files keep zivo running and show compact metadata plus an available fallback action instead of a traceback. Office preview does not require an external command.
+Missing optional tools or unsupported files keep zivo running and show compact metadata plus an available fallback action instead of a traceback. PDF fallback extraction is attempted only after a completed extraction failure and remains bounded.
 
 ### CI coverage
 
-The CI matrix runs the full `pytest` suite on Ubuntu and macOS. Native Windows runs the supported regression scope covering file operations, clipboard, archive extraction/compression, file and grep search, text replacement, configuration, and OOXML preview extraction (`tests/test_adapters_file_operations.py`, `tests/test_services_clipboard_operations.py`, `tests/test_services_file_mutations.py`, `tests/test_services_archive_extract.py`, `tests/test_services_zip_compress.py`, `tests/test_services_file_search.py`, `tests/test_services_grep_search.py`, `tests/test_services_text_replace.py`, `tests/test_services_config.py`, and `tests/test_ooxml_preview.py`).
+The CI matrix runs the full `pytest` suite on Ubuntu and macOS. Native Windows runs the supported regression scope covering file operations, clipboard, archive extraction/compression, file and grep search, text replacement, configuration, and Office preview extraction (`tests/test_adapters_file_operations.py`, `tests/test_services_clipboard_operations.py`, `tests/test_services_file_mutations.py`, `tests/test_services_archive_extract.py`, `tests/test_services_zip_compress.py`, `tests/test_services_file_search.py`, `tests/test_services_grep_search.py`, `tests/test_services_text_replace.py`, `tests/test_services_config.py`, and `tests/test_ooxml_preview.py`).
 
 The full suite was evaluated for Issue #1160 and currently has 24 native-Windows failures caused by POSIX path/newline assumptions, chmod/chown semantics, and platform-specific UI timing. The Windows scope remains intentionally limited until those tests are ported. A test may be skipped on Windows only when its reason documents an OS-specific limitation, such as symlink privileges or permission semantics.
 
@@ -60,7 +62,7 @@ On Windows, drive roots such as `C:\` support pressing `←` to return to the dr
 
 Install the required dependencies from their official websites:
 
-- Document preview: built-in OOXML text extraction (no external command)
+- Office preview: built-in text extraction (no external command)
 - Image preview: [chafa](https://hpjansson.org/chafa/) (the Kitty graphics protocol requires a terminal such as [Kitty](https://sw.kovidgoyal.net/kitty/), [Ghostty](https://ghostty.org/), or [WezTerm](https://wezfurlong.org/wezterm/))
 - PDF preview fallback (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
 - Grep search: [ripgrep](https://github.com/BurntSushi/ripgrep)

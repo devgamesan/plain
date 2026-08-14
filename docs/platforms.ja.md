@@ -17,22 +17,24 @@ zivo の OS サポート状況と、各 OS で必要になる依存関係・セ�
 
 ---
 
-## 推奨ツール
+## 追加インストールが必要な機能
 
-zivo 本体の起動は `uv` だけで行えますが、一部の機能は `PATH` 上の外部コマンドに依存します。
+zivo 本体は `uv` だけで起動できます。基本的なファイル閲覧、PDF のテキストプレビュー、
+Office ファイルのテキストプレビューには追加コマンドは必要ありません。次の機能を使う場合だけ、
+対応するコマンドを追加してください。
 
-| 機能 | 使用するツール |
+| 機能 | 追加インストール |
 | --- | --- |
-| 画像プレビュー | `chafa`（`image_preview_mode = "kitty"` または `"auto"` 時、対応端末では Kitty graphics protocol を使用） |
-| PDF プレビュー | 組み込み `pypdf`。抽出失敗時は、インストール済みの `pdftotext` に fallback |
-| Office プレビュー | 組み込み OOXML テキスト抽出 |
+| 画像プレビュー | 記号表示には `chafa`。Kitty graphics protocol 対応端末では `image_preview_mode = "kitty"` または `"auto"` の組み込み方式を利用できます |
+| PDF の fallback 抽出 | 任意の `pdftotext`。組み込み PDF テキストプレビューはこれなしで利用できます |
+| Office プレビュー | 追加インストール不要 |
 | grep 検索 | `ripgrep` |
 
-画像とgrepのツールは任意依存です。PDFテキスト抽出は組み込み`pypdf`を使い、インストール済みの`pdftotext`は完了した抽出失敗時だけ上限制付きfallbackとして使います。不足や非対応時もtracebackで終了せず、概要メタデータと利用可能な代替Actionを表示します。Officeプレビューに外部コマンドは必要ありません。
+任意コマンドがない場合や非対応ファイルでも zivo は終了せず、概要メタデータと利用可能な代替 Action を表示します。PDF の fallback 抽出は、組み込み抽出が完了したうえで失敗した場合だけ、上限制付きで実行します。
 
 ### CI のテスト範囲
 
-CI の matrix では Ubuntu と macOS で `pytest` のフルスイートを実行します。ネイティブ Windows では、ファイル操作、クリップボード、アーカイブ展開・圧縮、ファイル検索・grep 検索、テキスト置換、設定、OOXML プレビュー抽出を対象にしたサポート対象の回帰テスト範囲を実行します（`tests/test_adapters_file_operations.py`、`tests/test_services_clipboard_operations.py`、`tests/test_services_file_mutations.py`、`tests/test_services_archive_extract.py`、`tests/test_services_zip_compress.py`、`tests/test_services_file_search.py`、`tests/test_services_grep_search.py`、`tests/test_services_text_replace.py`、`tests/test_services_config.py`、`tests/test_ooxml_preview.py`）。
+CI の matrix では Ubuntu と macOS で `pytest` のフルスイートを実行します。ネイティブ Windows では、ファイル操作、クリップボード、アーカイブ展開・圧縮、ファイル検索・grep 検索、テキスト置換、設定、Office プレビュー抽出を対象にしたサポート対象の回帰テスト範囲を実行します（`tests/test_adapters_file_operations.py`、`tests/test_services_clipboard_operations.py`、`tests/test_services_file_mutations.py`、`tests/test_services_archive_extract.py`、`tests/test_services_zip_compress.py`、`tests/test_services_file_search.py`、`tests/test_services_grep_search.py`、`tests/test_services_text_replace.py`、`tests/test_services_config.py`、`tests/test_ooxml_preview.py`）。
 
 Issue #1160 でフルスイートも検証しましたが、POSIX パス・改行の前提、chmod/chown のセマンティクス、OS 固有の UI タイミングにより、ネイティブ Windows で 24 件の失敗がありました。これらのテストを移植するまで、Windows の対象範囲は意図的に制限します。Windows でテストを skip する場合は、symlink 権限や権限セマンティクスなど、OS 固有の制約を理由としてテスト側に明記します。
 
@@ -60,7 +62,7 @@ Windows では、ドライブルート（`C:\` など）で `←` を押すと�
 
 依存ツールは各公式サイトからインストールしてください。
 
-- ドキュメントプレビュー: 組み込み OOXML テキスト抽出（外部コマンド不要）
+- Office プレビュー: 組み込みテキスト抽出（外部コマンド不要）
 - 画像プレビュー: [chafa](https://hpjansson.org/chafa/)（Kitty graphics protocol の利用には [Kitty](https://sw.kovidgoyal.net/kitty/)、[Ghostty](https://ghostty.org/)、[WezTerm](https://wezfurlong.org/wezterm/) などの対応端末が必要です）
 - PDFプレビュー fallback (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
 - grep 検索: [ripgrep](https://github.com/BurntSushi/ripgrep)

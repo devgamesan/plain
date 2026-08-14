@@ -73,15 +73,16 @@ zivo は Linux、macOS、Windows、Ubuntu on WSL で動作します。画像プ�
 uv tool install zivo
 ```
 
-### 推奨ツール
+### 追加インストールが必要な機能
 
-一部の機能は外部コマンドを利用します。
+基本的なファイル閲覧、PDF のテキストプレビュー、Office ファイルのテキストプレビューは、
+追加コマンドなしで利用できます。次の機能を使う場合だけ、必要なコマンドを追加してください。
 
-| 機能 | 使用するツール |
+| 機能 | 追加インストール |
 | --- | --- |
-| 画像プレビュー | `chafa` |
-| PDF プレビュー | 組み込み `pypdf`。抽出失敗時は、インストール済みの `pdftotext` に fallback |
-| Office プレビュー | 組み込み OOXML 抽出 |
+| 画像プレビュー | 記号表示には `chafa`。Kitty graphics protocol 対応端末では組み込み方式を利用可能 |
+| PDF の fallback 抽出 | 任意の `pdftotext`。組み込み PDF プレビューはこれなしで利用可能 |
+| Office プレビュー | 追加インストール不要 |
 | grep 検索 | `ripgrep` |
 
 OS 別の詳しいセットアップは [Platforms](docs/platforms.ja.md) を参照してください。
@@ -184,7 +185,7 @@ zivo-cd
 ### プレビュー
 
 空ディレクトリとフィルタ0件では理由と実行可能な次の操作を表示します。現在ペインが隠し項目だけの場合は `[.] Show hidden files` を表示します。左ペインは読込中、権限不足、親なし、表示項目なしを区別し、再読込中もキャッシュ済み一覧を維持します。右ペインは読込時間・出力・resource limitを有限にし、読込中を明示します。安全な部分テキストには `Preview limited` を表示し、内容をプレビューできない場合は、種類、サイズ、更新日時、permission、owner/group、symlink target、archive entry countなどの概要へフォールバックします。任意の外部コマンドが不足してもアプリはクラッシュしません。
-- テキスト / 画像（chafa、対応端末では Kitty graphics protocol も利用可能）/ PDF（組み込み `pypdf`。抽出失敗時はインストール済みの `pdftotext` に fallback）/ Office（組み込み OOXML テキスト抽出）
+- テキスト、画像（chafa、対応端末では Kitty graphics protocol も利用可能）、PDF テキスト、Office テキストのプレビュー
 
 ### Transfer モード
 - 2 ペインを左右に並べ、選択ファイルを反対側のペインへコピーまたは移動
@@ -246,7 +247,7 @@ zivo はファイル操作の事故を防ぐための安全機構を備えてい
 - [Safety](docs/safety.ja.md) — 安全仕様
 - [Architecture](docs/architecture.ja.md) — 実装構造
 - [Performance](docs/performance.ja.md) — 性能確認メモ
-- [PDF Preview Decision](docs/pdf-preview-decision.ja.md) — pypdf corpus評価とbackend上限
+- [PDF Preview Decision](docs/pdf-preview-decision.ja.md) — PDF プレビュー方式の評価と上限
 - [Release Checklist](docs/release-checklist.md) — リリースチェックリスト
 - [Dependency and GitHub Actions Audit](docs/dependency-audit.ja.md) — CI依存関係監査とAction固定方針
 

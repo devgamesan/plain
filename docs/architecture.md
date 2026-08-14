@@ -1,51 +1,54 @@
-# zivo アーキテクチャ概要
+# zivo Architecture Overview
 
-このドキュメントは、`zivo` の現在の実装構造を俯瞰するためのものです。  
-対象は `2026-04-02` 時点でコード上に存在する責務分割とデータフローであり、MVP 構想全体ではなく現実装を説明します。
+This document gives a high-level view of the current implementation structure of `zivo`.
+It describes the actual responsibilities and data flow that exist in the codebase as of `2026-08-14`, not the full MVP vision.
 
-## 1. 方針
+> Audience: contributors and maintainers who need to locate responsibilities before changing code.
 
-現在の実装は、次の責務分離を前提にしています。
+## 1. Principles
 
-- `UI`: Textual widget の描画とイベント入口
-- `app runtime`: reducer が返した effect を worker と service に橋渡しし、非同期結果を action へ戻す
-- `input dispatcher`: キー入力を reducer 向け `Action` に正規化
-- `reducer`: `AppState` を純粋関数で更新し、必要な副作用を `Effect` として返す
-- `selectors`: `AppState` から描画専用モデルを組み立てる
-- `services`: reducer 外で effect を実行するユースケース境界
-- `adapters`: OS / filesystem / clipboard など外部依存の実装
-- `actionable notifications`: 通知状態、stable action ID、revision付き timer、Details overlay の責務
+The current implementation is built around these responsibilities:
 
-widget 側に操作分岐を持たせず、状態遷移は `state/` に寄せる構成です。  
-実際の UI 更新は `selectors` が作る view model と `app_shell.py` の組み立て処理に限定し、非同期処理の制御は `app_runtime.py` に分離しています。
+- `UI`: Textual widgets for rendering and event entry points
+- `app runtime`: bridges reducer effects to workers and services, then maps async results back into actions
+- `input dispatcher`: normalizes key input into reducer-facing `Action` values
+- `reducer`: updates `AppState` as a pure function and returns required side effects as `Effect`
+- `selectors`: builds render-only models from `AppState`
+- `services`: use-case boundaries that execute effects outside the reducer
+- `adapters`: implementations for external dependencies such as the OS, filesystem, and clipboard
+- `actionable notifications`: notification state, stable action IDs, revision-checked timers, and the Details overlay
 
-## 2. 全体構成
+The design keeps branching logic out of widgets and centralizes state transitions under `state/`.
+Actual UI refresh stays confined to selector-produced view models plus `app_shell.py`, while async orchestration is split into `app_runtime.py`.
+
+## 2. Overall Structure
 
 ```mermaid
 flowchart LR
     subgraph UI["UI (`src/zivo/app.py`, `src/zivo/app_shell.py`, `src/zivo/ui`)"]
         App["zivoApp"]
         Shell["app_shell.py\nwidget mount / refresh / focus"]
+        Split["SplitTerminalPane"]
         Widgets["TabBar / CurrentPathBar / MainPane / SidePane / CommandPalette / ConflictDialog / AttributeDialog / ConfigDialog / SplitTerminalPane / HelpBar / StatusBar"]
     end
 
     subgraph State["State (`src/zivo/state`)"]
-        Input["input.py\nキー入力 dispatcher"]
-        Actions["actions.py\nAction 定義"]
-        Reducer["reducer.py\nハンドラ振り分け"]
-        NavReducer["reducer_navigation.py\n移動 / snapshot / directory size"]
+        Input["input.py\nkey input dispatcher"]
+        Actions["actions.py\nAction definitions"]
+        Reducer["reducer.py\ndispatch entrypoint"]
+        NavReducer["reducer_navigation.py\nnavigation / snapshots / directory size"]
         MutationReducer["reducer_mutations.py\nmutation dispatcher + lifecycle modules"]
         PaletteReducer["reducer_palette.py\npalette / history / bookmarks / go-to-path"]
         TerminalReducer["reducer_terminal_config.py\nterminal / config / external launch"]
-        Effects["effects.py\nEffect 定義"]
+        Effects["effects.py\nEffect definitions"]
         Selectors["selectors.py\nselect_shell_data"]
         Models["models.py\nAppState / BrowserTabState / PaneState / UiMode"]
-        Palette["command_palette.py\npalette 候補構築"]
+        Palette["command_palette.py\npalette item builder"]
     end
 
     subgraph Runtime["Runtime (`src/zivo/app_runtime.py`)"]
         RuntimeMain["effect scheduling / worker tracking"]
-        Debounce["file search / grep / directory size の debounce と cancel"]
+        Debounce["debounce and cancel for file search / grep / directory size"]
     end
 
     subgraph Services["Services (`src/zivo/services`)"]
@@ -56,10 +59,10 @@ flowchart LR
         Duplicate["duplicate_operations.py"]
         Mutations["file_mutations.py"]
         Archive["archive_extract.py"]
-        Config["config.py"]
-        Terminal["terminal_detection.py\nKitty/Ghostty 検出"]
+        Config["config/\nloader / save / render"]
+        Terminal["terminal_detection.py\nKitty/Ghostty detection"]
         Launch["external_launcher.py"]
-        ArchiveUtils["archive_utils.py\narchive 判定 / 展開先解決"]
+        ArchiveUtils["archive_utils.py\narchive detection / destination resolution"]
     end
 
     subgraph Adapters["Adapters (`src/zivo/adapters`)"]
@@ -106,10 +109,10 @@ flowchart LR
     Services --> Domain
 ```
 
-## 3. キー入力から描画までの流れ
+## 3. Flow From Key Input To Rendering
 
-中核フローは「入力 -> Action -> 状態更新 -> Effect 実行 -> Selector -> 再描画」です。  
-検索系と directory size 計算は `app_runtime.py` 側で debounce と cancel を扱い、古い request id の結果は reducer で破棄します。
+The core flow is: input -> Action -> state update -> effect execution -> selector -> rerender.
+Search work and directory-size calculation use `app_runtime.py` for debounce and cancellation, and stale request ids are discarded by the reducer.
 
 ```mermaid
 sequenceDiagram
@@ -123,123 +126,123 @@ sequenceDiagram
     participant Selector as select_shell_data
     participant Shell as app_shell / Widgets
 
-    User->>App: キー入力
+    User->>App: Key input
     App->>Input: AppState, key, character
-    Input-->>App: Action の列
-    loop 各 Action
+    Input-->>App: Sequence of Actions
+    loop Each Action
         App->>Reducer: AppState, Action
         Reducer-->>App: ReduceResult(state, effects)
     end
-    opt Effect がある
+    opt Effects exist
         App->>Runtime: schedule_effects(effects)
-        Runtime->>Worker: worker 起動 / debounce / cancel 管理
+        Runtime->>Worker: start worker / manage debounce / cancel
         Worker->>Service: snapshot / search / directory size / mutation / extract / launch
         Service-->>App: success / failure action
         App->>Reducer: success / failure action
     end
-    App->>Selector: 最新 AppState
+    App->>Selector: Latest AppState
     Selector-->>App: ThreePaneShellData
-    App->>Shell: path / panes / dialogs / help / status / terminal を再描画
+    App->>Shell: Rerender path / panes / dialogs / help / status / terminal
 ```
 
-## 4. 主要モジュールの責務
+## 4. Responsibilities Of Major Modules
 
 ### `src/zivo/app.py`
 
-- `zivoApp` がアプリ全体の組み立て役
-- Textual の `Key` イベントを中央 dispatcher に流す
-- reducer が返した effect を `app_runtime.py` に橋渡しする
-- selector の結果を使って UI shell を更新する
+- `zivoApp` assembles the whole application
+- Sends Textual `Key` events into the central dispatcher
+- Passes reducer effects into `app_runtime.py`
+- Updates the UI shell from selector output
 
 ### `src/zivo/app_runtime.py`
 
-- effect ごとに worker 起動方法を切り替える
-- file search / grep search / directory size の debounce、request id 管理、cancel 制御を担当する
-- service の結果や例外を reducer 向け action に正規化する
-- snapshot や split terminal など長寿命処理の tracking を行う
+- Chooses how each effect is scheduled as a worker
+- Manages debounce, request ids, and cancellation for file search, grep search, and directory-size work
+- Normalizes service results and exceptions into reducer-facing actions
+- Tracks longer-lived work such as snapshots and split-terminal sessions
 
 ### `src/zivo/app_shell.py`
 
-- 3 ペイン本体、dialog、split terminal を含む widget ツリーの mount / refresh を担当する
-- selector が返した view model を各 widget へ反映する
-- split terminal の focus 制御と terminal サイズ同期を行う
-- アクティブペインは入力を受け付ける `BROWSING` / `FILTER` のときだけ表示し、通常ブラウズは accent の丸枠と見出し色、Transfer は太い accent 枠と塗りつぶし見出しで強度を分ける。行状態は状態列の `>`（カーソル）、`*`（選択）、`x`（カット）と、名前末尾の `@`（symlink）、`*`（executable）で色以外にも示す。状態列はカーソルと操作状態の2スロットを保ち、カットを選択より優先する
+- Mounts and refreshes the widget tree for the three-pane browser, dialogs, and split terminal
+- Applies selector-generated view models to widgets
+- Handles split-terminal focus and terminal-size synchronization
+- Active-pane styling is shown only while a pane accepts `BROWSING` / `FILTER` input. Normal browsing uses a round accent border and heading color, while Transfer uses the stronger heavy accent border and filled heading. Row state remains color-independent with `>` (cursor), `*` (selected), and `x` (cut) in the two-slot state column, plus `@` (symlink) and `*` (executable) as name suffixes; cut takes precedence over selection
 
 ### `src/zivo/state/input.py`
 
-- モード別にキー入力を `Action` へ正規化する
-- 現在サポートしている主なモードは `BROWSING` / `FILTER` / `RENAME` / `CREATE` / `EXTRACT` / `PALETTE` / `DETAIL` / `CONFIRM` / `CONFIG` / `BUSY`
-- split terminal が入力を持つ間は browser 用キーバインドではなく terminal 入力を優先する
-- `Ctrl+f` / `Ctrl+g` / `Ctrl+o` / `Ctrl+b` / `Ctrl+j` / `Alt+←` / `Alt+→` / `Alt+Home` などの複合キーもここで吸収する
+- Normalizes key input into `Action` values by mode
+- The main supported modes are `BROWSING`, `FILTER`, `RENAME`, `CREATE`, `EXTRACT`, `PALETTE`, `DETAIL`, `CONFIRM`, `CONFIG`, and `BUSY`
+- When the split terminal owns input, browser shortcuts are bypassed in favor of terminal input
+- Also absorbs compound shortcuts such as `Ctrl+f`, `Ctrl+g`, `Ctrl+o`, `Ctrl+b`, `Ctrl+j`, `Alt+Left`, `Alt+Right`, and `Alt+Home`
 
 ### `src/zivo/state/reducer.py`
 
-- `AppState` の唯一の公開更新点
-- 実処理は責務別ハンドラへ振り分ける薄いエントリポイントとして振る舞う
+- The single public update point for `AppState`
+- Acts as a thin entrypoint that delegates work to responsibility-specific reducer handlers
 
-### 操作通知のアクション経路
+### Actionable operation-notification path
 
-`NotificationState` は最大1つの `NotificationAction` と、必要に応じて destination/details の payload を保持する。`reducer_notifications.py` が `ActivateNotificationAction` を revision と action ID で検証し、Undo・移動・Retry・Details を既存 reducer/effect 経路へ委譲する。StatusBar のクリックと command palette の条件付き `Suggested` は同じ action ID を dispatch するため、表示経路が違っても二重実行防止と状態検証を共有する。
+`NotificationState` carries at most one `NotificationAction`, plus destination or details payloads when needed. `reducer_notifications.py` validates `ActivateNotificationAction` by revision and stable action ID, then delegates Undo, destination navigation, Retry, or Details to the existing reducer/effect paths. Status-bar clicks and the conditional `Suggested` command-palette item dispatch the same action ID, so their validation and duplicate-execution protection are shared.
 
-`notification_revision` は通知が変わるたびに増え、StatusBar の5秒 timerから届く古い `DismissNotification` を拒否する。アクション開始時には通知を先に消費する。Details は `DETAIL` mode の既存 Enter/Esc 入力経路で閉じる。Retry は paste、duplicate、archive/zip preparation の allowlist に限定し、paste と archive/zip は fresh preflight/preparation を再実行する。最終成功だけを `auto_dismiss` 対象とし、処理中・warning/error・partial success は残す。
+`notification_revision` increments whenever the visible notification changes and rejects stale `DismissNotification` messages from the StatusBar's five-second timer. The action is consumed before its effect starts. Details uses the existing `DETAIL` mode Enter/Esc input path. Retry is allowlisted to paste, duplicate, and archive/zip preparation failures; paste and archive/zip retries re-run fresh preflight/preparation. Only final success sets `auto_dismiss`; processing, warning/error, and partial-success notifications remain visible.
 
-### foreground file operation の進捗
+### Foreground file-operation progress
 
-Copy・Move・Compress・Extract・Replace は、1つの一時的な `ForegroundOperationState` を共有する。確認ダイアログと事前準備は foreground で完了し、確定後の worker 実行中は `BROWSING` を維持する。runtime が operation ID と協調キャンセル用 event を管理し、service は安全な対象境界でだけ event を確認して progress を reducer action へ戻す。古い operation ID の progress は破棄する。別のファイル変更、Undo、エディタ・シェル起動、変更を伴うカスタムアクションは進行中の操作名を示して拒否し、長時間操作は常に1件へ直列化する。StatusBar と HelpBar は専用タスク画面を追加せず state を投影し、通常ブラウズまたはTransfer中にキャンセル可能な間だけ `Cancel` と `Esc` を表示する。画面終了はキャンセル要求と後始末の完了後に行う。完了時は現在の表示パスを維持し、影響を受けた可視ペインだけを progressive refresh する。Compress は同一ディレクトリの一時アーカイブを原子的に公開し、Extract と Replace は一時ファイルを原子的に置換する。部分結果の件数とパスは既存 Details 経路で表示する。
+Copy, Move, Compress, Extract, and Replace share one transient `ForegroundOperationState`. Confirmation and preflight stay in the foreground; once confirmed, the worker runs while the app remains in `BROWSING`. The runtime owns the operation ID and cooperative cancel event; services check the event only at safe item boundaries and report progress back as reducer actions. Stale progress is discarded by operation ID. Other file mutations, Undo, editor or shell launches, and mutation-capable custom actions are rejected with the active operation name, and long-running operations are serialized. StatusBar and HelpBar project the state without adding a task screen; `Cancel` and `Esc` are available only in normal browsing or Transfer mode while cancellation is safe. Exit waits for cancellation and cleanup. Completion preserves the current display path and progressively refreshes only affected visible panes. Compression publishes a same-directory temporary archive atomically, while extraction and replacement publish temporary files atomically. Terminal partial results retain counts and paths for the existing Details flow.
 
 ### `src/zivo/state/reducer_navigation.py`
 
-- ディレクトリ移動、history 戻る / 進む、home 移動、reload、filter、sort、hidden files 切り替えを担当する
-- browser snapshot と child pane snapshot の反映、directory size request の発行と結果反映もここで扱う
+- Handles directory movement, history back / forward, home navigation, reload, filter, sort, and hidden-files toggling
+- Also applies browser snapshots, child-pane snapshots, directory-size requests, and directory-size results
 
 ### `src/zivo/state/reducer_transfer.py`
 
-- 2ペイン転送モードの開閉、Tab によるペインフォーカス、左右ペイン内の移動と選択を担当する
-- 反対側ペインへの Copy / Move は既存 `PasteRequest`（`origin="transfer"` を付与）と clipboard paste effect を再利用する
-- 転送ペインの directory snapshot 読み込みと、paste 後の左右ペイン再読み込みを担当する
+- Handles two-pane transfer mode open / close, Tab-driven pane focus, and movement / selection inside each transfer pane
+- Reuses the existing `PasteRequest` (tagged `origin="transfer"`) and clipboard paste effect for Copy / Move into the opposite pane
+- Owns transfer-pane directory snapshot loading and reloads both transfer panes after paste completion
 
 ### `src/zivo/state/reducer_mutations.py`
 
-- `handle_mutation_action()` を公開入口として維持し、mutation 系 action を責務別ハンドラへ振り分ける
-- `reducer_mutations_input.py`、`reducer_mutations_selection.py`、`reducer_mutations_delete.py`、`reducer_mutations_archive.py`、`reducer_mutations_undo.py` が pending input、clipboard、delete/trash、archive/zip、undo/完了処理を分担する
-- `reducer_mutations_delete.py` は完全削除前の非同期メタデータ取得と、複数対象・ディレクトリ向け二段階確認も管理する
-- `reducer_mutations_common.py` が platform 判定と undo entry 構築などの共有 helper を持つ
+- Keeps `handle_mutation_action()` as the public entrypoint and dispatches mutation actions to responsibility-specific handlers
+- `reducer_mutations_input.py`, `reducer_mutations_selection.py`, `reducer_mutations_delete.py`, `reducer_mutations_archive.py`, and `reducer_mutations_undo.py` split pending input, clipboard, delete/trash, archive/zip, and undo/completion flows
+- `reducer_mutations_delete.py` also owns asynchronous permanent-delete metadata preparation and the two-step confirmation for multiple targets or directories
+- `reducer_mutations_common.py` contains shared helpers such as platform detection and undo-entry construction
 
 ### `src/zivo/state/reducer_palette.py`
 
-- コマンドパレットの開閉、query 更新、候補カーソル移動、実行を担当する
-- `Find files`、`Grep search`、統合 `Go`、bookmark add/remove、`Show attributes`、`Extract archive` などの派生フローを起動する
-- 属性ダイアログの開閉や file search / grep search の結果反映もここで扱う
+- Handles command-palette open / close, query updates, cursor movement, and execution
+- Starts derived flows such as `Find files`, `Grep search`, unified `Go`, bookmark add/remove, `Show attributes`, and `Extract archive`
+- Also owns attribute-dialog dismissal and file-search / grep-search result application
 
 ### `src/zivo/state/reducer_terminal_config.py`
 
-- split terminal の起動 / 終了 / 入出力を担当する
-- config editor の編集と保存、bookmark 保存、外部アプリ起動、terminal editor 起動を担当する
+- Handles split-terminal start / stop / I/O
+- Handles config-editor edits and saves, bookmark persistence, external-app launch, and terminal-editor launch
 
 ### `src/zivo/state/selectors.py`
 
-- `AppState` から `ThreePaneShellData` を組み立てる
-- 中央ペインにだけ filter / sort / directory size 表示を適用し、親・子ペインは固定順で表示する
-- 端末幅に応じた `ResponsivePaneLayoutState` を作り、120 列以上は Parent / Current / Child、80〜119 列は Current / Child、80 列未満は Current または Details の単一ビューを描画する。幅変更ではブラウザのカーソル・選択・フィルタを変更せず、狭いビューだけ `Tab` で切り替える
-- 転送モードでは左右2つの `MainPane` 用表示モデルを組み立て、Parent / Child / Preview を描画対象から外す
-- 中央・転送ペインの見出しは `PaneHeadingState` として役割、対象名、item count、selected count、sort label、active 状態を一元化し、Parent / Current / Contents / Preview / Results の意味を示す
-- help bar、status bar、input bar、command palette、conflict dialog、attribute dialog、config dialog、split terminal の表示文言を整形する
-- busy 状態、extract 進捗、検索エラー、通知メッセージを UI 向けに要約する
+- Builds `ThreePaneShellData` from `AppState`
+- Applies filter, sort, and directory-size display only to the main pane, while parent and child panes remain fixed-order
+- Builds a selector-owned `ResponsivePaneLayoutState`: 120+ columns show Parent / Current / Child, 80–119 show Current / Child, and below 80 show one Current or Details view. Resizing preserves the browser cursor, selection, and filter; `Tab` toggles only the narrow view
+- In transfer mode, builds display models for two `MainPane` instances and leaves Parent / Child / Preview out of the visible layout
+- Central and transfer-pane headings use `PaneHeadingState` to keep role, target name, item count, selected count, sort label, and active state in one selector-owned model, with semantic Parent / Current / Contents / Preview / Results labels
+- Formats display text for the help bar, status bar, input bar, command palette, conflict dialog, attribute dialog, config dialog, and split terminal
+- Summarizes busy state, extraction progress, search errors, and notifications for the UI
 
 ### `src/zivo/state/command_palette.py`
 
-- palette 候補の構築と query フィルタリングを担当する
-- 標準コマンドの安定 ID、カテゴリ、keywords、shortcut、context priority、無効理由を共有メタデータとして管理する
-- カテゴリ順と決定的な一致スコアで候補を安定ソートする
-- 無効候補も残し、selector と reducer が同じ disabled reason を表示・通知に利用する
-- 検索結果パレットには明示的な `Replace results` 操作を表示する。Search Workspace の `Replace selected results` と同じ `BeginTextReplace` 経路を使い、`Search results` の対象コンテキストは一時的にだけ保持する（結果セットをグローバルには保存しない）
-- 統一Replace selectorは検索元、クエリ、一意な対象ファイル数、Grep match数を表示し、通常のReplaceは Current file / Selected files / Current directory のScopeを維持する
-- 通常 palette には次の候補がある
+- Builds palette items and filters them by query
+- Owns shared metadata for stable command IDs, categories, keywords, shortcuts, context priority, and disabled reasons
+- Applies deterministic category and match ranking to the command list
+- Keeps disabled candidates searchable so selectors and reducers can reuse the same reason text
+- Search result palettes expose one explicit `Replace results` action. It dispatches the same `BeginTextReplace` path as the Search Workspace `Replace selected results` command, with a transient `Search results` target context; result sets are not persisted globally.
+- The unified replacement selector displays the result origin, query, unique file count, and Grep match count, while ordinary replacement keeps Current file / Selected files / Current directory scopes.
+- The default command palette includes:
   - `Find files`
   - `Grep search`
   - `Go back`
   - `Go forward`
-  - `Go`（Home、bookmark、recent history、open tab、direct path）
+  - `Go` (Home, bookmarks, recent history, open tabs, and direct paths)
   - `Go to home directory`
   - `Reload directory`
   - `Toggle split terminal`
@@ -250,7 +253,7 @@ Copy・Move・Compress・Extract・Replace は、1つの一時的な `Foreground
   - `Edit with terminal editor`
   - `Edit with GUI editor`
   - `Copy path`
-  - `Duplicate`（選択またはフォーカス対象を同じ親ディレクトリへ非上書き複製）
+  - `Duplicate` (non-overwriting same-parent copy of selected or focused targets)
   - `Move to trash`
   - `Open current directory with file manager`
   - `Open current directory with terminal`
@@ -259,46 +262,44 @@ Copy・Move・Compress・Extract・Replace は、1つの一時的な `Foreground
   - `Edit config`
   - `Create file`
   - `Create directory`
-- palette source は `commands` / `file_search` / `grep_search` / `go` / `replace` などを持つ
-- 統合 `Go` は入力中に Home、bookmark、recent history、open tab、direct path の候補を表示し、`Tab` で direct path 候補を補完できる。パス区切りの直後は、入力中の既存ディレクトリを先頭候補として維持しながら直下の子ディレクトリ候補を表示する
-- direct path の directory listing は reducer で同期実行せず、debounce 付き worker と短時間の親ディレクトリ cache を使う。query/request ID が一致しない結果は破棄し、loading・0件・権限エラー・truncated 状態を Go view に表示する
-- `grep_search` は keyword / filename filter / include extensions / exclude extensions の 4 フィールドを持ち、`Tab` / `Shift+Tab` で入力欄を移動する
+- Palette sources include `commands`, `file_search`, `grep_search`, `go`, and `replace`
+- Unified `Go` shows Home, bookmark, recent-history, open-tab, and direct-path candidates while the user types, and lets `Tab` complete a direct-path candidate. After a path separator, it keeps the typed existing directory as the first candidate while showing its child directories.
+- Direct-path directory listings run in a debounced worker with a short-lived parent-directory cache; mismatched query/request results are discarded and the Go view exposes loading, empty, permission-error, and truncated states
+- `grep_search` uses separate keyword / filename-filter / include-extensions / exclude-extensions fields and moves focus with `Tab` / `Shift+Tab`
 
 ### `src/zivo/services/`
 
-- `browser_snapshot.py`: 実 filesystem から 3 ペイン用 snapshot を構築する
-- `file_search.py`: 現在ディレクトリ以下の再帰ファイル検索を担当する
-- `grep_search.py`: `rg` を使った再帰内容検索を担当する
-- `directory_size.py`: 可視ディレクトリの再帰サイズ計算を担当する
-- `clipboard_operations.py`: copy / cut / paste 実処理、競合検出、undo 用結果記録を担当する
-- `duplicate_operations.py`: 同じ親ディレクトリへの非上書き複製、衝突名生成、symlink、対象別進捗・失敗を担当する
-- `file_mutations.py`: rename / create / delete、trash undo 用 metadata 採取、完全削除確認用の再帰サイズ調査を担当する
-- `undo_operations.py`: reversible file operations の undo 実行を担当する
-- `archive_extract.py`: archive 事前走査、競合検出、安全な展開、進捗通知を担当する
-- `config.py`: `config.toml` の読み込み、検証、保存、既定値レンダリングを担当する
-- `terminal_detection.py`: Kitty graphics protocol 対応端末（Kitty/Ghostty/WezTerm 等）の環境変数ベース検出を担当する
-- `external_launcher.py`: 既定アプリ起動、terminal editor 起動、外部 terminal 起動、パスコピーを担当する
+- `browser_snapshot.py`: builds the three-pane snapshot from the real filesystem
+- `file_search.py`: handles recursive file search under the current directory
+- `grep_search.py`: handles recursive content search through `rg`
+- `directory_size.py`: calculates recursive sizes for visible directories
+- `clipboard_operations.py`: executes copy / cut / paste, detects conflicts, and records undo metadata
+- `duplicate_operations.py`: performs non-overwriting same-parent duplication with collision naming, symlink handling, per-target progress, and failures
+- `file_mutations.py`: handles rename / create / delete, captures trash-restore metadata, and recursively measures targets for permanent-delete confirmation
+- `undo_operations.py`: executes undo for reversible file operations
+- `archive_extract.py`: handles archive preflight scanning, conflict detection, safe extraction, and progress reporting
+- `config/`: loads, validates, saves, and renders `config.toml` (`loader.py`, `save.py`, and `render.py`)
+- `terminal_detection.py`: detects Kitty graphics protocol support from environment variables (Kitty, Ghostty, WezTerm, etc.)
+- `external_launcher.py`: handles default-app launch, terminal-editor launch, external-terminal launch, and path copy
 
 ### `src/zivo/archive_utils.py`
 
-- 対応 archive 形式の判定を行う
-- 展開先の既定値生成と、ユーザー入力された相対 / 絶対パスの解決を担当する
+- Detects supported archive formats
+- Resolves default extraction destinations and user-entered relative or absolute destination paths
 
 ### `src/zivo/adapters/`
 
-- `filesystem.py`: ディレクトリエントリ列挙、メタデータ取得、directory size 計算を担当する
-- `file_operations.py`: copy / move / rename / create / trash / archive 展開補助などのファイル操作を担当する
-- `external_launcher.py`: OS ごとの起動コマンド差異を吸収する
+- `filesystem.py`: enumerates entries, reads metadata, and calculates directory sizes
+- `file_operations.py`: performs copy / move / rename / create / trash and archive-related file operations
+- `external_launcher.py`: hides OS-specific launch command differences
 
-外部処理の完了後は、待機していた editor・foreground terminal・shell・custom action の reducer 完了経路から、対象 cwd または編集対象の親が現在表示中の実ディレクトリと一致する場合だけ `request_snapshot_refresh()` を発行する。refresh は既存の request ID 世代管理と `post_reload_notification` を再利用するため、手動 Reload と競合した古い snapshot は破棄され、cursor・selection・filter・sort は通常の snapshot 適用規則で維持される。GUI editor、terminal window、configだけを更新するoverlay、Search Workspace、archive の仮想表示はこの経路から除外する。
+### `src/zivo/models/` and `src/zivo/state/models.py`
 
-### `src/zivo/models/` と `src/zivo/state/models.py`
+- `models/` stores request / result / view-model types shared across services and UI
+- `state/models.py` stores reducer-owned persistent state
+- Cross-cutting UI state such as `HistoryState`, `CommandPaletteState`, `SplitTerminalState`, and `DirectorySizeCacheEntry` lives under `state/models.py`
 
-- `models/` には service と UI が共有する request / result / view model を置く
-- `state/models.py` には reducer 管理下の永続 state を置く
-- `HistoryState`、`CommandPaletteState`、`SplitTerminalState`、`DirectorySizeCacheEntry` などの UI 横断状態は `state/models.py` 側に集約する
-
-## 5. モードと入力境界
+## 5. Modes And Input Boundaries
 
 ```mermaid
 stateDiagram-v2
@@ -312,9 +313,9 @@ stateDiagram-v2
     BROWSING --> CONFIRM: delete / paste conflict / archive conflict
     BROWSING --> BUSY: blocking snapshot / short mutation / launch / config save
     BROWSING --> BROWSING: confirmed long-running worker starts
-    BROWSING --> BROWSING: Alt+← / Alt+→ / Alt+Home / reload / sort / hidden toggle
+    BROWSING --> BROWSING: Alt+Left / Alt+Right / Alt+Home / reload / sort / hidden toggle
     PALETTE --> BROWSING: Enter on command / Esc
-    PALETTE --> PALETTE: query 更新 / search mode 継続
+    PALETTE --> PALETTE: query updates / search mode
     FILTER --> BROWSING: Enter / Down / Esc
     RENAME --> BUSY: Enter
     CREATE --> BUSY: Enter
@@ -325,76 +326,76 @@ stateDiagram-v2
     CONFIG --> BUSY: s save
     CONFIG --> BROWSING: Esc
     CONFIRM --> BROWSING: confirm / cancel
-    BUSY --> BROWSING: effect 完了
+    BUSY --> BROWSING: effect completes
 ```
 
-補足:
+Notes:
 
 - `BROWSING`
-  - 移動、選択、履歴移動、bookmark / history / go-to-path 起動、filter、palette、sort、terminal 切り替えを処理する
-  - `Esc` は active filter が残っている場合、選択解除より先に filter 解除を優先する
+  - Handles navigation, selection, history movement, bookmark / history / go-to-path entry, filter, palette, sort, and terminal toggling
+  - If an active filter exists, `Esc` clears the filter before clearing selection
 - `PALETTE`
-  - 通常コマンドだけでなく、file search / grep search / history / bookmarks / go-to-path preview の各 source を同一 UI で扱う
-  - grep search では複数入力欄を持ちつつ、結果選択の `↑↓` と `Ctrl+j/k` に変更する
+  - Reuses one UI surface for normal commands plus file search, grep search, history, bookmarks, and go-to-path preview
+  - Changed grep result selection to `↑↓` and `Ctrl+j/k` when grep search has multiple input fields
 - `DETAIL`
-  - read-only 属性ダイアログを閉じるだけのモード
+  - Read-only mode for the attribute dialog
 - `EXTRACT`
-  - archive 展開先の入力バーを表示し、`Enter` で事前チェックまたは展開開始へ進む
+  - Shows the extraction-destination input and moves into preflight checking or extraction on `Enter`
 - `CONFIG`
-  - config overlay 上で起動時設定を編集し、`s` で保存し、`e` で生の `config.toml` を terminal editor で開く
-- split terminal 可視時
-  - 通常の browse 用キーバインドではなく terminal 入力が優先され、`Ctrl+q` で閉じる
+  - Edits startup settings in the config overlay, saves with `s`, and opens raw `config.toml` in a terminal editor with `e`
+- While the split terminal is visible
+  - Terminal input takes precedence over browser shortcuts, and `Ctrl+q` closes it
 
-## 6. 現在できること
+## 6. What Works Today
 
-- `CWD` から実 filesystem を読み込んで 3 ペイン UI を起動
-- 親 / 現在 / 子ディレクトリ表示とカーソル移動
-- ディレクトリ移動、親ディレクトリ復帰、home 移動、再読み込み
-- back / forward 履歴移動と履歴一覧からのジャンプ
-- bookmark 一覧からのジャンプと、現在ディレクトリの bookmark 追加 / 削除
-- go-to-path 入力による任意パスへの移動
-- filter 入力と filter 適用後の一覧継続操作
-- 名前（自然順） / 更新日時 / サイズソートと directory-first 切り替え
-- 必要に応じた可視ディレクトリの再帰サイズ表示
-- 選択トグル、選択解除、copy / cut / paste
-- 2ペイン転送モードでの Tab ペインフォーカス、左右間 Copy / Move、方向と件数を示す転送ヘッダー
-- 貼り付け時の競合検出と overwrite / skip / rename の解決
-- 単一対象の rename と、同一ディレクトリ内で一時名を経由する安全な bulk rename
-- 新規ファイル / 新規ディレクトリ作成
-- ゴミ箱への削除と確認ダイアログ
-- ファイルの既定アプリ起動
-- `e` による現在の terminal 内 editor 起動
-- コマンドパレットからの再帰 file search、再帰 grep search、属性表示、path copy、既定 file manager 起動、外部 terminal 起動、hidden files 切り替え
-- 対応 archive (`.zip` / `.tar` / `.tar.gz` / `.tar.bz2`) の展開、競合確認、進捗表示
-- Kitty graphics protocol を利用した高精細画像プレビュー（自動検出または手動設定、動的リサイズ対応）
-- config overlay による起動時設定と bookmark の保存（`image_preview_mode` を含む）
-- 埋め込み split terminal の起動、入力、clipboard paste、終了通知
-- status bar / help bar / input bar / conflict dialog / attribute dialog / config dialog / split terminal の状態連動表示
+- Launches the three-pane UI from the real filesystem rooted at `CWD`
+- Shows parent / current / child directories and supports cursor movement
+- Moves into directories, back to the parent directory, to the home directory, and reloads the current directory
+- Supports back / forward history navigation and jumping from the history list
+- Supports jumping from saved bookmarks plus adding or removing the current directory as a bookmark
+- Supports go-to-path input for direct navigation to a typed path
+- Supports filter input and continued list interaction after filtering
+- Switches sort by name (natural sort: numeric runs ordered by value) / modified time / size and toggles directories-first ordering
+- Shows recursive directory sizes for visible directories when needed
+- Supports selection toggle, clear selection, copy / cut / paste
+- Supports Tab pane focus, Copy / Move between panes, and a transfer header showing direction and counts in two-pane transfer mode
+- Detects paste conflicts and resolves them with overwrite / skip / rename
+- Renames a single target and safely bulk-renames same-directory targets via temporary staging
+- Creates files and directories
+- Moves items to trash with confirmation
+- Opens files with the OS default app
+- Opens files in the current terminal editor with `e`
+- Provides recursive file search, recursive grep search, attribute inspection, path copy, file-manager launch, external-terminal launch, and hidden-files toggling from the command palette
+- Extracts supported archives (`.zip`, `.tar`, `.tar.gz`, `.tar.bz2`) with conflict confirmation and progress reporting
+- High-fidelity image preview via the Kitty graphics protocol (auto-detected or manually selected, with dynamic resize)
+- Saves startup settings and bookmarks through the config overlay (including `image_preview_mode`)
+- Starts the embedded split terminal, forwards input, supports clipboard paste, and reports exit events
+- Keeps status bar, help bar, input bar, conflict dialog, attribute dialog, config dialog, and split terminal synchronized with application state
 
-## 7. 現時点で未実装または限定的な範囲
+## 7. Areas Still Unimplemented Or Constrained
 
-- アプリ内編集、Git 連携、タブ並べ替え、キーバインドカスタマイズは未実装
-- スタンドアロンのネイティブ Windows 実行ファイル（コンパイル済みバイナリ）は提供されていません。zivo は Python アプリケーションとして Windows 上で動作します。設定の `[terminal]` キーにある `windows` オプションは Windows および WSL 上の外部ターミナル起動に使用できます。
-- directory size 計算や archive 展開は可視対象数やアーカイブ内容に応じてコストが増えるため、runtime 側で cancel と進捗管理を前提にしている
+- In-app editing, Git integration, tab reordering, and keybinding customization are not implemented
+- A standalone native Windows executable (compiled binary) is not provided. zivo runs on Windows as a Python application; the `[terminal]` config key accepts a `windows` option for external-terminal launch on Windows and WSL.
+- Directory-size calculation and archive extraction grow in cost with visible directory count or archive contents, so runtime cancellation and progress tracking are part of the design
 
-filesystem mutation は、UI が選択している entry path をそのまま trust boundary として扱います。  
-選択対象が symlink の場合でも最終パス要素を canonicalize せず、delete / rename / move / copy / overwrite / trash は symlink 自体に作用させます。
+Filesystem mutations treat the entry path selected in the UI as the trust boundary.
+When the selected item is a symlink, the final path component is not canonicalized, so delete / rename / move / copy / overwrite / trash operate on the symlink entry itself rather than silently following the target.
 
-## 8. 拡張時の差し込み方
+## 8. How To Extend It
 
-新しい操作を追加する場合は、基本的に次の順で差し込みます。
+When adding a new action, the intended insertion order is:
 
 ```mermaid
 flowchart TD
-    Key["新しい操作"] --> Input["input.py に dispatch 追加"]
-    Input --> Action["actions.py に Action 追加"]
-    Action --> Reducer["reducer_* に状態遷移追加"]
-    Reducer --> Effect["必要なら effects.py に Effect 追加"]
-    Effect --> Runtime["app_runtime.py に scheduler / 完了ハンドラ追加"]
-    Runtime --> Service["services/ に実行追加"]
-    Service --> Adapter["OS / FS 差異は adapters へ委譲"]
-    Reducer --> Selector["表示変更が必要なら selectors 更新"]
-    Selector --> Shell["app_shell.py / ui は表示更新のみ"]
+    Key["New action"] --> Input["Add dispatch in input.py"]
+    Input --> Action["Add Action in actions.py"]
+    Action --> Reducer["Add state transition in reducer_*"]
+    Reducer --> Effect["Add Effect in effects.py if needed"]
+    Effect --> Runtime["Add scheduler / completion mapping in app_runtime.py"]
+    Runtime --> Service["Add execution in services/"]
+    Service --> Adapter["Delegate OS / FS differences to adapters"]
+    Reducer --> Selector["Update selectors if rendering changes"]
+    Selector --> Shell["Keep app_shell.py / ui display-only"]
 ```
 
-この流れを守ることで、widget ごとの分岐を増やさずに機能追加を局所化できます。
+Following this path keeps feature changes localized without pushing branching logic into widgets.

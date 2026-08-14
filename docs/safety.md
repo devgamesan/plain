@@ -2,6 +2,8 @@
 
 zivo includes several safety mechanisms to prevent accidents during file operations.
 
+> Audience: users reviewing the confirmation, trash, undo, and recovery behavior before operating on files.
+
 ---
 
 ## Move to trash
@@ -26,7 +28,7 @@ zivo includes several safety mechanisms to prevent accidents during file operati
 ## Undo
 
 - Press `z` to undo the most recent file operation.
-- Undoable operations: rename, paste (including cross-pane Copy/Move in Transfer mode), and move to trash.
+- Undoable operations: rename, paste (including cross-pane Copy/Move in Transfer mode), duplicate, and move to trash.
 - `Undo last file operation` is hidden from the command palette when the undo history is empty.
 - Only reversible file operations are recorded in the undo history.
 

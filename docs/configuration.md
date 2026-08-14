@@ -9,6 +9,8 @@ If the file does not exist yet, zivo creates it automatically with default value
 - macOS: `~/Library/Application Support/zivo/config.toml`
 - Windows: `%APPDATA%\\zivo\\config.toml`
 
+> Audience: users who want to change startup defaults or advanced resource limits.
+
 ## Config Editor scope
 
 The in-app Config Editor is intentionally limited to frequently changed basic settings:
@@ -23,6 +25,10 @@ Press `e` in Config Editor to open `config.toml` for advanced settings such as
 preview details, terminal templates, paste behavior, logging, file-search limits,
 custom actions, or future settings. Saving basic settings from the UI updates only
 those settings and preserves advanced, unknown, and custom TOML values.
+
+The `[terminal]` section contains only OS-specific command templates (`linux`,
+`macos`, and `windows`). There is no `launch_mode` setting; zivo chooses the
+configured template or a platform fallback when an external terminal is opened.
 
 If the Config Editor has unsaved changes, save or close them before opening the
 raw file with `e`. Preview resource limits, terminal templates, paste behavior,
@@ -63,7 +69,10 @@ settings require restarting zivo.
 | `display` | `default_sort_field` | `name` / `modified` / `size` | Default sort field for the main pane. The `name` field uses natural sort (numeric runs ordered by value, e.g. `file2` before `file10`). |
 | `display` | `default_sort_descending` | `true` / `false` | Starts the main-pane sort in descending order when enabled. |
 | `display` | `directories_first` | `true` / `false` | Keeps directories grouped before files in the main pane. |
+| `display` | `grep_preview_context_lines` | Integer >= 0 | Number of context lines shown around each grep match. Defaults to `3`. |
+| `display` | `preview_word_wrap` | `true` / `false` | Wraps long lines in text and grep previews. Defaults to `false`. |
 | `behavior` | `confirm_delete` | `true` / `false` | Shows a confirmation dialog before moving items to trash. Permanently delete via `D` / `Shift+Delete` always asks for confirmation. |
+| `behavior` | `confirm_exit` | `true` / `false` | Asks for confirmation before quitting zivo. Defaults to `true`. |
 | `behavior` | `paste_conflict_action` | `prompt` / `overwrite` / `skip` / `rename` | Chooses the default paste-conflict behavior. `prompt` keeps the conflict dialog enabled. |
 | `logging` | `enabled` | `true` / `false` | Enables file output for startup failures and unhandled exceptions. |
 | `logging` | `level` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` | Log level for file output. Defaults to `ERROR`. Requires app restart to take effect. |
@@ -79,7 +88,6 @@ settings require restarting zivo.
 
 ```toml
 [terminal]
-launch_mode = "window"
 linux = ["konsole --working-directory {path}", "gnome-terminal --working-directory={path}"]
 macos = ["open -a Terminal {path}"]
 windows = ["wt -d {path}"]
@@ -106,6 +114,8 @@ preview_max_kib = 64
 default_sort_field = "name"
 default_sort_descending = false
 directories_first = true
+grep_preview_context_lines = 3
+preview_word_wrap = false
 
 [preview]
 timeout_seconds = 5
@@ -123,7 +133,12 @@ timeout_cache_seconds = 1
 
 [behavior]
 confirm_delete = true
+confirm_exit = true
 paste_conflict_action = "prompt"
+
+[file_search]
+# Leave empty for the default limit of 1,000 results.
+# max_results = 1000
 
 [grep_search]
 # Leave empty for unlimited results (default).

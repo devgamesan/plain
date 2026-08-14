@@ -3,6 +3,8 @@
 This record captures the Issue #1184 evaluation before changing the default PDF
 preview backend.
 
+> Audience: maintainers evaluating PDF preview behavior, dependencies, and safety limits.
+
 ## Evaluation setup
 
 - Date: 2026-08-14

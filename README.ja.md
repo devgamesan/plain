@@ -43,18 +43,29 @@ zivo は、キーバインドをたくさん覚えなくても使える TUI フ�
 
 パスバーにはクリック可能な breadcrumb segment と Back/Forward の可否を表示します。複数タブ時は active tab と、hover 時の close/new affordance を表示します。`Name`、`Size`、`Modified` の列ヘッダーをクリックしてsortでき、現在の方向と folders-first 状態も確認できます。狭い端末では現在地、active tab、Name列、sort状態を優先して表示します。
 
-![](docs/resources/basic_operation.gif)
+![基本的なディレクトリ閲覧とプレビュー](docs/resources/basic_operation.gif)
 
 キーバインドを覚えていなくても `:` のコマンドパレットから必要な操作を検索して実行できます。コマンドはインクリメンタルサーチに対応しており、素早く目的のコマンドを実行できます。
 
-![](docs/resources/command_palette.gif)
+![コマンドパレットの検索と実行](docs/resources/command_palette.gif)
 
 Transfer モードでは、2つのディレクトリを左右に並べて、選択したファイルを反対側のペインへコピーまたは移動できます。`c` でコピー、`m` で移動でき、方向・件数はヘッダーに表示されます。
-![](docs/resources/transfer_mode_operation.gif)
+![Transfer モードでのコピーと移動](docs/resources/transfer_mode_operation.gif)
 
 ---
 
 ## インストール
+
+### 前提条件
+
+- Python 3.12 以上
+- インストールと開発コマンドに使う [`uv`](https://docs.astral.sh/uv/)
+- Textual UI を表示できるターミナル
+
+zivo は Linux、macOS、Windows、Ubuntu on WSL で動作します。画像プレビューや
+再帰 grep などの任意機能には外部コマンドが必要です。詳しくは
+[Platforms](docs/platforms.ja.md) を参照してください。外部コマンドがなくても、基本的な
+ファイル閲覧機能は利用できます。
 
 ### 最小構成
 
@@ -233,8 +244,8 @@ zivo はファイル操作の事故を防ぐための安全機構を備えてい
 - [Configuration](docs/configuration.ja.md) — 設定ファイルの詳細
 - [Platforms](docs/platforms.ja.md) — OS 別セットアップ
 - [Safety](docs/safety.ja.md) — 安全仕様
-- [Architecture](docs/architecture.md) — 実装構造
-- [Performance](docs/performance.md) — 性能確認メモ
+- [Architecture](docs/architecture.ja.md) — 実装構造
+- [Performance](docs/performance.ja.md) — 性能確認メモ
 - [PDF Preview Decision](docs/pdf-preview-decision.ja.md) — pypdf corpus評価とbackend上限
 - [Release Checklist](docs/release-checklist.md) — リリースチェックリスト
 - [Dependency and GitHub Actions Audit](docs/dependency-audit.ja.md) — CI依存関係監査とAction固定方針

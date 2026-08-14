@@ -2,6 +2,8 @@
 
 This document describes the dependency audit and GitHub Actions supply-chain policy used by CI.
 
+> Audience: maintainers reviewing dependency updates, CI changes, or audit findings.
+
 ## CI coverage
 
 The `dependency-audit` job runs once on Ubuntu for every pull request and push covered by the Python CI workflow.

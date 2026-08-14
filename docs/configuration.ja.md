@@ -8,6 +8,8 @@ zivo は起動時にユーザー設定用の `config.toml` を読み込みます
 - macOS: `~/Library/Application Support/zivo/config.toml`
 - Windows: `%APPDATA%\\zivo\\config.toml`
 
+> 想定読者: 起動時の既定値や高度なリソース上限を変更したい利用者。
+
 ## Config Editor の対象範囲
 
 アプリ内の Config Editor は、頻繁に変更する基本設定に限定しています。
@@ -21,6 +23,8 @@ zivo は起動時にユーザー設定用の `config.toml` を読み込みます
 Config Editor で `e` を押すと `config.toml` を開き、高度設定を編集できます。プレビュー詳細とresource limit、terminal templates、貼り付け動作、logging、file search の上限、background command の制限、custom actions、将来追加される設定はここで管理します。UI で基本設定を保存しても、高度設定・未知の設定・独自の TOML 値は保持されます。
 
 Config Editor に未保存の変更がある場合は、先に保存または画面を閉じてから `e` で高度設定を開きます。外部エディタを閉じると `config.toml` を再読込し、変更を実行中の zivo と Config Editor に反映します。TOML の構文が不正な場合は現在の有効設定を維持して警告を表示します。設定によっては再起動が必要です。
+
+`[terminal]` セクションにあるのは OS 別の起動コマンドテンプレート（`linux`、`macos`、`windows`）だけです。`launch_mode` という設定はありません。外部ターミナルを開くときは、設定済みテンプレート、またはプラットフォーム別の組み込みフォールバックを使用します。
 
 ## 設定項目一覧
 
@@ -53,7 +57,10 @@ Config Editor に未保存の変更がある場合は、先に保存または画
 | `display` | `default_sort_field` | `name` / `modified` / `size` | 中央ペインの初期ソート項目です。`name` は自然順（数値部分を値で比較、例: `file2` が `file10` より先）で並び替えます。 |
 | `display` | `default_sort_descending` | `true` / `false` | `true` のとき、起動時のソートを降順にします。 |
 | `display` | `directories_first` | `true` / `false` | 中央ペインでディレクトリをファイルより先にまとめて表示します。 |
+| `display` | `grep_preview_context_lines` | 0 以上の整数 | grep 一致箇所の前後に表示するコンテキスト行数です。既定値は `3` です。 |
+| `display` | `preview_word_wrap` | `true` / `false` | テキスト／grep プレビューの長い行を折り返します。既定値は `false` です。 |
 | `behavior` | `confirm_delete` | `true` / `false` | ゴミ箱削除の前に確認ダイアログを表示します。`D` / `Shift+Delete` による完全削除は常に確認します。 |
+| `behavior` | `confirm_exit` | `true` / `false` | zivo を終了するときに確認します。既定値は `true` です。 |
 | `behavior` | `paste_conflict_action` | `prompt` / `overwrite` / `skip` / `rename` | 貼り付け競合時の既定動作です。`prompt` の場合は競合ダイアログを維持します。 |
 | `logging` | `enabled` | `true` / `false` | 起動失敗や未処理例外をログファイルへ出力するかどうかを切り替えます。 |
 | `logging` | `level` | `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` | ログファイルへ出力するログレベルです。既定値は `ERROR` です。設定の反映にはアプリの再起動が必要です。 |
@@ -69,7 +76,6 @@ Config Editor に未保存の変更がある場合は、先に保存または画
 
 ```toml
 [terminal]
-launch_mode = "window"
 linux = ["konsole --working-directory {path}", "gnome-terminal --working-directory={path}"]
 macos = ["open -a Terminal {path}"]
 windows = ["wt -d {path}"]
@@ -96,6 +102,8 @@ preview_max_kib = 64
 default_sort_field = "name"
 default_sort_descending = false
 directories_first = true
+grep_preview_context_lines = 3
+preview_word_wrap = false
 
 [preview]
 timeout_seconds = 5
@@ -113,7 +121,12 @@ timeout_cache_seconds = 1
 
 [behavior]
 confirm_delete = true
+confirm_exit = true
 paste_conflict_action = "prompt"
+
+[file_search]
+# 空欄の場合は結果数を1,000件に制限します。
+# max_results = 1000
 
 [grep_search]
 # 空欄の場合は結果数を制限しません（既定値）。

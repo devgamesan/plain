@@ -43,19 +43,29 @@ Browse directories across three panes while previewing files on the right. Use f
 
 The path bar exposes clickable breadcrumb segments and Back/Forward availability. When multiple tabs are open, the tab strip shows the active tab and mouse-only close/new affordances. Click `Name`, `Size`, or `Modified` headers to sort; the active direction and folders-first state remain visible. Narrow terminals keep the current path, active tab, Name column, and sort state visible while eliding lower-priority details.
 
-![](docs/resources/basic_operation.gif)
+![Basic directory browsing and preview](docs/resources/basic_operation.gif)
 
 Press `:` to search and run any action from the command palette. The palette supports incremental search, letting you find and execute commands quickly without memorizing keybindings.
 
-![](docs/resources/command_palette.gif)
+![Command palette search and execution](docs/resources/command_palette.gif)
 
 Transfer mode puts two directories side by side for easy copy and move operations.
 Press `c` to copy or `m` to move selected items to the opposite pane; the header shows the direction and counts.
-![](docs/resources/transfer_mode_operation.gif)
+![Transfer mode copy and move](docs/resources/transfer_mode_operation.gif)
 
 ---
 
 ## Installation
+
+### Requirements
+
+- Python 3.12 or newer
+- [`uv`](https://docs.astral.sh/uv/) for installation and development commands
+- A terminal that supports the Textual UI
+
+zivo runs on Linux, macOS, Windows, and Ubuntu under WSL. Optional features
+such as image preview and recursive grep use external commands described in
+[Platforms](docs/platforms.md). They are not required for the core file browser.
 
 ### Minimal installation
 
@@ -236,8 +246,8 @@ zivo includes safety mechanisms to prevent data loss during file operations.
 - [Custom Actions](docs/custom-actions.md) — command palette custom action guide
 - [Platforms](docs/platforms.md) — OS-specific setup
 - [Safety](docs/safety.md) — safety specifications
-- [Architecture](docs/architecture.en.md) — implementation structure
-- [Performance](docs/performance.en.md) — performance notes
+- [Architecture](docs/architecture.md) — implementation structure
+- [Performance](docs/performance.md) — performance notes
 - [PDF Preview Decision](docs/pdf-preview-decision.md) — pypdf corpus evaluation and backend limits
 - [Release Checklist](docs/release-checklist.md) — release checklist
 - [Dependency and GitHub Actions Audit](docs/dependency-audit.md) — CI dependency and action supply-chain audit policy

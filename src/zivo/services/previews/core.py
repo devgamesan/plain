@@ -190,6 +190,7 @@ PREVIEW_LIMITED_MESSAGE = "Preview limited by a safety limit"
 PREVIEW_TIMEOUT_MESSAGE = "Preview stopped at a safety limit"
 PREVIEW_RESOURCE_LIMIT_MESSAGE = "Preview stopped at a safety limit"
 PREVIEW_CANCELLED_MESSAGE = "Preview cancelled"
+PREVIEW_NO_TEXT_CONTENT_MESSAGE = "No text content found"
 IMAGE_PREVIEW_DEPENDENCY_MESSAGE = "Preview unavailable: install `chafa` for image preview"
 PDF_PREVIEW_DEPENDENCY_MESSAGE = "PDF preview unavailable: install `pdftotext`"
 OFFICE_PREVIEW_DEPENDENCY_MESSAGE = "Office preview unavailable: install `pandoc`"
@@ -524,7 +525,10 @@ class PdftotextPdfPreviewLoader:
             return None
         content = _normalize_preview_newlines(result.stdout)
         if not content.strip():
-            return FilePreviewState.with_message("PDF preview: no text content found")
+            return FilePreviewState.with_message(
+                PREVIEW_NO_TEXT_CONTENT_MESSAGE,
+                reason="no_text_content",
+            )
         return _preview_text_from_process_result(result, preview_max_bytes)
 
     def _resolve_pdftotext(self) -> str | None:
@@ -885,6 +889,11 @@ def _preview_text_from_process_result(
             return FilePreviewState.with_message(
                 PREVIEW_RESOURCE_LIMIT_MESSAGE,
                 reason="resource_limit",
+            )
+        if result.exit_code == 0:
+            return FilePreviewState.with_message(
+                PREVIEW_NO_TEXT_CONTENT_MESSAGE,
+                reason="no_text_content",
             )
         if result.exit_code != 0:
             return None

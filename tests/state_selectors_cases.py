@@ -3906,7 +3906,9 @@ def test_select_shell_data_builds_typed_metadata_fallback() -> None:
     fallback = select_shell_data(state).child_pane
     assert fallback.view_kind == "unsupported"
     assert fallback.status is not None
-    assert fallback.status.actions[0].action_id == "show_attributes"
+    assert fallback.status.actions[0].action_id == "open_preview_default_app"
+    assert fallback.status.actions[0].label == "Open with default app"
+    assert fallback.status.actions[0].target_path == target
     assert [(item.label, item.value) for item in fallback.metadata] == [
         ("Name", "data.bin"),
         ("Type", "BIN"),

@@ -276,19 +276,18 @@ Kitty graphics protocol の途中出力は表示せず metadata fallback にす�
 stderr、ZIP bomb 相当の metadata、空白を含む path を使う。大規模性能 benchmark は CI
 へ追加せず、必要な変更ごとの手動シナリオとして記録する。
 
-### Issue #1183 組み込み OOXML 比較
+### Issue #1183 組み込み OOXML ベンチマーク
 
-手動スクリプト `scripts/benchmark_ooxml_preview.py` で合成 DOCX/XLSX/PPTX を比較し、
-cold/warm の wall time、同期 loader の最初の有用な内容までの時間、Python peak allocation
-を計測した。Python 3.12、macOS、Pandoc 3.10.1 で、組み込み loader は3形式すべてで有用な
-内容を返し、cold/warm とも Pandoc より高速だった。
+手動スクリプト `scripts/benchmark_ooxml_preview.py` で合成 DOCX/XLSX/PPTX を作成し、
+組み込み loader の cold/warm wall time、同期 loader の最初の有用な内容までの時間、
+Python peak allocation を計測する。
 
-| fixture | items | 組み込み cold / warm | Pandoc cold / warm |
-| --- | ---: | ---: | ---: |
-| DOCX | 1,000 | 16.29 / 14.81 ms | 413.33 / 83.98 ms |
-| XLSX | 1,000 | 19.66 / 17.07 ms | 87.75 / 91.11 ms |
-| PPTX | 1,000 | 110.58 / 107.31 ms | 768.20 / 796.79 ms |
+| fixture | items | cold / warm |
+| --- | ---: | ---: |
+| DOCX | 1,000 | 16.29 / 14.81 ms |
+| XLSX | 1,000 | 19.66 / 17.07 ms |
+| PPTX | 1,000 | 110.58 / 107.31 ms |
 
 必須のテキスト順序と代表的なセル・スライド・段落 fixture は
-`tests/test_ooxml_preview.py` で成功している。この結果、Pandoc を既定経路と推奨依存から
-外し、互換 loader は比較および明示的な統合用途に限定して残す。
+`tests/test_ooxml_preview.py` で成功している。Office プレビューはこの組み込み backend を
+使用し、外部の文書 converter を必要としない。

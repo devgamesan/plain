@@ -27,7 +27,6 @@ from zivo.services.previews import (
     GrepContextWindowState,
     ImagePreviewLoader,
     OfficeDocumentPreviewLoader,
-    PandocDocumentPreviewLoader,  # noqa: F401 - compatibility re-export
     PdfPreviewLoader,
     PdftotextPdfPreviewLoader,
     PreviewResourceBudget,

@@ -7,7 +7,6 @@ import os
 import re
 import shutil
 import subprocess
-import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -206,7 +205,6 @@ PREVIEW_CANCELLED_MESSAGE = "Preview cancelled"
 PREVIEW_NO_TEXT_CONTENT_MESSAGE = "No text content found"
 IMAGE_PREVIEW_DEPENDENCY_MESSAGE = "Preview unavailable: install `chafa` for image preview"
 PDF_PREVIEW_DEPENDENCY_MESSAGE = "PDF preview unavailable: install `pdftotext`"
-OFFICE_PREVIEW_DEPENDENCY_MESSAGE = "Office preview unavailable: install `pandoc`"
 OFFICE_PREVIEW_CORRUPT_MESSAGE = _OOXML_CORRUPT_MESSAGE
 OFFICE_PREVIEW_ENCRYPTED_MESSAGE = _OOXML_ENCRYPTED_MESSAGE
 OFFICE_PREVIEW_NO_TEXT_MESSAGE = _OOXML_NO_TEXT_MESSAGE
@@ -471,64 +469,6 @@ class OfficeDocumentPreviewLoader:
             return FilePreviewState.unavailable("cancelled")
         message = result.message or PREVIEW_ERROR_MESSAGE
         return FilePreviewState.with_message(message, reason=result.reason)
-
-
-@dataclass
-class PandocDocumentPreviewLoader:
-    resource_budget: PreviewResourceBudget = DEFAULT_PREVIEW_RESOURCE_BUDGET
-    pandoc_path: str | None = field(default=None, init=False, repr=False)
-    pandoc_missing: bool = field(default=False, init=False, repr=False)
-
-    def load_preview(
-        self,
-        path: Path,
-        *,
-        preview_max_bytes: int,
-        cancel_callback: CancelCallback | None = None,
-    ) -> FilePreviewState | None:
-        pandoc = self._resolve_pandoc()
-        if pandoc is None:
-            return FilePreviewState.with_message(
-                OFFICE_PREVIEW_DEPENDENCY_MESSAGE,
-                reason="dependency_missing",
-            )
-        limited = _preview_input_limit(path, self.resource_budget, cancel_callback)
-        if limited is not None:
-            return limited
-        archive_limit = _inspect_ooxml_archive(path, self.resource_budget, cancel_callback)
-        if archive_limit is not None:
-            return archive_limit
-        command = [
-            pandoc,
-            "--from",
-            path.suffix.lstrip(".").lower(),
-            "--to",
-            "markdown",
-            str(path),
-        ]
-        try:
-            result = _run_preview_process(
-                command,
-                path=path,
-                preview_max_bytes=preview_max_bytes,
-                resource_budget=self.resource_budget,
-                cancel_callback=cancel_callback,
-            )
-        except (OSError, subprocess.SubprocessError, ValueError):
-            return None
-        return _preview_text_from_process_result(result, preview_max_bytes)
-
-    def _resolve_pandoc(self) -> str | None:
-        if self.pandoc_missing:
-            return None
-        if self.pandoc_path is not None:
-            return self.pandoc_path
-        pandoc = shutil.which("pandoc")
-        if pandoc is None:
-            self.pandoc_missing = True
-            return None
-        self.pandoc_path = pandoc
-        return pandoc
 
 
 @dataclass
@@ -853,61 +793,6 @@ def _preview_input_limit(
             PREVIEW_RESOURCE_LIMIT_MESSAGE,
             reason="resource_limit",
         )
-    return None
-
-
-def _inspect_ooxml_archive(
-    path: Path,
-    resource_budget: PreviewResourceBudget,
-    cancel_callback: CancelCallback | None,
-) -> FilePreviewState | None:
-    """Reject dangerous OOXML ZIP metadata before invoking Pandoc.
-
-    Invalid ZIPs are left to the converter so dependency and converter error
-    behavior remains compatible with existing files and tests.
-    """
-
-    if path.suffix.casefold() not in OFFICE_PREVIEW_EXTENSIONS:
-        return None
-    try:
-        with zipfile.ZipFile(path) as archive:
-            infos = archive.infolist()
-    except (OSError, zipfile.BadZipFile, ValueError):
-        return None
-
-    if len(infos) > resource_budget.max_archive_entries:
-        return FilePreviewState.with_message(
-            PREVIEW_RESOURCE_LIMIT_MESSAGE,
-            reason="resource_limit",
-        )
-    total_size = 0
-    for info in infos:
-        if cancel_callback is not None and cancel_callback():
-            return FilePreviewState.unavailable("cancelled")
-        entry_size = max(0, info.file_size)
-        if entry_size > resource_budget.max_archive_entry_bytes:
-            return FilePreviewState.with_message(
-                PREVIEW_RESOURCE_LIMIT_MESSAGE,
-                reason="resource_limit",
-            )
-        total_size += entry_size
-        if total_size > resource_budget.max_archive_total_bytes:
-            return FilePreviewState.with_message(
-                PREVIEW_RESOURCE_LIMIT_MESSAGE,
-                reason="resource_limit",
-            )
-        compression_limit_exceeded = (
-            entry_size > 0
-            and info.compress_size == 0
-        ) or (
-            info.compress_size > 0
-            and entry_size / info.compress_size > resource_budget.max_archive_compression_ratio
-        )
-        if compression_limit_exceeded:
-            return FilePreviewState.with_message(
-                PREVIEW_RESOURCE_LIMIT_MESSAGE,
-                reason="resource_limit",
-            )
     return None
 
 

@@ -158,20 +158,18 @@ Automated tests use short timeouts, fake converters, excessive stdout/stderr, ZI
 metadata, and paths containing spaces. Large performance benchmarks remain manual and are not
 added to CI.
 
-### Issue #1183 built-in OOXML comparison
+### Issue #1183 built-in OOXML benchmark
 
-The manual `scripts/benchmark_ooxml_preview.py` comparison uses synthetic DOCX/XLSX/PPTX
+The manual `scripts/benchmark_ooxml_preview.py` benchmark uses synthetic DOCX/XLSX/PPTX
 packages and measures cold/warm wall time, synchronous time-to-first-useful-content, and
-Python peak allocations. On macOS with Python 3.12 and Pandoc 3.10.1, the built-in loader
-returned useful content for all three formats and was faster in both cold and warm runs:
+Python peak allocations for the built-in loader:
 
-| fixture | items | built-in cold / warm | Pandoc cold / warm |
-| --- | ---: | ---: | ---: |
-| DOCX | 1,000 | 16.29 / 14.81 ms | 413.33 / 83.98 ms |
-| XLSX | 1,000 | 19.66 / 17.07 ms | 87.75 / 91.11 ms |
-| PPTX | 1,000 | 110.58 / 107.31 ms | 768.20 / 796.79 ms |
+| fixture | items | cold / warm |
+| --- | ---: | ---: |
+| DOCX | 1,000 | 16.29 / 14.81 ms |
+| XLSX | 1,000 | 19.66 / 17.07 ms |
+| PPTX | 1,000 | 110.58 / 107.31 ms |
 
 The required text-order and representative-cell/slide/paragraph fixtures pass in
-`tests/test_ooxml_preview.py`. Pandoc is therefore removed from the default and recommended
-Office preview path; the compatibility loader remains available only for comparison and
-explicit integrations.
+`tests/test_ooxml_preview.py`. Office previews use this in-process backend and do not require
+an external document converter.

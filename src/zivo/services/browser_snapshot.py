@@ -26,7 +26,8 @@ from zivo.services.previews import (
     GrepContextWindowCacheKey,
     GrepContextWindowState,
     ImagePreviewLoader,
-    PandocDocumentPreviewLoader,
+    OfficeDocumentPreviewLoader,
+    PandocDocumentPreviewLoader,  # noqa: F401 - compatibility re-export
     PdfPreviewLoader,
     PdftotextPdfPreviewLoader,
     PreviewResourceBudget,
@@ -877,7 +878,7 @@ class LiveBrowserSnapshotLoader:
                 object.__setattr__(
                     self,
                     "document_preview_loader",
-                    PandocDocumentPreviewLoader(
+                    OfficeDocumentPreviewLoader(
                         resource_budget=self.preview_resource_budget,
                     ),
                 )

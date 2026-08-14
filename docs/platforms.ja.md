@@ -23,14 +23,14 @@ zivo 本体の起動は `uv` だけで行えますが、一部の機能は `PATH
 | --- | --- |
 | 画像プレビュー | `chafa`（`image_preview_mode = "kitty"` または `"auto"` 時、対応端末では Kitty graphics protocol を使用） |
 | PDF プレビュー | `pdftotext` / `poppler` |
-| Office プレビュー | `pandoc` |
-
-これらのプレビュー用コマンドは任意依存です。不足時はコマンド名を表示し、tracebackで終了せず、概要メタデータと利用可能な代替Actionを表示します。
+| Office プレビュー | 組み込み OOXML テキスト抽出 |
 | grep 検索 | `ripgrep` |
+
+画像、PDF、grep のツールは任意依存です。不足時はコマンド名を表示し、tracebackで終了せず、概要メタデータと利用可能な代替Actionを表示します。Office プレビューに外部コマンドは必要ありません。
 
 ### CI のテスト範囲
 
-CI の matrix では Ubuntu と macOS で `pytest` のフルスイートを実行します。ネイティブ Windows では、ファイル操作、クリップボード、アーカイブ展開・圧縮、ファイル検索・grep 検索、テキスト置換、設定を対象にしたサポート対象の回帰テスト範囲を実行します（`tests/test_adapters_file_operations.py`、`tests/test_services_clipboard_operations.py`、`tests/test_services_file_mutations.py`、`tests/test_services_archive_extract.py`、`tests/test_services_zip_compress.py`、`tests/test_services_file_search.py`、`tests/test_services_grep_search.py`、`tests/test_services_text_replace.py`、`tests/test_services_config.py`）。
+CI の matrix では Ubuntu と macOS で `pytest` のフルスイートを実行します。ネイティブ Windows では、ファイル操作、クリップボード、アーカイブ展開・圧縮、ファイル検索・grep 検索、テキスト置換、設定、OOXML プレビュー抽出を対象にしたサポート対象の回帰テスト範囲を実行します（`tests/test_adapters_file_operations.py`、`tests/test_services_clipboard_operations.py`、`tests/test_services_file_mutations.py`、`tests/test_services_archive_extract.py`、`tests/test_services_zip_compress.py`、`tests/test_services_file_search.py`、`tests/test_services_grep_search.py`、`tests/test_services_text_replace.py`、`tests/test_services_config.py`、`tests/test_ooxml_preview.py`）。
 
 Issue #1160 でフルスイートも検証しましたが、POSIX パス・改行の前提、chmod/chown のセマンティクス、OS 固有の UI タイミングにより、ネイティブ Windows で 24 件の失敗がありました。これらのテストを移植するまで、Windows の対象範囲は意図的に制限します。Windows でテストを skip する場合は、symlink 権限や権限セマンティクスなど、OS 固有の制約を理由としてテスト側に明記します。
 
@@ -38,19 +38,17 @@ Issue #1160 でフルスイートも検証しましたが、POSIX パス・改�
 
 ```bash
 # Ubuntu / Debian (X11)
-sudo apt install chafa pandoc poppler-utils ripgrep xclip
+sudo apt install chafa poppler-utils ripgrep xclip
 
 # Ubuntu / Debian (Wayland)
-sudo apt install chafa pandoc poppler-utils ripgrep wl-clipboard
+sudo apt install chafa poppler-utils ripgrep wl-clipboard
 
 # Ubuntu (WSL)
-sudo apt install chafa pandoc poppler-utils ripgrep wslu
+sudo apt install chafa poppler-utils ripgrep wslu
 
 # macOS
-brew install chafa pandoc poppler ripgrep
+brew install chafa poppler ripgrep
 ```
-
-**注**: 一部のディストリビューションでは、パッケージマネージャー経由で pandoc 3.8.3 以上が提供されない場合があります。インストールされたバージョンが 3.8.3 より古い場合は、[公式 pandoc ウェブサイト](https://pandoc.org/installing.html) から最新版を手動でインストールしてください。
 
 ### OS 別の詳細
 
@@ -60,7 +58,7 @@ Windows では、ドライブルート（`C:\` など）で `←` を押すと�
 
 依存ツールは各公式サイトからインストールしてください。
 
-- ドキュメントプレビュー: [pandoc](https://pandoc.org/)
+- ドキュメントプレビュー: 組み込み OOXML テキスト抽出（外部コマンド不要）
 - 画像プレビュー: [chafa](https://hpjansson.org/chafa/)（Kitty graphics protocol の利用には [Kitty](https://sw.kovidgoyal.net/kitty/)、[Ghostty](https://ghostty.org/)、[WezTerm](https://wezfurlong.org/wezterm/) などの対応端末が必要です）
 - PDFプレビュー (`pdftotext`): [poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
 - grep 検索: [ripgrep](https://github.com/BurntSushi/ripgrep)

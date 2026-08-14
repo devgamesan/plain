@@ -135,3 +135,4 @@ jobs:
           tests/test_services_grep_search.py
           tests/test_services_text_replace.py
           tests/test_services_config.py
+          tests/test_ooxml_preview.py

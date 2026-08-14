@@ -38,15 +38,15 @@ Config Editor に未保存の変更がある場合は、先に保存または画
 | `display` | `enable_image_preview` | `true` / `false` | `chafa` を使った画像プレビューを右ペインで表示します。既定値は `true` です。`chafa` が未導入の場合は失敗ではなく依存不足メッセージを表示します。`image_preview_mode` を `kitty` にすると、対応端末で高精細な画像表示が可能です。 |
 | `display` | `image_preview_mode` | `auto` / `kitty` / `chafa` | 画像プレビュー方式を選択します。既定値は `auto` です。`auto` では端末を自動検出し、Kitty/Ghostty 等の対応端末では Kitty graphics protocol、非対応端末では chafa Unicode 記号を使います。`kitty` は強制的に Kitty graphics protocol を使用します（対応端末必須）。`chafa` は従来の Unicode 記号出力を使用します。 |
 | `display` | `enable_pdf_preview` | `true` / `false` | `pdftotext` を使った PDF プレビューを有効にします。既定値は `true` です。無効時は設定無効であること、概要メタデータ、`Edit config` を表示します。 |
-| `display` | `enable_office_preview` | `true` / `false` | `docx` / `xlsx` / `pptx` のプレビューを `pandoc` 変換で有効にします。既定値は `true` です。無効時は設定無効であること、概要メタデータ、`Edit config` を表示します。 |
+| `display` | `enable_office_preview` | `true` / `false` | 組み込み OOXML テキスト抽出による `docx` / `xlsx` / `pptx` のプレビューを有効にします。既定値は `true` です。無効時は設定無効であること、概要メタデータ、`Edit config` を表示します。 |
 | `display` | `show_help_bar` | `true` / `false` | 画面下部のヘルプバーを表示します。既定値は `true` です。コマンドパレットが開いている場合は、この設定に関係なく常に表示されます。 |
 | `display` | `theme` | 任意の組み込み Textual テーマ（例: `textual-dark`、`textual-light`、`dracula`、`tokyo-night`） | 起動時の UI テーマです。設定エディタでは変更内容が即座にプレビューされ、`s` で保存するとこの値が永続化されます。 |
 | `display` | `preview_syntax_theme` | `auto` またはサポートされている Pygments style（例: `one-dark`、`xcode`、`nord`、`gruvbox-dark`） | 右ペインのテキストプレビューに使うシンタックスハイライト配色です。`auto` を選ぶと、現在の light/dark に応じた既定配色を使います。設定エディタで右ペインにテキストプレビューが出ている場合は、その場で即時プレビューされます。 |
 | `display` | `preview_max_kib` | `64` / `128` / `256` / `512` / `1024` | 右ペインのファイルプレビューとプレビューサンプリングで読み込む最大量です。既定値は `64` です。大きな値にするとより深くプレビューできますが、I/O コストが増加します。 |
-| `preview` | `timeout_seconds` / `image_timeout_seconds` | 0より大きい数値 | テキスト系 / 画像系 converter の最大実行時間（秒）です。既定値は `5` / `15` です。 |
-| `preview` | `stdout_max_kib` / `stderr_max_kib` | 1以上の整数 | テキスト・PDF・Office converter の stdout / stderr 保持上限（KiB）です。既定値は `256` / `16` です。 |
+| `preview` | `timeout_seconds` / `image_timeout_seconds` | 0より大きい数値 | テキスト・PDF converter、組み込み Office 抽出、画像プレビューの最大処理時間（秒）です。既定値は `5` / `15` です。 |
+| `preview` | `stdout_max_kib` / `stderr_max_kib` | 1以上の整数 | テキスト・PDF converter の stdout / stderr 保持上限（KiB）です。既定値は `256` / `16` です。 |
 | `preview` | `image_stdout_max_mib` / `kitty_stdout_max_mib` | 1以上の整数 | chafa symbols / Kitty graphics protocol の出力保持上限（MiB）です。既定値は `2` / `32` です。 |
-| `preview` | `input_max_mib` | 1以上の整数 | converter に渡す入力ファイルの上限（MiB）です。 |
+| `preview` | `input_max_mib` | 1以上の整数 | preview backend が処理する入力ファイルの上限（MiB）です。 |
 | `preview` | `max_archive_entries` / `max_archive_entry_mib` / `max_archive_total_mib` | 1以上の整数 | Office ZIP の entry 数・各entry展開量・合計展開量の上限です。 |
 | `preview` | `max_archive_compression_ratio` | 1以上の数値 | Office ZIP の圧縮率上限です。 |
 | `preview` | `timeout_cache_seconds` | 0以上の数値 | timeout結果を再利用する秒数です。`0` で再利用しません。 |

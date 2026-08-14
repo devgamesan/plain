@@ -71,7 +71,7 @@ Some features use external commands.
 | --- | --- |
 | Image preview | `chafa` |
 | PDF preview | `pdftotext` / `poppler` |
-| Office preview | `pandoc` |
+| Office preview | Built-in OOXML extractor |
 | Grep search | `ripgrep` |
 
 See [Platforms](docs/platforms.md) for OS-specific setup instructions.
@@ -175,7 +175,7 @@ Long-running Copy, Move, Compress, Extract, and Replace operations show their op
 ### Preview
 
 Empty directories and zero-result filters show their reason and an available next action. When all current entries are hidden, the current pane offers `[.] Show hidden files`. The parent pane distinguishes loading, permission denied, no parent directory, and no visible items; cached parent entries remain visible during refresh. The right pane shows loading state explicitly, enforces finite preview time/output/resource limits, labels safe partial text as `Preview limited`, and falls back to a compact summary such as type, size, modified time, permissions, owner/group, symlink target, or archive entry count when content preview is unavailable. Missing optional commands are reported without crashing the application.
-- Text, images (chafa; optional Kitty graphics protocol on compatible terminals), PDF (pdftotext), Office (pandoc)
+- Text, images (chafa; optional Kitty graphics protocol on compatible terminals), PDF (pdftotext), Office (built-in OOXML text extraction)
 
 ### Transfer mode
 - Side-by-side two-pane layout for copying or moving files between directories

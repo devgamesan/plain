@@ -142,13 +142,13 @@
 - [ ] 設定で `enable_pdf_preview = false` の場合、プレビューが無効になること
 - [ ] pdftotext がない場合、適切なメッセージが表示されること
 
-#### Office ドキュメントプレビュー（pandoc がある場合）
+#### Office ドキュメントプレビュー（組み込み OOXML 抽出）
 - [ ] .docx/.xlsx/.pptx ファイルを選択すると、右ペインにテキストプレビューが表示されること
 - [ ] 設定で `enable_office_preview = false` の場合、プレビューが無効になること
-- [ ] pandoc がない場合、適切なメッセージが表示されること
-- [ ] Pandoc 実行前に OOXML の entry 数・展開量・圧縮率上限が検査されること
-- [ ] timeout / resource limit が dependency missing や unsupported と混同されないこと
-- [ ] cursor を連続移動したとき、古い preview の converter が cancel され結果が表示されないこと
+- [ ] 空、暗号化、破損、非対応、resource limit が区別され、tracebackなしで適切な次アクションが表示されること
+- [ ] OOXML の entry 数・展開量・圧縮率・入力サイズ上限が検査されること
+- [ ] timeout / resource limit が unsupported や破損と混同されないこと
+- [ ] cursor を連続移動したとき、古い preview の抽出処理が cancel され結果が表示されないこと
 
 ### 検索機能
 
@@ -431,7 +431,7 @@
 
 ## テスト実施上の注意
 
-1. **外部ツールの確認**: 各プレビュー機能をテストする前に、対応する外部ツール（chafa、pandoc、pdftotext）がインストールされているか確認してください
+1. **外部ツールの確認**: 各プレビュー機能をテストする前に、対応する外部ツール（chafa、pdftotext）がインストールされているか確認してください。Office プレビューは外部コマンドを必要としません
 2. **設定のリセット**: テスト前に config.toml をバックアップし、テスト後は元に戻してください
 3. **テストデータ**: 各テストケースで十分な種類のファイル（テキスト、画像、PDF、Office ドキュメントなど）を用意してください
 4. **OS バージョン**: 各 OS の複数のバージョンでテストすることが望ましいです

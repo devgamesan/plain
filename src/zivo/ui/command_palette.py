@@ -77,6 +77,7 @@ class CommandPalette(Container):
     def compose(self):
         yield Static("Command Palette", id="command-palette-title")
         yield Static("", id="command-palette-query")
+        yield Static("", id="command-palette-context")
         yield _CommandPaletteItemsScroll(
             Static("", id="command-palette-items"),
             id="command-palette-items-scroll",
@@ -126,6 +127,7 @@ class CommandPalette(Container):
             self._last_cursor_index = None
         title_widget = self.query_one("#command-palette-title", Static)
         query_widget = self.query_one("#command-palette-query", Static)
+        context_widget = self.query_one("#command-palette-context", Static)
         items_widget = self.query_one("#command-palette-items", Static)
         footer_widget = self.query_one("#command-palette-footer", Static)
 
@@ -134,6 +136,8 @@ class CommandPalette(Container):
             self.remove_class("-result-list")
             title_widget.update("Command Palette")
             query_widget.update("")
+            context_widget.display = False
+            context_widget.update("")
             items_widget.update("")
             footer_widget.display = False
             footer_widget.update("")
@@ -160,6 +164,15 @@ class CommandPalette(Container):
             query_widget.update(self._render_input_fields(state.input_fields, query_width))
         else:
             query_widget.update(self._render_query_line(state, query_width))
+        context_lines = [*state.context_lines]
+        if state.category_hint:
+            context_lines.append(state.category_hint)
+        context_widget.display = bool(context_lines)
+        context_widget.update(
+            Text("\n".join(context_lines), style="dim", no_wrap=True, overflow="ellipsis")
+            if context_lines
+            else ""
+        )
         rendered_items, index_offset = self._rendered_items(state)
         items_widget.update(self._render_items(state, items_width, rendered_items, index_offset))
         footer_text = Text()

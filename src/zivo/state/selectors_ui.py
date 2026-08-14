@@ -23,7 +23,12 @@ from zivo.models import (
 from zivo.platform_support import is_split_terminal_supported
 from zivo.windows_paths import is_search_workspace_path
 
-from .command_palette import _go_direct_path, parse_go_query
+from .command_palette import (
+    _go_direct_path,
+    command_palette_category_hint,
+    command_palette_context_lines,
+    parse_go_query,
+)
 from .models import AppState
 from .reducer_config import (
     CONFIG_EDITOR_CATEGORIES,
@@ -807,8 +812,14 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
     visible_items = tuple(enumerate(items))
     title = "Command Palette"
     selected_item = items[cursor_index] if items else None
+    is_empty_query = not state.command_palette.query.strip()
+    show_context = (
+        state.command_palette.source == "commands"
+        and is_empty_query
+        and state.layout_mode != "transfer"
+    )
     rendered_line_count = len(items)
-    if not state.command_palette.query.strip():
+    if is_empty_query:
         section_count = len({item.category for item in items})
         rendered_line_count += section_count + max(0, section_count - 1)
     return CommandPaletteViewState(
@@ -827,6 +838,8 @@ def select_command_palette_state(state: AppState) -> CommandPaletteViewState | N
             for index, item in visible_items
         ),
         empty_message="No matching commands",
+        context_lines=command_palette_context_lines(state) if show_context else (),
+        category_hint=command_palette_category_hint(state) if show_context else None,
         has_more_items=rendered_line_count > visible_window,
         footer_message=(
             selected_item.disabled_reason

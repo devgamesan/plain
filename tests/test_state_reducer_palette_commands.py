@@ -105,6 +105,7 @@ def test_submit_command_palette_toggles_narrow_details_view() -> None:
         BeginCommandPalette(),
     )
     assert state.command_palette is not None
+    state = replace(state, command_palette=replace(state.command_palette, query="preview"))
     items = command_palette_module.get_command_palette_items(state)
     item_index = next(
         index for index, item in enumerate(items) if item.id == "toggle_narrow_pane_view"
@@ -119,11 +120,15 @@ def test_submit_command_palette_toggles_narrow_details_view() -> None:
 
 def test_move_command_palette_cursor_clamps_to_visible_commands() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = replace(state, command_palette=replace(state.command_palette, query="e"))
 
     next_state = _reduce_state(state, MoveCommandPaletteCursor(delta=20))
 
     assert next_state.command_palette is not None
-    assert next_state.command_palette.cursor_index == 20
+    assert next_state.command_palette.cursor_index == min(
+        20,
+        len(command_palette_module.get_command_palette_items(next_state)) - 1,
+    )
 
 def test_set_command_palette_query_resets_cursor() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
@@ -134,6 +139,54 @@ def test_set_command_palette_query_resets_cursor() -> None:
     assert next_state.command_palette is not None
     assert next_state.command_palette.query == "dir"
     assert next_state.command_palette.cursor_index == 0
+
+
+def test_contextual_enter_folder_reuses_navigation_action() -> None:
+    path = "/tmp/docs"
+    initial = build_initial_app_state()
+    state = replace(
+        initial,
+        current_pane=replace(
+            initial.current_pane,
+            entries=(DirectoryEntryState(path, "docs", "dir"),),
+            cursor_path=path,
+        ),
+    )
+    state = _reduce_state(state, BeginCommandPalette())
+    item_index = next(
+        index
+        for index, item in enumerate(command_palette_module.get_command_palette_items(state))
+        if item.id == "enter_folder"
+    )
+    state = replace(state, command_palette=replace(state.command_palette, cursor_index=item_index))
+
+    result = _reduce_state(state, SubmitCommandPalette())
+
+    assert result.command_palette is None
+    assert result.ui_mode == "BUSY"
+    assert result.pending_browser_snapshot_request_id is not None
+
+
+def test_contextual_clear_filter_reuses_filter_reducer_path() -> None:
+    initial = build_initial_app_state()
+    state = replace(
+        initial,
+        filter=replace(initial.filter, query="missing", active=True),
+        current_pane=replace(initial.current_pane, entries=(), cursor_path=None),
+    )
+    state = _reduce_state(state, BeginCommandPalette())
+    item_index = next(
+        index
+        for index, item in enumerate(command_palette_module.get_command_palette_items(state))
+        if item.id == "clear_filter"
+    )
+    state = replace(state, command_palette=replace(state.command_palette, cursor_index=item_index))
+
+    result = _reduce_state(state, SubmitCommandPalette())
+
+    assert result.command_palette is None
+    assert result.filter.query == ""
+    assert result.filter.active is False
 
 def test_submit_command_palette_runs_unified_create_flow() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
@@ -187,6 +240,7 @@ def test_custom_action_single_file_appears_in_command_palette() -> None:
         ),
     )
     state = _reduce_state(state, BeginCommandPalette())
+    state = replace(state, command_palette=replace(state.command_palette, query="optimize"))
 
     items = command_palette_module.get_command_palette_items(state)
 
@@ -663,6 +717,7 @@ def test_submit_command_palette_does_not_expose_legacy_bookmark_search() -> None
 
 def test_command_palette_exposes_one_unified_go_command() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    state = replace(state, command_palette=replace(state.command_palette, query="go"))
 
     item_ids = {item.id for item in command_palette_module.get_command_palette_items(state)}
 
@@ -672,6 +727,10 @@ def test_command_palette_exposes_one_unified_go_command() -> None:
 
 def test_unified_go_command_advertises_g_shortcut_in_browser_and_transfer() -> None:
     browser_state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
+    browser_state = replace(
+        browser_state,
+        command_palette=replace(browser_state.command_palette, query="go"),
+    )
     transfer_state = _reduce_state(
         _reduce_state(build_initial_app_state(), ToggleTransferMode()),
         BeginCommandPalette(),

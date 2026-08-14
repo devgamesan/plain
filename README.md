@@ -28,7 +28,7 @@ By default, it keeps a stable, mode-specific set of standard shortcuts visible i
 ## Highlights
 
 - **No memorization required**: relevant standard shortcuts are shown in the help bar
-- **Context-aware command palette**: press `:` to browse fixed Navigate, File, Search, View, System, and Custom actions sections
+- **Context-aware command palette**: press `:` to see up to five target-aware suggestions, then search Navigate, File, Search, View, System, and Custom actions by name or category
 - **Three-pane preview**: preview directories, text, images, PDF, and Office files
 - **Responsive panes**: 120+ columns show Parent / Current / Contents, 80–119 show Current / Contents, and narrower terminals use `Tab` to switch between the current file list and Details
 - **Explicit pane states**: distinguish empty, filtered, loading, disabled, unsupported, dependency-missing, permission-denied, timeout, and resource-limit states; safe partial text is labeled `Preview limited`, while unavailable previews fall back to compact file metadata
@@ -143,7 +143,7 @@ See [Keybindings](docs/keybindings.md) for the full list.
 
 ## Command palette
 
-Press `:` to search and run available actions. With an empty query, the palette shows fixed Navigate, File, Search, View, System, and Custom actions sections. The full list is scrollable with the mouse wheel; `↑` / `↓` and `Ctrl+j` / `Ctrl+k` keep the selected row visible.
+Press `:` to search and run available actions. With an empty query, the palette explains the effective target (selection, focus, or current folder) and shows up to five executable `Suggested` actions. Category names remain visible as a search guide; type a query to search the complete command set. The selected row remains keyboard- and mouse-accessible, while `↑` / `↓` and `Ctrl+j` / `Ctrl+k` keep it visible.
 
 Search accepts common aliases and keywords such as `duplicate` or `clone` for Duplicate, `trash` for Move to trash, `grep` or `search contents` for Grep search, and `shell` for opening a terminal. Duplicate copies the selected targets (or the focused target) beside the originals, automatically choosing a non-conflicting `copy`, `copy 2`, and so on name. Results are ranked deterministically. Commands that do not apply remain searchable but are dimmed with a concrete reason; pressing Enter on one shows the same reason as a warning. Registered custom actions are always listed, while actions that do not satisfy their configured context conditions are disabled with a reason; they are also searchable by name.
 

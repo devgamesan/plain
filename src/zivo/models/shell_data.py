@@ -333,6 +333,8 @@ class CommandPaletteViewState:
     query: str
     items: tuple[CommandPaletteItemViewState, ...]
     empty_message: str
+    context_lines: tuple[str, ...] = ()
+    category_hint: str | None = None
     input_fields: tuple[CommandPaletteInputFieldViewState, ...] = ()
     has_more_items: bool = False
     footer_message: str | None = None

@@ -3565,7 +3565,7 @@ async def test_app_colon_shows_command_palette() -> None:
         assert app.app_state.notification == notification
         assert "Suggested" in str(items.renderable)
         assert "Details" in str(items.renderable)
-        assert "Go back" in str(items.renderable)
+        assert "Enter folder" in str(items.renderable)
 
 
 @pytest.mark.asyncio
@@ -3597,8 +3597,8 @@ async def test_app_command_palette_overlay_stays_top_aligned_without_resizing_ma
         palette_layer = app.query_one("#command-palette-layer")
 
         assert palette.region.y == palette_layer.region.y
-        assert palette.region.bottom == palette_layer.region.bottom
-        assert "-expanded" in palette.classes
+        assert palette.region.bottom <= palette_layer.region.bottom
+        assert "-expanded" not in palette.classes
         assert current_pane.region.width == main_pane_width
 
 

@@ -2,6 +2,8 @@
 
 OS support status and dependency installation instructions for zivo.
 
+> Audience: new users setting up zivo and checking optional tools on their OS.
+
 ---
 
 ## Supported OS
@@ -78,7 +80,7 @@ Open **System Settings > Privacy & Security > Full Disk Access** and enable the 
 
 ## Shell command syntax
 
-Run command (`!`) uses the current shell environment on macOS, Linux, and WSL (falling back to `/bin/bash`). On Windows it prefers `powershell.exe`, then `pwsh`, then `cmd.exe`; write syntax for the selected shell rather than POSIX `sh`. Run command is for short non-interactive work. Use foreground shell (`t`) for prompts or TUI applications, and an external terminal (`T`) for independent or longer-running work.
+Run command (`!`) uses the current shell environment on macOS, Linux, and WSL (falling back to `/bin/bash`). On Windows it prefers `powershell.exe`, then `pwsh`, then `cmd.exe`; write syntax for the selected shell rather than POSIX `sh`. Run command is for short non-interactive work. Use foreground shell (`t`) for prompts or TUI applications, and choose `Open current directory with terminal` from the command palette for independent or longer-running work.
 
 ---
 

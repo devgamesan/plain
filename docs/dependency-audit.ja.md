@@ -2,6 +2,8 @@
 
 CI で実施する依存関係監査と GitHub Actions のサプライチェーン対策を説明します。
 
+> 想定読者: 依存関係更新、CI変更、監査結果を確認するメンテナー。
+
 ## CI での確認内容
 
 `dependency-audit` ジョブは、Python CI workflow の対象となるすべての PR と push について、Ubuntu 上で一度だけ実行されます。

@@ -2,6 +2,8 @@
 
 zivo の OS サポート状況と、各 OS で必要になる依存関係・セットアップ手順を説明します。
 
+> 想定読者: zivo を初めてセットアップし、OS 別の任意ツールを確認する利用者。
+
 ---
 
 ## サポート状況
@@ -78,7 +80,7 @@ macOS では、使用しているターミナルアプリに **フルディス�
 
 ## シェルコマンドの構文
 
-Run command（`!`）は macOS・Linux・WSL では現在の shell 環境を使い、未設定時は `/bin/bash` にフォールバックします。Windows では `powershell.exe`、`pwsh`、`cmd.exe` の順に優先するため、POSIX `sh` ではなく選ばれた shell の構文で入力してください。Run command は短い非対話作業向けです。プロンプトや TUI アプリには foreground shell（`t`）、独立した長時間作業には外部ターミナル（`T`）を使います。
+Run command（`!`）は macOS・Linux・WSL では現在の shell 環境を使い、未設定時は `/bin/bash` にフォールバックします。Windows では `powershell.exe`、`pwsh`、`cmd.exe` の順に優先するため、POSIX `sh` ではなく選ばれた shell の構文で入力してください。Run command は短い非対話作業向けです。プロンプトや TUI アプリには foreground shell（`t`）、独立した長時間作業にはコマンドパレットの `Open current directory with terminal` を使います。
 
 ---
 

@@ -2,6 +2,8 @@
 
 カスタムアクションは、`config.toml` からコマンドパレット項目を追加する仕組みです。formatter、checker、画像最適化、archive 作成、`lazygit` のような terminal app への接続に使えます。
 
+> 想定読者: プロジェクトやターミナルの定型コマンドをパレットへ追加したい利用者。
+
 ## 設定
 
 `config.toml` に `[[actions.custom]]` テーブルを追加します。

@@ -1,6 +1,42 @@
-# ruff: noqa: F403,F405
+from dataclasses import replace
 
-from .input_dispatch_helpers import *
+from tests.support.input_dispatch import (
+    AdvancePermanentDeleteConfirmation,
+    CancelDeleteConfirmation,
+    CancelFilterInput,
+    CancelForegroundOperation,
+    CancelPasteConflict,
+    CancelPendingInput,
+    CancelZipCompressConfirmation,
+    ConfigEditorState,
+    ConfirmDeleteTargets,
+    ConfirmFilterInput,
+    ConfirmZipCompress,
+    CreateZipArchiveRequest,
+    CycleConfigEditorValue,
+    DeleteConfirmationState,
+    DismissAttributeDialog,
+    DismissConfigEditor,
+    DismissNameConflict,
+    ForegroundOperationState,
+    MoveConfigEditorCursor,
+    MovePendingInputCursor,
+    NameConflictState,
+    NotificationState,
+    OpenPathInEditor,
+    PendingInputState,
+    ResolvePasteConflict,
+    SaveConfigEditor,
+    SetFilterQuery,
+    SetNotification,
+    SetPendingInputValue,
+    SubmitPendingInput,
+    TogglePendingInputRecursive,
+    ZipCompressConfirmationState,
+    build_initial_app_state,
+    dispatch_key_input,
+)
+from tests.support.paths import TEST_PROJECT_ROOT
 
 
 def test_filter_q_updates_query_instead_of_exiting() -> None:
@@ -21,7 +57,7 @@ def test_chmod_tab_toggles_recursive_execution() -> None:
         ui_mode="CHMOD",
         pending_input=PendingInputState(
             prompt="Permissions: ",
-            chmod_target_paths=("/home/tadashi/develop/zivo/docs",),
+            chmod_target_paths=(TEST_PROJECT_ROOT + '/docs',),
         ),
     )
 
@@ -295,8 +331,8 @@ def test_delete_confirm_enter_dispatches_confirmation() -> None:
         ui_mode="CONFIRM",
         delete_confirmation=DeleteConfirmationState(
             paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
             )
         ),
     )
@@ -311,7 +347,7 @@ def test_delete_confirm_escape_cancels_confirmation() -> None:
         build_initial_app_state(),
         ui_mode="CONFIRM",
         delete_confirmation=DeleteConfirmationState(
-            paths=("/home/tadashi/develop/zivo/docs",),
+            paths=(TEST_PROJECT_ROOT + '/docs',),
         ),
     )
 
@@ -325,7 +361,7 @@ def test_risky_permanent_delete_enter_arms_additional_confirmation() -> None:
         build_initial_app_state(),
         ui_mode="CONFIRM",
         delete_confirmation=DeleteConfirmationState(
-            paths=("/home/tadashi/develop/zivo/docs",),
+            paths=(TEST_PROJECT_ROOT + '/docs',),
             mode="permanent",
             contains_directory=True,
         ),
@@ -341,7 +377,7 @@ def test_armed_permanent_delete_requires_uppercase_d() -> None:
         build_initial_app_state(),
         ui_mode="CONFIRM",
         delete_confirmation=DeleteConfirmationState(
-            paths=("/home/tadashi/develop/zivo/docs",),
+            paths=(TEST_PROJECT_ROOT + '/docs',),
             mode="permanent",
             contains_directory=True,
             additional_confirmation_armed=True,
@@ -364,9 +400,9 @@ def test_zip_compress_confirm_enter_dispatches_confirmation() -> None:
         ui_mode="CONFIRM",
         zip_compress_confirmation=ZipCompressConfirmationState(
             request=CreateZipArchiveRequest(
-                source_paths=("/home/tadashi/develop/zivo/docs",),
-                destination_path="/home/tadashi/develop/zivo/docs.zip",
-                root_dir="/home/tadashi/develop/zivo",
+                source_paths=(TEST_PROJECT_ROOT + '/docs',),
+                destination_path=TEST_PROJECT_ROOT + '/docs.zip',
+                root_dir=TEST_PROJECT_ROOT,
             ),
             total_entries=3,
         ),
@@ -383,9 +419,9 @@ def test_zip_compress_confirm_escape_cancels_confirmation() -> None:
         ui_mode="CONFIRM",
         zip_compress_confirmation=ZipCompressConfirmationState(
             request=CreateZipArchiveRequest(
-                source_paths=("/home/tadashi/develop/zivo/docs",),
-                destination_path="/home/tadashi/develop/zivo/docs.zip",
-                root_dir="/home/tadashi/develop/zivo",
+                source_paths=(TEST_PROJECT_ROOT + '/docs',),
+                destination_path=TEST_PROJECT_ROOT + '/docs.zip',
+                root_dir=TEST_PROJECT_ROOT,
             ),
             total_entries=3,
         ),
@@ -431,7 +467,7 @@ def test_zip_enter_dispatches_submit_pending_input() -> None:
         pending_input=PendingInputState(
             prompt="Compress to: ",
             value="/tmp/output.zip",
-            zip_source_paths=("/home/tadashi/develop/zivo/docs",),
+            zip_source_paths=(TEST_PROJECT_ROOT + '/docs',),
         ),
     )
 
@@ -448,7 +484,7 @@ def test_zip_printable_character_dispatches_input_update() -> None:
             prompt="Compress to: ",
             value="/tmp/output",
             cursor_pos=11,
-            zip_source_paths=("/home/tadashi/develop/zivo/docs",),
+            zip_source_paths=(TEST_PROJECT_ROOT + '/docs',),
         ),
     )
 

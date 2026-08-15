@@ -1,6 +1,6 @@
 from dataclasses import replace
 
-from tests.state_test_helpers import reduce_state
+from tests.support.state import reduce_state
 from zivo.state import (
     CommandPaletteState,
     ReplacePreviewPaletteState,

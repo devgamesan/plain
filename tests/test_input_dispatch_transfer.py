@@ -1,4 +1,5 @@
-from tests.test_state_reducer import _reduce_state
+from tests.support.paths import TEST_PROJECT_ROOT
+from tests.support.state import reduce_state as _reduce_state
 from zivo.state import build_initial_app_state, dispatch_key_input
 from zivo.state.actions import (
     ActivateTabByIndex,
@@ -236,7 +237,7 @@ def test_transfer_mode_uppercase_d_permanently_deletes_targets() -> None:
     result = dispatch_key_input(state, key="D")
 
     assert result[1] == BeginDeleteTargets(
-        ("/home/tadashi/develop/zivo/docs",),
+        (TEST_PROJECT_ROOT + '/docs',),
         mode="permanent",
     )
 

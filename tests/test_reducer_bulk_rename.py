@@ -1,7 +1,7 @@
 from dataclasses import replace
 from pathlib import Path
 
-from tests.state_test_helpers import entry, pane, reduce_state
+from tests.support.state import entry, pane, reduce_state
 from zivo.models import BulkRenameTarget
 from zivo.services import LiveBulkRenameService
 from zivo.state import build_initial_app_state, dispatch_key_input, reduce_app_state

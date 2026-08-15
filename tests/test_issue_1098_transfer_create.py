@@ -6,7 +6,7 @@ shortcut="n" に是正する。
 """
 
 import zivo.state.command_palette as command_palette_module
-from tests.test_state_reducer import _reduce_state
+from tests.support.state import reduce_state as _reduce_state
 from zivo.state import build_initial_app_state, dispatch_key_input
 from zivo.state.actions import (
     BeginCommandPalette,

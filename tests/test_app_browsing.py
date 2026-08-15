@@ -54,6 +54,7 @@ from tests.support.app import (
     _wait_for_help_bar_text,
     _wait_for_notification_message,
     _wait_for_path,
+    _wait_for_predicate,
     _wait_for_row_count,
     _wait_for_snapshot_loaded,
     _wait_for_status_bar,
@@ -611,12 +612,18 @@ async def test_app_browsing_preview_scrolls_with_brackets() -> None:
         initial_scroll_y = child_preview_scroll.scroll_y
 
         await app.action_dispatch_bound_key("ctrl+k")
-        await asyncio.sleep(0.05)
+        await _wait_for_predicate(
+            lambda: child_preview_scroll.scroll_y > initial_scroll_y,
+            message="preview did not scroll down",
+        )
         assert child_preview_scroll.scroll_y > initial_scroll_y
 
         scrolled_down_y = child_preview_scroll.scroll_y
         await app.action_dispatch_bound_key("ctrl+j")
-        await asyncio.sleep(0.05)
+        await _wait_for_predicate(
+            lambda: child_preview_scroll.scroll_y < scrolled_down_y,
+            message="preview did not scroll up",
+        )
         assert child_preview_scroll.scroll_y < scrolled_down_y
 
 @pytest.mark.asyncio

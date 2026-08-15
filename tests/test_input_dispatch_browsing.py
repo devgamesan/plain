@@ -1,7 +1,59 @@
-# ruff: noqa: F403,F405
+from dataclasses import replace
 
-from .input_dispatch_helpers import *
-from .state_test_helpers import entry, pane, reduce_state
+from tests.support.input_dispatch import (
+    ActivateTabByIndex,
+    BeginBookmarkSearch,
+    BeginBulkRename,
+    BeginCommandPalette,
+    BeginCreateInput,
+    BeginDeleteTargets,
+    BeginExitCurrentPath,
+    BeginFileSearch,
+    BeginFilterInput,
+    BeginGo,
+    BeginGrepSearch,
+    BeginRenameInput,
+    CancelFilterInput,
+    ClearPendingKeySequence,
+    ClearSelection,
+    CloseCurrentTab,
+    CommandPaletteState,
+    CopyTargets,
+    CutTargets,
+    CycleGrepSearchField,
+    EnterCursorDirectory,
+    GoBack,
+    GoForward,
+    GoToHomeDirectory,
+    GoToParentDirectory,
+    GrepSearchPaletteState,
+    MoveCommandPaletteCursor,
+    MoveCursor,
+    MoveCursorAndSelectRange,
+    NotificationAction,
+    NotificationState,
+    OpenNewTab,
+    OpenPathInEditor,
+    OpenPathWithDefaultApp,
+    PasteClipboard,
+    PendingKeySequenceState,
+    SelectAllVisibleEntries,
+    SetCommandPaletteQuery,
+    SetGrepSearchField,
+    SetNotification,
+    SetPendingKeySequence,
+    SetSort,
+    ToggleHiddenFiles,
+    ToggleNarrowPaneView,
+    ToggleSelectionAndAdvance,
+    ToggleTransferMode,
+    UndoLastOperation,
+    build_initial_app_state,
+    dispatch_key_input,
+    input_module,
+    iter_bound_keys,
+)
+from tests.support.state import entry, pane, reduce_state
 
 SEARCH_WORKSPACE_PATH = (
     "search://readme?target=files&hidden=false&root=%2Fhome%2Ftadashi%2Fdevelop%2Fzivo"

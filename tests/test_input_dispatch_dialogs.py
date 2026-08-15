@@ -1,6 +1,41 @@
-# ruff: noqa: F403,F405
+from dataclasses import replace
 
-from .input_dispatch_helpers import *
+from tests.support.input_dispatch import (
+    AdvancePermanentDeleteConfirmation,
+    CancelDeleteConfirmation,
+    CancelFilterInput,
+    CancelForegroundOperation,
+    CancelPasteConflict,
+    CancelPendingInput,
+    CancelZipCompressConfirmation,
+    ConfigEditorState,
+    ConfirmDeleteTargets,
+    ConfirmFilterInput,
+    ConfirmZipCompress,
+    CreateZipArchiveRequest,
+    CycleConfigEditorValue,
+    DeleteConfirmationState,
+    DismissAttributeDialog,
+    DismissConfigEditor,
+    DismissNameConflict,
+    ForegroundOperationState,
+    MoveConfigEditorCursor,
+    MovePendingInputCursor,
+    NameConflictState,
+    NotificationState,
+    OpenPathInEditor,
+    PendingInputState,
+    ResolvePasteConflict,
+    SaveConfigEditor,
+    SetFilterQuery,
+    SetNotification,
+    SetPendingInputValue,
+    SubmitPendingInput,
+    TogglePendingInputRecursive,
+    ZipCompressConfirmationState,
+    build_initial_app_state,
+    dispatch_key_input,
+)
 
 
 def test_filter_q_updates_query_instead_of_exiting() -> None:

@@ -1,14 +1,40 @@
-# ruff: noqa: F403,F405
+from dataclasses import replace
 
 import pytest
 
+from tests.support.input_dispatch import (
+    BeginReplaceFromSearchResults,
+    CancelCommandPalette,
+    CommandPaletteState,
+    CycleFileSearchField,
+    CycleFindReplaceField,
+    CycleGrepSearchField,
+    FileSearchPaletteState,
+    GrepSearchPaletteState,
+    GrepSearchResultState,
+    MoveCommandPaletteCursor,
+    NotificationState,
+    OpenFindResultInEditor,
+    OpenFindResultInGuiEditor,
+    OpenGrepResultInEditor,
+    OpenGrepResultInGuiEditor,
+    ReplacePreviewPaletteState,
+    RffPaletteState,
+    SaveGrepResults,
+    SetCommandPaletteQuery,
+    SetFileSearchField,
+    SetFindReplaceField,
+    SetNotification,
+    SetReplaceField,
+    SubmitCommandPalette,
+    build_initial_app_state,
+    dispatch_key_input,
+)
 from zivo.state.actions import (
     CycleGrepReplaceField,
     CycleGrepReplaceSelectedField,
     CycleReplaceField,
 )
-
-from .input_dispatch_helpers import *
 
 
 def test_palette_enter_submits_selected_command() -> None:

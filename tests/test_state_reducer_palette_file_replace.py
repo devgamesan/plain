@@ -1,5 +1,5 @@
 """Test State Reducer Palette File Replace tests."""
-
+from tests.support.paths import TEST_PROJECT_ROOT
 from tests.support.reducer_palette_replace import (
     BeginCommandPalette,
     BeginFindAndReplace,
@@ -46,14 +46,14 @@ from tests.support.reducer_palette_replace import (
 def test_begin_text_replace_enters_replace_mode() -> None:
     state = _reduce_state(
         build_initial_app_state(),
-        BeginTextReplace(target_paths=("/home/tadashi/develop/zivo/README.md",)),
+        BeginTextReplace(target_paths=(TEST_PROJECT_ROOT + '/README.md',)),
     )
 
     assert state.ui_mode == "PALETTE"
     assert state.command_palette is not None
     assert state.command_palette.source == "replace_text"
     assert state.command_palette.replace_preview.target_paths == (
-        "/home/tadashi/develop/zivo/README.md",
+        TEST_PROJECT_ROOT + '/README.md',
     )
 
 def test_begin_replace_from_find_results_uses_search_results_scope() -> None:
@@ -86,11 +86,11 @@ def test_begin_replace_from_find_results_uses_search_results_scope() -> None:
     assert preview.result_file_count == 1
 
 def test_begin_text_replace_prefers_selected_files_scope() -> None:
-    path = "/home/tadashi/develop/zivo/README.md"
+    path = TEST_PROJECT_ROOT + '/README.md'
     state = replace(
         build_initial_app_state(),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(DirectoryEntryState(path, "README.md", "file"),),
             cursor_path=path,
             selected_paths=frozenset({path}),
@@ -126,7 +126,7 @@ def test_replace_scope_can_change_with_left_or_right_navigation() -> None:
 def test_set_replace_field_starts_preview_effect() -> None:
     state = _reduce_state(
         build_initial_app_state(),
-        BeginTextReplace(target_paths=("/home/tadashi/develop/zivo/README.md",)),
+        BeginTextReplace(target_paths=(TEST_PROJECT_ROOT + '/README.md',)),
     )
 
     result = reduce_app_state(state, SetReplaceField(field="find", value="todo"))
@@ -137,7 +137,7 @@ def test_set_replace_field_starts_preview_effect() -> None:
         RunTextReplacePreviewEffect(
             request_id=1,
             request=TextReplaceRequest(
-                paths=("/home/tadashi/develop/zivo/README.md",),
+                paths=(TEST_PROJECT_ROOT + '/README.md',),
                 find_text="todo",
                 replace_text="",
             ),
@@ -147,7 +147,7 @@ def test_set_replace_field_starts_preview_effect() -> None:
 def test_cycle_replace_field_switches_active_input() -> None:
     state = _reduce_state(
         build_initial_app_state(),
-        BeginTextReplace(target_paths=("/home/tadashi/develop/zivo/README.md",)),
+        BeginTextReplace(target_paths=(TEST_PROJECT_ROOT + '/README.md',)),
     )
 
     next_state = _reduce_state(state, CycleReplaceField(delta=1))
@@ -158,7 +158,7 @@ def test_cycle_replace_field_switches_active_input() -> None:
 def test_text_replace_preview_completed_updates_palette_results() -> None:
     state = _reduce_state(
         build_initial_app_state(),
-        BeginTextReplace(target_paths=("/home/tadashi/develop/zivo/README.md",)),
+        BeginTextReplace(target_paths=(TEST_PROJECT_ROOT + '/README.md',)),
     )
     state = replace(
         state,
@@ -178,13 +178,13 @@ def test_text_replace_preview_completed_updates_palette_results() -> None:
             request_id=4,
             result=TextReplacePreviewResult(
                 request=TextReplaceRequest(
-                    paths=("/home/tadashi/develop/zivo/README.md",),
+                    paths=(TEST_PROJECT_ROOT + '/README.md',),
                     find_text="todo",
                     replace_text="done",
                 ),
                 changed_entries=(
                     TextReplacePreviewEntry(
-                        path="/home/tadashi/develop/zivo/README.md",
+                        path=TEST_PROJECT_ROOT + '/README.md',
                         diff_text="--- before\n+++ after\n@@\n-todo item\n+done item\n",
                         match_count=2,
                         first_match_line_number=12,
@@ -208,7 +208,7 @@ def test_text_replace_preview_completed_updates_palette_results() -> None:
     assert next_state.child_pane.preview_content == (
         "--- before\n+++ after\n@@\n-todo item\n+done item\n"
     )
-    assert next_state.child_pane.preview_path == "/home/tadashi/develop/zivo/README.md"
+    assert next_state.child_pane.preview_path == TEST_PROJECT_ROOT + '/README.md'
     assert next_state.pending_replace_preview_request_id is None
 
 def test_move_palette_cursor_updates_replace_preview_diff() -> None:
@@ -216,8 +216,8 @@ def test_move_palette_cursor_updates_replace_preview_diff() -> None:
         build_initial_app_state(),
         BeginTextReplace(
             target_paths=(
-                "/home/tadashi/develop/zivo/README.md",
-                "/home/tadashi/develop/zivo/docs/notes.md",
+                TEST_PROJECT_ROOT + '/README.md',
+                TEST_PROJECT_ROOT + '/docs/notes.md',
             )
         ),
     )
@@ -228,7 +228,7 @@ def test_move_palette_cursor_updates_replace_preview_diff() -> None:
             replace_preview=ReplacePreviewPaletteState(
                 preview_results=(
                 ReplacePreviewResultState(
-                    path="/home/tadashi/develop/zivo/README.md",
+                    path=TEST_PROJECT_ROOT + '/README.md',
                     display_path="README.md",
                     diff_text="--- README\n+++ README\n@@\n-todo\n+done\n",
                     match_count=1,
@@ -237,7 +237,7 @@ def test_move_palette_cursor_updates_replace_preview_diff() -> None:
                     first_match_after="done",
                 ),
                 ReplacePreviewResultState(
-                    path="/home/tadashi/develop/zivo/docs/notes.md",
+                    path=TEST_PROJECT_ROOT + '/docs/notes.md',
                     display_path="docs/notes.md",
                     diff_text="--- notes\n+++ notes\n@@\n-todo\n+done\n",
                     match_count=1,
@@ -253,7 +253,7 @@ def test_move_palette_cursor_updates_replace_preview_diff() -> None:
             directory_path=state.current_path,
             entries=(),
             mode="preview",
-            preview_path="/home/tadashi/develop/zivo/README.md",
+            preview_path=TEST_PROJECT_ROOT + '/README.md',
             preview_title="Replace Preview",
             preview_content="--- README\n+++ README\n@@\n-todo\n+done\n",
         ),
@@ -263,7 +263,7 @@ def test_move_palette_cursor_updates_replace_preview_diff() -> None:
 
     assert result.state.command_palette is not None
     assert result.state.command_palette.cursor_index == 1
-    assert result.state.child_pane.preview_path == "/home/tadashi/develop/zivo/docs/notes.md"
+    assert result.state.child_pane.preview_path == TEST_PROJECT_ROOT + '/docs/notes.md'
     assert result.state.child_pane.preview_content == (
         "--- notes\n+++ notes\n@@\n-todo\n+done\n"
     )
@@ -271,7 +271,7 @@ def test_move_palette_cursor_updates_replace_preview_diff() -> None:
 def test_text_replace_preview_failed_sets_inline_error_for_invalid_regex() -> None:
     state = _reduce_state(
         build_initial_app_state(),
-        BeginTextReplace(target_paths=("/home/tadashi/develop/zivo/README.md",)),
+        BeginTextReplace(target_paths=(TEST_PROJECT_ROOT + '/README.md',)),
     )
     state = replace(state, pending_replace_preview_request_id=4)
 
@@ -291,7 +291,7 @@ def test_text_replace_preview_failed_sets_inline_error_for_invalid_regex() -> No
 def test_submit_command_palette_applies_replace_when_preview_exists() -> None:
     state = _reduce_state(
         build_initial_app_state(),
-        BeginTextReplace(target_paths=("/home/tadashi/develop/zivo/README.md",)),
+        BeginTextReplace(target_paths=(TEST_PROJECT_ROOT + '/README.md',)),
     )
     state = replace(
         state,
@@ -305,7 +305,7 @@ def test_submit_command_palette_applies_replace_when_preview_exists() -> None:
                 total_match_count=2,
                 preview_results=(
                 ReplacePreviewResultState(
-                    path="/home/tadashi/develop/zivo/README.md",
+                    path=TEST_PROJECT_ROOT + '/README.md',
                     display_path="README.md",
                     diff_text="--- before\n+++ after\n@@\n-todo item\n+done item\n",
                     match_count=2,
@@ -339,10 +339,10 @@ def test_text_replace_applied_refreshes_current_directory() -> None:
     state = replace(
         build_initial_app_state(),
         pending_replace_apply_request_id=6,
-        current_path="/home/tadashi/develop/zivo",
+        current_path=TEST_PROJECT_ROOT,
         current_pane=replace(
             build_initial_app_state().current_pane,
-            cursor_path="/home/tadashi/develop/zivo/README.md",
+            cursor_path=TEST_PROJECT_ROOT + '/README.md',
         ),
     )
 
@@ -352,11 +352,11 @@ def test_text_replace_applied_refreshes_current_directory() -> None:
             request_id=6,
             result=TextReplaceResult(
                 request=TextReplaceRequest(
-                    paths=("/home/tadashi/develop/zivo/README.md",),
+                    paths=(TEST_PROJECT_ROOT + '/README.md',),
                     find_text="todo",
                     replace_text="done",
                 ),
-                changed_paths=("/home/tadashi/develop/zivo/README.md",),
+                changed_paths=(TEST_PROJECT_ROOT + '/README.md',),
                 total_match_count=3,
                 message="Replaced 3 match(es) in 1 file(s)",
             ),
@@ -371,11 +371,11 @@ def test_text_replace_applied_refreshes_current_directory() -> None:
     assert result.effects == (
         LoadCurrentPaneEffect(
             request_id=1,
-            path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/README.md",
+            path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/README.md',
             invalidate_paths=browser_snapshot_invalidation_paths(
-                "/home/tadashi/develop/zivo",
-                "/home/tadashi/develop/zivo/README.md",
+                TEST_PROJECT_ROOT,
+                TEST_PROJECT_ROOT + '/README.md',
             ),
         ),
     )
@@ -405,7 +405,7 @@ def test_run_replace_text_command_uses_cursor_file_when_nothing_is_selected() ->
         current_pane=replace(
             state.current_pane,
             selected_paths=frozenset(),
-            cursor_path="/home/tadashi/develop/zivo/README.md",
+            cursor_path=TEST_PROJECT_ROOT + '/README.md',
         ),
     )
 
@@ -414,7 +414,7 @@ def test_run_replace_text_command_uses_cursor_file_when_nothing_is_selected() ->
     assert result.state.command_palette is not None
     assert result.state.command_palette.source == "replace_text"
     assert result.state.command_palette.replace_preview.target_paths == (
-        "/home/tadashi/develop/zivo/README.md",
+        TEST_PROJECT_ROOT + '/README.md',
     )
 
 def test_begin_find_and_replace_enters_rff_mode() -> None:
@@ -436,7 +436,7 @@ def test_set_rff_filename_field_starts_file_search() -> None:
     assert result.effects == (
         RunFileSearchEffect(
             request_id=1,
-            root_path="/home/tadashi/develop/zivo",
+            root_path=TEST_PROJECT_ROOT,
             query="readme",
             show_hidden=False,
         ),
@@ -465,7 +465,7 @@ def test_set_rff_find_field_with_file_results_starts_preview() -> None:
                 filename_query="readme",
                 file_results=(
                     FileSearchResultState(
-                        path="/home/tadashi/develop/zivo/README.md",
+                        path=TEST_PROJECT_ROOT + '/README.md',
                         display_path="README.md",
                     ),
                 ),
@@ -482,7 +482,7 @@ def test_set_rff_find_field_with_file_results_starts_preview() -> None:
         RunTextReplacePreviewEffect(
             request_id=1,
             request=TextReplaceRequest(
-                paths=("/home/tadashi/develop/zivo/README.md",),
+                paths=(TEST_PROJECT_ROOT + '/README.md',),
                 find_text="todo",
                 replace_text="",
             ),
@@ -544,7 +544,7 @@ def test_rff_file_search_completed_stores_results() -> None:
             query="readme",
             results=(
                 FileSearchResultState(
-                    path="/home/tadashi/develop/zivo/README.md",
+                    path=TEST_PROJECT_ROOT + '/README.md',
                     display_path="README.md",
                 ),
             ),
@@ -554,7 +554,7 @@ def test_rff_file_search_completed_stores_results() -> None:
     assert next_state.command_palette is not None
     assert next_state.command_palette.rff.file_results == (
         FileSearchResultState(
-            path="/home/tadashi/develop/zivo/README.md",
+            path=TEST_PROJECT_ROOT + '/README.md',
             display_path="README.md",
         ),
     )
@@ -582,7 +582,7 @@ def test_rff_file_search_completed_auto_triggers_preview_when_find_text_present(
             query="readme",
             results=(
                 FileSearchResultState(
-                    path="/home/tadashi/develop/zivo/README.md",
+                    path=TEST_PROJECT_ROOT + '/README.md',
                     display_path="README.md",
                 ),
             ),
@@ -606,7 +606,7 @@ def test_rff_preview_completed_stores_results() -> None:
                 replacement_text="done",
                 file_results=(
                     FileSearchResultState(
-                        path="/home/tadashi/develop/zivo/README.md",
+                        path=TEST_PROJECT_ROOT + '/README.md',
                         display_path="README.md",
                     ),
                 ),
@@ -620,13 +620,13 @@ def test_rff_preview_completed_stores_results() -> None:
             request_id=4,
             result=TextReplacePreviewResult(
                 request=TextReplaceRequest(
-                    paths=("/home/tadashi/develop/zivo/README.md",),
+                    paths=(TEST_PROJECT_ROOT + '/README.md',),
                     find_text="todo",
                     replace_text="done",
                 ),
                 changed_entries=(
                     TextReplacePreviewEntry(
-                        path="/home/tadashi/develop/zivo/README.md",
+                        path=TEST_PROJECT_ROOT + '/README.md',
                         diff_text="-todo\n+done",
                         match_count=1,
                         first_match_line_number=5,
@@ -668,7 +668,7 @@ def test_submit_rff_palette_warns_when_no_preview_results() -> None:
                 find_text="todo",
                 file_results=(
                     FileSearchResultState(
-                        path="/home/tadashi/develop/zivo/README.md",
+                        path=TEST_PROJECT_ROOT + '/README.md',
                         display_path="README.md",
                     ),
                 ),

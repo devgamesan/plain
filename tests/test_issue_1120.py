@@ -1,5 +1,6 @@
 from dataclasses import replace
 
+from tests.support.paths import TEST_PROJECT_ROOT
 from zivo.models import UndoDeletePathStep, UndoEntry
 from zivo.services import PREVIEW_PERMISSION_DENIED_MESSAGE, LiveBrowserSnapshotLoader
 from zivo.state import (
@@ -72,11 +73,11 @@ def test_parent_pane_keeps_cached_entries_visible_while_loading() -> None:
 
 
 def test_no_visible_items_offers_existing_hidden_file_action() -> None:
-    path = "/home/tadashi/develop/zivo/.hidden"
+    path = TEST_PROJECT_ROOT + '/.hidden'
     state = replace(
         build_initial_app_state(),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(DirectoryEntryState(path, ".hidden", "file", hidden=True),),
         ),
         show_hidden=False,

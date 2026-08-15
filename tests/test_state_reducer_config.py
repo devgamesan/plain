@@ -1,5 +1,5 @@
 """Test State Reducer Config tests."""
-
+from tests.support.paths import TEST_HOME, TEST_PROJECT_ROOT
 from tests.support.reducer import (
     AddBookmark,
     AppConfig,
@@ -308,7 +308,7 @@ def test_save_config_editor_emits_config_save_effect() -> None:
 def test_add_bookmark_emits_config_save_effect() -> None:
     state = build_initial_app_state(config_path="/tmp/zivo/config.toml")
 
-    result = reduce_app_state(state, AddBookmark(path="/home/tadashi/develop/zivo"))
+    result = reduce_app_state(state, AddBookmark(path=TEST_PROJECT_ROOT))
 
     assert result.state.pending_config_save_request_id == 1
     assert result.effects == (
@@ -316,17 +316,17 @@ def test_add_bookmark_emits_config_save_effect() -> None:
             request_id=1,
             path="/tmp/zivo/config.toml",
             config=AppConfig(
-                bookmarks=BookmarkConfig(paths=("/home/tadashi/develop/zivo",))
+                bookmarks=BookmarkConfig(paths=(TEST_PROJECT_ROOT,))
             ),
         ),
     )
 
 def test_add_bookmark_ignores_duplicate_path() -> None:
     state = build_initial_app_state(
-        config=AppConfig(bookmarks=BookmarkConfig(paths=("/home/tadashi/develop/zivo",)))
+        config=AppConfig(bookmarks=BookmarkConfig(paths=(TEST_PROJECT_ROOT,)))
     )
 
-    next_state = _reduce_state(state, AddBookmark(path="/home/tadashi/develop/zivo"))
+    next_state = _reduce_state(state, AddBookmark(path=TEST_PROJECT_ROOT))
 
     assert next_state.notification == NotificationState(
         level="info",
@@ -338,12 +338,12 @@ def test_remove_bookmark_emits_config_save_effect() -> None:
         config_path="/tmp/zivo/config.toml",
         config=AppConfig(
             bookmarks=BookmarkConfig(
-                paths=("/home/tadashi/develop/zivo", "/home/tadashi/src")
+                paths=(TEST_PROJECT_ROOT, TEST_HOME + '/src')
             )
         ),
     )
 
-    result = reduce_app_state(state, RemoveBookmark(path="/home/tadashi/develop/zivo"))
+    result = reduce_app_state(state, RemoveBookmark(path=TEST_PROJECT_ROOT))
 
     assert result.state.pending_config_save_request_id == 1
     assert result.effects == (
@@ -351,7 +351,7 @@ def test_remove_bookmark_emits_config_save_effect() -> None:
             request_id=1,
             path="/tmp/zivo/config.toml",
             config=AppConfig(
-                bookmarks=BookmarkConfig(paths=("/home/tadashi/src",))
+                bookmarks=BookmarkConfig(paths=(TEST_HOME + '/src',))
             ),
         ),
     )
@@ -388,7 +388,7 @@ def test_config_save_completed_updates_runtime_state_and_clears_dirty_flag() -> 
     assert next_state.config_editor.dirty is False
 
 def test_config_save_completed_clears_preview_when_disabled() -> None:
-    path = "/home/tadashi/develop/zivo/README.md"
+    path = TEST_PROJECT_ROOT + '/README.md'
     state = replace(
         build_initial_app_state(config_path="/tmp/zivo/config.toml"),
         ui_mode="CONFIG",
@@ -397,7 +397,7 @@ def test_config_save_completed_clears_preview_when_disabled() -> None:
             cursor_path=path,
         ),
         child_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(),
             mode="preview",
             preview_path=path,
@@ -429,13 +429,13 @@ def test_config_save_completed_clears_preview_when_disabled() -> None:
 
     assert next_state.config.display.enable_text_preview is False
     assert next_state.child_pane == PaneState(
-        directory_path="/home/tadashi/develop/zivo",
+        directory_path=TEST_PROJECT_ROOT,
         entries=(),
     )
     assert next_state.pending_child_pane_request_id is None
 
 def test_config_save_completed_requests_preview_when_enabled() -> None:
-    path = "/home/tadashi/develop/zivo/README.md"
+    path = TEST_PROJECT_ROOT + '/README.md'
     base_state = build_initial_app_state(config_path="/tmp/zivo/config.toml")
     state = replace(
         base_state,
@@ -445,7 +445,7 @@ def test_config_save_completed_requests_preview_when_enabled() -> None:
             display=replace(base_state.config.display, enable_text_preview=False),
         ),
         current_pane=replace(base_state.current_pane, cursor_path=path),
-        child_pane=PaneState(directory_path="/home/tadashi/develop/zivo", entries=()),
+        child_pane=PaneState(directory_path=TEST_PROJECT_ROOT, entries=()),
         config_editor=ConfigEditorState(
             path="/tmp/zivo/config.toml",
             draft=replace(
@@ -472,15 +472,15 @@ def test_config_save_completed_requests_preview_when_enabled() -> None:
     assert result.effects == (
         LoadChildPaneSnapshotEffect(
             request_id=1,
-            current_path="/home/tadashi/develop/zivo",
+            current_path=TEST_PROJECT_ROOT,
             cursor_path=path,
         ),
         RunDirectorySizeEffect(
             request_id=2,
             paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
-                "/home/tadashi/develop/zivo/tests",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
+                TEST_PROJECT_ROOT + '/tests',
             ),
         ),
     )

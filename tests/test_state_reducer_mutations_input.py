@@ -1,6 +1,7 @@
 from dataclasses import replace
 from pathlib import Path
 
+from tests.support.paths import TEST_PROJECT_ROOT
 from tests.support.state import reduce_state as _reduce_state
 from zivo.models import (
     ChmodRequest,
@@ -42,14 +43,14 @@ from zivo.state.actions import (
 def test_begin_rename_input_sets_initial_value_from_target_name() -> None:
     state = build_initial_app_state()
 
-    next_state = _reduce_state(state, BeginRenameInput("/home/tadashi/develop/zivo/docs"))
+    next_state = _reduce_state(state, BeginRenameInput(TEST_PROJECT_ROOT + '/docs'))
 
     assert next_state.ui_mode == "RENAME"
     assert next_state.pending_input == PendingInputState(
         prompt="Rename: ",
         value="docs",
         cursor_pos=4,
-        target_path="/home/tadashi/develop/zivo/docs",
+        target_path=TEST_PROJECT_ROOT + '/docs',
     )
 
 
@@ -74,7 +75,7 @@ def test_begin_chmod_input_sets_initial_value_from_target_permissions() -> None:
 
     next_state = _reduce_state(
         state,
-        BeginChmodInput(("/home/tadashi/develop/zivo/docs",)),
+        BeginChmodInput((TEST_PROJECT_ROOT + '/docs',)),
     )
 
     assert next_state.ui_mode == "CHMOD"
@@ -82,7 +83,7 @@ def test_begin_chmod_input_sets_initial_value_from_target_permissions() -> None:
         prompt="Permissions: ",
         value="755",
         cursor_pos=3,
-        chmod_target_paths=("/home/tadashi/develop/zivo/docs",),
+        chmod_target_paths=(TEST_PROJECT_ROOT + '/docs',),
     )
 
 
@@ -93,7 +94,7 @@ def test_submit_chmod_input_rejects_invalid_octal_mode() -> None:
         pending_input=PendingInputState(
             prompt="Permissions: ",
             value="88",
-            chmod_target_paths=("/home/tadashi/develop/zivo/docs",),
+            chmod_target_paths=(TEST_PROJECT_ROOT + '/docs',),
         ),
     )
 
@@ -121,8 +122,8 @@ def test_toggle_chmod_recursive_sets_initial_value_from_first_target_permissions
         state,
         BeginChmodInput(
             paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/README.md",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/README.md',
             )
         ),
     )
@@ -135,8 +136,8 @@ def test_toggle_chmod_recursive_sets_initial_value_from_first_target_permissions
         value="755",
         cursor_pos=3,
         chmod_target_paths=(
-            "/home/tadashi/develop/zivo/docs",
-            "/home/tadashi/develop/zivo/README.md",
+            TEST_PROJECT_ROOT + '/docs',
+            TEST_PROJECT_ROOT + '/README.md',
         ),
         chmod_recursive=True,
     )
@@ -149,7 +150,7 @@ def test_submit_recursive_chmod_input_rejects_invalid_octal_mode() -> None:
         pending_input=PendingInputState(
             prompt="Permissions recursively: ",
             value="88",
-            chmod_target_paths=("/home/tadashi/develop/zivo/docs",),
+            chmod_target_paths=(TEST_PROJECT_ROOT + '/docs',),
             chmod_recursive=True,
         ),
     )
@@ -176,7 +177,7 @@ def test_begin_chown_input_sets_initial_value_from_target_owner_and_group() -> N
 
     next_state = _reduce_state(
         state,
-        BeginChownInput(("/home/tadashi/develop/zivo/docs",)),
+        BeginChownInput((TEST_PROJECT_ROOT + '/docs',)),
     )
 
     assert next_state.ui_mode == "CHOWN"
@@ -184,7 +185,7 @@ def test_begin_chown_input_sets_initial_value_from_target_owner_and_group() -> N
         prompt="Owner: ",
         value="alice:staff",
         cursor_pos=11,
-        chown_target_paths=("/home/tadashi/develop/zivo/docs",),
+        chown_target_paths=(TEST_PROJECT_ROOT + '/docs',),
     )
 
 
@@ -203,8 +204,8 @@ def test_toggle_chown_recursive_sets_initial_value_from_first_target() -> None:
         state,
         BeginChownInput(
             paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/README.md",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/README.md',
             )
         ),
     )
@@ -217,8 +218,8 @@ def test_toggle_chown_recursive_sets_initial_value_from_first_target() -> None:
         value="alice:staff",
         cursor_pos=11,
         chown_target_paths=(
-            "/home/tadashi/develop/zivo/docs",
-            "/home/tadashi/develop/zivo/README.md",
+            TEST_PROJECT_ROOT + '/docs',
+            TEST_PROJECT_ROOT + '/README.md',
         ),
         chown_recursive=True,
     )
@@ -231,7 +232,7 @@ def test_submit_chown_input_rejects_empty_owner_and_group() -> None:
         pending_input=PendingInputState(
             prompt="Owner: ",
             value=":",
-            chown_target_paths=("/home/tadashi/develop/zivo/docs",),
+            chown_target_paths=(TEST_PROJECT_ROOT + '/docs',),
         ),
     )
 
@@ -276,21 +277,21 @@ def test_cycle_create_kind_keeps_path_and_switches_type() -> None:
 def test_begin_symlink_input_sets_destination_prompt() -> None:
     next_state = _reduce_state(
         build_initial_app_state(),
-        BeginSymlinkInput(source_path="/home/tadashi/develop/zivo/docs"),
+        BeginSymlinkInput(source_path=TEST_PROJECT_ROOT + '/docs'),
     )
 
     assert next_state.ui_mode == "SYMLINK"
     assert next_state.pending_input == PendingInputState(
         prompt="Create link at: ",
-        value="/home/tadashi/develop/zivo/docs.link",
-        cursor_pos=len("/home/tadashi/develop/zivo/docs.link"),
-        symlink_source_path="/home/tadashi/develop/zivo/docs",
+        value=TEST_PROJECT_ROOT + '/docs.link',
+        cursor_pos=len(TEST_PROJECT_ROOT + '/docs.link'),
+        symlink_source_path=TEST_PROJECT_ROOT + '/docs',
     )
 
 
 def test_begin_extract_archive_input_sets_default_destination() -> None:
-    archive_path = "/home/tadashi/develop/zivo/archive.tar.gz"
-    expected_value = str(Path("/home/tadashi/develop/zivo/archive").resolve())
+    archive_path = TEST_PROJECT_ROOT + '/archive.tar.gz'
+    expected_value = str(Path(TEST_PROJECT_ROOT + '/archive').resolve())
     next_state = _reduce_state(
         build_initial_app_state(),
         BeginExtractArchiveInput(archive_path),
@@ -306,8 +307,8 @@ def test_begin_extract_archive_input_sets_default_destination() -> None:
 
 
 def test_begin_zip_compress_input_sets_default_destination() -> None:
-    source_path = "/home/tadashi/develop/zivo/README.md"
-    expected_value = str(Path("/home/tadashi/develop/zivo/README.zip").resolve())
+    source_path = TEST_PROJECT_ROOT + '/README.md'
+    expected_value = str(Path(TEST_PROJECT_ROOT + '/README.zip').resolve())
     next_state = _reduce_state(
         build_initial_app_state(),
         BeginZipCompressInput((source_path,)),
@@ -377,7 +378,7 @@ def test_submit_pending_input_treats_unchanged_rename_as_noop() -> None:
         pending_input=PendingInputState(
             prompt="Rename: ",
             value="docs",
-            target_path="/home/tadashi/develop/zivo/docs",
+            target_path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 
@@ -395,7 +396,7 @@ def test_submit_pending_input_emits_file_mutation_effect() -> None:
         pending_input=PendingInputState(
             prompt="Rename: ",
             value="manuals",
-            target_path="/home/tadashi/develop/zivo/docs",
+            target_path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 
@@ -407,7 +408,7 @@ def test_submit_pending_input_emits_file_mutation_effect() -> None:
         RunFileMutationEffect(
             request_id=1,
             request=RenameRequest(
-                source_path="/home/tadashi/develop/zivo/docs",
+                source_path=TEST_PROJECT_ROOT + '/docs',
                 new_name="manuals",
             ),
         ),
@@ -421,7 +422,7 @@ def test_submit_chmod_input_emits_file_mutation_effect() -> None:
         pending_input=PendingInputState(
             prompt="Permissions: ",
             value="755",
-            chmod_target_paths=("/home/tadashi/develop/zivo/docs",),
+            chmod_target_paths=(TEST_PROJECT_ROOT + '/docs',),
         ),
     )
 
@@ -432,7 +433,7 @@ def test_submit_chmod_input_emits_file_mutation_effect() -> None:
         RunFileMutationEffect(
             request_id=1,
             request=ChmodRequest(
-                paths=("/home/tadashi/develop/zivo/docs",),
+                paths=(TEST_PROJECT_ROOT + '/docs',),
                 mode=0o755,
             ),
         ),
@@ -447,8 +448,8 @@ def test_submit_recursive_chmod_input_emits_file_mutation_effect() -> None:
             prompt="Permissions recursively: ",
             value="755",
             chmod_target_paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
             ),
             chmod_recursive=True,
         ),
@@ -462,8 +463,8 @@ def test_submit_recursive_chmod_input_emits_file_mutation_effect() -> None:
             request_id=1,
             request=RecursiveChmodRequest(
                 paths=(
-                    "/home/tadashi/develop/zivo/docs",
-                    "/home/tadashi/develop/zivo/src",
+                    TEST_PROJECT_ROOT + '/docs',
+                    TEST_PROJECT_ROOT + '/src',
                 ),
                 mode=0o755,
             ),
@@ -478,7 +479,7 @@ def test_submit_chown_input_emits_file_mutation_effect() -> None:
         pending_input=PendingInputState(
             prompt="Owner: ",
             value="alice:staff",
-            chown_target_paths=("/home/tadashi/develop/zivo/docs",),
+            chown_target_paths=(TEST_PROJECT_ROOT + '/docs',),
         ),
     )
 
@@ -489,7 +490,7 @@ def test_submit_chown_input_emits_file_mutation_effect() -> None:
         RunFileMutationEffect(
             request_id=1,
             request=ChownRequest(
-                paths=("/home/tadashi/develop/zivo/docs",),
+                paths=(TEST_PROJECT_ROOT + '/docs',),
                 owner="alice",
                 group="staff",
             ),
@@ -504,7 +505,7 @@ def test_submit_chown_input_accepts_group_only() -> None:
         pending_input=PendingInputState(
             prompt="Owner: ",
             value=":staff",
-            chown_target_paths=("/home/tadashi/develop/zivo/docs",),
+            chown_target_paths=(TEST_PROJECT_ROOT + '/docs',),
         ),
     )
 
@@ -514,7 +515,7 @@ def test_submit_chown_input_accepts_group_only() -> None:
         RunFileMutationEffect(
             request_id=1,
             request=ChownRequest(
-                paths=("/home/tadashi/develop/zivo/docs",),
+                paths=(TEST_PROJECT_ROOT + '/docs',),
                 owner=None,
                 group="staff",
             ),
@@ -530,8 +531,8 @@ def test_submit_recursive_chown_input_emits_file_mutation_effect() -> None:
             prompt="Owner recursively: ",
             value="alice",
             chown_target_paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
             ),
             chown_recursive=True,
         ),
@@ -545,8 +546,8 @@ def test_submit_recursive_chown_input_emits_file_mutation_effect() -> None:
             request_id=1,
             request=RecursiveChownRequest(
                 paths=(
-                    "/home/tadashi/develop/zivo/docs",
-                    "/home/tadashi/develop/zivo/src",
+                    TEST_PROJECT_ROOT + '/docs',
+                    TEST_PROJECT_ROOT + '/src',
                 ),
                 owner="alice",
                 group=None,
@@ -572,7 +573,7 @@ def test_submit_pending_input_emits_create_effect() -> None:
         RunFileMutationEffect(
             request_id=1,
             request=CreatePathRequest(
-                parent_dir="/home/tadashi/develop/zivo",
+                parent_dir=TEST_PROJECT_ROOT,
                 name="notes.txt",
                 kind="file",
             ),
@@ -587,7 +588,7 @@ def test_submit_pending_input_name_conflict_enters_confirm_mode_for_rename() -> 
         pending_input=PendingInputState(
             prompt="Rename: ",
             value="src",
-            target_path="/home/tadashi/develop/zivo/docs",
+            target_path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 
@@ -655,7 +656,7 @@ def test_dismiss_name_conflict_restores_rename_mode_and_keeps_input() -> None:
         pending_input=PendingInputState(
             prompt="Rename: ",
             value="src",
-            target_path="/home/tadashi/develop/zivo/docs",
+            target_path=TEST_PROJECT_ROOT + '/docs',
         ),
         name_conflict=NameConflictState(kind="rename", name="src"),
     )
@@ -757,7 +758,7 @@ def test_submit_pending_input_case_only_rename_emits_mutation() -> None:
         pending_input=PendingInputState(
             prompt="Rename: ",
             value="Docs",
-            target_path="/home/tadashi/develop/zivo/docs",
+            target_path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 
@@ -768,7 +769,7 @@ def test_submit_pending_input_case_only_rename_emits_mutation() -> None:
         RunFileMutationEffect(
             request_id=1,
             request=RenameRequest(
-                source_path="/home/tadashi/develop/zivo/docs",
+                source_path=TEST_PROJECT_ROOT + '/docs',
                 new_name="Docs",
             ),
         ),
@@ -785,7 +786,7 @@ def test_submit_pending_input_case_insensitive_conflict_on_macos(monkeypatch) ->
         pending_input=PendingInputState(
             prompt="Rename: ",
             value="Src",
-            target_path="/home/tadashi/develop/zivo/docs",
+            target_path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 
@@ -805,7 +806,7 @@ def test_submit_pending_input_case_sensitive_no_conflict_on_linux(monkeypatch) -
         pending_input=PendingInputState(
             prompt="Rename: ",
             value="Src",
-            target_path="/home/tadashi/develop/zivo/docs",
+            target_path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 

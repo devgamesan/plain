@@ -1,6 +1,7 @@
 from dataclasses import replace
 from pathlib import Path
 
+from tests.support.paths import TEST_DEVELOP_ROOT, TEST_HOME, TEST_PROJECT_ROOT
 from tests.support.state import reduce_state as _reduce_state
 from zivo.models import (
     FileMutationResult,
@@ -51,7 +52,7 @@ def test_file_mutation_completed_requests_reload_with_result_cursor() -> None:
         FileMutationCompleted(
             request_id=4,
             result=FileMutationResult(
-                path="/home/tadashi/develop/zivo/notes.txt",
+                path=TEST_PROJECT_ROOT + '/notes.txt',
                 message="Created file notes.txt",
             ),
         ),
@@ -64,15 +65,15 @@ def test_file_mutation_completed_requests_reload_with_result_cursor() -> None:
     assert result.effects == (
         LoadBrowserSnapshotEffect(
             request_id=1,
-            path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/notes.txt",
+            path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/notes.txt',
             blocking=False,
             invalidate_paths=tuple(
                 str(Path(p).resolve())
                 for p in (
-                    "/home/tadashi/develop/zivo",
-                    "/home/tadashi/develop",
-                    "/home/tadashi/develop/zivo/notes.txt",
+                    TEST_PROJECT_ROOT,
+                    TEST_DEVELOP_ROOT,
+                    TEST_PROJECT_ROOT + '/notes.txt',
                 )
             ),
         ),
@@ -85,7 +86,7 @@ def test_file_mutation_completed_requests_reload_with_result_cursor() -> None:
         pending_input=PendingInputState(
             prompt="Rename: ",
             value="manuals",
-            target_path="/home/tadashi/develop/zivo/docs",
+            target_path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 
@@ -94,10 +95,10 @@ def test_file_mutation_completed_requests_reload_with_result_cursor() -> None:
         FileMutationCompleted(
             request_id=4,
             result=FileMutationResult(
-                path="/home/tadashi/develop/zivo/manuals",
+                path=TEST_PROJECT_ROOT + '/manuals',
                 message="Renamed to manuals",
                 operation="rename",
-                source_path="/home/tadashi/develop/zivo/docs",
+                source_path=TEST_PROJECT_ROOT + '/docs',
             ),
         ),
     )
@@ -107,8 +108,8 @@ def test_file_mutation_completed_requests_reload_with_result_cursor() -> None:
             kind="rename",
             steps=(
                 UndoMovePathStep(
-                    source_path="/home/tadashi/develop/zivo/manuals",
-                    destination_path="/home/tadashi/develop/zivo/docs",
+                    source_path=TEST_PROJECT_ROOT + '/manuals',
+                    destination_path=TEST_PROJECT_ROOT + '/docs',
                 ),
             ),
         ),
@@ -122,7 +123,7 @@ def test_delete_file_mutation_completed_requests_reload_without_deleted_cursor()
         pending_file_mutation_request_id=7,
         current_pane=replace(
             build_initial_app_state().current_pane,
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 
@@ -133,7 +134,7 @@ def test_delete_file_mutation_completed_requests_reload_without_deleted_cursor()
             result=FileMutationResult(
                 path=None,
                 message="Moved 1 item to trash",
-                removed_paths=("/home/tadashi/develop/zivo/docs",),
+                removed_paths=(TEST_PROJECT_ROOT + '/docs',),
             ),
         ),
     )
@@ -143,15 +144,15 @@ def test_delete_file_mutation_completed_requests_reload_without_deleted_cursor()
     assert result.effects == (
         LoadBrowserSnapshotEffect(
             request_id=1,
-            path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/src",
+            path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/src',
             blocking=False,
             invalidate_paths=tuple(
                 str(Path(p).resolve())
                 for p in (
-                    "/home/tadashi/develop/zivo",
-                    "/home/tadashi/develop",
-                    "/home/tadashi/develop/zivo/src",
+                    TEST_PROJECT_ROOT,
+                    TEST_DEVELOP_ROOT,
+                    TEST_PROJECT_ROOT + '/src',
                 )
             ),
         ),
@@ -170,14 +171,14 @@ def test_delete_file_mutation_completed_requests_reload_without_deleted_cursor()
             result=FileMutationResult(
                 path=None,
                 message="Moved 1 item to trash",
-                removed_paths=("/home/tadashi/develop/zivo/docs",),
+                removed_paths=(TEST_PROJECT_ROOT + '/docs',),
                 operation="delete",
                 delete_mode="trash",
                 trash_records=(
                     TrashRestoreRecord(
-                        original_path="/home/tadashi/develop/zivo/docs",
-                        trashed_path="/home/tadashi/.local/share/Trash/files/docs",
-                        metadata_path="/home/tadashi/.local/share/Trash/info/docs.trashinfo",
+                        original_path=TEST_PROJECT_ROOT + '/docs',
+                        trashed_path=TEST_HOME + '/.local/share/Trash/files/docs',
+                        metadata_path=TEST_HOME + '/.local/share/Trash/info/docs.trashinfo',
                     ),
                 ),
             ),
@@ -190,9 +191,9 @@ def test_delete_file_mutation_completed_requests_reload_without_deleted_cursor()
             steps=(
                 UndoRestoreTrashStep(
                     record=TrashRestoreRecord(
-                        original_path="/home/tadashi/develop/zivo/docs",
-                        trashed_path="/home/tadashi/.local/share/Trash/files/docs",
-                        metadata_path="/home/tadashi/.local/share/Trash/info/docs.trashinfo",
+                        original_path=TEST_PROJECT_ROOT + '/docs',
+                        trashed_path=TEST_HOME + '/.local/share/Trash/files/docs',
+                        metadata_path=TEST_HOME + '/.local/share/Trash/info/docs.trashinfo',
                     )
                 ),
             ),
@@ -245,15 +246,15 @@ def test_undo_completed_pops_stack_and_requests_reload() -> None:
     assert result.effects == (
         LoadBrowserSnapshotEffect(
             request_id=4,
-            path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
             blocking=False,
             invalidate_paths=tuple(
                 str(Path(p).resolve())
                 for p in (
-                    "/home/tadashi/develop/zivo",
-                    "/home/tadashi/develop",
-                    "/home/tadashi/develop/zivo/docs",
+                    TEST_PROJECT_ROOT,
+                    TEST_DEVELOP_ROOT,
+                    TEST_PROJECT_ROOT + '/docs',
                 )
             ),
         ),
@@ -288,7 +289,7 @@ def test_file_mutation_failed_keeps_input_value_and_returns_error() -> None:
         pending_input=PendingInputState(
             prompt="Rename: ",
             value="docs copy",
-            target_path="/home/tadashi/develop/zivo/docs",
+            target_path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 

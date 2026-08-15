@@ -1,5 +1,5 @@
 """Selector tests for status, help, input, and dialog views."""
-
+from tests.support.paths import TEST_PROJECT_ROOT
 from tests.support.selectors import (
     S_IFREG,
     AppConfig,
@@ -45,7 +45,7 @@ def test_select_attribute_dialog_state_formats_selected_entry() -> None:
         attribute_inspection=AttributeInspectionState(
             name="README.md",
             kind="file",
-            path="/home/tadashi/develop/zivo/README.md",
+            path=TEST_PROJECT_ROOT + '/README.md',
             size_bytes=2_150,
             modified_at=build_initial_app_state().current_pane.entries[3].modified_at,
             hidden=False,
@@ -60,7 +60,7 @@ def test_select_attribute_dialog_state_formats_selected_entry() -> None:
     assert "Name: README.md" in dialog.lines
     assert "Type: File" in dialog.lines
     assert "Symlink: No" in dialog.lines
-    assert "Path: /home/tadashi/develop/zivo/README.md" in dialog.lines
+    assert 'Path: ' + TEST_PROJECT_ROOT + '/README.md' in dialog.lines
     assert "Size: 2.1KiB" in dialog.lines
     assert "Hidden: No" in dialog.lines
     assert "Permissions: -rw-r--r-- (644)" in dialog.lines
@@ -153,8 +153,8 @@ def test_select_conflict_dialog_state_formats_delete_confirmation() -> None:
         build_initial_app_state(),
         delete_confirmation=DeleteConfirmationState(
             paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
             )
         ),
     )
@@ -171,7 +171,7 @@ def test_select_conflict_dialog_state_formats_extract_confirmation() -> None:
         build_initial_app_state(),
         archive_extract_confirmation=ArchiveExtractConfirmationState(
             request=ExtractArchiveRequest(
-                source_path="/home/tadashi/develop/zivo/archive.zip",
+                source_path=TEST_PROJECT_ROOT + '/archive.zip',
                 destination_path="/tmp/output/archive",
             ),
             conflict_count=2,
@@ -189,16 +189,16 @@ def test_select_conflict_dialog_state_formats_extract_confirmation() -> None:
 
 def test_select_conflict_dialog_state_formats_first_conflict() -> None:
     conflict = PasteConflict(
-        source_path="/home/tadashi/develop/zivo/docs",
-        destination_path="/home/tadashi/develop/zivo/docs",
+        source_path=TEST_PROJECT_ROOT + '/docs',
+        destination_path=TEST_PROJECT_ROOT + '/docs',
     )
     state = replace(
         build_initial_app_state(),
         paste_conflict=PasteConflictState(
             request=PasteRequest(
                 mode="copy",
-                source_paths=("/home/tadashi/develop/zivo/docs",),
-                destination_dir="/home/tadashi/develop/zivo",
+                source_paths=(TEST_PROJECT_ROOT + '/docs',),
+                destination_dir=TEST_PROJECT_ROOT,
             ),
             conflicts=(conflict,),
             first_conflict=conflict,
@@ -215,7 +215,7 @@ def test_select_conflict_dialog_state_formats_permanent_delete_confirmation() ->
     state = replace(
         build_initial_app_state(),
         delete_confirmation=DeleteConfirmationState(
-            paths=("/home/tadashi/develop/zivo/docs",),
+            paths=(TEST_PROJECT_ROOT + '/docs',),
             mode="permanent",
             total_size_bytes=2048,
         ),
@@ -248,9 +248,9 @@ def test_select_conflict_dialog_state_formats_zip_confirmation() -> None:
         build_initial_app_state(),
         zip_compress_confirmation=ZipCompressConfirmationState(
             request=CreateZipArchiveRequest(
-                source_paths=("/home/tadashi/develop/zivo/docs",),
-                destination_path="/home/tadashi/develop/zivo/docs.zip",
-                root_dir="/home/tadashi/develop/zivo",
+                source_paths=(TEST_PROJECT_ROOT + '/docs',),
+                destination_path=TEST_PROJECT_ROOT + '/docs.zip',
+                root_dir=TEST_PROJECT_ROOT,
             ),
             total_entries=4,
         ),
@@ -315,7 +315,7 @@ def test_select_help_bar_for_delete_confirmation() -> None:
         build_initial_app_state(),
         ui_mode="CONFIRM",
         delete_confirmation=DeleteConfirmationState(
-            paths=("/home/tadashi/develop/zivo/docs",),
+            paths=(TEST_PROJECT_ROOT + '/docs',),
         ),
     )
 
@@ -336,8 +336,8 @@ def test_select_help_bar_for_name_conflict() -> None:
 
 def test_select_help_bar_for_paste_conflict_uses_generic_guidance() -> None:
     conflict = PasteConflict(
-        source_path="/home/tadashi/develop/zivo/docs",
-        destination_path="/home/tadashi/develop/zivo/docs",
+        source_path=TEST_PROJECT_ROOT + '/docs',
+        destination_path=TEST_PROJECT_ROOT + '/docs',
     )
     state = replace(
         build_initial_app_state(),
@@ -345,8 +345,8 @@ def test_select_help_bar_for_paste_conflict_uses_generic_guidance() -> None:
         paste_conflict=PasteConflictState(
             request=PasteRequest(
                 mode="copy",
-                source_paths=("/home/tadashi/develop/zivo/docs",),
-                destination_dir="/home/tadashi/develop/zivo",
+                source_paths=(TEST_PROJECT_ROOT + '/docs',),
+                destination_dir=TEST_PROJECT_ROOT,
             ),
             conflicts=(conflict,),
             first_conflict=conflict,
@@ -362,7 +362,7 @@ def test_select_help_bar_for_permanent_delete_confirmation() -> None:
         build_initial_app_state(),
         ui_mode="CONFIRM",
         delete_confirmation=DeleteConfirmationState(
-            paths=("/home/tadashi/develop/zivo/docs",),
+            paths=(TEST_PROJECT_ROOT + '/docs',),
             mode="permanent",
         ),
     )
@@ -515,7 +515,7 @@ def test_select_input_bar_state_formats_extract_mode() -> None:
         pending_input=PendingInputState(
             prompt="Extract to: ",
             value="/tmp/output/archive",
-            extract_source_path="/home/tadashi/develop/zivo/archive.zip",
+            extract_source_path=TEST_PROJECT_ROOT + '/archive.zip',
         ),
     )
 
@@ -533,7 +533,7 @@ def test_select_input_bar_state_formats_zip_mode() -> None:
         pending_input=PendingInputState(
             prompt="Compress to: ",
             value="/tmp/output.zip",
-            zip_source_paths=("/home/tadashi/develop/zivo/docs",),
+            zip_source_paths=(TEST_PROJECT_ROOT + '/docs',),
         ),
     )
 

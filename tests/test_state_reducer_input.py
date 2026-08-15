@@ -1,5 +1,5 @@
 """Test State Reducer Input tests."""
-
+from tests.support.paths import TEST_PROJECT_ROOT
 from tests.support.reducer import (
     CancelFilterInput,
     ConfirmFilterInput,
@@ -39,7 +39,7 @@ def test_copy_paths_to_clipboard_emits_external_launch_effect() -> None:
             request_id=1,
             request=ExternalLaunchRequest(
                 kind="copy_paths",
-                paths=("/home/tadashi/develop/zivo/docs",),
+                paths=(TEST_PROJECT_ROOT + '/docs',),
             ),
         ),
     )
@@ -88,13 +88,13 @@ def test_open_path_in_editor_allows_non_browser_file_path() -> None:
     )
 
 def test_toggle_hidden_files_normalizes_cursor_and_selection() -> None:
-    hidden_path = "/home/tadashi/develop/zivo/.env"
-    visible_path = "/home/tadashi/develop/zivo/docs"
+    hidden_path = TEST_PROJECT_ROOT + '/.env'
+    visible_path = TEST_PROJECT_ROOT + '/docs'
     state = replace(
         build_initial_app_state(),
         show_hidden=True,
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(
                 DirectoryEntryState(hidden_path, ".env", "file", hidden=True),
                 DirectoryEntryState(visible_path, "docs", "dir"),
@@ -132,7 +132,7 @@ def test_confirm_filter_input_normalizes_cursor_path() -> None:
     next_state = _reduce_state(state, ConfirmFilterInput())
 
     assert next_state.ui_mode == "BROWSING"
-    assert next_state.current_pane.cursor_path == "/home/tadashi/develop/zivo/src"
+    assert next_state.current_pane.cursor_path == TEST_PROJECT_ROOT + '/src'
 
 def test_cancel_filter_input_clears_query() -> None:
     state = build_initial_app_state()
@@ -199,7 +199,7 @@ def test_dismiss_name_conflict_restores_rename_mode_and_keeps_input() -> None:
         pending_input=PendingInputState(
             prompt="Rename: ",
             value="src",
-            target_path="/home/tadashi/develop/zivo/docs",
+            target_path=TEST_PROJECT_ROOT + '/docs',
         ),
         name_conflict=NameConflictState(kind="rename", name="src"),
     )
@@ -231,11 +231,11 @@ def test_dismiss_name_conflict_restores_create_mode_and_keeps_input() -> None:
 def test_move_cursor_and_select_range_sets_anchor_and_selects_contiguous_entries() -> None:
     state = build_initial_app_state()
     visible_paths = (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
-        "/home/tadashi/develop/zivo/tests",
-        "/home/tadashi/develop/zivo/README.md",
-        "/home/tadashi/develop/zivo/pyproject.toml",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/src',
+        TEST_PROJECT_ROOT + '/tests',
+        TEST_PROJECT_ROOT + '/README.md',
+        TEST_PROJECT_ROOT + '/pyproject.toml',
     )
 
     result = reduce_app_state(
@@ -243,37 +243,37 @@ def test_move_cursor_and_select_range_sets_anchor_and_selects_contiguous_entries
         MoveCursorAndSelectRange(delta=1, visible_paths=visible_paths),
     )
 
-    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/zivo/src"
+    assert result.state.current_pane.cursor_path == TEST_PROJECT_ROOT + '/src'
     assert result.state.current_pane.selected_paths == frozenset(
         {
-            "/home/tadashi/develop/zivo/docs",
-            "/home/tadashi/develop/zivo/src",
+            TEST_PROJECT_ROOT + '/docs',
+            TEST_PROJECT_ROOT + '/src',
         }
     )
-    assert result.state.current_pane.selection_anchor_path == "/home/tadashi/develop/zivo/docs"
+    assert result.state.current_pane.selection_anchor_path == TEST_PROJECT_ROOT + '/docs'
     assert result.effects == (
         LoadChildPaneSnapshotEffect(
             request_id=1,
-            current_path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/src",
+            current_path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/src',
         ),
         RunDirectorySizeEffect(
             request_id=2,
             paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
-                "/home/tadashi/develop/zivo/tests",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
+                TEST_PROJECT_ROOT + '/tests',
             ),
         ),
     )
 
 def test_move_cursor_and_select_range_reuses_anchor_when_shrinking_selection() -> None:
     visible_paths = (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
-        "/home/tadashi/develop/zivo/tests",
-        "/home/tadashi/develop/zivo/README.md",
-        "/home/tadashi/develop/zivo/pyproject.toml",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/src',
+        TEST_PROJECT_ROOT + '/tests',
+        TEST_PROJECT_ROOT + '/README.md',
+        TEST_PROJECT_ROOT + '/pyproject.toml',
     )
     state = reduce_app_state(
         build_initial_app_state(),
@@ -289,20 +289,20 @@ def test_move_cursor_and_select_range_reuses_anchor_when_shrinking_selection() -
         MoveCursorAndSelectRange(delta=-1, visible_paths=visible_paths),
     )
 
-    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/zivo/src"
+    assert result.state.current_pane.cursor_path == TEST_PROJECT_ROOT + '/src'
     assert result.state.current_pane.selected_paths == frozenset(
         {
-            "/home/tadashi/develop/zivo/docs",
-            "/home/tadashi/develop/zivo/src",
+            TEST_PROJECT_ROOT + '/docs',
+            TEST_PROJECT_ROOT + '/src',
         }
     )
-    assert result.state.current_pane.selection_anchor_path == "/home/tadashi/develop/zivo/docs"
+    assert result.state.current_pane.selection_anchor_path == TEST_PROJECT_ROOT + '/docs'
 
 def test_move_cursor_clears_range_selection_anchor() -> None:
     visible_paths = (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
-        "/home/tadashi/develop/zivo/tests",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/src',
+        TEST_PROJECT_ROOT + '/tests',
     )
     initial_state = build_initial_app_state()
     state = replace(
@@ -311,21 +311,21 @@ def test_move_cursor_clears_range_selection_anchor() -> None:
             initial_state.current_pane,
             selected_paths=frozenset(
                 {
-                    "/home/tadashi/develop/zivo/docs",
-                    "/home/tadashi/develop/zivo/src",
+                    TEST_PROJECT_ROOT + '/docs',
+                    TEST_PROJECT_ROOT + '/src',
                 }
             ),
-            selection_anchor_path="/home/tadashi/develop/zivo/docs",
+            selection_anchor_path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 
     result = reduce_app_state(state, MoveCursor(delta=1, visible_paths=visible_paths))
 
-    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/zivo/src"
+    assert result.state.current_pane.cursor_path == TEST_PROJECT_ROOT + '/src'
     assert result.state.current_pane.selected_paths == frozenset(
         {
-            "/home/tadashi/develop/zivo/docs",
-            "/home/tadashi/develop/zivo/src",
+            TEST_PROJECT_ROOT + '/docs',
+            TEST_PROJECT_ROOT + '/src',
         }
     )
     assert result.state.current_pane.selection_anchor_path is None

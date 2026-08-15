@@ -1,5 +1,6 @@
 from dataclasses import replace
 
+from tests.support.paths import TEST_PROJECT_ROOT
 from tests.support.state import reduce_state as _reduce_state
 from zivo.models import DeleteRequest
 from zivo.state import (
@@ -27,14 +28,14 @@ def test_begin_delete_targets_single_runs_file_mutation() -> None:
 
     result = reduce_app_state(
         state,
-        BeginDeleteTargets(("/home/tadashi/develop/zivo/docs",)),
+        BeginDeleteTargets((TEST_PROJECT_ROOT + '/docs',)),
     )
 
     assert result.state.ui_mode == "BUSY"
     assert result.effects == (
         RunFileMutationEffect(
             request_id=1,
-            request=DeleteRequest(paths=("/home/tadashi/develop/zivo/docs",), mode="trash"),
+            request=DeleteRequest(paths=(TEST_PROJECT_ROOT + '/docs',), mode="trash"),
         ),
     )
 
@@ -44,12 +45,12 @@ def test_begin_delete_targets_single_enters_confirm_mode_when_enabled() -> None:
 
     next_state = _reduce_state(
         state,
-        BeginDeleteTargets(("/home/tadashi/develop/zivo/docs",)),
+        BeginDeleteTargets((TEST_PROJECT_ROOT + '/docs',)),
     )
 
     assert next_state.ui_mode == "CONFIRM"
     assert next_state.delete_confirmation == DeleteConfirmationState(
-        paths=("/home/tadashi/develop/zivo/docs",)
+        paths=(TEST_PROJECT_ROOT + '/docs',)
     )
 
 
@@ -68,8 +69,8 @@ def test_begin_delete_targets_multiple_enters_confirm_mode() -> None:
         state,
         BeginDeleteTargets(
             (
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
             )
         ),
     )
@@ -77,8 +78,8 @@ def test_begin_delete_targets_multiple_enters_confirm_mode() -> None:
     assert next_state.ui_mode == "CONFIRM"
     assert next_state.delete_confirmation == DeleteConfirmationState(
         paths=(
-            "/home/tadashi/develop/zivo/docs",
-            "/home/tadashi/develop/zivo/src",
+            TEST_PROJECT_ROOT + '/docs',
+            TEST_PROJECT_ROOT + '/src',
         )
     )
 
@@ -89,8 +90,8 @@ def test_confirm_delete_targets_runs_file_mutation() -> None:
         ui_mode="CONFIRM",
         delete_confirmation=DeleteConfirmationState(
             paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
             )
         ),
         next_request_id=4,
@@ -104,8 +105,8 @@ def test_confirm_delete_targets_runs_file_mutation() -> None:
             request_id=4,
             request=DeleteRequest(
                 paths=(
-                    "/home/tadashi/develop/zivo/docs",
-                    "/home/tadashi/develop/zivo/src",
+                    TEST_PROJECT_ROOT + '/docs',
+                    TEST_PROJECT_ROOT + '/src',
                 ),
                 mode="trash",
             ),
@@ -118,7 +119,7 @@ def test_cancel_delete_confirmation_returns_to_browsing_with_warning() -> None:
         build_initial_app_state(),
         ui_mode="CONFIRM",
         delete_confirmation=DeleteConfirmationState(
-            paths=("/home/tadashi/develop/zivo/docs",),
+            paths=(TEST_PROJECT_ROOT + '/docs',),
         ),
     )
 
@@ -153,7 +154,7 @@ def test_begin_permanent_delete_targets_prepares_confirmation_when_delete_confir
 
     result = reduce_app_state(
         state,
-        BeginDeleteTargets(("/home/tadashi/develop/zivo/docs",), mode="permanent"),
+        BeginDeleteTargets((TEST_PROJECT_ROOT + '/docs',), mode="permanent"),
     )
 
     assert result.state.ui_mode == "BUSY"
@@ -162,7 +163,7 @@ def test_begin_permanent_delete_targets_prepares_confirmation_when_delete_confir
         RunDeletePreparationEffect(
             request_id=1,
             request=DeleteRequest(
-                paths=("/home/tadashi/develop/zivo/docs",),
+                paths=(TEST_PROJECT_ROOT + '/docs',),
                 mode="permanent",
             ),
         ),
@@ -172,7 +173,7 @@ def test_begin_permanent_delete_targets_prepares_confirmation_when_delete_confir
 def test_delete_preparation_completion_shows_size_and_requires_additional_confirmation(
 ) -> None:
     request = DeleteRequest(
-        paths=("/home/tadashi/develop/zivo/docs",),
+        paths=(TEST_PROJECT_ROOT + '/docs',),
         mode="permanent",
     )
     state = replace(
@@ -231,7 +232,7 @@ def test_confirm_permanent_delete_targets_runs_file_mutation() -> None:
         build_initial_app_state(),
         ui_mode="CONFIRM",
         delete_confirmation=DeleteConfirmationState(
-            paths=("/home/tadashi/develop/zivo/docs",),
+            paths=(TEST_PROJECT_ROOT + '/docs',),
             mode="permanent",
         ),
         next_request_id=4,
@@ -244,7 +245,7 @@ def test_confirm_permanent_delete_targets_runs_file_mutation() -> None:
         RunFileMutationEffect(
             request_id=4,
             request=DeleteRequest(
-                paths=("/home/tadashi/develop/zivo/docs",),
+                paths=(TEST_PROJECT_ROOT + '/docs',),
                 mode="permanent",
             ),
         ),
@@ -256,7 +257,7 @@ def test_cancel_permanent_delete_confirmation_returns_to_browsing_with_warning()
         build_initial_app_state(),
         ui_mode="CONFIRM",
         delete_confirmation=DeleteConfirmationState(
-            paths=("/home/tadashi/develop/zivo/docs",),
+            paths=(TEST_PROJECT_ROOT + '/docs',),
             mode="permanent",
         ),
     )

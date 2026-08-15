@@ -1,5 +1,6 @@
 from dataclasses import replace
 
+from tests.support.paths import TEST_PROJECT_ROOT
 from tests.support.state import reduce_state as _reduce_state
 from zivo.models import DuplicateAppliedChange, DuplicateSummary, UndoDeletePathStep, UndoEntry
 from zivo.state import (
@@ -23,8 +24,8 @@ def test_duplicate_targets_starts_busy_effect_for_cursor_target() -> None:
             request=result.effects[0].request,
         ),
     )
-    assert result.effects[0].request.source_paths == ("/home/tadashi/develop/zivo/docs",)
-    assert result.effects[0].request.destination_dir == "/home/tadashi/develop/zivo"
+    assert result.effects[0].request.source_paths == (TEST_PROJECT_ROOT + '/docs',)
+    assert result.effects[0].request.destination_dir == TEST_PROJECT_ROOT
 
 
 def test_duplicate_progress_updates_status_and_ignores_stale_requests() -> None:
@@ -48,20 +49,20 @@ def test_duplicate_progress_updates_status_and_ignores_stale_requests() -> None:
 
 def test_duplicate_completion_records_one_undo_for_successful_outputs() -> None:
     state = replace(build_initial_app_state(), pending_duplicate_request_id=4, ui_mode="BUSY")
-    output = "/home/tadashi/develop/zivo/docs copy"
+    output = TEST_PROJECT_ROOT + '/docs copy'
 
     next_state = _reduce_state(
         state,
         DuplicateCompleted(
             request_id=4,
             summary=DuplicateSummary(
-                destination_dir="/home/tadashi/develop/zivo",
+                destination_dir=TEST_PROJECT_ROOT,
                 total_count=1,
                 success_count=1,
             ),
             applied_changes=(
                 DuplicateAppliedChange(
-                    source_path="/home/tadashi/develop/zivo/docs",
+                    source_path=TEST_PROJECT_ROOT + '/docs',
                     destination_path=output,
                 ),
             ),

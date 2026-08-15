@@ -1,5 +1,5 @@
 """Selector tests for command palette and search workspaces."""
-
+from tests.support.paths import TEST_PROJECT_ROOT
 from tests.support.selectors import (
     AppConfig,
     BeginCommandPalette,
@@ -178,7 +178,7 @@ class TestSelectSearchWindowWithDynamicSize:
     def test_large_terminal_shows_more_items(self) -> None:
         results = tuple(
             FileSearchResultState(
-                path=f"/home/tadashi/develop/zivo/src/module_{index}.py",
+                path=f"{TEST_PROJECT_ROOT}/src/module_{index}.py",
                 display_path=f"src/module_{index}.py",
             )
             for index in range(30)
@@ -258,10 +258,10 @@ def test_select_command_palette_state_disables_select_all_without_visible_entrie
     state = replace(
         build_initial_app_state(),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(
                 DirectoryEntryState(
-                    "/home/tadashi/develop/zivo/.env",
+                    TEST_PROJECT_ROOT + '/.env',
                     ".env",
                     "file",
                     hidden=True,
@@ -335,7 +335,7 @@ def test_select_command_palette_state_for_file_search_results() -> None:
             file_search=FileSearchPaletteState(
                 results=(
                     FileSearchResultState(
-                        path="/home/tadashi/develop/zivo/README.md",
+                        path=TEST_PROJECT_ROOT + '/README.md',
                         display_path="README.md",
                     ),
                 ),
@@ -398,7 +398,7 @@ def test_select_command_palette_state_for_grep_search_results() -> None:
             grep_search=GrepSearchPaletteState(
                 results=(
                     GrepSearchResultState(
-                        path="/home/tadashi/develop/zivo/src/zivo/app.py",
+                        path=TEST_PROJECT_ROOT + '/src/zivo/app.py',
                         display_path="src/zivo/app.py",
                         line_number=42,
                         line_text="TODO: update palette",
@@ -428,7 +428,7 @@ def test_select_command_palette_state_for_text_replace_includes_input_fields() -
                 active_field="replace",
                 preview_results=(
                     ReplacePreviewResultState(
-                        path="/home/tadashi/develop/zivo/README.md",
+                        path=TEST_PROJECT_ROOT + '/README.md',
                         display_path="README.md",
                         diff_text="--- before\n+++ after\n@@\n-todo item\n+done item\n",
                         match_count=2,
@@ -438,7 +438,7 @@ def test_select_command_palette_state_for_text_replace_includes_input_fields() -
                     ),
                 ),
                 total_match_count=2,
-                target_paths=("/home/tadashi/develop/zivo/README.md",),
+                target_paths=(TEST_PROJECT_ROOT + '/README.md',),
             ),
         ),
     )
@@ -497,8 +497,8 @@ def test_select_command_palette_state_shows_compress_as_zip_for_multiple_targets
             build_initial_app_state().current_pane,
             selected_paths=frozenset(
                 {
-                    "/home/tadashi/develop/zivo/docs",
-                    "/home/tadashi/develop/zivo/src",
+                    TEST_PROJECT_ROOT + '/docs',
+                    TEST_PROJECT_ROOT + '/src',
                 }
             ),
         ),
@@ -526,11 +526,11 @@ def test_select_command_palette_state_shows_copy_path_shortcut() -> None:
     assert state.items[0].shortcut is None
 
 def test_select_command_palette_state_shows_extract_archive_for_supported_file() -> None:
-    archive_path = "/home/tadashi/develop/zivo/archive.tar.gz"
+    archive_path = TEST_PROJECT_ROOT + '/archive.tar.gz'
     state = replace(
         build_initial_app_state(),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(
                 DirectoryEntryState(archive_path, "archive.tar.gz", "file"),
             ),
@@ -590,7 +590,7 @@ def test_select_command_palette_state_shows_replace_text_for_cursor_file() -> No
         build_initial_app_state(),
         current_pane=replace(
             build_initial_app_state().current_pane,
-            cursor_path="/home/tadashi/develop/zivo/README.md",
+            cursor_path=TEST_PROJECT_ROOT + '/README.md',
         ),
     )
     palette_state = select_command_palette_state(
@@ -608,13 +608,13 @@ def test_select_command_palette_state_shows_replace_text_for_selected_files() ->
     state = replace(
         build_initial_app_state(),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(
-                DirectoryEntryState("/home/tadashi/develop/zivo/README.md", "README.md", "file"),
-                DirectoryEntryState("/home/tadashi/develop/zivo/src", "src", "dir"),
+                DirectoryEntryState(TEST_PROJECT_ROOT + '/README.md', "README.md", "file"),
+                DirectoryEntryState(TEST_PROJECT_ROOT + '/src', "src", "dir"),
             ),
-            cursor_path="/home/tadashi/develop/zivo/README.md",
-            selected_paths=frozenset({"/home/tadashi/develop/zivo/README.md"}),
+            cursor_path=TEST_PROJECT_ROOT + '/README.md',
+            selected_paths=frozenset({TEST_PROJECT_ROOT + '/README.md'}),
         ),
     )
     palette_state = select_command_palette_state(
@@ -692,7 +692,7 @@ def test_select_command_palette_state_switches_bookmark_command_label() -> None:
     bookmarked_state = build_initial_app_state(
         config=AppConfig(
             bookmarks=BookmarkConfig(
-                paths=("/home/tadashi/develop/zivo",)
+                paths=(TEST_PROJECT_ROOT,)
             )
         )
     )
@@ -733,7 +733,7 @@ def test_select_command_palette_state_uses_hidden_toggle_label_from_state() -> N
 def test_select_command_palette_state_windows_large_file_search_results() -> None:
     results = tuple(
         FileSearchResultState(
-            path=f"/home/tadashi/develop/zivo/src/module_{index}.py",
+            path=f"{TEST_PROJECT_ROOT}/src/module_{index}.py",
             display_path=f"src/module_{index}.py",
         )
         for index in range(20)
@@ -772,7 +772,7 @@ def test_select_command_palette_state_windows_large_file_search_results() -> Non
 def test_select_command_palette_state_windows_large_grep_search_results() -> None:
     results = tuple(
         GrepSearchResultState(
-            path=f"/home/tadashi/develop/zivo/src/module_{index}.py",
+            path=f"{TEST_PROJECT_ROOT}/src/module_{index}.py",
             display_path=f"src/module_{index}.py",
             line_number=index + 1,
             line_text="TODO: update palette",

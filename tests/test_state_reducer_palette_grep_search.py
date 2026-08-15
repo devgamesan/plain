@@ -1,7 +1,7 @@
 """Test State Reducer Palette Grep Search tests."""
+from tests.support.paths import TEST_PROJECT_ROOT
 
 # ruff: noqa: F821
-
 from tests.support.reducer_palette_search import (
     BeginCommandPalette,
     BeginGrepSearch,
@@ -44,7 +44,7 @@ def test_open_grep_result_in_editor_keeps_palette_state() -> None:
                 state.command_palette.grep_search,
                 results=(
                     GrepSearchResultState(
-                        path="/home/tadashi/develop/zivo/src/zivo/state/reducer.py",
+                        path=TEST_PROJECT_ROOT + '/src/zivo/state/reducer.py',
                         display_path="src/zivo/state/reducer.py",
                         line_number=15,
                         line_text=(
@@ -69,7 +69,7 @@ def test_open_grep_result_in_editor_keeps_palette_state() -> None:
             request_id=1,
             request=ExternalLaunchRequest(
                 kind="open_editor",
-                path="/home/tadashi/develop/zivo/src/zivo/state/reducer.py",
+                path=TEST_PROJECT_ROOT + '/src/zivo/state/reducer.py',
                 line_number=15,
             ),
         ),
@@ -86,7 +86,7 @@ def test_open_grep_result_in_gui_editor_uses_line_and_column() -> None:
                 state.command_palette.grep_search,
                 results=(
                     GrepSearchResultState(
-                        path="/home/tadashi/develop/zivo/src/zivo/state/reducer.py",
+                        path=TEST_PROJECT_ROOT + '/src/zivo/state/reducer.py',
                         display_path="src/zivo/state/reducer.py",
                         line_number=15,
                         line_text="def reduce_app_state(state: AppState, action: Action)",
@@ -105,7 +105,7 @@ def test_open_grep_result_in_gui_editor_uses_line_and_column() -> None:
             request_id=1,
             request=ExternalLaunchRequest(
                 kind="open_gui_editor",
-                path="/home/tadashi/develop/zivo/src/zivo/state/reducer.py",
+                path=TEST_PROJECT_ROOT + '/src/zivo/state/reducer.py',
                 line_number=15,
                 column_number=5,
             ),
@@ -119,11 +119,11 @@ def test_begin_grep_search_enters_grep_mode() -> None:
     assert next_state.command_palette == CommandPaletteState(source="grep_search")
 
 def test_begin_grep_search_uses_current_directory_for_a_focused_file() -> None:
-    path = "/home/tadashi/develop/zivo/README.md"
+    path = TEST_PROJECT_ROOT + '/README.md'
     state = replace(
         build_initial_app_state(),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(DirectoryEntryState(path, "README.md", "file"),),
             cursor_path=path,
         ),
@@ -135,11 +135,11 @@ def test_begin_grep_search_uses_current_directory_for_a_focused_file() -> None:
     assert next_state.command_palette.grep_search.target_paths == ()
 
 def test_begin_grep_search_uses_current_directory_for_a_focused_directory() -> None:
-    path = "/home/tadashi/develop/zivo/docs"
+    path = TEST_PROJECT_ROOT + '/docs'
     state = replace(
         build_initial_app_state(),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(DirectoryEntryState(path, "docs", "dir"),),
             cursor_path=path,
         ),
@@ -151,11 +151,11 @@ def test_begin_grep_search_uses_current_directory_for_a_focused_directory() -> N
     assert next_state.command_palette.grep_search.target_paths == ()
 
 def test_begin_grep_search_uses_selected_entries_for_explicit_selection() -> None:
-    path = "/home/tadashi/develop/zivo/README.md"
+    path = TEST_PROJECT_ROOT + '/README.md'
     state = replace(
         build_initial_app_state(),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(DirectoryEntryState(path, "README.md", "file"),),
             cursor_path=path,
             selected_paths=frozenset({path}),
@@ -168,12 +168,12 @@ def test_begin_grep_search_uses_selected_entries_for_explicit_selection() -> Non
     assert next_state.command_palette.grep_search.target_paths == (path,)
 
 def test_begin_grep_search_uses_mixed_selected_entries() -> None:
-    file_path = "/home/tadashi/develop/zivo/README.md"
-    directory_path = "/home/tadashi/develop/zivo/docs"
+    file_path = TEST_PROJECT_ROOT + '/README.md'
+    directory_path = TEST_PROJECT_ROOT + '/docs'
     state = replace(
         build_initial_app_state(),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(
                 DirectoryEntryState(file_path, "README.md", "file"),
                 DirectoryEntryState(directory_path, "docs", "dir"),
@@ -189,11 +189,11 @@ def test_begin_grep_search_uses_mixed_selected_entries() -> None:
     assert next_state.command_palette.grep_search.target_paths == (file_path, directory_path)
 
 def test_begin_grep_search_uses_selected_entries_for_directory_only_selection() -> None:
-    directory_path = "/home/tadashi/develop/zivo/docs"
+    directory_path = TEST_PROJECT_ROOT + '/docs'
     state = replace(
         build_initial_app_state(),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(DirectoryEntryState(directory_path, "docs", "dir"),),
             cursor_path=directory_path,
             selected_paths=frozenset({directory_path}),
@@ -227,7 +227,7 @@ def test_set_command_palette_query_starts_grep_search_effect() -> None:
     assert result.effects == (
         RunGrepSearchEffect(
             request_id=1,
-            root_path="/home/tadashi/develop/zivo",
+            root_path=TEST_PROJECT_ROOT,
             query="todo",
             show_hidden=False,
             include_globs=(),
@@ -248,7 +248,7 @@ def test_set_grep_search_field_builds_include_and_exclude_globs() -> None:
     assert result.effects == (
         RunGrepSearchEffect(
             request_id=3,
-            root_path="/home/tadashi/develop/zivo",
+            root_path=TEST_PROJECT_ROOT,
             query="todo",
             show_hidden=False,
             include_globs=("*.py", "*.ts"),
@@ -267,7 +267,7 @@ def test_set_grep_search_filename_filter_updates_palette_and_requests_search() -
     assert result.effects == (
         RunGrepSearchEffect(
             request_id=2,
-            root_path="/home/tadashi/develop/zivo",
+            root_path=TEST_PROJECT_ROOT,
             query="todo",
             show_hidden=False,
             include_globs=(),
@@ -292,13 +292,13 @@ def test_grep_search_completed_filters_results_by_filename() -> None:
     )
     results = (
         GrepSearchResultState(
-            path="/home/tadashi/develop/zivo/README.md",
+            path=TEST_PROJECT_ROOT + '/README.md',
             display_path="README.md",
             line_number=1,
             line_text="TODO",
         ),
         GrepSearchResultState(
-            path="/home/tadashi/develop/zivo/docs/guide.md",
+            path=TEST_PROJECT_ROOT + '/docs/guide.md',
             display_path="docs/guide.md",
             line_number=2,
             line_text="TODO",
@@ -330,13 +330,13 @@ def test_grep_search_completed_filters_results_by_filename_regex() -> None:
     )
     results = (
         GrepSearchResultState(
-            path="/home/tadashi/develop/zivo/README.md",
+            path=TEST_PROJECT_ROOT + '/README.md',
             display_path="README.md",
             line_number=1,
             line_text="TODO",
         ),
         GrepSearchResultState(
-            path="/home/tadashi/develop/zivo/docs/guide.md",
+            path=TEST_PROJECT_ROOT + '/docs/guide.md',
             display_path="docs/guide.md",
             line_number=2,
             line_text="TODO",
@@ -392,7 +392,7 @@ def test_set_grep_search_field_clears_results_when_keyword_becomes_empty() -> No
                 keyword="todo",
                 results=(
                     GrepSearchResultState(
-                        path="/home/tadashi/develop/zivo/README.md",
+                        path=TEST_PROJECT_ROOT + '/README.md',
                         display_path="README.md",
                         line_number=1,
                         line_text="TODO",
@@ -530,7 +530,7 @@ def test_grep_search_completed_updates_palette_results() -> None:
             query="todo",
             results=(
                 GrepSearchResultState(
-                    path="/home/tadashi/develop/zivo/src/zivo/app.py",
+                    path=TEST_PROJECT_ROOT + '/src/zivo/app.py',
                     display_path="src/zivo/app.py",
                     line_number=42,
                     line_text="TODO: update palette",
@@ -542,7 +542,7 @@ def test_grep_search_completed_updates_palette_results() -> None:
     assert next_state.command_palette is not None
     assert next_state.command_palette.grep_search.results == (
         GrepSearchResultState(
-            path="/home/tadashi/develop/zivo/src/zivo/app.py",
+            path=TEST_PROJECT_ROOT + '/src/zivo/app.py',
             display_path="src/zivo/app.py",
             line_number=42,
             line_text="TODO: update palette",
@@ -558,7 +558,7 @@ def test_grep_search_completed_requests_context_preview() -> None:
         pending_grep_search_request_id=4,
     )
     grep_result = GrepSearchResultState(
-        path="/home/tadashi/develop/zivo/src/zivo/app.py",
+        path=TEST_PROJECT_ROOT + '/src/zivo/app.py',
         display_path="src/zivo/app.py",
         line_number=42,
         line_text="TODO: update palette",
@@ -577,8 +577,8 @@ def test_grep_search_completed_requests_context_preview() -> None:
     assert result.effects == (
         LoadChildPaneSnapshotEffect(
             request_id=1,
-            current_path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/src/zivo/app.py",
+            current_path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/src/zivo/app.py',
             grep_result=grep_result,
             grep_context_lines=3,
         ),
@@ -586,7 +586,7 @@ def test_grep_search_completed_requests_context_preview() -> None:
 
 def test_grep_search_completed_skips_context_preview_when_preview_disabled() -> None:
     grep_result = GrepSearchResultState(
-        path="/home/tadashi/develop/zivo/src/zivo/app.py",
+        path=TEST_PROJECT_ROOT + '/src/zivo/app.py',
         display_path="src/zivo/app.py",
         line_number=42,
         line_text="TODO: update palette",
@@ -628,7 +628,7 @@ def test_grep_search_failed_sets_inline_error_for_invalid_regex() -> None:
                 state.command_palette.grep_search,
                 results=(
                     GrepSearchResultState(
-                        path="/home/tadashi/develop/zivo/src/zivo/app.py",
+                        path=TEST_PROJECT_ROOT + '/src/zivo/app.py',
                         display_path="src/zivo/app.py",
                         line_number=42,
                         line_text="TODO: update palette",
@@ -665,7 +665,7 @@ def test_submit_command_palette_grep_result_requests_snapshot() -> None:
                 state.command_palette.grep_search,
                 results=(
                     GrepSearchResultState(
-                        path="/home/tadashi/develop/zivo/src/zivo/app.py",
+                        path=TEST_PROJECT_ROOT + '/src/zivo/app.py',
                         display_path="src/zivo/app.py",
                         line_number=42,
                         line_text="TODO: update palette",
@@ -682,14 +682,14 @@ def test_submit_command_palette_grep_result_requests_snapshot() -> None:
     assert result.effects == (
         LoadBrowserSnapshotEffect(
             request_id=1,
-            path="/home/tadashi/develop/zivo/src/zivo",
-            cursor_path="/home/tadashi/develop/zivo/src/zivo/app.py",
+            path=TEST_PROJECT_ROOT + '/src/zivo',
+            cursor_path=TEST_PROJECT_ROOT + '/src/zivo/app.py',
             blocking=True,
         ),
     )
 
 def test_cancel_grep_command_palette_restores_current_cursor_preview() -> None:
-    path = "/home/tadashi/develop/zivo/README.md"
+    path = TEST_PROJECT_ROOT + '/README.md'
     grep_result = GrepSearchResultState(
         path=path,
         display_path="README.md",
@@ -705,7 +705,7 @@ def test_cancel_grep_command_palette_restores_current_cursor_preview() -> None:
             grep_search=GrepSearchPaletteState(results=(grep_result,)),
         ),
         child_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(),
             mode="preview",
             preview_path=path,
@@ -723,15 +723,15 @@ def test_cancel_grep_command_palette_restores_current_cursor_preview() -> None:
     assert result.effects == (
         LoadChildPaneSnapshotEffect(
             request_id=1,
-            current_path="/home/tadashi/develop/zivo",
+            current_path=TEST_PROJECT_ROOT,
             cursor_path=path,
         ),
         RunDirectorySizeEffect(
             request_id=2,
             paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
-                "/home/tadashi/develop/zivo/tests",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
+                TEST_PROJECT_ROOT + '/tests',
             ),
         ),
     )
@@ -743,8 +743,8 @@ def test_begin_selected_files_grep_with_multiple_selection() -> None:
         build_initial_app_state(),
         BeginSelectedFilesGrep(
             target_paths=(
-                "/home/tadashi/develop/zivo/src/main.py",
-                "/home/tadashi/develop/zivo/src/utils.py",
+                TEST_PROJECT_ROOT + '/src/main.py',
+                TEST_PROJECT_ROOT + '/src/utils.py',
             )
         ),
     )
@@ -753,8 +753,8 @@ def test_begin_selected_files_grep_with_multiple_selection() -> None:
     assert state.command_palette is not None
     assert state.command_palette.source == "selected_files_grep"
     assert state.command_palette.sfg.target_paths == (
-        "/home/tadashi/develop/zivo/src/main.py",
-        "/home/tadashi/develop/zivo/src/utils.py",
+        TEST_PROJECT_ROOT + '/src/main.py',
+        TEST_PROJECT_ROOT + '/src/utils.py',
     )
     assert state.command_palette.sfg.keyword == ""
     assert state.command_palette.sfg.results == ()
@@ -765,14 +765,14 @@ def test_begin_selected_files_grep_with_single_file() -> None:
     state = _reduce_state(
         build_initial_app_state(),
         BeginSelectedFilesGrep(
-            target_paths=("/home/tadashi/develop/zivo/README.md",)
+            target_paths=(TEST_PROJECT_ROOT + '/README.md',)
         ),
     )
 
     assert state.ui_mode == "PALETTE"
     assert state.command_palette is not None
     assert state.command_palette.source == "selected_files_grep"
-    assert state.command_palette.sfg.target_paths == ("/home/tadashi/develop/zivo/README.md",)
+    assert state.command_palette.sfg.target_paths == (TEST_PROJECT_ROOT + '/README.md',)
 
 @pytest.mark.skip(reason="Superseded by the shared content-search scope tests")
 def test_begin_selected_files_grep_with_empty_selection() -> None:
@@ -865,8 +865,8 @@ def test_sfg_empty_keyword_clears_results() -> None:
 def test_sfg_filters_results_by_target_paths() -> None:
     """Test that search results are filtered by target paths."""
     target_paths = (
-        "/home/tadashi/develop/zivo/src/main.py",
-        "/home/tadashi/develop/zivo/src/utils.py",
+        TEST_PROJECT_ROOT + '/src/main.py',
+        TEST_PROJECT_ROOT + '/src/utils.py',
     )
     state = _reduce_state(
         build_initial_app_state(),
@@ -881,19 +881,19 @@ def test_sfg_filters_results_by_target_paths() -> None:
             request_id=1,
             results=(
                 GrepSearchResultState(
-                    path="/home/tadashi/develop/zivo/src/main.py",
+                    path=TEST_PROJECT_ROOT + '/src/main.py',
                     display_path="src/main.py",
                     line_number=10,
                     line_text="def main():",
                 ),
                 GrepSearchResultState(
-                    path="/home/tadashi/develop/zivo/src/other.py",
+                    path=TEST_PROJECT_ROOT + '/src/other.py',
                     display_path="src/other.py",
                     line_number=5,
                     line_text="def other():",
                 ),
                 GrepSearchResultState(
-                    path="/home/tadashi/develop/zivo/src/utils.py",
+                    path=TEST_PROJECT_ROOT + '/src/utils.py',
                     display_path="src/utils.py",
                     line_number=20,
                     line_text="def utils():",
@@ -905,13 +905,13 @@ def test_sfg_filters_results_by_target_paths() -> None:
     assert result.state.command_palette is not None
     assert result.state.command_palette.sfg.results == (
         GrepSearchResultState(
-            path="/home/tadashi/develop/zivo/src/main.py",
+            path=TEST_PROJECT_ROOT + '/src/main.py',
             display_path="src/main.py",
             line_number=10,
             line_text="def main():",
         ),
         GrepSearchResultState(
-            path="/home/tadashi/develop/zivo/src/utils.py",
+            path=TEST_PROJECT_ROOT + '/src/utils.py',
             display_path="src/utils.py",
             line_number=20,
             line_text="def utils():",

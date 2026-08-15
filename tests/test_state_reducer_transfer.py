@@ -1,6 +1,7 @@
 from dataclasses import replace
 from pathlib import Path
 
+from tests.support.paths import TEST_DEVELOP_ROOT, TEST_HOME, TEST_PROJECT_ROOT
 from tests.support.state import reduce_state as _reduce_state
 from zivo.models import (
     PasteAppliedChange,
@@ -55,8 +56,8 @@ def test_transfer_copy_to_opposite_pane_uses_paste_effect() -> None:
             request_id=1,
             request=PasteRequest(
                 mode="copy",
-                source_paths=("/home/tadashi/develop/zivo/docs",),
-                destination_dir="/home/tadashi/develop/zivo",
+                source_paths=(TEST_PROJECT_ROOT + '/docs',),
+                destination_dir=TEST_PROJECT_ROOT,
                 origin="transfer",
             ),
         ),
@@ -73,8 +74,8 @@ def test_transfer_move_to_opposite_pane_uses_cut_paste_request() -> None:
             request_id=1,
             request=PasteRequest(
                 mode="cut",
-                source_paths=("/home/tadashi/develop/zivo/docs",),
-                destination_dir="/home/tadashi/develop/zivo",
+                source_paths=(TEST_PROJECT_ROOT + '/docs',),
+                destination_dir=TEST_PROJECT_ROOT,
                 origin="transfer",
             ),
         ),
@@ -91,15 +92,15 @@ def test_transfer_paste_completed_refreshes_both_transfer_panes() -> None:
             request_id=1,
             summary=PasteSummary(
                 mode="cut",
-                destination_dir="/home/tadashi/develop/zivo",
+                destination_dir=TEST_PROJECT_ROOT,
                 total_count=1,
                 success_count=1,
                 skipped_count=0,
             ),
             applied_changes=(
                 PasteAppliedChange(
-                    source_path="/home/tadashi/develop/zivo/docs",
-                    destination_path="/home/tadashi/develop/zivo/docs",
+                    source_path=TEST_PROJECT_ROOT + '/docs',
+                    destination_path=TEST_PROJECT_ROOT + '/docs',
                 ),
             ),
         ),
@@ -109,21 +110,21 @@ def test_transfer_paste_completed_refreshes_both_transfer_panes() -> None:
         LoadTransferPaneEffect(
             request_id=2,
             pane_id="left",
-            path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/src",
+            path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/src',
             invalidate_paths=(
-                str(Path("/home/tadashi/develop/zivo").resolve()),
-                str(Path("/home/tadashi/develop").resolve()),
+                str(Path(TEST_PROJECT_ROOT).resolve()),
+                str(Path(TEST_DEVELOP_ROOT).resolve()),
             ),
         ),
         LoadTransferPaneEffect(
             request_id=3,
             pane_id="right",
-            path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
             invalidate_paths=(
-                str(Path("/home/tadashi/develop/zivo").resolve()),
-                str(Path("/home/tadashi/develop").resolve()),
+                str(Path(TEST_PROJECT_ROOT).resolve()),
+                str(Path(TEST_DEVELOP_ROOT).resolve()),
             ),
         ),
     )
@@ -132,7 +133,7 @@ def test_transfer_paste_completed_refreshes_both_transfer_panes() -> None:
 def test_transfer_undo_completed_refreshes_both_transfer_panes() -> None:
     entry = UndoEntry(
         kind="paste_copy",
-        steps=(UndoDeletePathStep(path="/home/tadashi/develop/zivo/copied"),),
+        steps=(UndoDeletePathStep(path=TEST_PROJECT_ROOT + '/copied'),),
     )
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
     state = replace(
@@ -152,7 +153,7 @@ def test_transfer_undo_completed_refreshes_both_transfer_panes() -> None:
             result=UndoResult(
                 path=None,
                 message="Undid copied item",
-                removed_paths=("/home/tadashi/develop/zivo/copied",),
+                removed_paths=(TEST_PROJECT_ROOT + '/copied',),
             ),
         ),
     )
@@ -163,21 +164,21 @@ def test_transfer_undo_completed_refreshes_both_transfer_panes() -> None:
         LoadTransferPaneEffect(
             request_id=8,
             pane_id="left",
-            path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
             invalidate_paths=(
-                str(Path("/home/tadashi/develop/zivo").resolve()),
-                str(Path("/home/tadashi/develop").resolve()),
+                str(Path(TEST_PROJECT_ROOT).resolve()),
+                str(Path(TEST_DEVELOP_ROOT).resolve()),
             ),
         ),
         LoadTransferPaneEffect(
             request_id=9,
             pane_id="right",
-            path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
             invalidate_paths=(
-                str(Path("/home/tadashi/develop/zivo").resolve()),
-                str(Path("/home/tadashi/develop").resolve()),
+                str(Path(TEST_PROJECT_ROOT).resolve()),
+                str(Path(TEST_DEVELOP_ROOT).resolve()),
             ),
         ),
     )
@@ -192,9 +193,9 @@ def test_enter_transfer_directory_loads_active_pane_snapshot() -> None:
     assert isinstance(effect, LoadTransferPaneEffect)
     assert effect.request_id == 1
     assert effect.pane_id == "left"
-    assert effect.path == "/home/tadashi/develop/zivo/docs"
-    assert effect.invalidate_paths[0].endswith("/home/tadashi/develop/zivo/docs")
-    assert effect.invalidate_paths[1].endswith("/home/tadashi/develop/zivo")
+    assert effect.path == TEST_PROJECT_ROOT + '/docs'
+    assert effect.invalidate_paths[0].endswith(TEST_PROJECT_ROOT + '/docs')
+    assert effect.invalidate_paths[1].endswith(TEST_PROJECT_ROOT)
 
 
 def test_focus_transfer_pane_changes_active_side() -> None:
@@ -243,7 +244,7 @@ def test_clipboard_cut_not_cleared_by_direct_transfer_move() -> None:
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
     state = replace(
         state,
-        clipboard=ClipboardState(mode="cut", paths=("/home/tadashi/armed",)),
+        clipboard=ClipboardState(mode="cut", paths=(TEST_HOME + '/armed',)),
     )
     state = _reduce_state(state, TransferMoveToOppositePane())
 
@@ -253,30 +254,30 @@ def test_clipboard_cut_not_cleared_by_direct_transfer_move() -> None:
             request_id=state.pending_paste_request_id,
             summary=PasteSummary(
                 mode="cut",
-                destination_dir="/home/tadashi/develop/zivo",
+                destination_dir=TEST_PROJECT_ROOT,
                 total_count=1,
                 success_count=1,
                 skipped_count=0,
             ),
             applied_changes=(
                 PasteAppliedChange(
-                    source_path="/home/tadashi/develop/zivo/docs",
-                    destination_path="/home/tadashi/develop/zivo/docs",
+                    source_path=TEST_PROJECT_ROOT + '/docs',
+                    destination_path=TEST_PROJECT_ROOT + '/docs',
                 ),
             ),
         ),
     )
 
     assert reduced.state.clipboard.mode == "cut"
-    assert reduced.state.clipboard.paths == ("/home/tadashi/armed",)
+    assert reduced.state.clipboard.paths == (TEST_HOME + '/armed',)
 
 
 def test_transfer_move_clears_successful_selection_keeps_others() -> None:
     """成功した source の選択を解除し、未適用の対象は選択を保持する。"""
     state = _reduce_state(build_initial_app_state(), ToggleTransferMode())
     armed_paths = (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/src',
     )
     state = replace(
         state,
@@ -285,7 +286,7 @@ def test_transfer_move_clears_successful_selection_keeps_others() -> None:
             pane=replace(
                 state.transfer_left.pane,
                 selected_paths=frozenset(armed_paths),
-                cursor_path="/home/tadashi/develop/zivo/docs",
+                cursor_path=TEST_PROJECT_ROOT + '/docs',
             ),
         ),
     )
@@ -297,15 +298,15 @@ def test_transfer_move_clears_successful_selection_keeps_others() -> None:
             request_id=state.pending_paste_request_id,
             summary=PasteSummary(
                 mode="cut",
-                destination_dir="/home/tadashi/develop/zivo",
+                destination_dir=TEST_PROJECT_ROOT,
                 total_count=2,
                 success_count=1,
                 skipped_count=0,
             ),
             applied_changes=(
                 PasteAppliedChange(
-                    source_path="/home/tadashi/develop/zivo/docs",
-                    destination_path="/home/tadashi/develop/zivo/docs",
+                    source_path=TEST_PROJECT_ROOT + '/docs',
+                    destination_path=TEST_PROJECT_ROOT + '/docs',
                 ),
             ),
         ),
@@ -313,5 +314,5 @@ def test_transfer_move_clears_successful_selection_keeps_others() -> None:
 
     left = reduced.state.transfer_left
     assert left is not None
-    assert "/home/tadashi/develop/zivo/docs" not in left.pane.selected_paths
-    assert "/home/tadashi/develop/zivo/src" in left.pane.selected_paths
+    assert TEST_PROJECT_ROOT + '/docs' not in left.pane.selected_paths
+    assert TEST_PROJECT_ROOT + '/src' in left.pane.selected_paths

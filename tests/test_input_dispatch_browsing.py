@@ -53,6 +53,7 @@ from tests.support.input_dispatch import (
     input_module,
     iter_bound_keys,
 )
+from tests.support.paths import TEST_PROJECT_ROOT
 from tests.support.state import entry, pane, reduce_state
 
 SEARCH_WORKSPACE_PATH = (
@@ -61,7 +62,7 @@ SEARCH_WORKSPACE_PATH = (
 
 
 def build_search_workspace_state():
-    result_path = "/home/tadashi/develop/zivo/README.md"
+    result_path = TEST_PROJECT_ROOT + '/README.md'
     state = build_initial_app_state()
     return replace(
         state,
@@ -87,11 +88,11 @@ def test_browsing_down_dispatches_move_cursor() -> None:
     assert actions[1] == MoveCursor(
         delta=1,
         visible_paths=(
-            "/home/tadashi/develop/zivo/docs",
-            "/home/tadashi/develop/zivo/src",
-            "/home/tadashi/develop/zivo/tests",
-            "/home/tadashi/develop/zivo/pyproject.toml",
-            "/home/tadashi/develop/zivo/README.md",
+            TEST_PROJECT_ROOT + '/docs',
+            TEST_PROJECT_ROOT + '/src',
+            TEST_PROJECT_ROOT + '/tests',
+            TEST_PROJECT_ROOT + '/pyproject.toml',
+            TEST_PROJECT_ROOT + '/README.md',
         ),
     )
 
@@ -126,11 +127,11 @@ def test_browsing_j_dispatches_move_cursor() -> None:
     assert actions[1] == MoveCursor(
         delta=1,
         visible_paths=(
-            "/home/tadashi/develop/zivo/docs",
-            "/home/tadashi/develop/zivo/src",
-            "/home/tadashi/develop/zivo/tests",
-            "/home/tadashi/develop/zivo/pyproject.toml",
-            "/home/tadashi/develop/zivo/README.md",
+            TEST_PROJECT_ROOT + '/docs',
+            TEST_PROJECT_ROOT + '/src',
+            TEST_PROJECT_ROOT + '/tests',
+            TEST_PROJECT_ROOT + '/pyproject.toml',
+            TEST_PROJECT_ROOT + '/README.md',
         ),
     )
 
@@ -144,11 +145,11 @@ def test_browsing_k_dispatches_move_cursor() -> None:
     assert actions[1] == MoveCursor(
         delta=-1,
         visible_paths=(
-            "/home/tadashi/develop/zivo/docs",
-            "/home/tadashi/develop/zivo/src",
-            "/home/tadashi/develop/zivo/tests",
-            "/home/tadashi/develop/zivo/pyproject.toml",
-            "/home/tadashi/develop/zivo/README.md",
+            TEST_PROJECT_ROOT + '/docs',
+            TEST_PROJECT_ROOT + '/src',
+            TEST_PROJECT_ROOT + '/tests',
+            TEST_PROJECT_ROOT + '/pyproject.toml',
+            TEST_PROJECT_ROOT + '/README.md',
         ),
     )
 
@@ -158,7 +159,7 @@ def test_search_workspace_keeps_allowed_browsing_shortcuts() -> None:
 
     assert dispatch_key_input(state, key="c") == (
         SetNotification(None),
-        CopyTargets(("/home/tadashi/develop/zivo/README.md",)),
+        CopyTargets((TEST_PROJECT_ROOT + '/README.md',)),
     )
     assert dispatch_key_input(state, key="z") == (
         SetNotification(None),
@@ -271,7 +272,7 @@ def test_browsing_prefix_key_completion_dispatches_handler(monkeypatch) -> None:
     assert actions == (
         SetNotification(None),
         ClearPendingKeySequence(),
-        CopyTargets(("/home/tadashi/develop/zivo/docs",)),
+        CopyTargets((TEST_PROJECT_ROOT + '/docs',)),
     )
 
 
@@ -337,11 +338,11 @@ def test_browsing_shift_down_dispatches_range_selection_move() -> None:
     assert actions[1] == MoveCursorAndSelectRange(
         delta=1,
         visible_paths=(
-            "/home/tadashi/develop/zivo/docs",
-            "/home/tadashi/develop/zivo/src",
-            "/home/tadashi/develop/zivo/tests",
-            "/home/tadashi/develop/zivo/pyproject.toml",
-            "/home/tadashi/develop/zivo/README.md",
+            TEST_PROJECT_ROOT + '/docs',
+            TEST_PROJECT_ROOT + '/src',
+            TEST_PROJECT_ROOT + '/tests',
+            TEST_PROJECT_ROOT + '/pyproject.toml',
+            TEST_PROJECT_ROOT + '/README.md',
         ),
     )
 
@@ -354,11 +355,11 @@ def test_browsing_down_clears_range_selection_before_moving_cursor() -> None:
             state.current_pane,
             selected_paths=frozenset(
                 {
-                    "/home/tadashi/develop/zivo/docs",
-                    "/home/tadashi/develop/zivo/src",
+                    TEST_PROJECT_ROOT + '/docs',
+                    TEST_PROJECT_ROOT + '/src',
                 }
             ),
-            selection_anchor_path="/home/tadashi/develop/zivo/docs",
+            selection_anchor_path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 
@@ -370,11 +371,11 @@ def test_browsing_down_clears_range_selection_before_moving_cursor() -> None:
         MoveCursor(
             delta=1,
             visible_paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
-                "/home/tadashi/develop/zivo/tests",
-                "/home/tadashi/develop/zivo/pyproject.toml",
-                "/home/tadashi/develop/zivo/README.md",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
+                TEST_PROJECT_ROOT + '/tests',
+                TEST_PROJECT_ROOT + '/pyproject.toml',
+                TEST_PROJECT_ROOT + '/README.md',
             ),
         ),
     )
@@ -387,13 +388,13 @@ def test_browsing_space_toggles_selection_and_advances_cursor() -> None:
 
     assert actions[0] == SetNotification(None)
     assert actions[1] == ToggleSelectionAndAdvance(
-        path="/home/tadashi/develop/zivo/docs",
+        path=TEST_PROJECT_ROOT + '/docs',
         visible_paths=(
-            "/home/tadashi/develop/zivo/docs",
-            "/home/tadashi/develop/zivo/src",
-            "/home/tadashi/develop/zivo/tests",
-            "/home/tadashi/develop/zivo/pyproject.toml",
-            "/home/tadashi/develop/zivo/README.md",
+            TEST_PROJECT_ROOT + '/docs',
+            TEST_PROJECT_ROOT + '/src',
+            TEST_PROJECT_ROOT + '/tests',
+            TEST_PROJECT_ROOT + '/pyproject.toml',
+            TEST_PROJECT_ROOT + '/README.md',
         ),
     )
 
@@ -506,7 +507,7 @@ def test_browsing_lowercase_c_dispatches_copy_targets() -> None:
 
     assert actions == (
         SetNotification(None),
-        CopyTargets(("/home/tadashi/develop/zivo/docs",)),
+        CopyTargets((TEST_PROJECT_ROOT + '/docs',)),
     )
 
 
@@ -517,7 +518,7 @@ def test_browsing_x_dispatches_cut_targets() -> None:
 
     assert actions == (
         SetNotification(None),
-        CutTargets(("/home/tadashi/develop/zivo/docs",)),
+        CutTargets((TEST_PROJECT_ROOT + '/docs',)),
     )
 
 
@@ -575,7 +576,7 @@ def test_browsing_right_on_file_does_nothing() -> None:
         state,
         current_pane=replace(
             state.current_pane,
-            cursor_path="/home/tadashi/develop/zivo/README.md",
+            cursor_path=TEST_PROJECT_ROOT + '/README.md',
         ),
     )
 
@@ -590,7 +591,7 @@ def test_browsing_enter_on_file_dispatches_open_with_default_app() -> None:
         state,
         current_pane=replace(
             state.current_pane,
-            cursor_path="/home/tadashi/develop/zivo/README.md",
+            cursor_path=TEST_PROJECT_ROOT + '/README.md',
         ),
     )
 
@@ -598,7 +599,7 @@ def test_browsing_enter_on_file_dispatches_open_with_default_app() -> None:
 
     assert actions == (
         SetNotification(None),
-        OpenPathWithDefaultApp("/home/tadashi/develop/zivo/README.md"),
+        OpenPathWithDefaultApp(TEST_PROJECT_ROOT + '/README.md'),
     )
 
 
@@ -608,7 +609,7 @@ def test_browsing_e_on_file_dispatches_open_in_editor() -> None:
         state,
         current_pane=replace(
             state.current_pane,
-            cursor_path="/home/tadashi/develop/zivo/README.md",
+            cursor_path=TEST_PROJECT_ROOT + '/README.md',
         ),
     )
 
@@ -616,7 +617,7 @@ def test_browsing_e_on_file_dispatches_open_in_editor() -> None:
 
     assert actions == (
         SetNotification(None),
-        OpenPathInEditor("/home/tadashi/develop/zivo/README.md"),
+        OpenPathInEditor(TEST_PROJECT_ROOT + '/README.md'),
     )
 
 
@@ -639,7 +640,7 @@ def test_browsing_lowercase_r_begins_rename_for_single_target() -> None:
 
     assert actions == (
         SetNotification(None),
-        BeginRenameInput("/home/tadashi/develop/zivo/docs"),
+        BeginRenameInput(TEST_PROJECT_ROOT + '/docs'),
     )
 
 
@@ -651,8 +652,8 @@ def test_browsing_lowercase_r_opens_bulk_rename_for_multiple_targets() -> None:
             state.current_pane,
             selected_paths=frozenset(
                 {
-                    "/home/tadashi/develop/zivo/docs",
-                    "/home/tadashi/develop/zivo/src",
+                    TEST_PROJECT_ROOT + '/docs',
+                    TEST_PROJECT_ROOT + '/src',
                 }
             ),
         ),
@@ -662,10 +663,10 @@ def test_browsing_lowercase_r_opens_bulk_rename_for_multiple_targets() -> None:
 
     assert actions[0] == SetNotification(None)
     assert isinstance(actions[1], BeginBulkRename)
-    assert actions[1].parent_dir == "/home/tadashi/develop/zivo"
+    assert actions[1].parent_dir == TEST_PROJECT_ROOT
     assert tuple(target.source_path for target in actions[1].targets) == (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/src',
     )
 
 
@@ -933,7 +934,7 @@ def test_browsing_d_dispatches_delete_targets() -> None:
 
     assert actions == (
         SetNotification(None),
-        BeginDeleteTargets(("/home/tadashi/develop/zivo/docs",)),
+        BeginDeleteTargets((TEST_PROJECT_ROOT + '/docs',)),
     )
 
 
@@ -960,7 +961,7 @@ def test_browsing_delete_dispatches_delete_targets() -> None:
 
     assert actions == (
         SetNotification(None),
-        BeginDeleteTargets(("/home/tadashi/develop/zivo/docs",)),
+        BeginDeleteTargets((TEST_PROJECT_ROOT + '/docs',)),
     )
 
 
@@ -987,7 +988,7 @@ def test_browsing_shift_delete_dispatches_permanent_delete_targets() -> None:
 
     assert actions == (
         SetNotification(None),
-        BeginDeleteTargets(("/home/tadashi/develop/zivo/docs",), mode="permanent"),
+        BeginDeleteTargets((TEST_PROJECT_ROOT + '/docs',), mode="permanent"),
     )
 
 
@@ -998,7 +999,7 @@ def test_browsing_uppercase_D_dispatches_permanent_delete_targets() -> None:
 
     assert actions == (
         SetNotification(None),
-        BeginDeleteTargets(("/home/tadashi/develop/zivo/docs",), mode="permanent"),
+        BeginDeleteTargets((TEST_PROJECT_ROOT + '/docs',), mode="permanent"),
     )
 
 
@@ -1043,11 +1044,11 @@ def test_browsing_lowercase_a_selects_all_visible_entries() -> None:
         SetNotification(None),
         SelectAllVisibleEntries(
             (
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
-                "/home/tadashi/develop/zivo/tests",
-                "/home/tadashi/develop/zivo/pyproject.toml",
-                "/home/tadashi/develop/zivo/README.md",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
+                TEST_PROJECT_ROOT + '/tests',
+                TEST_PROJECT_ROOT + '/pyproject.toml',
+                TEST_PROJECT_ROOT + '/README.md',
             )
         ),
     )

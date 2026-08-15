@@ -1,7 +1,5 @@
 """Shared setup for selector tests."""
-
 # ruff: noqa: F401
-
 import os
 from dataclasses import replace
 from stat import S_IFREG
@@ -9,6 +7,7 @@ from stat import S_IFREG
 import pytest
 
 import zivo.state.selectors as selectors_module
+from tests.support.paths import TEST_PROJECT_ROOT
 from tests.support.state import entry, pane, reduce_state
 from zivo.models import (
     ActionsConfig,
@@ -104,7 +103,7 @@ SEARCH_WORKSPACE_PATH = (
 
 
 def build_search_workspace_state():
-    result_path = "/home/tadashi/develop/zivo/README.md"
+    result_path = TEST_PROJECT_ROOT + '/README.md'
     state = build_initial_app_state()
     return replace(
         state,

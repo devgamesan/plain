@@ -1,5 +1,5 @@
 """Test State Reducer Snapshots tests."""
-
+from tests.support.paths import TEST_PROJECT_ROOT
 from tests.support.reducer import (
     BrowserSnapshot,
     BrowserSnapshotFailed,
@@ -95,29 +95,29 @@ def test_browser_snapshot_loaded_preserves_remaining_selection_on_reload() -> No
     state = build_initial_app_state()
     state = _reduce_state(
         state,
-        ToggleSelection("/home/tadashi/develop/zivo/docs"),
+        ToggleSelection(TEST_PROJECT_ROOT + '/docs'),
     )
     state = _reduce_state(
         state,
-        ToggleSelection("/home/tadashi/develop/zivo/README.md"),
+        ToggleSelection(TEST_PROJECT_ROOT + '/README.md'),
     )
     requested = reduce_app_state(
         state,
-        RequestBrowserSnapshot("/home/tadashi/develop/zivo", blocking=True),
+        RequestBrowserSnapshot(TEST_PROJECT_ROOT, blocking=True),
     ).state
 
     snapshot = BrowserSnapshot(
-        current_path="/home/tadashi/develop/zivo",
+        current_path=TEST_PROJECT_ROOT,
         parent_pane=requested.parent_pane,
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(
-                DirectoryEntryState("/home/tadashi/develop/zivo/docs", "docs", "dir"),
-                DirectoryEntryState("/home/tadashi/develop/zivo/src", "src", "dir"),
+                DirectoryEntryState(TEST_PROJECT_ROOT + '/docs', "docs", "dir"),
+                DirectoryEntryState(TEST_PROJECT_ROOT + '/src', "src", "dir"),
             ),
-            cursor_path="/home/tadashi/develop/zivo/src",
+            cursor_path=TEST_PROJECT_ROOT + '/src',
         ),
-        child_pane=PaneState(directory_path="/home/tadashi/develop/zivo/src", entries=()),
+        child_pane=PaneState(directory_path=TEST_PROJECT_ROOT + '/src', entries=()),
     )
 
     next_state = _reduce_state(
@@ -126,39 +126,39 @@ def test_browser_snapshot_loaded_preserves_remaining_selection_on_reload() -> No
     )
 
     assert next_state.current_pane.selected_paths == frozenset(
-        {"/home/tadashi/develop/zivo/docs"}
+        {TEST_PROJECT_ROOT + '/docs'}
     )
 
 def test_browser_snapshot_loaded_clears_selection_when_directory_changes() -> None:
     state = build_initial_app_state()
     state = _reduce_state(
         state,
-        ToggleSelection("/home/tadashi/develop/zivo/docs"),
+        ToggleSelection(TEST_PROJECT_ROOT + '/docs'),
     )
     requested = reduce_app_state(
         state,
-        RequestBrowserSnapshot("/home/tadashi/develop/zivo/docs", blocking=True),
+        RequestBrowserSnapshot(TEST_PROJECT_ROOT + '/docs', blocking=True),
     ).state
 
     snapshot = BrowserSnapshot(
-        current_path="/home/tadashi/develop/zivo/docs",
+        current_path=TEST_PROJECT_ROOT + '/docs',
         parent_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=state.current_pane.entries,
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
         ),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo/docs",
+            directory_path=TEST_PROJECT_ROOT + '/docs',
             entries=(
                 DirectoryEntryState(
-                    "/home/tadashi/develop/zivo/docs/spec.md",
+                    TEST_PROJECT_ROOT + '/docs/spec.md',
                     "spec.md",
                     "file",
                 ),
             ),
-            cursor_path="/home/tadashi/develop/zivo/docs/spec.md",
+            cursor_path=TEST_PROJECT_ROOT + '/docs/spec.md',
         ),
-        child_pane=PaneState(directory_path="/home/tadashi/develop/zivo/docs", entries=()),
+        child_pane=PaneState(directory_path=TEST_PROJECT_ROOT + '/docs', entries=()),
     )
 
     next_state = _reduce_state(
@@ -186,58 +186,58 @@ def test_browser_snapshot_failed_sets_error_notification() -> None:
 def test_move_cursor_emits_child_snapshot_effect_only_when_target_changes() -> None:
     state = build_initial_app_state()
     visible_paths = (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
-        "/home/tadashi/develop/zivo/tests",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/src',
+        TEST_PROJECT_ROOT + '/tests',
     )
 
-    result = reduce_app_state(state, SetCursorPath("/home/tadashi/develop/zivo/docs"))
+    result = reduce_app_state(state, SetCursorPath(TEST_PROJECT_ROOT + '/docs'))
     assert result.effects == (
         RunDirectorySizeEffect(
             request_id=1,
             paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
-                "/home/tadashi/develop/zivo/tests",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
+                TEST_PROJECT_ROOT + '/tests',
             ),
         ),
     )
 
-    moved = reduce_app_state(state, SetCursorPath("/home/tadashi/develop/zivo/src"))
+    moved = reduce_app_state(state, SetCursorPath(TEST_PROJECT_ROOT + '/src'))
 
     assert moved.state.pending_child_pane_request_id == 1
     assert moved.state.child_pane == state.child_pane
     assert moved.effects == (
         LoadChildPaneSnapshotEffect(
             request_id=1,
-            current_path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/src",
+            current_path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/src',
         ),
         RunDirectorySizeEffect(
             request_id=2,
             paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
-                "/home/tadashi/develop/zivo/tests",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
+                TEST_PROJECT_ROOT + '/tests',
             ),
         ),
     )
 
     down = reduce_app_state(state, MoveCursor(delta=1, visible_paths=visible_paths))
 
-    assert down.state.current_pane.cursor_path == "/home/tadashi/develop/zivo/src"
+    assert down.state.current_pane.cursor_path == TEST_PROJECT_ROOT + '/src'
     assert down.effects == (
         LoadChildPaneSnapshotEffect(
             request_id=1,
-            current_path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/src",
+            current_path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/src',
         ),
         RunDirectorySizeEffect(
             request_id=2,
             paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
-                "/home/tadashi/develop/zivo/tests",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
+                TEST_PROJECT_ROOT + '/tests',
             ),
         ),
     )
@@ -245,22 +245,22 @@ def test_move_cursor_emits_child_snapshot_effect_only_when_target_changes() -> N
 def test_set_cursor_path_to_file_requests_child_pane_preview() -> None:
     state = build_initial_app_state()
 
-    result = reduce_app_state(state, SetCursorPath("/home/tadashi/develop/zivo/README.md"))
+    result = reduce_app_state(state, SetCursorPath(TEST_PROJECT_ROOT + '/README.md'))
 
     assert result.state.child_pane == state.child_pane
     assert result.state.pending_child_pane_request_id == 1
     assert result.effects == (
         LoadChildPaneSnapshotEffect(
             request_id=1,
-            current_path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/README.md",
+            current_path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/README.md',
         ),
         RunDirectorySizeEffect(
             request_id=2,
             paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
-                "/home/tadashi/develop/zivo/tests",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
+                TEST_PROJECT_ROOT + '/tests',
             ),
         ),
     )
@@ -273,18 +273,18 @@ def test_set_cursor_path_to_file_clears_child_pane_when_preview_disabled() -> No
             display=replace(build_initial_app_state().config.display, enable_text_preview=False),
         ),
         child_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(),
             mode="preview",
-            preview_path="/home/tadashi/develop/zivo/pyproject.toml",
+            preview_path=TEST_PROJECT_ROOT + '/pyproject.toml',
             preview_content="[project]\n",
         ),
     )
 
-    result = reduce_app_state(state, SetCursorPath("/home/tadashi/develop/zivo/README.md"))
+    result = reduce_app_state(state, SetCursorPath(TEST_PROJECT_ROOT + '/README.md'))
 
     assert result.state.child_pane == PaneState(
-        directory_path="/home/tadashi/develop/zivo",
+        directory_path=TEST_PROJECT_ROOT,
         entries=(),
     )
     assert result.state.pending_child_pane_request_id is None
@@ -292,16 +292,16 @@ def test_set_cursor_path_to_file_clears_child_pane_when_preview_disabled() -> No
         RunDirectorySizeEffect(
             request_id=1,
             paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
-                "/home/tadashi/develop/zivo/tests",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
+                TEST_PROJECT_ROOT + '/tests',
             ),
         ),
     )
 
 def test_child_pane_snapshot_loaded_ignores_stale_request() -> None:
     state = build_initial_app_state()
-    requested = reduce_app_state(state, SetCursorPath("/home/tadashi/develop/zivo/src")).state
+    requested = reduce_app_state(state, SetCursorPath(TEST_PROJECT_ROOT + '/src')).state
 
     next_state = _reduce_state(
         requested,
@@ -314,7 +314,7 @@ def test_child_pane_snapshot_loaded_ignores_stale_request() -> None:
     assert next_state == requested
 
 def test_child_pane_snapshot_loaded_clears_grep_preview_when_file_preview_disabled() -> None:
-    path = "/home/tadashi/develop/zivo/README.md"
+    path = TEST_PROJECT_ROOT + '/README.md'
     state = replace(
         build_initial_app_state(),
         config=replace(
@@ -329,7 +329,7 @@ def test_child_pane_snapshot_loaded_clears_grep_preview_when_file_preview_disabl
         ChildPaneSnapshotLoaded(
             request_id=7,
             pane=PaneState(
-                directory_path="/home/tadashi/develop/zivo",
+                directory_path=TEST_PROJECT_ROOT,
                 entries=(),
                 mode="preview",
                 preview_path=path,
@@ -342,14 +342,14 @@ def test_child_pane_snapshot_loaded_clears_grep_preview_when_file_preview_disabl
     )
 
     assert next_state.child_pane == PaneState(
-        directory_path="/home/tadashi/develop/zivo",
+        directory_path=TEST_PROJECT_ROOT,
         entries=(),
     )
     assert next_state.pending_child_pane_request_id is None
 
 def test_child_pane_snapshot_failed_ignores_stale_request() -> None:
     state = build_initial_app_state()
-    requested = reduce_app_state(state, SetCursorPath("/home/tadashi/develop/zivo/src")).state
+    requested = reduce_app_state(state, SetCursorPath(TEST_PROJECT_ROOT + '/src')).state
 
     next_state = _reduce_state(
         requested,
@@ -360,14 +360,14 @@ def test_child_pane_snapshot_failed_ignores_stale_request() -> None:
 
 def test_child_pane_snapshot_failure_sets_error_and_clears_entries() -> None:
     state = build_initial_app_state()
-    requested = reduce_app_state(state, SetCursorPath("/home/tadashi/develop/zivo/src")).state
+    requested = reduce_app_state(state, SetCursorPath(TEST_PROJECT_ROOT + '/src')).state
 
     next_state = _reduce_state(
         requested,
         ChildPaneSnapshotFailed(request_id=1, message="permission denied"),
     )
 
-    assert next_state.child_pane.directory_path == "/home/tadashi/develop/zivo"
+    assert next_state.child_pane.directory_path == TEST_PROJECT_ROOT
     assert next_state.child_pane.entries == ()
     assert next_state.notification == NotificationState(
         level="error",

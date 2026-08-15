@@ -1,5 +1,5 @@
 """Test State Reducer Core tests."""
-
+from tests.support.paths import TEST_PROJECT_ROOT
 from tests.support.reducer import (
     WINDOWS_DRIVES_ROOT,
     BrowserSnapshot,
@@ -64,17 +64,17 @@ def test_request_directory_sizes_marks_paths_pending_and_emits_effect() -> None:
 
     result = reduce_app_state(
         state,
-        RequestDirectorySizes(("/home/tadashi/develop/zivo/docs",)),
+        RequestDirectorySizes((TEST_PROJECT_ROOT + '/docs',)),
     )
 
     assert result.state.pending_directory_size_request_id == 1
     assert result.state.directory_size_cache == (
-        DirectorySizeCacheEntry("/home/tadashi/develop/zivo/docs", "pending"),
+        DirectorySizeCacheEntry(TEST_PROJECT_ROOT + '/docs', "pending"),
     )
     assert result.effects == (
         RunDirectorySizeEffect(
             request_id=1,
-            paths=("/home/tadashi/develop/zivo/docs",),
+            paths=(TEST_PROJECT_ROOT + '/docs',),
         ),
     )
 
@@ -82,14 +82,14 @@ def test_request_browser_snapshot_clears_directory_size_cache() -> None:
     state = replace(
         build_initial_app_state(),
         directory_size_cache=(
-            DirectorySizeCacheEntry("/home/tadashi/develop/zivo/docs", "ready", size_bytes=123),
+            DirectorySizeCacheEntry(TEST_PROJECT_ROOT + '/docs', "ready", size_bytes=123),
         ),
         pending_directory_size_request_id=7,
     )
 
     next_state = reduce_app_state(
         state,
-        RequestBrowserSnapshot("/home/tadashi/develop/zivo", blocking=True),
+        RequestBrowserSnapshot(TEST_PROJECT_ROOT, blocking=True),
     ).state
 
     assert next_state.directory_size_cache == ()
@@ -99,7 +99,7 @@ def test_directory_sizes_loaded_updates_cache_when_request_matches() -> None:
     state = replace(
         build_initial_app_state(),
         directory_size_cache=(
-            DirectorySizeCacheEntry("/home/tadashi/develop/zivo/docs", "pending"),
+            DirectorySizeCacheEntry(TEST_PROJECT_ROOT + '/docs', "pending"),
         ),
         pending_directory_size_request_id=9,
     )
@@ -108,15 +108,15 @@ def test_directory_sizes_loaded_updates_cache_when_request_matches() -> None:
         state,
         DirectorySizesLoaded(
             request_id=9,
-            sizes=(("/home/tadashi/develop/zivo/docs", 4321),),
+            sizes=((TEST_PROJECT_ROOT + '/docs', 4321),),
         ),
     )
 
     assert next_state.directory_size_cache == (
-        DirectorySizeCacheEntry("/home/tadashi/develop/zivo/docs", "ready", size_bytes=4321),
+        DirectorySizeCacheEntry(TEST_PROJECT_ROOT + '/docs', "ready", size_bytes=4321),
     )
     assert next_state.directory_size_delta == DirectorySizeDeltaState(
-        changed_paths=("/home/tadashi/develop/zivo/docs",),
+        changed_paths=(TEST_PROJECT_ROOT + '/docs',),
         revision=1,
     )
     assert next_state.pending_directory_size_request_id is None
@@ -125,8 +125,8 @@ def test_directory_sizes_loaded_marks_partial_failures() -> None:
     state = replace(
         build_initial_app_state(),
         directory_size_cache=(
-            DirectorySizeCacheEntry("/home/tadashi/develop/zivo/docs", "pending"),
-            DirectorySizeCacheEntry("/home/tadashi/develop/zivo/private", "pending"),
+            DirectorySizeCacheEntry(TEST_PROJECT_ROOT + '/docs', "pending"),
+            DirectorySizeCacheEntry(TEST_PROJECT_ROOT + '/private', "pending"),
         ),
         pending_directory_size_request_id=9,
     )
@@ -135,23 +135,23 @@ def test_directory_sizes_loaded_marks_partial_failures() -> None:
         state,
         DirectorySizesLoaded(
             request_id=9,
-            sizes=(("/home/tadashi/develop/zivo/docs", 4321),),
-            failures=(("/home/tadashi/develop/zivo/private", "Permission denied"),),
+            sizes=((TEST_PROJECT_ROOT + '/docs', 4321),),
+            failures=((TEST_PROJECT_ROOT + '/private', "Permission denied"),),
         ),
     )
 
     assert next_state.directory_size_cache == (
-        DirectorySizeCacheEntry("/home/tadashi/develop/zivo/docs", "ready", size_bytes=4321),
+        DirectorySizeCacheEntry(TEST_PROJECT_ROOT + '/docs', "ready", size_bytes=4321),
         DirectorySizeCacheEntry(
-            "/home/tadashi/develop/zivo/private",
+            TEST_PROJECT_ROOT + '/private',
             "failed",
             error_message="Permission denied",
         ),
     )
     assert next_state.directory_size_delta == DirectorySizeDeltaState(
         changed_paths=(
-            "/home/tadashi/develop/zivo/docs",
-            "/home/tadashi/develop/zivo/private",
+            TEST_PROJECT_ROOT + '/docs',
+            TEST_PROJECT_ROOT + '/private',
         ),
         revision=1,
     )
@@ -161,7 +161,7 @@ def test_directory_sizes_failed_marks_requested_paths_failed() -> None:
     state = replace(
         build_initial_app_state(),
         directory_size_cache=(
-            DirectorySizeCacheEntry("/home/tadashi/develop/zivo/docs", "pending"),
+            DirectorySizeCacheEntry(TEST_PROJECT_ROOT + '/docs', "pending"),
         ),
         pending_directory_size_request_id=4,
     )
@@ -170,20 +170,20 @@ def test_directory_sizes_failed_marks_requested_paths_failed() -> None:
         state,
         DirectorySizesFailed(
             request_id=4,
-            paths=("/home/tadashi/develop/zivo/docs",),
+            paths=(TEST_PROJECT_ROOT + '/docs',),
             message="Permission denied",
         ),
     )
 
     assert next_state.directory_size_cache == (
         DirectorySizeCacheEntry(
-            "/home/tadashi/develop/zivo/docs",
+            TEST_PROJECT_ROOT + '/docs',
             "failed",
             error_message="Permission denied",
         ),
     )
     assert next_state.directory_size_delta == DirectorySizeDeltaState(
-        changed_paths=("/home/tadashi/develop/zivo/docs",),
+        changed_paths=(TEST_PROJECT_ROOT + '/docs',),
         revision=1,
     )
     assert next_state.pending_directory_size_request_id is None
@@ -192,7 +192,7 @@ def test_non_directory_size_action_clears_transient_directory_size_delta() -> No
     state = replace(
         build_initial_app_state(),
         directory_size_delta=DirectorySizeDeltaState(
-            changed_paths=("/home/tadashi/develop/zivo/docs",),
+            changed_paths=(TEST_PROJECT_ROOT + '/docs',),
             revision=4,
         ),
     )
@@ -207,7 +207,7 @@ def test_non_directory_size_action_clears_transient_directory_size_delta() -> No
 
 def test_toggle_selection_sets_transient_current_pane_delta() -> None:
     state = build_initial_app_state()
-    path = "/home/tadashi/develop/zivo/README.md"
+    path = TEST_PROJECT_ROOT + '/README.md'
 
     next_state = _reduce_state(state, ToggleSelection(path))
 
@@ -219,7 +219,7 @@ def test_toggle_selection_sets_transient_current_pane_delta() -> None:
 
 def test_cut_targets_sets_transient_current_pane_delta() -> None:
     state = build_initial_app_state()
-    path = "/home/tadashi/develop/zivo/docs"
+    path = TEST_PROJECT_ROOT + '/docs'
 
     next_state = _reduce_state(state, CutTargets((path,)))
 
@@ -240,14 +240,14 @@ def test_move_cursor_and_select_range_sets_transient_current_pane_delta() -> Non
 
     assert next_state.current_pane.selected_paths == frozenset(
         {
-            "/home/tadashi/develop/zivo/docs",
-            "/home/tadashi/develop/zivo/src",
+            TEST_PROJECT_ROOT + '/docs',
+            TEST_PROJECT_ROOT + '/src',
         }
     )
     assert next_state.current_pane_delta == CurrentPaneDeltaState(
         changed_paths=(
-            "/home/tadashi/develop/zivo/docs",
-            "/home/tadashi/develop/zivo/src",
+            TEST_PROJECT_ROOT + '/docs',
+            TEST_PROJECT_ROOT + '/src',
         ),
         revision=1,
     )
@@ -256,7 +256,7 @@ def test_non_selection_action_clears_transient_current_pane_delta() -> None:
     state = replace(
         build_initial_app_state(),
         current_pane_delta=CurrentPaneDeltaState(
-            changed_paths=("/home/tadashi/develop/zivo/docs",),
+            changed_paths=(TEST_PROJECT_ROOT + '/docs',),
             revision=4,
         ),
     )
@@ -271,7 +271,7 @@ def test_non_selection_action_clears_transient_current_pane_delta() -> None:
 
 def test_toggle_selection_uses_absolute_paths() -> None:
     state = build_initial_app_state()
-    path = "/home/tadashi/develop/zivo/README.md"
+    path = TEST_PROJECT_ROOT + '/README.md'
 
     selected_state = _reduce_state(state, ToggleSelection(path))
     cleared_state = _reduce_state(selected_state, ToggleSelection(path))
@@ -283,7 +283,7 @@ def test_clear_selection_empties_selection() -> None:
     state = build_initial_app_state()
     selected_state = _reduce_state(
         state,
-        ToggleSelection("/home/tadashi/develop/zivo/README.md"),
+        ToggleSelection(TEST_PROJECT_ROOT + '/README.md'),
     )
 
     next_state = _reduce_state(selected_state, ClearSelection())
@@ -317,14 +317,14 @@ def test_set_sort_returns_new_state_without_mutating_input() -> None:
 
 def test_set_sort_keeps_cursor_on_same_visible_path() -> None:
     state = build_initial_app_state()
-    state = _reduce_state(state, SetCursorPath("/home/tadashi/develop/zivo/README.md"))
+    state = _reduce_state(state, SetCursorPath(TEST_PROJECT_ROOT + '/README.md'))
 
     next_state = _reduce_state(
         state,
         SetSort(field="modified", descending=True, directories_first=False),
     )
 
-    assert next_state.current_pane.cursor_path == "/home/tadashi/develop/zivo/README.md"
+    assert next_state.current_pane.cursor_path == TEST_PROJECT_ROOT + '/README.md'
 
 def test_set_sort_normalizes_cursor_to_first_visible_path_when_hidden() -> None:
     state = build_initial_app_state()
@@ -335,7 +335,7 @@ def test_set_sort_normalizes_cursor_to_first_visible_path_when_hidden() -> None:
         SetSort(field="name", descending=False, directories_first=True),
     )
 
-    assert next_state.current_pane.cursor_path == "/home/tadashi/develop/zivo/pyproject.toml"
+    assert next_state.current_pane.cursor_path == TEST_PROJECT_ROOT + '/pyproject.toml'
 
 def test_set_cursor_path_ignores_unknown_path() -> None:
     state = build_initial_app_state()
@@ -348,7 +348,7 @@ def test_enter_cursor_directory_requests_blocking_snapshot_when_child_pane_is_st
     state = replace(
         build_initial_app_state(),
         child_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo/src",
+            directory_path=TEST_PROJECT_ROOT + '/src',
             entries=(),
         ),
     )
@@ -360,7 +360,7 @@ def test_enter_cursor_directory_requests_blocking_snapshot_when_child_pane_is_st
     assert result.effects == (
         LoadBrowserSnapshotEffect(
             request_id=1,
-            path="/home/tadashi/develop/zivo/docs",
+            path=TEST_PROJECT_ROOT + '/docs',
             cursor_path=None,
             blocking=True,
         ),
@@ -560,8 +560,8 @@ def test_go_to_parent_directory_restores_cursor_to_previous_child() -> None:
     assert result.state.pending_browser_snapshot_request_id == 1
     assert result.state.ui_mode == "BUSY"
     assert len(result.effects) == 1
-    assert result.effects[0].path == str(Path("/home/tadashi/develop/zivo").parent)
-    assert result.effects[0].cursor_path == "/home/tadashi/develop/zivo"
+    assert result.effects[0].path == str(Path(TEST_PROJECT_ROOT).parent)
+    assert result.effects[0].cursor_path == TEST_PROJECT_ROOT
     assert result.effects[0].blocking is True
 
 def test_go_to_parent_directory_uses_current_path_parent() -> None:
@@ -667,13 +667,13 @@ def test_open_path_with_default_app_emits_external_launch_effect() -> None:
         build_initial_app_state(),
         current_pane=replace(
             build_initial_app_state().current_pane,
-            cursor_path="/home/tadashi/develop/zivo/README.md",
+            cursor_path=TEST_PROJECT_ROOT + '/README.md',
         ),
     )
 
     result = reduce_app_state(
         state,
-        OpenPathWithDefaultApp("/home/tadashi/develop/zivo/README.md"),
+        OpenPathWithDefaultApp(TEST_PROJECT_ROOT + '/README.md'),
     )
 
     assert result.state.ui_mode == "BROWSING"
@@ -683,7 +683,7 @@ def test_open_path_with_default_app_emits_external_launch_effect() -> None:
             request_id=1,
             request=ExternalLaunchRequest(
                 kind="open_file",
-                path="/home/tadashi/develop/zivo/README.md",
+                path=TEST_PROJECT_ROOT + '/README.md',
             ),
         ),
     )
@@ -693,13 +693,13 @@ def test_open_path_in_editor_emits_external_launch_effect() -> None:
         build_initial_app_state(),
         current_pane=replace(
             build_initial_app_state().current_pane,
-            cursor_path="/home/tadashi/develop/zivo/README.md",
+            cursor_path=TEST_PROJECT_ROOT + '/README.md',
         ),
     )
 
     result = reduce_app_state(
         state,
-        OpenPathInEditor("/home/tadashi/develop/zivo/README.md"),
+        OpenPathInEditor(TEST_PROJECT_ROOT + '/README.md'),
     )
 
     assert result.state.ui_mode == "BROWSING"
@@ -709,7 +709,7 @@ def test_open_path_in_editor_emits_external_launch_effect() -> None:
             request_id=1,
             request=ExternalLaunchRequest(
                 kind="open_editor",
-                path="/home/tadashi/develop/zivo/README.md",
+                path=TEST_PROJECT_ROOT + '/README.md',
             ),
         ),
     )
@@ -719,13 +719,13 @@ def test_open_path_in_editor_with_line_number_emits_external_launch_effect() -> 
         build_initial_app_state(),
         current_pane=replace(
             build_initial_app_state().current_pane,
-            cursor_path="/home/tadashi/develop/zivo/README.md",
+            cursor_path=TEST_PROJECT_ROOT + '/README.md',
         ),
     )
 
     result = reduce_app_state(
         state,
-        OpenPathInEditor("/home/tadashi/develop/zivo/README.md", line_number=42),
+        OpenPathInEditor(TEST_PROJECT_ROOT + '/README.md', line_number=42),
     )
 
     assert result.state.ui_mode == "BROWSING"
@@ -735,7 +735,7 @@ def test_open_path_in_editor_with_line_number_emits_external_launch_effect() -> 
             request_id=1,
             request=ExternalLaunchRequest(
                 kind="open_editor",
-                path="/home/tadashi/develop/zivo/README.md",
+                path=TEST_PROJECT_ROOT + '/README.md',
                 line_number=42,
             ),
         ),
@@ -966,7 +966,7 @@ def test_open_path_in_gui_editor_emits_external_launch_effect() -> None:
     result = reduce_app_state(
         state,
         OpenPathInGuiEditor(
-            "/home/tadashi/develop/zivo/README.md",
+            TEST_PROJECT_ROOT + '/README.md',
             line_number=42,
             column_number=7,
         ),
@@ -979,7 +979,7 @@ def test_open_path_in_gui_editor_emits_external_launch_effect() -> None:
             request_id=1,
             request=ExternalLaunchRequest(
                 kind="open_gui_editor",
-                path="/home/tadashi/develop/zivo/README.md",
+                path=TEST_PROJECT_ROOT + '/README.md',
                 line_number=42,
                 column_number=7,
             ),
@@ -991,7 +991,7 @@ def test_open_terminal_at_path_emits_external_launch_effect() -> None:
 
     result = reduce_app_state(
         state,
-        OpenTerminalAtPath("/home/tadashi/develop/zivo", launch_mode="foreground"),
+        OpenTerminalAtPath(TEST_PROJECT_ROOT, launch_mode="foreground"),
     )
 
     assert result.state.next_request_id == 2
@@ -1000,7 +1000,7 @@ def test_open_terminal_at_path_emits_external_launch_effect() -> None:
             request_id=1,
             request=ExternalLaunchRequest(
                 kind="open_terminal",
-                path="/home/tadashi/develop/zivo",
+                path=TEST_PROJECT_ROOT,
                 terminal_launch_mode="foreground",
             ),
         ),

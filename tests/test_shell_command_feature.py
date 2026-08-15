@@ -1,5 +1,6 @@
 from dataclasses import replace
 
+from tests.support.paths import TEST_PROJECT_ROOT
 from zivo.app_runtime import complete_worker_actions, failed_worker_actions
 from zivo.models import ShellCommandResult
 from zivo.state import (
@@ -78,7 +79,7 @@ def test_submit_command_palette_opens_shell_command_dialog() -> None:
 
     assert result.state.ui_mode == "SHELL"
     assert result.state.shell_command == ShellCommandState(
-        cwd="/home/tadashi/develop/zivo",
+        cwd=TEST_PROJECT_ROOT,
         command="",
     )
 
@@ -110,7 +111,7 @@ def test_submit_shell_command_emits_worker_effect() -> None:
     assert result.effects == (
         RunShellCommandEffect(
             request_id=1,
-            cwd="/home/tadashi/develop/zivo",
+            cwd=TEST_PROJECT_ROOT,
             command="pwd",
         ),
     )

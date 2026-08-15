@@ -1,5 +1,5 @@
 """Selector tests for pane, preview, and projection behavior."""
-
+from tests.support.paths import TEST_HOME, TEST_PROJECT_ROOT
 from tests.support.selectors import (
     AppConfig,
     BeginCommandPalette,
@@ -85,30 +85,30 @@ def test_directory_size_target_paths_only_uses_current_pane_directories() -> Non
             cursor_path="/tmp/zivo",
         ),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(
-                DirectoryEntryState("/home/tadashi/develop/zivo/docs", "docs", "dir"),
+                DirectoryEntryState(TEST_PROJECT_ROOT + '/docs', "docs", "dir"),
                 DirectoryEntryState(
-                    "/home/tadashi/develop/zivo/.cache",
+                    TEST_PROJECT_ROOT + '/.cache',
                     ".cache",
                     "dir",
                     hidden=True,
                 ),
                 DirectoryEntryState(
-                    "/home/tadashi/develop/zivo/README.md",
+                    TEST_PROJECT_ROOT + '/README.md',
                     "README.md",
                     "file",
                 ),
             ),
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
         ),
         child_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo/docs",
-            entries=(DirectoryEntryState("/home/tadashi/develop/zivo/docs/api", "api", "dir"),),
+            directory_path=TEST_PROJECT_ROOT + '/docs',
+            entries=(DirectoryEntryState(TEST_PROJECT_ROOT + '/docs/api', "api", "dir"),),
         ),
     )
 
-    assert directory_size_target_paths(state) == ("/home/tadashi/develop/zivo/docs",)
+    assert directory_size_target_paths(state) == (TEST_PROJECT_ROOT + '/docs',)
 
 def test_directory_size_target_paths_respects_current_hidden_visibility() -> None:
     state = replace(
@@ -121,24 +121,24 @@ def test_directory_size_target_paths_respects_current_hidden_visibility() -> Non
             )
         ),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(
-                DirectoryEntryState("/home/tadashi/develop/zivo/docs", "docs", "dir"),
+                DirectoryEntryState(TEST_PROJECT_ROOT + '/docs', "docs", "dir"),
                 DirectoryEntryState(
-                    "/home/tadashi/develop/zivo/.cache",
+                    TEST_PROJECT_ROOT + '/.cache',
                     ".cache",
                     "dir",
                     hidden=True,
                 ),
             ),
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 
-    assert directory_size_target_paths(state) == ("/home/tadashi/develop/zivo/docs",)
+    assert directory_size_target_paths(state) == (TEST_PROJECT_ROOT + '/docs',)
     assert directory_size_target_paths(replace(state, show_hidden=True)) == (
-        "/home/tadashi/develop/zivo/.cache",
-        "/home/tadashi/develop/zivo/docs",
+        TEST_PROJECT_ROOT + '/.cache',
+        TEST_PROJECT_ROOT + '/docs',
     )
 
 def test_directory_size_target_paths_returns_empty_when_directory_sizes_are_disabled() -> None:
@@ -149,9 +149,9 @@ def test_directory_size_target_paths_returns_empty_when_directory_sizes_are_disa
             display=replace(build_initial_app_state().config.display, show_directory_sizes=False),
         ),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
-            entries=(DirectoryEntryState("/home/tadashi/develop/zivo/docs", "docs", "dir"),),
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            directory_path=TEST_PROJECT_ROOT,
+            entries=(DirectoryEntryState(TEST_PROJECT_ROOT + '/docs', "docs", "dir"),),
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 
@@ -161,30 +161,30 @@ def test_directory_size_target_paths_uses_current_pane_for_size_sort() -> None:
     state = replace(
         build_initial_app_state(),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(
-                DirectoryEntryState("/home/tadashi/develop/zivo/docs", "docs", "dir"),
-                DirectoryEntryState("/home/tadashi/develop/zivo/src", "src", "dir"),
+                DirectoryEntryState(TEST_PROJECT_ROOT + '/docs', "docs", "dir"),
+                DirectoryEntryState(TEST_PROJECT_ROOT + '/src', "src", "dir"),
                 DirectoryEntryState(
-                    "/home/tadashi/develop/zivo/README.md",
+                    TEST_PROJECT_ROOT + '/README.md',
                     "README.md",
                     "file",
                 ),
             ),
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
         ),
         sort=replace(build_initial_app_state().sort, field="size"),
     )
 
     assert directory_size_target_paths(state) == (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/src',
     )
 
 def test_has_execute_permission_returns_false_for_no_permissions() -> None:
     """0o000 (---------) の場合に False を返すこと"""
     entry_state = DirectoryEntryState(
-        "/home/tadashi/develop/zivo/locked",
+        TEST_PROJECT_ROOT + '/locked',
         "locked",
         "file",
         permissions_mode=0o000,
@@ -195,7 +195,7 @@ def test_has_execute_permission_returns_false_for_no_permissions() -> None:
 def test_has_execute_permission_returns_false_for_non_executable_files() -> None:
     """0o644 (rw-r--r--) の場合に False を返すこと"""
     entry_state = DirectoryEntryState(
-        "/home/tadashi/develop/zivo/README.md",
+        TEST_PROJECT_ROOT + '/README.md',
         "README.md",
         "file",
         permissions_mode=0o644,
@@ -206,7 +206,7 @@ def test_has_execute_permission_returns_false_for_non_executable_files() -> None
 def test_has_execute_permission_returns_false_for_none_permissions() -> None:
     """permissions_mode が None の場合に False を返すこと"""
     entry_state = DirectoryEntryState(
-        "/home/tadashi/develop/zivo/unknown",
+        TEST_PROJECT_ROOT + '/unknown',
         "unknown",
         "file",
         permissions_mode=None,
@@ -217,7 +217,7 @@ def test_has_execute_permission_returns_false_for_none_permissions() -> None:
 def test_has_execute_permission_returns_true_for_executable_files() -> None:
     """0o755 (rwxr-xr-x) の場合に True を返すこと"""
     entry_state = DirectoryEntryState(
-        "/home/tadashi/develop/zivo/test.sh",
+        TEST_PROJECT_ROOT + '/test.sh',
         "test.sh",
         "file",
         permissions_mode=0o755,
@@ -228,7 +228,7 @@ def test_has_execute_permission_returns_true_for_executable_files() -> None:
 def test_has_execute_permission_returns_true_for_execute_only_files() -> None:
     """0o111 (--x--x--x) の場合に True を返すこと"""
     entry_state = DirectoryEntryState(
-        "/home/tadashi/develop/zivo/script",
+        TEST_PROJECT_ROOT + '/script',
         "script",
         "file",
         permissions_mode=0o111,
@@ -240,18 +240,18 @@ def test_select_child_entries_clears_stale_snapshot_while_request_is_pending() -
     state = replace(
         build_initial_app_state(),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(
-                DirectoryEntryState("/home/tadashi/develop/zivo/docs", "docs", "dir"),
-                DirectoryEntryState("/home/tadashi/develop/zivo/src", "src", "dir"),
+                DirectoryEntryState(TEST_PROJECT_ROOT + '/docs', "docs", "dir"),
+                DirectoryEntryState(TEST_PROJECT_ROOT + '/src', "src", "dir"),
             ),
-            cursor_path="/home/tadashi/develop/zivo/src",
+            cursor_path=TEST_PROJECT_ROOT + '/src',
         ),
         child_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo/docs",
+            directory_path=TEST_PROJECT_ROOT + '/docs',
             entries=(
                 DirectoryEntryState(
-                    "/home/tadashi/develop/zivo/docs/spec.md",
+                    TEST_PROJECT_ROOT + '/docs/spec.md',
                     "spec.md",
                     "file",
                 ),
@@ -264,7 +264,7 @@ def test_select_child_entries_clears_stale_snapshot_while_request_is_pending() -
 
 def test_select_child_entries_is_empty_when_cursor_is_file() -> None:
     state = build_initial_app_state()
-    state = _reduce_state(state, SetCursorPath("/home/tadashi/develop/zivo/README.md"))
+    state = _reduce_state(state, SetCursorPath(TEST_PROJECT_ROOT + '/README.md'))
 
     assert select_child_entries(state) == ()
 
@@ -292,17 +292,17 @@ def test_select_current_entries_hides_hidden_by_default() -> None:
     state = replace(
         build_initial_app_state(),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(
                 DirectoryEntryState(
-                    "/home/tadashi/develop/zivo/.env",
+                    TEST_PROJECT_ROOT + '/.env',
                     ".env",
                     "file",
                     hidden=True,
                 ),
-                DirectoryEntryState("/home/tadashi/develop/zivo/docs", "docs", "dir"),
+                DirectoryEntryState(TEST_PROJECT_ROOT + '/docs', "docs", "dir"),
             ),
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 
@@ -312,7 +312,7 @@ def test_select_current_entries_hides_hidden_by_default() -> None:
 
 def test_select_current_entries_marks_cut_rows() -> None:
     state = build_initial_app_state()
-    state = _reduce_state(state, CutTargets(("/home/tadashi/develop/zivo/docs",)))
+    state = _reduce_state(state, CutTargets((TEST_PROJECT_ROOT + '/docs',)))
 
     entries = select_current_entries(state)
 
@@ -322,7 +322,7 @@ def test_select_current_entries_marks_cut_rows() -> None:
 
 def test_select_current_entries_marks_selected_rows() -> None:
     state = build_initial_app_state()
-    state = _reduce_state(state, ToggleSelection("/home/tadashi/develop/zivo/README.md"))
+    state = _reduce_state(state, ToggleSelection(TEST_PROJECT_ROOT + '/README.md'))
 
     entries = select_current_entries(state)
 
@@ -332,12 +332,12 @@ def test_select_current_entries_marks_selected_rows() -> None:
     assert entries[4].selection_marker == "*"
 
 def test_select_current_entry_for_path_returns_none_for_filtered_entry() -> None:
-    hidden_path = "/home/tadashi/develop/zivo/README.md"
-    visible_path = "/home/tadashi/develop/zivo/docs"
+    hidden_path = TEST_PROJECT_ROOT + '/README.md'
+    visible_path = TEST_PROJECT_ROOT + '/docs'
     state = replace(
         build_initial_app_state(),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(
                 DirectoryEntryState(hidden_path, "README.md", "file"),
                 DirectoryEntryState(visible_path, "docs", "dir"),
@@ -352,8 +352,8 @@ def test_select_current_entry_for_path_returns_none_for_filtered_entry() -> None
 
 def test_select_current_summary_counts_selected_absolute_paths() -> None:
     state = build_initial_app_state()
-    state = _reduce_state(state, ToggleSelection("/home/tadashi/develop/zivo/README.md"))
-    state = _reduce_state(state, ToggleSelection("/home/tadashi/develop/zivo/tests"))
+    state = _reduce_state(state, ToggleSelection(TEST_PROJECT_ROOT + '/README.md'))
+    state = _reduce_state(state, ToggleSelection(TEST_PROJECT_ROOT + '/tests'))
 
     summary = select_current_summary_state(state)
 
@@ -386,21 +386,21 @@ def test_select_pane_entries_show_directory_sizes_from_cache() -> None:
             cursor_path="/tmp/zivo",
         ),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(
-                DirectoryEntryState("/home/tadashi/develop/zivo/docs", "docs", "dir"),
+                DirectoryEntryState(TEST_PROJECT_ROOT + '/docs', "docs", "dir"),
                 DirectoryEntryState(
-                    "/home/tadashi/develop/zivo/README.md",
+                    TEST_PROJECT_ROOT + '/README.md',
                     "README.md",
                     "file",
                     size_bytes=2_150,
                 ),
             ),
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
         ),
         child_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo/docs",
-            entries=(DirectoryEntryState("/home/tadashi/develop/zivo/docs/api", "api", "dir"),),
+            directory_path=TEST_PROJECT_ROOT + '/docs',
+            entries=(DirectoryEntryState(TEST_PROJECT_ROOT + '/docs/api', "api", "dir"),),
         ),
         directory_size_cache=(
             DirectorySizeCacheEntry(
@@ -409,11 +409,11 @@ def test_select_pane_entries_show_directory_sizes_from_cache() -> None:
                 size_bytes=3_400_000,
             ),
             DirectorySizeCacheEntry(
-                "/home/tadashi/develop/zivo/docs",
+                TEST_PROJECT_ROOT + '/docs',
                 "pending",
             ),
             DirectorySizeCacheEntry(
-                "/home/tadashi/develop/zivo/docs/api",
+                TEST_PROJECT_ROOT + '/docs/api',
                 "ready",
                 size_bytes=8_200,
             ),
@@ -440,21 +440,21 @@ def test_select_parent_and_child_entries_hide_hidden_unless_enabled() -> None:
             cursor_path="/tmp/zivo",
         ),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
-            entries=(DirectoryEntryState("/home/tadashi/develop/zivo/docs", "docs", "dir"),),
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            directory_path=TEST_PROJECT_ROOT,
+            entries=(DirectoryEntryState(TEST_PROJECT_ROOT + '/docs', "docs", "dir"),),
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
         ),
         child_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo/docs",
+            directory_path=TEST_PROJECT_ROOT + '/docs',
             entries=(
                 DirectoryEntryState(
-                    "/home/tadashi/develop/zivo/docs/.draft.md",
+                    TEST_PROJECT_ROOT + '/docs/.draft.md',
                     ".draft.md",
                     "file",
                     hidden=True,
                 ),
                 DirectoryEntryState(
-                    "/home/tadashi/develop/zivo/docs/spec.md",
+                    TEST_PROJECT_ROOT + '/docs/spec.md',
                     "spec.md",
                     "file",
                 ),
@@ -487,20 +487,20 @@ def test_select_parent_and_child_entries_keep_fixed_name_sort() -> None:
             cursor_path="/tmp/alpha",
         ),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=state.current_pane.entries,
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
         ),
         child_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo/docs",
+            directory_path=TEST_PROJECT_ROOT + '/docs',
             entries=(
                 DirectoryEntryState(
-                    "/home/tadashi/develop/zivo/docs/readme.txt",
+                    TEST_PROJECT_ROOT + '/docs/readme.txt',
                     "readme.txt",
                     "file",
                 ),
                 DirectoryEntryState(
-                    "/home/tadashi/develop/zivo/docs/archive",
+                    TEST_PROJECT_ROOT + '/docs/archive',
                     "archive",
                     "dir",
                 ),
@@ -542,7 +542,7 @@ def test_select_shell_data_builds_child_preview_for_permission_denied_directory(
     from zivo.services import PREVIEW_PERMISSION_DENIED_MESSAGE
 
     initial_state = build_initial_app_state()
-    path = "/home/tadashi/develop/zivo/.Trash"
+    path = TEST_PROJECT_ROOT + '/.Trash'
     state = replace(
         initial_state,
         current_pane=replace(
@@ -568,12 +568,12 @@ def test_select_shell_data_builds_child_preview_for_permission_denied_directory(
 
 def test_select_shell_data_builds_child_preview_for_text_file() -> None:
     initial_state = build_initial_app_state()
-    path = "/home/tadashi/develop/zivo/README.md"
+    path = TEST_PROJECT_ROOT + '/README.md'
     state = replace(
         initial_state,
         current_pane=replace(initial_state.current_pane, cursor_path=path),
         child_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(),
             mode="preview",
             preview_path=path,
@@ -592,7 +592,7 @@ def test_select_shell_data_builds_child_preview_for_text_file() -> None:
 
 def test_select_shell_data_builds_child_preview_message_for_unavailable_file() -> None:
     initial_state = build_initial_app_state()
-    path = "/home/tadashi/develop/zivo/archive.bin"
+    path = TEST_PROJECT_ROOT + '/archive.bin'
     state = replace(
         initial_state,
         current_pane=replace(
@@ -602,7 +602,7 @@ def test_select_shell_data_builds_child_preview_message_for_unavailable_file() -
             cursor_path=path,
         ),
         child_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(),
             mode="preview",
             preview_path=path,
@@ -620,7 +620,7 @@ def test_select_shell_data_builds_child_preview_message_for_unavailable_file() -
 
 def test_select_shell_data_builds_grep_preview_for_palette_selection() -> None:
     initial_state = build_initial_app_state()
-    path = "/home/tadashi/develop/zivo/README.md"
+    path = TEST_PROJECT_ROOT + '/README.md'
     grep_result = GrepSearchResultState(
         path=path,
         display_path="README.md",
@@ -636,7 +636,7 @@ def test_select_shell_data_builds_grep_preview_for_palette_selection() -> None:
             grep_search=GrepSearchPaletteState(results=(grep_result,)),
         ),
         child_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(),
             mode="preview",
             preview_path=path,
@@ -656,7 +656,7 @@ def test_select_shell_data_builds_grep_preview_for_palette_selection() -> None:
     assert shell.child_pane.preview_highlight_line == 5
 
 def test_select_shell_data_emits_row_delta_updates_for_cut_changes() -> None:
-    path = "/home/tadashi/develop/zivo/docs"
+    path = TEST_PROJECT_ROOT + '/docs'
     state = replace(
         build_initial_app_state(),
         clipboard=replace(build_initial_app_state().clipboard, mode="cut", paths=(path,)),
@@ -682,7 +682,7 @@ def test_select_shell_data_emits_row_delta_updates_for_cut_changes() -> None:
     ]
 
 def test_select_shell_data_emits_row_delta_updates_for_selection_changes() -> None:
-    path = "/home/tadashi/develop/zivo/README.md"
+    path = TEST_PROJECT_ROOT + '/README.md'
     state = replace(
         build_initial_app_state(),
         current_pane=replace(
@@ -722,13 +722,13 @@ def test_select_shell_data_emits_size_delta_updates_for_directory_size_changes()
         ),
         directory_size_cache=(
             DirectorySizeCacheEntry(
-                "/home/tadashi/develop/zivo/docs",
+                TEST_PROJECT_ROOT + '/docs',
                 "ready",
                 size_bytes=4_200,
             ),
         ),
         directory_size_delta=DirectorySizeDeltaState(
-            changed_paths=("/home/tadashi/develop/zivo/docs",),
+            changed_paths=(TEST_PROJECT_ROOT + '/docs',),
             revision=3,
         ),
     )
@@ -737,7 +737,7 @@ def test_select_shell_data_emits_size_delta_updates_for_directory_size_changes()
     row_index = next(
         index
         for index, entry in enumerate(select_current_entries(state))
-        if entry.path == "/home/tadashi/develop/zivo/docs"
+        if entry.path == TEST_PROJECT_ROOT + '/docs'
     )
 
     assert shell.current_entries is None
@@ -747,16 +747,16 @@ def test_select_shell_data_emits_size_delta_updates_for_directory_size_changes()
         (update.path, update.size_label, update.row_index)
         for update in shell.current_pane_update.size_updates
     ] == [
-        ("/home/tadashi/develop/zivo/docs", "4.1KiB", row_index)
+        (TEST_PROJECT_ROOT + '/docs', "4.1KiB", row_index)
     ]
 
 def test_select_shell_data_exposes_visible_cursor_index() -> None:
     state = build_initial_app_state()
-    state = _reduce_state(state, SetCursorPath("/home/tadashi/develop/zivo/tests"))
+    state = _reduce_state(state, SetCursorPath(TEST_PROJECT_ROOT + '/tests'))
 
     shell = select_shell_data(state)
 
-    assert shell.current_path == "/home/tadashi/develop/zivo"
+    assert shell.current_path == TEST_PROJECT_ROOT
     assert shell.current_cursor_index == 2
     assert shell.current_heading.status_label == "3/5"
     assert shell.current_cursor_visible is True
@@ -802,7 +802,7 @@ def test_select_shell_data_hides_cursor_while_filtering() -> None:
     assert shell.current_cursor_visible is False
 
 def test_select_shell_data_hides_stale_preview_while_request_is_pending() -> None:
-    current_path = "/home/tadashi/develop/zivo"
+    current_path = TEST_PROJECT_ROOT
     previous_preview_path = f"{current_path}/README.md"
     requested_preview_path = f"{current_path}/pyproject.toml"
     state = replace(
@@ -835,9 +835,9 @@ def test_select_shell_data_hides_stale_preview_while_request_is_pending() -> Non
 def test_select_shell_data_includes_selected_cut_and_contextual_models() -> None:
     state = _reduce_state(
         build_initial_app_state(),
-        ToggleSelection("/home/tadashi/develop/zivo/README.md"),
+        ToggleSelection(TEST_PROJECT_ROOT + '/README.md'),
     )
-    state = _reduce_state(state, CutTargets(("/home/tadashi/develop/zivo/docs",)))
+    state = _reduce_state(state, CutTargets((TEST_PROJECT_ROOT + '/docs',)))
     state = replace(
         state,
         filter=replace(state.filter, query="read", active=True),
@@ -867,18 +867,18 @@ def test_select_shell_data_keeps_full_refresh_when_sorting_by_size() -> None:
         build_initial_app_state(),
         sort=replace(build_initial_app_state().sort, field="size"),
         current_pane_delta=CurrentPaneDeltaState(
-            changed_paths=("/home/tadashi/develop/zivo/docs",),
+            changed_paths=(TEST_PROJECT_ROOT + '/docs',),
             revision=7,
         ),
         directory_size_cache=(
             DirectorySizeCacheEntry(
-                "/home/tadashi/develop/zivo/docs",
+                TEST_PROJECT_ROOT + '/docs',
                 "ready",
                 size_bytes=4_200,
             ),
         ),
         directory_size_delta=DirectorySizeDeltaState(
-            changed_paths=("/home/tadashi/develop/zivo/docs",),
+            changed_paths=(TEST_PROJECT_ROOT + '/docs',),
             revision=2,
         ),
     )
@@ -895,7 +895,7 @@ def test_select_shell_data_rebuilds_only_current_entries_when_selection_changes(
     updated_shell = select_shell_data(
         _reduce_state(
             state,
-            ToggleSelection("/home/tadashi/develop/zivo/README.md"),
+            ToggleSelection(TEST_PROJECT_ROOT + '/README.md'),
         )
     )
 
@@ -915,7 +915,7 @@ def test_select_shell_data_reuses_current_entries_when_only_cursor_changes() -> 
     moved_shell = select_shell_data(
         _reduce_state(
             state,
-            SetCursorPath("/home/tadashi/develop/zivo/tests"),
+            SetCursorPath(TEST_PROJECT_ROOT + '/tests'),
         )
     )
 
@@ -1151,12 +1151,12 @@ def test_select_tab_bar_state_marks_active_tab() -> None:
 
 def test_select_target_file_paths_ignores_hidden_selected_entries_when_hidden_files_are_off(
 ) -> None:
-    hidden_path = "/home/tadashi/develop/zivo/.env"
-    visible_path = "/home/tadashi/develop/zivo/README.md"
+    hidden_path = TEST_PROJECT_ROOT + '/.env'
+    visible_path = TEST_PROJECT_ROOT + '/README.md'
     state = replace(
         build_initial_app_state(),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(
                 DirectoryEntryState(hidden_path, ".env", "file", hidden=True),
                 DirectoryEntryState(visible_path, "README.md", "file"),
@@ -1170,17 +1170,17 @@ def test_select_target_file_paths_ignores_hidden_selected_entries_when_hidden_fi
 
 def test_select_target_paths_falls_back_to_cursor() -> None:
     state = build_initial_app_state()
-    state = _reduce_state(state, SetCursorPath("/home/tadashi/develop/zivo/tests"))
+    state = _reduce_state(state, SetCursorPath(TEST_PROJECT_ROOT + '/tests'))
 
-    assert select_target_paths(state) == ("/home/tadashi/develop/zivo/tests",)
+    assert select_target_paths(state) == (TEST_PROJECT_ROOT + '/tests',)
 
 def test_select_target_paths_ignores_hidden_selected_entries_when_hidden_files_are_off() -> None:
-    hidden_path = "/home/tadashi/develop/zivo/.env"
-    visible_path = "/home/tadashi/develop/zivo/docs"
+    hidden_path = TEST_PROJECT_ROOT + '/.env'
+    visible_path = TEST_PROJECT_ROOT + '/docs'
     state = replace(
         build_initial_app_state(),
         current_pane=pane(
-            "/home/tadashi/develop/zivo",
+            TEST_PROJECT_ROOT,
             (
                 entry(hidden_path, hidden=True),
                 entry(visible_path, kind="dir"),
@@ -1194,12 +1194,12 @@ def test_select_target_paths_ignores_hidden_selected_entries_when_hidden_files_a
 
 def test_select_target_paths_prefers_selection_in_entry_order() -> None:
     state = build_initial_app_state()
-    state = _reduce_state(state, ToggleSelection("/home/tadashi/develop/zivo/README.md"))
-    state = _reduce_state(state, ToggleSelection("/home/tadashi/develop/zivo/docs"))
+    state = _reduce_state(state, ToggleSelection(TEST_PROJECT_ROOT + '/README.md'))
+    state = _reduce_state(state, ToggleSelection(TEST_PROJECT_ROOT + '/docs'))
 
     assert select_target_paths(state) == (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/README.md",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/README.md',
     )
 
 def test_select_target_paths_returns_empty_tuple_for_empty_directory() -> None:
@@ -1216,7 +1216,7 @@ def test_select_visible_current_entries_skip_size_overlay_when_not_sorting_by_si
         build_initial_app_state(),
         directory_size_cache=(
             DirectorySizeCacheEntry(
-                "/home/tadashi/develop/zivo/docs",
+                TEST_PROJECT_ROOT + '/docs',
                 "ready",
                 size_bytes=4_200,
             ),
@@ -1225,29 +1225,29 @@ def test_select_visible_current_entries_skip_size_overlay_when_not_sorting_by_si
 
     visible_entries = select_visible_current_entry_states(state)
 
-    assert visible_entries[0].path == "/home/tadashi/develop/zivo/docs"
+    assert visible_entries[0].path == TEST_PROJECT_ROOT + '/docs'
     assert visible_entries[0].size_bytes is None
 
 def test_select_visible_current_entries_sorts_by_modified_with_missing_values_last() -> None:
     state = replace(
         build_initial_app_state(),
         current_pane=pane(
-            "/home/tadashi/develop/zivo",
+            TEST_PROJECT_ROOT,
             (
                 entry(
-                    "/home/tadashi/develop/zivo/alpha.txt",
+                    TEST_PROJECT_ROOT + '/alpha.txt',
                     modified_at=None,
                 ),
                 entry(
-                    "/home/tadashi/develop/zivo/beta.txt",
+                    TEST_PROJECT_ROOT + '/beta.txt',
                     modified_at=build_initial_app_state().current_pane.entries[3].modified_at,
                 ),
                 entry(
-                    "/home/tadashi/develop/zivo/gamma.txt",
+                    TEST_PROJECT_ROOT + '/gamma.txt',
                     modified_at=build_initial_app_state().current_pane.entries[4].modified_at,
                 ),
             ),
-            cursor_path="/home/tadashi/develop/zivo/alpha.txt",
+            cursor_path=TEST_PROJECT_ROOT + '/alpha.txt',
         ),
         sort=replace(build_initial_app_state().sort, field="modified", descending=True),
     )
@@ -1260,13 +1260,13 @@ def test_select_visible_current_entries_sorts_by_size_without_directories_first(
     state = replace(
         build_initial_app_state(),
         current_pane=pane(
-            "/home/tadashi/develop/zivo",
+            TEST_PROJECT_ROOT,
             (
-                entry("/home/tadashi/develop/zivo/docs", kind="dir"),
-                entry("/home/tadashi/develop/zivo/alpha.txt", size_bytes=500),
-                entry("/home/tadashi/develop/zivo/beta.txt", size_bytes=2_000),
+                entry(TEST_PROJECT_ROOT + '/docs', kind="dir"),
+                entry(TEST_PROJECT_ROOT + '/alpha.txt', size_bytes=500),
+                entry(TEST_PROJECT_ROOT + '/beta.txt', size_bytes=2_000),
             ),
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
         ),
         sort=replace(
             build_initial_app_state().sort,
@@ -1284,7 +1284,7 @@ def test_detect_preview_disabled_message_returns_none_for_directory() -> None:
     """Test that preview disabled message is None for directories."""
     from zivo.state.selectors_panes import _detect_preview_disabled_message
 
-    entry = DirectoryEntryState("/home/tadashi/docs", "docs", "dir")
+    entry = DirectoryEntryState(TEST_HOME + '/docs', "docs", "dir")
     message = _detect_preview_disabled_message(
         entry,
         enable_text_preview=False,
@@ -1311,7 +1311,7 @@ def test_detect_preview_disabled_message_for_pdf_file() -> None:
     """Test that PDF preview disabled message is returned for PDF files."""
     from zivo.state.selectors_panes import _detect_preview_disabled_message
 
-    entry = DirectoryEntryState("/home/tadashi/docs/test.pdf", "test.pdf", "file")
+    entry = DirectoryEntryState(TEST_HOME + '/docs/test.pdf', "test.pdf", "file")
     message = _detect_preview_disabled_message(
         entry,
         enable_text_preview=True,
@@ -1327,7 +1327,7 @@ def test_detect_preview_disabled_message_for_office_file() -> None:
 
     # Test .docx
     entry = DirectoryEntryState(
-        "/home/tadashi/docs/test.docx", "test.docx", "file"
+        TEST_HOME + '/docs/test.docx', "test.docx", "file"
     )
     message = _detect_preview_disabled_message(
         entry,
@@ -1340,7 +1340,7 @@ def test_detect_preview_disabled_message_for_office_file() -> None:
 
     # Test .xlsx
     entry = DirectoryEntryState(
-        "/home/tadashi/docs/test.xlsx", "test.xlsx", "file"
+        TEST_HOME + '/docs/test.xlsx', "test.xlsx", "file"
     )
     message = _detect_preview_disabled_message(
         entry,
@@ -1353,7 +1353,7 @@ def test_detect_preview_disabled_message_for_office_file() -> None:
 
     # Test .pptx
     entry = DirectoryEntryState(
-        "/home/tadashi/docs/test.pptx", "test.pptx", "file"
+        TEST_HOME + '/docs/test.pptx', "test.pptx", "file"
     )
     message = _detect_preview_disabled_message(
         entry,
@@ -1368,7 +1368,7 @@ def test_detect_preview_disabled_message_for_text_file() -> None:
     """Test that text preview disabled message is returned for text files."""
     from zivo.state.selectors_panes import _detect_preview_disabled_message
 
-    entry = DirectoryEntryState("/home/tadashi/docs/test.txt", "test.txt", "file")
+    entry = DirectoryEntryState(TEST_HOME + '/docs/test.txt', "test.txt", "file")
     message = _detect_preview_disabled_message(
         entry,
         enable_text_preview=False,
@@ -1381,7 +1381,7 @@ def test_detect_preview_disabled_message_for_text_file() -> None:
 def test_detect_preview_disabled_message_for_image_file() -> None:
     from zivo.state.selectors_panes import _detect_preview_disabled_message
 
-    entry = DirectoryEntryState("/home/tadashi/docs/test.png", "test.png", "file")
+    entry = DirectoryEntryState(TEST_HOME + '/docs/test.png', "test.png", "file")
     message = _detect_preview_disabled_message(
         entry,
         enable_text_preview=True,
@@ -1395,7 +1395,7 @@ def test_detect_preview_disabled_message_for_all_previews_disabled() -> None:
     """Test that generic preview disabled message is returned when all previews are disabled."""
     from zivo.state.selectors_panes import _detect_preview_disabled_message
 
-    entry = DirectoryEntryState("/home/tadashi/docs/test.txt", "test.txt", "file")
+    entry = DirectoryEntryState(TEST_HOME + '/docs/test.txt', "test.txt", "file")
     message = _detect_preview_disabled_message(
         entry,
         enable_text_preview=False,
@@ -1409,7 +1409,7 @@ def test_detect_preview_disabled_message_returns_none_when_enabled() -> None:
     """Test that no message is returned when preview is enabled."""
     from zivo.state.selectors_panes import _detect_preview_disabled_message
 
-    entry = DirectoryEntryState("/home/tadashi/docs/test.txt", "test.txt", "file")
+    entry = DirectoryEntryState(TEST_HOME + '/docs/test.txt', "test.txt", "file")
     message = _detect_preview_disabled_message(
         entry,
         enable_text_preview=True,

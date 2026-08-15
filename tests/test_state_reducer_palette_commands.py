@@ -2,6 +2,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import zivo.state.command_palette as command_palette_module
+from tests.support.paths import TEST_HOME, TEST_PROJECT_ROOT
 from tests.support.state import reduce_state
 from zivo.models import (
     ActionsConfig,
@@ -91,12 +92,12 @@ def test_begin_command_palette_sets_mode_and_empty_query() -> None:
 def test_begin_command_palette_keeps_current_cursor_path() -> None:
     state = _reduce_state(
         build_initial_app_state(),
-        SetCursorPath("/home/tadashi/develop/zivo/tests"),
+        SetCursorPath(TEST_PROJECT_ROOT + '/tests'),
     )
 
     next_state = _reduce_state(state, BeginCommandPalette())
 
-    assert next_state.current_pane.cursor_path == "/home/tadashi/develop/zivo/tests"
+    assert next_state.current_pane.cursor_path == TEST_PROJECT_ROOT + '/tests'
 
 
 def test_submit_command_palette_toggles_narrow_details_view() -> None:
@@ -217,7 +218,7 @@ def test_submit_duplicate_command_starts_duplicate_effect() -> None:
 
 
 def test_custom_action_single_file_appears_in_command_palette() -> None:
-    file_path = "/home/tadashi/develop/zivo/image.png"
+    file_path = TEST_PROJECT_ROOT + '/image.png'
     state = replace(
         build_initial_app_state(
             config=AppConfig(
@@ -248,7 +249,7 @@ def test_custom_action_single_file_appears_in_command_palette() -> None:
 
 
 def test_submit_custom_action_enters_confirmation_with_expanded_command() -> None:
-    file_path = "/home/tadashi/develop/zivo/image.png"
+    file_path = TEST_PROJECT_ROOT + '/image.png'
     state = replace(
         build_initial_app_state(
             config=AppConfig(
@@ -289,7 +290,7 @@ def test_submit_custom_action_enters_confirmation_with_expanded_command() -> Non
 
 
 def test_confirm_custom_action_emits_run_effect() -> None:
-    file_path = "/home/tadashi/develop/zivo/image.png"
+    file_path = TEST_PROJECT_ROOT + '/image.png'
     state = replace(
         build_initial_app_state(
             config=AppConfig(
@@ -334,11 +335,11 @@ def test_submit_command_palette_runs_create_symlink_flow() -> None:
     assert next_state.command_palette is None
     assert next_state.pending_input is not None
     assert next_state.pending_input.prompt == "Create link at: "
-    assert next_state.pending_input.symlink_source_path == "/home/tadashi/develop/zivo/docs"
+    assert next_state.pending_input.symlink_source_path == TEST_PROJECT_ROOT + '/docs'
     assert next_state.pending_input.value.endswith(("/docs.link", "\\docs.link"))
 
 def test_submit_command_palette_begins_extract_archive_flow() -> None:
-    archive_path = "/home/tadashi/develop/zivo/archive.zip"
+    archive_path = TEST_PROJECT_ROOT + '/archive.zip'
     state = replace(
         build_initial_app_state(),
         current_pane=replace(
@@ -357,7 +358,7 @@ def test_submit_command_palette_begins_extract_archive_flow() -> None:
 
     assert next_state.ui_mode == "EXTRACT"
     assert next_state.pending_input is not None
-    expected_dest = str(Path("/home/tadashi/develop/zivo/archive").resolve())
+    expected_dest = str(Path(TEST_PROJECT_ROOT + '/archive').resolve())
     assert next_state.pending_input.value == expected_dest
     assert next_state.pending_input.extract_source_path == archive_path
 
@@ -368,8 +369,8 @@ def test_submit_command_palette_begins_zip_compress_flow() -> None:
             build_initial_app_state().current_pane,
             selected_paths=frozenset(
                 {
-                    "/home/tadashi/develop/zivo/docs",
-                    "/home/tadashi/develop/zivo/src",
+                    TEST_PROJECT_ROOT + '/docs',
+                    TEST_PROJECT_ROOT + '/src',
                 }
             ),
         ),
@@ -381,11 +382,11 @@ def test_submit_command_palette_begins_zip_compress_flow() -> None:
 
     assert next_state.ui_mode == "ZIP"
     assert next_state.pending_input is not None
-    expected_zip = str(Path("/home/tadashi/develop/zivo/zivo.zip").resolve())
+    expected_zip = str(Path(TEST_PROJECT_ROOT + '/zivo.zip').resolve())
     assert next_state.pending_input.value == expected_zip
     assert next_state.pending_input.zip_source_paths == (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/src',
     )
 
 def test_begin_bookmark_search_enters_bookmarks_filtered_go_mode() -> None:
@@ -471,11 +472,11 @@ def test_submit_command_palette_select_all_in_transfer_mode() -> None:
     assert next_state.transfer_left is not None
     assert next_state.transfer_left.pane.selected_paths == frozenset(
         {
-            "/home/tadashi/develop/zivo/docs",
-            "/home/tadashi/develop/zivo/src",
-            "/home/tadashi/develop/zivo/tests",
-            "/home/tadashi/develop/zivo/README.md",
-            "/home/tadashi/develop/zivo/pyproject.toml",
+            TEST_PROJECT_ROOT + '/docs',
+            TEST_PROJECT_ROOT + '/src',
+            TEST_PROJECT_ROOT + '/tests',
+            TEST_PROJECT_ROOT + '/README.md',
+            TEST_PROJECT_ROOT + '/pyproject.toml',
         }
     )
 
@@ -491,7 +492,7 @@ def test_submit_command_palette_reloads_active_transfer_pane() -> None:
     assert any(
         isinstance(effect, LoadTransferPaneEffect)
         and effect.pane_id == "left"
-        and effect.path == "/home/tadashi/develop/zivo"
+        and effect.path == TEST_PROJECT_ROOT
         for effect in result.effects
     )
 
@@ -531,7 +532,7 @@ def test_submit_command_palette_begins_chmod_in_transfer_mode() -> None:
     assert next_state.pending_input is not None
     assert next_state.pending_input.value == "755"
     assert next_state.pending_input.chmod_target_paths == (
-        "/home/tadashi/develop/zivo/docs",
+        TEST_PROJECT_ROOT + '/docs',
     )
     assert next_state.pending_input.chmod_recursive is False
 
@@ -565,7 +566,7 @@ def test_submit_command_palette_runs_copy_path_flow() -> None:
             request_id=1,
             request=ExternalLaunchRequest(
                 kind="copy_paths",
-                paths=("/home/tadashi/develop/zivo/docs",),
+                paths=(TEST_PROJECT_ROOT + '/docs',),
             ),
         ),
     )
@@ -581,12 +582,12 @@ def test_submit_command_palette_opens_attribute_dialog_for_single_target() -> No
     assert result.state.attribute_inspection is not None
     assert result.state.attribute_inspection.name == "docs"
     assert result.state.attribute_inspection.kind == "dir"
-    assert result.state.attribute_inspection.path == "/home/tadashi/develop/zivo/docs"
+    assert result.state.attribute_inspection.path == TEST_PROJECT_ROOT + '/docs'
     assert result.state.pending_attribute_inspection_request_id == 1
     assert result.effects == (
         RunAttributeInspectionEffect(
             request_id=1,
-            path="/home/tadashi/develop/zivo/docs",
+            path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 
@@ -598,7 +599,7 @@ def test_dismiss_attribute_dialog_returns_to_browsing() -> None:
         attribute_inspection=AttributeInspectionState(
             name="docs",
             kind="dir",
-            path="/home/tadashi/develop/zivo/docs",
+            path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 
@@ -622,14 +623,14 @@ def test_submit_command_palette_opens_current_directory_in_file_manager() -> Non
             request_id=1,
             request=ExternalLaunchRequest(
                 kind="open_file",
-                path="/home/tadashi/develop/zivo",
+                path=TEST_PROJECT_ROOT,
             ),
         ),
     )
 
 
 def test_submit_command_palette_opens_selected_file_with_default_app() -> None:
-    path = "/home/tadashi/develop/zivo/README.md"
+    path = TEST_PROJECT_ROOT + '/README.md'
     state = _reduce_state(build_initial_app_state(), SetCursorPath(path))
     state = _reduce_state(state, BeginCommandPalette())
     state = _reduce_state(state, SetCommandPaletteQuery("open"))
@@ -687,7 +688,7 @@ def test_submit_command_palette_opens_current_directory_with_terminal() -> None:
             request_id=1,
             request=ExternalLaunchRequest(
                 kind="open_terminal",
-                path="/home/tadashi/develop/zivo",
+                path=TEST_PROJECT_ROOT,
                 terminal_launch_mode="window",
             ),
         ),
@@ -874,7 +875,7 @@ def test_submit_command_palette_adds_current_directory_bookmark() -> None:
             request_id=1,
             path="/tmp/zivo/config.toml",
             config=AppConfig(
-                bookmarks=BookmarkConfig(paths=("/home/tadashi/develop/zivo",))
+                bookmarks=BookmarkConfig(paths=(TEST_PROJECT_ROOT,))
             ),
         ),
     )
@@ -889,7 +890,7 @@ def test_show_attributes_enters_detail_mode_for_single_target() -> None:
     assert result.state.attribute_inspection == AttributeInspectionState(
         name="docs",
         kind="dir",
-        path="/home/tadashi/develop/zivo/docs",
+        path=TEST_PROJECT_ROOT + '/docs',
         size_bytes=None,
         modified_at=state.current_pane.entries[0].modified_at,
         hidden=False,
@@ -898,7 +899,7 @@ def test_show_attributes_enters_detail_mode_for_single_target() -> None:
     assert result.effects == (
         RunAttributeInspectionEffect(
             request_id=1,
-            path="/home/tadashi/develop/zivo/docs",
+            path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 
@@ -913,7 +914,7 @@ def test_attribute_inspection_loaded_replaces_placeholder_dialog_state() -> None
             inspection=AttributeInspectionState(
                 name="docs",
                 kind="dir",
-                path="/home/tadashi/develop/zivo/docs",
+                path=TEST_PROJECT_ROOT + '/docs',
                 modified_at=state.current_pane.entries[0].modified_at,
                 permissions_mode=0o40755,
                 owner="tadashi",
@@ -926,7 +927,7 @@ def test_attribute_inspection_loaded_replaces_placeholder_dialog_state() -> None
     assert next_state.attribute_inspection == AttributeInspectionState(
         name="docs",
         kind="dir",
-        path="/home/tadashi/develop/zivo/docs",
+        path=TEST_PROJECT_ROOT + '/docs',
         modified_at=state.current_pane.entries[0].modified_at,
         permissions_mode=0o40755,
         owner="tadashi",
@@ -940,8 +941,8 @@ def test_show_attributes_warns_without_single_target() -> None:
             build_initial_app_state().current_pane,
             selected_paths=frozenset(
                 {
-                    "/home/tadashi/develop/zivo/docs",
-                    "/home/tadashi/develop/zivo/src",
+                    TEST_PROJECT_ROOT + '/docs',
+                    TEST_PROJECT_ROOT + '/src',
                 }
             ),
         ),
@@ -956,12 +957,12 @@ def test_show_attributes_warns_without_single_target() -> None:
 
 
 def test_select_command_palette_disables_replace_text_for_hidden_selected_file() -> None:
-    hidden_path = "/home/tadashi/develop/zivo/.env"
-    visible_path = "/home/tadashi/develop/zivo/README.md"
+    hidden_path = TEST_PROJECT_ROOT + '/.env'
+    visible_path = TEST_PROJECT_ROOT + '/README.md'
     state = replace(
         build_initial_app_state(),
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(
                 DirectoryEntryState(hidden_path, ".env", "file", hidden=True),
                 DirectoryEntryState(visible_path, "README.md", "file"),
@@ -987,7 +988,7 @@ def test_submit_command_palette_removes_current_directory_bookmark() -> None:
         build_initial_app_state(
             config_path="/tmp/zivo/config.toml",
             config=AppConfig(
-                bookmarks=BookmarkConfig(paths=("/home/tadashi/develop/zivo", "/home/tadashi/src"))
+                bookmarks=BookmarkConfig(paths=(TEST_PROJECT_ROOT, TEST_HOME + '/src'))
             ),
         ),
         BeginCommandPalette(),
@@ -1002,7 +1003,7 @@ def test_submit_command_palette_removes_current_directory_bookmark() -> None:
             request_id=1,
             path="/tmp/zivo/config.toml",
             config=AppConfig(
-                bookmarks=BookmarkConfig(paths=("/home/tadashi/src",))
+                bookmarks=BookmarkConfig(paths=(TEST_HOME + '/src',))
             ),
         ),
     )
@@ -1011,7 +1012,7 @@ def test_submit_command_palette_goes_back() -> None:
     state = replace(
         _reduce_state(build_initial_app_state(), BeginCommandPalette()),
         history=HistoryState(
-            back=("/home/tadashi/downloads",),
+            back=(TEST_HOME + '/downloads',),
             forward=(),
         ),
     )
@@ -1023,7 +1024,7 @@ def test_submit_command_palette_goes_back() -> None:
     assert result.state.command_palette is None
     assert len(result.effects) == 1
     assert isinstance(result.effects[0], LoadBrowserSnapshotEffect)
-    assert result.effects[0].path == "/home/tadashi/downloads"
+    assert result.effects[0].path == TEST_HOME + '/downloads'
 
 def test_submit_command_palette_go_forward_is_unavailable_without_history() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
@@ -1118,8 +1119,8 @@ def test_submit_command_palette_begins_chmod_with_selection() -> None:
     assert result.state.pending_input.prompt == "Permissions: "
     assert result.state.pending_input.value == "755"
     assert result.state.pending_input.chmod_target_paths == (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/src',
     )
     assert result.state.pending_input.chmod_recursive is False
 
@@ -1147,8 +1148,8 @@ def test_submit_command_palette_begins_chown_with_selection() -> None:
     assert result.state.pending_input.prompt == "Owner: "
     assert result.state.pending_input.value == "alice:staff"
     assert result.state.pending_input.chown_target_paths == (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/src',
     )
     assert result.state.pending_input.chown_recursive is False
 
@@ -1207,8 +1208,8 @@ def test_submit_command_palette_uses_selected_paths_for_copy_path() -> None:
             initial_state.current_pane,
             selected_paths=frozenset(
                 {
-                    "/home/tadashi/develop/zivo/docs",
-                    "/home/tadashi/develop/zivo/src",
+                    TEST_PROJECT_ROOT + '/docs',
+                    TEST_PROJECT_ROOT + '/src',
                 }
             ),
         ),
@@ -1224,8 +1225,8 @@ def test_submit_command_palette_uses_selected_paths_for_copy_path() -> None:
             request=ExternalLaunchRequest(
                 kind="copy_paths",
                 paths=(
-                    "/home/tadashi/develop/zivo/docs",
-                    "/home/tadashi/develop/zivo/src",
+                    TEST_PROJECT_ROOT + '/docs',
+                    TEST_PROJECT_ROOT + '/src',
                 ),
             ),
         ),
@@ -1236,18 +1237,18 @@ def test_submit_command_palette_select_all_uses_visible_entries() -> None:
     state = replace(
         initial_state,
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(
                 DirectoryEntryState(
-                    "/home/tadashi/develop/zivo/.env",
+                    TEST_PROJECT_ROOT + '/.env',
                     ".env",
                     "file",
                     hidden=True,
                 ),
-                DirectoryEntryState("/home/tadashi/develop/zivo/docs", "docs", "dir"),
-                DirectoryEntryState("/home/tadashi/develop/zivo/src", "src", "dir"),
+                DirectoryEntryState(TEST_PROJECT_ROOT + '/docs', "docs", "dir"),
+                DirectoryEntryState(TEST_PROJECT_ROOT + '/src', "src", "dir"),
             ),
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
         ),
         filter=replace(initial_state.filter, query="s", active=True),
     )
@@ -1258,8 +1259,8 @@ def test_submit_command_palette_select_all_uses_visible_entries() -> None:
 
     assert next_state.current_pane.selected_paths == frozenset(
         {
-            "/home/tadashi/develop/zivo/docs",
-            "/home/tadashi/develop/zivo/src",
+            TEST_PROJECT_ROOT + '/docs',
+            TEST_PROJECT_ROOT + '/src',
         }
     )
 

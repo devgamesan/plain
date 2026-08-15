@@ -1,5 +1,5 @@
 """Test State Reducer Navigation Tabs tests."""
-
+from tests.support.paths import TEST_DEVELOP_ROOT, TEST_HOME, TEST_PROJECT_ROOT
 from tests.support.reducer import (
     DIRECTORY_HISTORY_LIMIT,
     ActivateNextTab,
@@ -42,46 +42,46 @@ from tests.support.reducer import (
 def test_jump_cursor_start() -> None:
     state = build_initial_app_state()
     visible_paths = (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
-        "/home/tadashi/develop/zivo/tests",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/src',
+        TEST_PROJECT_ROOT + '/tests',
     )
-    state = _reduce_state(state, SetCursorPath("/home/tadashi/develop/zivo/tests"))
+    state = _reduce_state(state, SetCursorPath(TEST_PROJECT_ROOT + '/tests'))
 
     result = reduce_app_state(state, JumpCursor(position="start", visible_paths=visible_paths))
 
-    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/zivo/docs"
+    assert result.state.current_pane.cursor_path == TEST_PROJECT_ROOT + '/docs'
     assert result.effects == (
         LoadChildPaneSnapshotEffect(
             request_id=3,
-            current_path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            current_path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 
 def test_jump_cursor_end() -> None:
     state = build_initial_app_state()
     visible_paths = (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
-        "/home/tadashi/develop/zivo/tests",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/src',
+        TEST_PROJECT_ROOT + '/tests',
     )
 
     result = reduce_app_state(state, JumpCursor(position="end", visible_paths=visible_paths))
 
-    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/zivo/tests"
+    assert result.state.current_pane.cursor_path == TEST_PROJECT_ROOT + '/tests'
     assert result.effects == (
         LoadChildPaneSnapshotEffect(
             request_id=1,
-            current_path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/tests",
+            current_path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/tests',
         ),
         RunDirectorySizeEffect(
             request_id=2,
             paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
-                "/home/tadashi/develop/zivo/tests",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
+                TEST_PROJECT_ROOT + '/tests',
             ),
         ),
     )
@@ -116,17 +116,17 @@ def test_jump_cursor_empty_paths() -> None:
 def test_jump_cursor_with_filter() -> None:
     state = build_initial_app_state()
     filtered_paths = (
-        "/home/tadashi/develop/zivo/src",
-        "/home/tadashi/develop/zivo/tests",
+        TEST_PROJECT_ROOT + '/src',
+        TEST_PROJECT_ROOT + '/tests',
     )
-    state = _reduce_state(state, SetCursorPath("/home/tadashi/develop/zivo/tests"))
+    state = _reduce_state(state, SetCursorPath(TEST_PROJECT_ROOT + '/tests'))
 
     result = reduce_app_state(
         state,
         JumpCursor(position="start", visible_paths=filtered_paths),
     )
 
-    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/zivo/src"
+    assert result.state.current_pane.cursor_path == TEST_PROJECT_ROOT + '/src'
 
 def test_move_cursor_page_down_repositions_viewport_window() -> None:
     path = "/tmp/zivo-viewport-page"
@@ -224,7 +224,7 @@ def test_go_back_requests_snapshot_from_back_stack() -> None:
     state = replace(
         build_initial_app_state(),
         history=HistoryState(
-            back=("/home/tadashi", "/home/tadashi/downloads"),
+            back=(TEST_HOME, TEST_HOME + '/downloads'),
             forward=(),
         ),
     )
@@ -234,7 +234,7 @@ def test_go_back_requests_snapshot_from_back_stack() -> None:
     assert result.state.pending_browser_snapshot_request_id is not None
     assert result.state.ui_mode == "BUSY"
     assert len(result.effects) == 1
-    assert result.effects[0].path == "/home/tadashi/downloads"
+    assert result.effects[0].path == TEST_HOME + '/downloads'
 
 def test_go_forward_does_nothing_when_forward_stack_is_empty() -> None:
     state = build_initial_app_state()
@@ -248,7 +248,7 @@ def test_go_forward_requests_snapshot_from_forward_stack() -> None:
         build_initial_app_state(),
         history=HistoryState(
             back=(),
-            forward=("/home/tadashi/downloads",),
+            forward=(TEST_HOME + '/downloads',),
         ),
     )
 
@@ -257,7 +257,7 @@ def test_go_forward_requests_snapshot_from_forward_stack() -> None:
     assert result.state.pending_browser_snapshot_request_id is not None
     assert result.state.ui_mode == "BUSY"
     assert len(result.effects) == 1
-    assert result.effects[0].path == "/home/tadashi/downloads"
+    assert result.effects[0].path == TEST_HOME + '/downloads'
 
 def test_browser_snapshot_loaded_records_history_on_path_change() -> None:
     state = build_initial_app_state()
@@ -290,8 +290,8 @@ def test_browser_snapshot_loaded_clears_forward_on_new_navigation() -> None:
     state = replace(
         build_initial_app_state(),
         history=HistoryState(
-            back=("/home/tadashi",),
-            forward=("/home/tadashi/downloads", "/home/tadashi/documents"),
+            back=(TEST_HOME,),
+            forward=(TEST_HOME + '/downloads', TEST_HOME + '/documents'),
         ),
     )
     state = _reduce_state(state, RequestBrowserSnapshot("/tmp/new_place"))
@@ -313,7 +313,7 @@ def test_browser_snapshot_loaded_clears_forward_on_new_navigation() -> None:
     )
 
     assert next_state.history.forward == ()
-    assert next_state.history.back == ("/home/tadashi", initial_path)
+    assert next_state.history.back == (TEST_HOME, initial_path)
 
 def test_browser_snapshot_loaded_does_not_record_history_on_reload() -> None:
     state = build_initial_app_state()
@@ -397,8 +397,8 @@ def test_revisiting_a_directory_moves_it_to_the_newest_history_position() -> Non
     assert next_history.visited_all == ("/other", "/current", "/old")
 
 def test_go_back_then_snapshot_loaded_updates_history_correctly() -> None:
-    initial_path = "/home/tadashi"
-    second_path = "/home/tadashi/develop"
+    initial_path = TEST_HOME
+    second_path = TEST_DEVELOP_ROOT
 
     state = replace(
         build_initial_app_state(),
@@ -433,8 +433,8 @@ def test_go_back_then_snapshot_loaded_updates_history_correctly() -> None:
     assert loaded_result.history.forward == (second_path,)
 
 def test_go_forward_then_snapshot_loaded_updates_history_correctly() -> None:
-    initial_path = "/home/tadashi"
-    forward_path = "/home/tadashi/develop"
+    initial_path = TEST_HOME
+    forward_path = TEST_DEVELOP_ROOT
 
     state = replace(
         build_initial_app_state(),
@@ -540,80 +540,80 @@ def test_browser_snapshot_loaded_exits_filter_mode_on_directory_change() -> None
 def test_move_cursor_by_page_down() -> None:
     state = build_initial_app_state()
     visible_paths = (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
-        "/home/tadashi/develop/zivo/tests",
-        "/home/tadashi/develop/zivo/README.md",
-        "/home/tadashi/develop/zivo/pyproject.toml",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/src',
+        TEST_PROJECT_ROOT + '/tests',
+        TEST_PROJECT_ROOT + '/README.md',
+        TEST_PROJECT_ROOT + '/pyproject.toml',
     )
-    state = _reduce_state(state, SetCursorPath("/home/tadashi/develop/zivo/docs"))
+    state = _reduce_state(state, SetCursorPath(TEST_PROJECT_ROOT + '/docs'))
 
     result = reduce_app_state(
         state, MoveCursorByPage(direction="down", page_size=3, visible_paths=visible_paths)
     )
 
-    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/zivo/README.md"
+    assert result.state.current_pane.cursor_path == TEST_PROJECT_ROOT + '/README.md'
     assert result.effects == (
         LoadChildPaneSnapshotEffect(
             request_id=2,
-            current_path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/README.md",
+            current_path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/README.md',
         ),
     )
 
 def test_move_cursor_by_page_up() -> None:
     state = build_initial_app_state()
     visible_paths = (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
-        "/home/tadashi/develop/zivo/tests",
-        "/home/tadashi/develop/zivo/README.md",
-        "/home/tadashi/develop/zivo/pyproject.toml",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/src',
+        TEST_PROJECT_ROOT + '/tests',
+        TEST_PROJECT_ROOT + '/README.md',
+        TEST_PROJECT_ROOT + '/pyproject.toml',
     )
-    state = _reduce_state(state, SetCursorPath("/home/tadashi/develop/zivo/pyproject.toml"))
+    state = _reduce_state(state, SetCursorPath(TEST_PROJECT_ROOT + '/pyproject.toml'))
 
     result = reduce_app_state(
         state, MoveCursorByPage(direction="up", page_size=3, visible_paths=visible_paths)
     )
 
-    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/zivo/src"
+    assert result.state.current_pane.cursor_path == TEST_PROJECT_ROOT + '/src'
     assert result.effects == (
         LoadChildPaneSnapshotEffect(
             request_id=3,
-            current_path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/src",
+            current_path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/src',
         ),
     )
 
 def test_move_cursor_by_page_down_clamps_to_last_entry() -> None:
     state = build_initial_app_state()
     visible_paths = (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
-        "/home/tadashi/develop/zivo/tests",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/src',
+        TEST_PROJECT_ROOT + '/tests',
     )
-    state = _reduce_state(state, SetCursorPath("/home/tadashi/develop/zivo/src"))
+    state = _reduce_state(state, SetCursorPath(TEST_PROJECT_ROOT + '/src'))
 
     result = reduce_app_state(
         state, MoveCursorByPage(direction="down", page_size=10, visible_paths=visible_paths)
     )
 
-    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/zivo/tests"
+    assert result.state.current_pane.cursor_path == TEST_PROJECT_ROOT + '/tests'
 
 def test_move_cursor_by_page_up_clamps_to_first_entry() -> None:
     state = build_initial_app_state()
     visible_paths = (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
-        "/home/tadashi/develop/zivo/tests",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/src',
+        TEST_PROJECT_ROOT + '/tests',
     )
-    state = _reduce_state(state, SetCursorPath("/home/tadashi/develop/zivo/src"))
+    state = _reduce_state(state, SetCursorPath(TEST_PROJECT_ROOT + '/src'))
 
     result = reduce_app_state(
         state, MoveCursorByPage(direction="up", page_size=10, visible_paths=visible_paths)
     )
 
-    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/zivo/docs"
+    assert result.state.current_pane.cursor_path == TEST_PROJECT_ROOT + '/docs'
 
 def test_move_cursor_by_page_empty_paths() -> None:
     state = build_initial_app_state()
@@ -631,8 +631,8 @@ def test_open_new_tab_clones_path_but_resets_filter_and_selection() -> None:
         filter=replace(build_initial_app_state().filter, query="read", active=True),
         current_pane=replace(
             build_initial_app_state().current_pane,
-            selected_paths=frozenset({"/home/tadashi/develop/zivo/docs"}),
-            selection_anchor_path="/home/tadashi/develop/zivo/docs",
+            selected_paths=frozenset({TEST_PROJECT_ROOT + '/docs'}),
+            selection_anchor_path=TEST_PROJECT_ROOT + '/docs',
         ),
     )
 
@@ -646,7 +646,7 @@ def test_open_new_tab_clones_path_but_resets_filter_and_selection() -> None:
     assert len(select_browser_tabs(next_state)) == 2
     assert select_browser_tabs(next_state)[0].filter.query == "read"
     assert select_browser_tabs(next_state)[0].current_pane.selected_paths == frozenset(
-        {"/home/tadashi/develop/zivo/docs"}
+        {TEST_PROJECT_ROOT + '/docs'}
     )
 
 def test_activate_tabs_restores_per_tab_filter_state() -> None:

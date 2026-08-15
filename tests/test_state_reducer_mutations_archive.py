@@ -1,6 +1,7 @@
 from dataclasses import replace
 from pathlib import Path
 
+from tests.support.paths import TEST_PROJECT_ROOT
 from tests.support.state import reduce_state as _reduce_state
 from zivo.models import (
     CreateZipArchiveRequest,
@@ -44,7 +45,7 @@ from zivo.state.reducer_common import browser_snapshot_invalidation_paths
 
 
 def test_submit_pending_extract_starts_archive_preparation() -> None:
-    source_path = "/home/tadashi/develop/zivo/archive.zip"
+    source_path = TEST_PROJECT_ROOT + '/archive.zip'
     dest_path = "/tmp/output/archive"
     state = replace(
         build_initial_app_state(),
@@ -80,8 +81,8 @@ def test_submit_pending_zip_compress_starts_preparation() -> None:
             prompt="Compress to: ",
             value=dest_path,
             zip_source_paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
             ),
         ),
     )
@@ -95,18 +96,18 @@ def test_submit_pending_zip_compress_starts_preparation() -> None:
             request_id=1,
             request=CreateZipArchiveRequest(
                 source_paths=(
-                    "/home/tadashi/develop/zivo/docs",
-                    "/home/tadashi/develop/zivo/src",
+                    TEST_PROJECT_ROOT + '/docs',
+                    TEST_PROJECT_ROOT + '/src',
                 ),
                 destination_path=str(Path(dest_path).resolve()),
-                root_dir="/home/tadashi/develop/zivo",
+                root_dir=TEST_PROJECT_ROOT,
             ),
         ),
     )
 
 
 def test_submit_pending_extract_resolves_relative_destination_from_archive_parent() -> None:
-    source_path = "/home/tadashi/develop/zivo/docs/archive.tar.bz2"
+    source_path = TEST_PROJECT_ROOT + '/docs/archive.tar.bz2'
     state = replace(
         build_initial_app_state(),
         ui_mode="EXTRACT",
@@ -124,7 +125,7 @@ def test_submit_pending_extract_resolves_relative_destination_from_archive_paren
             request_id=1,
             request=ExtractArchiveRequest(
                 source_path=str(Path(source_path).resolve()),
-                destination_path=str(Path("/home/tadashi/develop/zivo/exports/archive").resolve()),
+                destination_path=str(Path(TEST_PROJECT_ROOT + '/exports/archive').resolve()),
             ),
         ),
     )
@@ -132,7 +133,7 @@ def test_submit_pending_extract_resolves_relative_destination_from_archive_paren
 
 def test_archive_preparation_with_conflicts_enters_confirm_mode() -> None:
     request = ExtractArchiveRequest(
-        source_path="/home/tadashi/develop/zivo/archive.zip",
+        source_path=TEST_PROJECT_ROOT + '/archive.zip',
         destination_path="/tmp/output/archive",
     )
     state = replace(
@@ -169,16 +170,16 @@ def test_archive_preparation_with_conflicts_enters_confirm_mode() -> None:
 
 def test_zip_compress_preparation_with_existing_destination_enters_confirm_mode() -> None:
     request = CreateZipArchiveRequest(
-        source_paths=("/home/tadashi/develop/zivo/docs",),
-        destination_path="/home/tadashi/develop/zivo/docs.zip",
-        root_dir="/home/tadashi/develop/zivo",
+        source_paths=(TEST_PROJECT_ROOT + '/docs',),
+        destination_path=TEST_PROJECT_ROOT + '/docs.zip',
+        root_dir=TEST_PROJECT_ROOT,
     )
     state = replace(
         build_initial_app_state(),
         ui_mode="BUSY",
         pending_input=PendingInputState(
             prompt="Compress to: ",
-            value="/home/tadashi/develop/zivo/docs.zip",
+            value=TEST_PROJECT_ROOT + '/docs.zip',
             zip_source_paths=request.source_paths,
         ),
         pending_zip_compress_prepare_request_id=4,
@@ -204,7 +205,7 @@ def test_zip_compress_preparation_with_existing_destination_enters_confirm_mode(
 
 def test_confirm_archive_extract_runs_extract_effect() -> None:
     request = ExtractArchiveRequest(
-        source_path="/home/tadashi/develop/zivo/archive.zip",
+        source_path=TEST_PROJECT_ROOT + '/archive.zip',
         destination_path="/tmp/output/archive",
     )
     state = replace(
@@ -231,16 +232,16 @@ def test_confirm_archive_extract_runs_extract_effect() -> None:
 
 def test_confirm_zip_compress_runs_effect() -> None:
     request = CreateZipArchiveRequest(
-        source_paths=("/home/tadashi/develop/zivo/docs",),
-        destination_path="/home/tadashi/develop/zivo/docs.zip",
-        root_dir="/home/tadashi/develop/zivo",
+        source_paths=(TEST_PROJECT_ROOT + '/docs',),
+        destination_path=TEST_PROJECT_ROOT + '/docs.zip',
+        root_dir=TEST_PROJECT_ROOT,
     )
     state = replace(
         build_initial_app_state(),
         ui_mode="CONFIRM",
         pending_input=PendingInputState(
             prompt="Compress to: ",
-            value="/home/tadashi/develop/zivo/docs.zip",
+            value=TEST_PROJECT_ROOT + '/docs.zip',
             zip_source_paths=request.source_paths,
         ),
         zip_compress_confirmation=ZipCompressConfirmationState(
@@ -257,7 +258,7 @@ def test_confirm_zip_compress_runs_effect() -> None:
 
 def test_cancel_archive_extract_confirmation_returns_to_extract_mode() -> None:
     request = ExtractArchiveRequest(
-        source_path="/home/tadashi/develop/zivo/archive.zip",
+        source_path=TEST_PROJECT_ROOT + '/archive.zip',
         destination_path="/tmp/output/archive",
     )
     state = replace(
@@ -288,16 +289,16 @@ def test_cancel_archive_extract_confirmation_returns_to_extract_mode() -> None:
 
 def test_cancel_zip_compress_confirmation_returns_to_zip_mode() -> None:
     request = CreateZipArchiveRequest(
-        source_paths=("/home/tadashi/develop/zivo/docs",),
-        destination_path="/home/tadashi/develop/zivo/docs.zip",
-        root_dir="/home/tadashi/develop/zivo",
+        source_paths=(TEST_PROJECT_ROOT + '/docs',),
+        destination_path=TEST_PROJECT_ROOT + '/docs.zip',
+        root_dir=TEST_PROJECT_ROOT,
     )
     state = replace(
         build_initial_app_state(),
         ui_mode="CONFIRM",
         pending_input=PendingInputState(
             prompt="Compress to: ",
-            value="/home/tadashi/develop/zivo/docs.zip",
+            value=TEST_PROJECT_ROOT + '/docs.zip',
             zip_source_paths=request.source_paths,
         ),
         zip_compress_confirmation=ZipCompressConfirmationState(
@@ -357,14 +358,14 @@ def test_zip_compress_progress_updates_notification() -> None:
             request_id=6,
             completed_entries=2,
             total_entries=5,
-            current_path="/home/tadashi/develop/zivo/docs/readme.txt",
+            current_path=TEST_PROJECT_ROOT + '/docs/readme.txt',
         ),
     )
 
     assert next_state.zip_compress_progress == ZipCompressProgressState(
         completed_entries=2,
         total_entries=5,
-        current_path="/home/tadashi/develop/zivo/docs/readme.txt",
+        current_path=TEST_PROJECT_ROOT + '/docs/readme.txt',
     )
     assert next_state.notification == NotificationState(
         level="info",
@@ -380,7 +381,7 @@ def test_archive_extract_completed_refreshes_current_view_without_navigation() -
         pending_input=PendingInputState(
             prompt="Extract to: ",
             value=dest_path,
-            extract_source_path="/home/tadashi/develop/zivo/archive.zip",
+            extract_source_path=TEST_PROJECT_ROOT + '/archive.zip',
         ),
         pending_archive_extract_request_id=9,
     )
@@ -428,7 +429,7 @@ def test_zip_compress_completed_refreshes_current_view_without_navigation() -> N
         pending_input=PendingInputState(
             prompt="Compress to: ",
             value=dest_path,
-            zip_source_paths=("/home/tadashi/develop/zivo/docs",),
+            zip_source_paths=(TEST_PROJECT_ROOT + '/docs',),
         ),
         pending_zip_compress_request_id=9,
     )
@@ -474,7 +475,7 @@ def test_archive_extract_failed_returns_to_extract_mode() -> None:
         pending_input=PendingInputState(
             prompt="Extract to: ",
             value="/tmp/output/archive",
-            extract_source_path="/home/tadashi/develop/zivo/archive.zip",
+            extract_source_path=TEST_PROJECT_ROOT + '/archive.zip',
         ),
         pending_archive_extract_request_id=12,
     )
@@ -499,7 +500,7 @@ def test_zip_compress_failed_returns_to_zip_mode() -> None:
         pending_input=PendingInputState(
             prompt="Compress to: ",
             value="/tmp/output.zip",
-            zip_source_paths=("/home/tadashi/develop/zivo/docs",),
+            zip_source_paths=(TEST_PROJECT_ROOT + '/docs',),
         ),
         pending_zip_compress_request_id=12,
     )
@@ -524,7 +525,7 @@ def test_archive_preparation_failed_returns_to_extract_mode() -> None:
         pending_input=PendingInputState(
             prompt="Extract to: ",
             value="/tmp/output/archive",
-            extract_source_path="/home/tadashi/develop/zivo/archive.zip",
+            extract_source_path=TEST_PROJECT_ROOT + '/archive.zip',
         ),
         pending_archive_prepare_request_id=7,
     )

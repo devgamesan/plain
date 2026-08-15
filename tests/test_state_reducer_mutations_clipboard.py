@@ -1,6 +1,7 @@
 from dataclasses import replace
 from pathlib import Path
 
+from tests.support.paths import TEST_DEVELOP_ROOT, TEST_PROJECT_ROOT
 from tests.support.state import reduce_state as _reduce_state
 from zivo.models import (
     PasteAppliedChange,
@@ -47,17 +48,17 @@ def test_select_all_visible_entries_replaces_selection_with_visible_paths() -> N
     state = replace(
         initial_state,
         current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
+            directory_path=TEST_PROJECT_ROOT,
             entries=(
-                DirectoryEntryState("/home/tadashi/develop/zivo/.env", ".env", "file", hidden=True),
-                DirectoryEntryState("/home/tadashi/develop/zivo/docs", "docs", "dir"),
-                DirectoryEntryState("/home/tadashi/develop/zivo/src", "src", "dir"),
+                DirectoryEntryState(TEST_PROJECT_ROOT + '/.env', ".env", "file", hidden=True),
+                DirectoryEntryState(TEST_PROJECT_ROOT + '/docs', "docs", "dir"),
+                DirectoryEntryState(TEST_PROJECT_ROOT + '/src', "src", "dir"),
             ),
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
             selected_paths=frozenset(
                 {
-                    "/home/tadashi/develop/zivo/.env",
-                    "/home/tadashi/develop/zivo/docs",
+                    TEST_PROJECT_ROOT + '/.env',
+                    TEST_PROJECT_ROOT + '/docs',
                 }
             ),
         ),
@@ -67,16 +68,16 @@ def test_select_all_visible_entries_replaces_selection_with_visible_paths() -> N
         state,
         SelectAllVisibleEntries(
             (
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
             )
         ),
     )
 
     assert next_state.current_pane.selected_paths == frozenset(
         {
-            "/home/tadashi/develop/zivo/docs",
-            "/home/tadashi/develop/zivo/src",
+            TEST_PROJECT_ROOT + '/docs',
+            TEST_PROJECT_ROOT + '/src',
         }
     )
 
@@ -84,10 +85,10 @@ def test_select_all_visible_entries_replaces_selection_with_visible_paths() -> N
 def test_copy_targets_updates_clipboard_state() -> None:
     state = build_initial_app_state()
 
-    next_state = _reduce_state(state, CopyTargets(("/home/tadashi/develop/zivo/docs",)))
+    next_state = _reduce_state(state, CopyTargets((TEST_PROJECT_ROOT + '/docs',)))
 
     assert next_state.clipboard.mode == "copy"
-    assert next_state.clipboard.paths == ("/home/tadashi/develop/zivo/docs",)
+    assert next_state.clipboard.paths == (TEST_PROJECT_ROOT + '/docs',)
 
 
 def test_copy_targets_warns_when_empty() -> None:
@@ -111,7 +112,7 @@ def test_cut_targets_warns_when_empty() -> None:
 def test_paste_clipboard_emits_paste_effect_without_blocking_browsing() -> None:
     state = _reduce_state(
         build_initial_app_state(),
-        CopyTargets(("/home/tadashi/develop/zivo/docs",)),
+        CopyTargets((TEST_PROJECT_ROOT + '/docs',)),
     )
 
     result = reduce_app_state(state, PasteClipboard())
@@ -126,7 +127,7 @@ def test_paste_clipboard_emits_paste_effect_without_blocking_browsing() -> None:
             request=result.effects[0].request,
         ),
     )
-    assert result.effects[0].request.destination_dir == "/home/tadashi/develop/zivo"
+    assert result.effects[0].request.destination_dir == TEST_PROJECT_ROOT
 
 
 def test_cancel_foreground_operation_marks_active_operation_once() -> None:
@@ -195,13 +196,13 @@ def test_paste_clipboard_warns_when_empty() -> None:
 def test_paste_needs_resolution_enters_confirm_mode() -> None:
     state = _reduce_state(
         build_initial_app_state(),
-        CopyTargets(("/home/tadashi/develop/zivo/docs",)),
+        CopyTargets((TEST_PROJECT_ROOT + '/docs',)),
     )
     requested = reduce_app_state(state, PasteClipboard()).state
 
     conflict = PasteConflict(
-        source_path="/home/tadashi/develop/zivo/docs",
-        destination_path="/home/tadashi/develop/zivo/docs",
+        source_path=TEST_PROJECT_ROOT + '/docs',
+        destination_path=TEST_PROJECT_ROOT + '/docs',
     )
     next_state = _reduce_state(
         requested,
@@ -209,8 +210,8 @@ def test_paste_needs_resolution_enters_confirm_mode() -> None:
             request_id=1,
             request=PasteRequest(
                 mode="copy",
-                source_paths=("/home/tadashi/develop/zivo/docs",),
-                destination_dir="/home/tadashi/develop/zivo",
+                source_paths=(TEST_PROJECT_ROOT + '/docs',),
+                destination_dir=TEST_PROJECT_ROOT,
             ),
             conflicts=(conflict,),
         ),
@@ -224,13 +225,13 @@ def test_paste_needs_resolution_enters_confirm_mode() -> None:
 def test_paste_needs_resolution_uses_configured_default_resolution() -> None:
     state = _reduce_state(
         build_initial_app_state(paste_conflict_action="rename"),
-        CopyTargets(("/home/tadashi/develop/zivo/docs",)),
+        CopyTargets((TEST_PROJECT_ROOT + '/docs',)),
     )
     requested = reduce_app_state(state, PasteClipboard()).state
 
     conflict = PasteConflict(
-        source_path="/home/tadashi/develop/zivo/docs",
-        destination_path="/home/tadashi/develop/zivo/docs",
+        source_path=TEST_PROJECT_ROOT + '/docs',
+        destination_path=TEST_PROJECT_ROOT + '/docs',
     )
     result = reduce_app_state(
         requested,
@@ -238,8 +239,8 @@ def test_paste_needs_resolution_uses_configured_default_resolution() -> None:
             request_id=1,
             request=PasteRequest(
                 mode="copy",
-                source_paths=("/home/tadashi/develop/zivo/docs",),
-                destination_dir="/home/tadashi/develop/zivo",
+                source_paths=(TEST_PROJECT_ROOT + '/docs',),
+                destination_dir=TEST_PROJECT_ROOT,
             ),
             conflicts=(conflict,),
         ),
@@ -251,8 +252,8 @@ def test_paste_needs_resolution_uses_configured_default_resolution() -> None:
             request_id=2,
             request=PasteRequest(
                 mode="copy",
-                source_paths=("/home/tadashi/develop/zivo/docs",),
-                destination_dir="/home/tadashi/develop/zivo",
+                source_paths=(TEST_PROJECT_ROOT + '/docs',),
+                destination_dir=TEST_PROJECT_ROOT,
                 conflict_resolution="rename",
             ),
         ),
@@ -262,13 +263,13 @@ def test_paste_needs_resolution_uses_configured_default_resolution() -> None:
 def test_paste_needs_resolution_ignores_stale_request() -> None:
     state = _reduce_state(
         build_initial_app_state(),
-        CopyTargets(("/home/tadashi/develop/zivo/docs",)),
+        CopyTargets((TEST_PROJECT_ROOT + '/docs',)),
     )
     requested = reduce_app_state(state, PasteClipboard()).state
 
     conflict = PasteConflict(
-        source_path="/home/tadashi/develop/zivo/docs",
-        destination_path="/home/tadashi/develop/zivo/docs",
+        source_path=TEST_PROJECT_ROOT + '/docs',
+        destination_path=TEST_PROJECT_ROOT + '/docs',
     )
     next_state = _reduce_state(
         requested,
@@ -276,8 +277,8 @@ def test_paste_needs_resolution_ignores_stale_request() -> None:
             request_id=99,
             request=PasteRequest(
                 mode="copy",
-                source_paths=("/home/tadashi/develop/zivo/docs",),
-                destination_dir="/home/tadashi/develop/zivo",
+                source_paths=(TEST_PROJECT_ROOT + '/docs',),
+                destination_dir=TEST_PROJECT_ROOT,
             ),
             conflicts=(conflict,),
         ),
@@ -288,8 +289,8 @@ def test_paste_needs_resolution_ignores_stale_request() -> None:
 
 def test_resolve_paste_conflict_restarts_paste_with_resolution() -> None:
     conflict = PasteConflict(
-        source_path="/home/tadashi/develop/zivo/docs",
-        destination_path="/home/tadashi/develop/zivo/docs",
+        source_path=TEST_PROJECT_ROOT + '/docs',
+        destination_path=TEST_PROJECT_ROOT + '/docs',
     )
     state = replace(
         build_initial_app_state(),
@@ -297,8 +298,8 @@ def test_resolve_paste_conflict_restarts_paste_with_resolution() -> None:
         paste_conflict=PasteConflictState(
             request=PasteRequest(
                 mode="copy",
-                source_paths=("/home/tadashi/develop/zivo/docs",),
-                destination_dir="/home/tadashi/develop/zivo",
+                source_paths=(TEST_PROJECT_ROOT + '/docs',),
+                destination_dir=TEST_PROJECT_ROOT,
             ),
             conflicts=(conflict,),
             first_conflict=conflict,
@@ -315,8 +316,8 @@ def test_resolve_paste_conflict_restarts_paste_with_resolution() -> None:
             request_id=2,
             request=PasteRequest(
                 mode="copy",
-                source_paths=("/home/tadashi/develop/zivo/docs",),
-                destination_dir="/home/tadashi/develop/zivo",
+                source_paths=(TEST_PROJECT_ROOT + '/docs',),
+                destination_dir=TEST_PROJECT_ROOT,
                 conflict_resolution="rename",
             ),
         ),
@@ -326,7 +327,7 @@ def test_resolve_paste_conflict_restarts_paste_with_resolution() -> None:
 def test_clipboard_paste_completed_for_cut_clears_clipboard_and_requests_reload() -> None:
     state = _reduce_state(
         build_initial_app_state(),
-        CutTargets(("/home/tadashi/develop/zivo/docs",)),
+        CutTargets((TEST_PROJECT_ROOT + '/docs',)),
     )
     state = replace(state, pending_paste_request_id=4)
 
@@ -336,7 +337,7 @@ def test_clipboard_paste_completed_for_cut_clears_clipboard_and_requests_reload(
             request_id=4,
             summary=PasteSummary(
                 mode="cut",
-                destination_dir="/home/tadashi/develop/zivo",
+                destination_dir=TEST_PROJECT_ROOT,
                 total_count=1,
                 success_count=1,
                 skipped_count=0,
@@ -344,7 +345,7 @@ def test_clipboard_paste_completed_for_cut_clears_clipboard_and_requests_reload(
             applied_changes=(
                 PasteAppliedChange(
                     source_path="/tmp/staging/docs",
-                    destination_path="/home/tadashi/develop/zivo/docs",
+                    destination_path=TEST_PROJECT_ROOT + '/docs',
                 ),
             ),
         ),
@@ -356,7 +357,7 @@ def test_clipboard_paste_completed_for_cut_clears_clipboard_and_requests_reload(
             kind="paste_cut",
             steps=(
                 UndoMovePathStep(
-                    source_path="/home/tadashi/develop/zivo/docs",
+                    source_path=TEST_PROJECT_ROOT + '/docs',
                     destination_path="/tmp/staging/docs",
                 ),
             ),
@@ -366,15 +367,15 @@ def test_clipboard_paste_completed_for_cut_clears_clipboard_and_requests_reload(
     assert result.effects == (
         LoadBrowserSnapshotEffect(
             request_id=1,
-            path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/docs",
+            path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/docs',
             blocking=False,
             invalidate_paths=tuple(
                 str(Path(p).resolve())
                 for p in (
-                    "/home/tadashi/develop/zivo",
-                    "/home/tadashi/develop",
-                    "/home/tadashi/develop/zivo/docs",
+                    TEST_PROJECT_ROOT,
+                    TEST_DEVELOP_ROOT,
+                    TEST_PROJECT_ROOT + '/docs',
                 )
             ),
         ),
@@ -390,7 +391,7 @@ def test_clipboard_paste_completed_pushes_copy_undo_entry() -> None:
             request_id=4,
             summary=PasteSummary(
                 mode="copy",
-                destination_dir="/home/tadashi/develop/zivo",
+                destination_dir=TEST_PROJECT_ROOT,
                 total_count=1,
                 success_count=1,
                 skipped_count=0,
@@ -398,7 +399,7 @@ def test_clipboard_paste_completed_pushes_copy_undo_entry() -> None:
             applied_changes=(
                 PasteAppliedChange(
                     source_path="/tmp/source/docs",
-                    destination_path="/home/tadashi/develop/zivo/docs copy",
+                    destination_path=TEST_PROJECT_ROOT + '/docs copy',
                 ),
             ),
         ),
@@ -407,7 +408,7 @@ def test_clipboard_paste_completed_pushes_copy_undo_entry() -> None:
     assert next_state.undo_stack == (
         UndoEntry(
             kind="paste_copy",
-            steps=(UndoDeletePathStep(path="/home/tadashi/develop/zivo/docs copy"),),
+            steps=(UndoDeletePathStep(path=TEST_PROJECT_ROOT + '/docs copy'),),
         ),
     )
 
@@ -421,7 +422,7 @@ def test_clipboard_paste_completed_skips_undo_for_overwrite() -> None:
             request_id=4,
             summary=PasteSummary(
                 mode="copy",
-                destination_dir="/home/tadashi/develop/zivo",
+                destination_dir=TEST_PROJECT_ROOT,
                 total_count=1,
                 success_count=1,
                 skipped_count=0,
@@ -430,7 +431,7 @@ def test_clipboard_paste_completed_skips_undo_for_overwrite() -> None:
             applied_changes=(
                 PasteAppliedChange(
                     source_path="/tmp/source/docs",
-                    destination_path="/home/tadashi/develop/zivo/docs",
+                    destination_path=TEST_PROJECT_ROOT + '/docs',
                 ),
             ),
         ),
@@ -446,8 +447,8 @@ def test_clipboard_paste_completed_skips_undo_for_overwrite() -> None:
 
 def test_clipboard_paste_failed_returns_to_browsing_and_clears_dialog_state() -> None:
     conflict = PasteConflict(
-        source_path="/home/tadashi/develop/zivo/docs",
-        destination_path="/home/tadashi/develop/zivo/docs",
+        source_path=TEST_PROJECT_ROOT + '/docs',
+        destination_path=TEST_PROJECT_ROOT + '/docs',
     )
     state = replace(
         build_initial_app_state(),
@@ -456,13 +457,13 @@ def test_clipboard_paste_failed_returns_to_browsing_and_clears_dialog_state() ->
         paste_conflict=PasteConflictState(
             request=PasteRequest(
                 mode="copy",
-                source_paths=("/home/tadashi/develop/zivo/docs",),
-                destination_dir="/home/tadashi/develop/zivo",
+                source_paths=(TEST_PROJECT_ROOT + '/docs',),
+                destination_dir=TEST_PROJECT_ROOT,
             ),
             conflicts=(conflict,),
             first_conflict=conflict,
         ),
-        delete_confirmation=DeleteConfirmationState(paths=("/home/tadashi/develop/zivo/docs",)),
+        delete_confirmation=DeleteConfirmationState(paths=(TEST_PROJECT_ROOT + '/docs',)),
         name_conflict=NameConflictState(kind="rename", name="docs"),
     )
 
@@ -489,13 +490,13 @@ def test_cancel_paste_conflict_returns_to_browsing_with_warning() -> None:
 
 def test_toggle_selection_and_advance_moves_cursor_to_next_visible_entry() -> None:
     state = build_initial_app_state()
-    current_path = "/home/tadashi/develop/zivo/docs"
+    current_path = TEST_PROJECT_ROOT + '/docs'
     visible_paths = (
-        "/home/tadashi/develop/zivo/docs",
-        "/home/tadashi/develop/zivo/src",
-        "/home/tadashi/develop/zivo/tests",
-        "/home/tadashi/develop/zivo/README.md",
-        "/home/tadashi/develop/zivo/pyproject.toml",
+        TEST_PROJECT_ROOT + '/docs',
+        TEST_PROJECT_ROOT + '/src',
+        TEST_PROJECT_ROOT + '/tests',
+        TEST_PROJECT_ROOT + '/README.md',
+        TEST_PROJECT_ROOT + '/pyproject.toml',
     )
 
     result = reduce_app_state(
@@ -504,20 +505,20 @@ def test_toggle_selection_and_advance_moves_cursor_to_next_visible_entry() -> No
     )
 
     assert result.state.current_pane.selected_paths == frozenset({current_path})
-    assert result.state.current_pane.cursor_path == "/home/tadashi/develop/zivo/src"
+    assert result.state.current_pane.cursor_path == TEST_PROJECT_ROOT + '/src'
     assert result.state.pending_child_pane_request_id == 1
     assert result.effects == (
         LoadChildPaneSnapshotEffect(
             request_id=1,
-            current_path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/src",
+            current_path=TEST_PROJECT_ROOT,
+            cursor_path=TEST_PROJECT_ROOT + '/src',
         ),
         RunDirectorySizeEffect(
             request_id=2,
             paths=(
-                "/home/tadashi/develop/zivo/docs",
-                "/home/tadashi/develop/zivo/src",
-                "/home/tadashi/develop/zivo/tests",
+                TEST_PROJECT_ROOT + '/docs',
+                TEST_PROJECT_ROOT + '/src',
+                TEST_PROJECT_ROOT + '/tests',
             ),
         ),
     )

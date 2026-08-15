@@ -5,7 +5,7 @@ from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll
 from textual.widgets import Static
 
-from tests.state_test_helpers import reduce_state
+from tests.support.state import reduce_state
 from zivo.models import (
     ActionsConfig,
     AppConfig,

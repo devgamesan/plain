@@ -2,7 +2,7 @@ from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
-from tests.state_test_helpers import reduce_state
+from tests.support.state import reduce_state
 from zivo.models import (
     AppConfig,
     BookmarkConfig,

@@ -14,6 +14,14 @@ from textual.css.query import NoMatches
 from textual.events import Click, MouseMove
 from textual.widgets import DataTable, Label, Static
 
+from tests.support.app import build_snapshot as _build_snapshot
+from tests.support.app import wait_for_snapshot_loaded as _wait_for_snapshot_loaded
+from tests.support.services import (
+    BlockingDirectorySizeService,
+    BlockingFileSearchService,
+    BlockingGrepSearchService,
+    FakeConfigSaveService,
+)
 from zivo import create_app
 from zivo.app import _preview_scroll_delta
 from zivo.app_overlay_layout import update_pane_visibility
@@ -103,38 +111,6 @@ skip_if_windows_split_terminal_unsupported = pytest.mark.skipif(
     os.name == "nt",
     reason="split terminal is unsupported on native Windows",
 )
-
-
-def _build_snapshot(
-    path: str,
-    current_entries: tuple[DirectoryEntryState, ...],
-    *,
-    child_path: str | None = None,
-    child_entries: tuple[DirectoryEntryState, ...] = (),
-) -> BrowserSnapshot:
-    cursor_path = current_entries[0].path if current_entries else None
-    parent_path = str(Path(path).parent)
-    parent_entries = (
-        DirectoryEntryState(path, Path(path).name, "dir"),
-        DirectoryEntryState(f"{parent_path}/sibling", "sibling", "dir"),
-    )
-    return BrowserSnapshot(
-        current_path=path,
-        parent_pane=PaneState(
-            directory_path=parent_path,
-            entries=parent_entries,
-            cursor_path=path,
-        ),
-        current_pane=PaneState(
-            directory_path=path,
-            entries=current_entries,
-            cursor_path=cursor_path,
-        ),
-        child_pane=PaneState(
-            directory_path=child_path or path,
-            entries=child_entries,
-        ),
-    )
 
 
 def _normalize_rich_style(style: str | Style | None) -> Style | None:
@@ -339,21 +315,6 @@ def _assert_region_vertically_centered(region, container_region, tolerance: int 
     assert abs(region.y - expected_y) <= tolerance
 
 
-async def _wait_for_snapshot_loaded(app, expected_path: str, timeout: float = 0.5) -> None:
-    resolved_expected = str(Path(expected_path).resolve())
-    deadline = asyncio.get_running_loop().time() + timeout
-    while True:
-        if (
-            app.app_state.current_path == resolved_expected
-            and app.app_state.pending_browser_snapshot_request_id is None
-            and app.app_state.current_pane.entries
-        ):
-            return
-        if asyncio.get_running_loop().time() >= deadline:
-            raise AssertionError(f"snapshot did not finish for {expected_path}")
-        await asyncio.sleep(0.01)
-
-
 async def _wait_for_help_bar_text(app, expected: str, timeout: float = 0.5) -> HelpBar:
     deadline = asyncio.get_running_loop().time() + timeout
     while True:
@@ -435,137 +396,6 @@ def _side_pane_lines(widget: Static) -> list[str]:
     if isinstance(renderable, Text):
         return renderable.plain.splitlines()
     return str(renderable).splitlines()
-
-
-class FakeConfigSaveService:
-    def __init__(
-        self, *, saved_path: str | None = None, failure_message: str | None = None
-    ) -> None:
-        self.saved_path = saved_path
-        self.failure_message = failure_message
-        self.saved_requests: list[tuple[str, AppConfig]] = []
-
-    def save(
-        self, *, path: str, config: AppConfig, preserve_unmanaged: bool = False
-    ) -> str:
-        self.saved_requests.append((path, config))
-        if self.failure_message is not None:
-            raise OSError(self.failure_message)
-        return self.saved_path or path
-
-
-class BlockingFileSearchService:
-    def __init__(
-        self,
-        *,
-        results_by_query: (
-            dict[tuple[str, str, bool], tuple[FileSearchResultState, ...]] | None
-        ) = None,
-        blocked_queries: tuple[str, ...] = (),
-    ) -> None:
-        self.results_by_query = results_by_query or {}
-        self.blocked_queries = set(blocked_queries)
-        self.executed_requests: list[tuple[str, str, bool]] = []
-        self.cancelled_queries: list[str] = []
-        self.started_queries: list[str] = []
-        self.release_event = threading.Event()
-
-    def search(
-        self,
-        root_path: str,
-        query: str,
-        *,
-        show_hidden: bool,
-        search_target: str = "all",
-        include_extensions: tuple[str, ...] = (),
-        exclude_extensions: tuple[str, ...] = (),
-        max_results: int | None = None,
-        is_cancelled=None,
-    ) -> tuple[FileSearchResultState, ...]:
-        key = (root_path, query, show_hidden)
-        self.executed_requests.append(key)
-        self.started_queries.append(query)
-        if query in self.blocked_queries:
-            while not self.release_event.is_set():
-                if is_cancelled is not None and is_cancelled():
-                    self.cancelled_queries.append(query)
-                    return ()
-                time.sleep(0.01)
-        if is_cancelled is not None and is_cancelled():
-            self.cancelled_queries.append(query)
-            return ()
-        return self.results_by_query.get(key, ())
-
-
-class BlockingGrepSearchService:
-    def __init__(
-        self,
-        *,
-        results_by_query: (
-            dict[
-                tuple[str, str, tuple[str, ...], tuple[str, ...], bool],
-                tuple[GrepSearchResultState, ...],
-            ]
-            | None
-        ) = None,
-        blocked_queries: tuple[str, ...] = (),
-    ) -> None:
-        self.results_by_query = results_by_query or {}
-        self.blocked_queries = set(blocked_queries)
-        self.executed_requests: list[
-            tuple[str, str, tuple[str, ...], tuple[str, ...], bool]
-        ] = []
-        self.executed_search_options: list[tuple[tuple[str, ...], str, int | None]] = []
-        self.cancelled_queries: list[str] = []
-        self.release_event = threading.Event()
-
-    def search(
-        self,
-        root_path: str,
-        query: str,
-        *,
-        show_hidden: bool,
-        include_globs: tuple[str, ...] = (),
-        exclude_globs: tuple[str, ...] = (),
-        target_paths: tuple[str, ...] = (),
-        filename_filter: str = "",
-        max_results: int | None = None,
-        is_cancelled=None,
-    ) -> tuple[GrepSearchResultState, ...]:
-        key = (root_path, query, include_globs, exclude_globs, show_hidden)
-        self.executed_requests.append(key)
-        self.executed_search_options.append((target_paths, filename_filter, max_results))
-        if query in self.blocked_queries:
-            while not self.release_event.is_set():
-                if is_cancelled is not None and is_cancelled():
-                    self.cancelled_queries.append(query)
-                    return ()
-                time.sleep(0.01)
-        if is_cancelled is not None and is_cancelled():
-            self.cancelled_queries.append(query)
-            return ()
-        return self.results_by_query.get(key, ())
-
-
-class BlockingDirectorySizeService:
-    def __init__(self) -> None:
-        self.executed_requests: list[tuple[str, ...]] = []
-        self.release_event = threading.Event()
-
-    def calculate_sizes(
-        self,
-        paths: tuple[str, ...],
-        *,
-        is_cancelled=None,
-    ) -> tuple[tuple[tuple[str, int], ...], tuple[tuple[str, str], ...]]:
-        self.executed_requests.append(paths)
-        while not self.release_event.wait(0.01):
-            if is_cancelled is not None and is_cancelled():
-                return (), ()
-        return tuple((path, 1_000 * (index + 1)) for index, path in enumerate(paths)), ()
-
-    def release(self) -> None:
-        self.release_event.set()
 
 
 async def _wait_for_row_count(app, expected_count: int, timeout: float = 0.5) -> None:

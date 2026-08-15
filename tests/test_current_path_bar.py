@@ -291,7 +291,12 @@ def _make_click_event(*, meta: dict) -> object:
 
 @pytest.mark.asyncio
 async def test_app_current_path_bar_segment_click_navigates(tmp_path) -> None:
-    from tests.test_app import _build_snapshot, _wait_for_snapshot_loaded
+    from tests.support.app import (
+        build_snapshot as _build_snapshot,
+    )
+    from tests.support.app import (
+        wait_for_snapshot_loaded as _wait_for_snapshot_loaded,
+    )
     from zivo import create_app
     from zivo.services import FakeBrowserSnapshotLoader
     from zivo.state import DirectoryEntryState
@@ -338,7 +343,12 @@ async def test_app_current_path_bar_segment_click_navigates(tmp_path) -> None:
 async def test_app_current_path_bar_segment_click_navigates_active_transfer_pane(
     tmp_path,
 ) -> None:
-    from tests.test_app import _build_snapshot, _wait_for_snapshot_loaded
+    from tests.support.app import (
+        build_snapshot as _build_snapshot,
+    )
+    from tests.support.app import (
+        wait_for_snapshot_loaded as _wait_for_snapshot_loaded,
+    )
     from zivo import create_app
     from zivo.services import FakeBrowserSnapshotLoader
     from zivo.state import DirectoryEntryState

@@ -1,7 +1,7 @@
 from dataclasses import replace
 from pathlib import Path
 
-from tests.test_state_reducer import _reduce_state
+from tests.support.state import reduce_state as _reduce_state
 from zivo.models import (
     ChmodRequest,
     ChownRequest,

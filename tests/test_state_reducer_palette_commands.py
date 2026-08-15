@@ -2,7 +2,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import zivo.state.command_palette as command_palette_module
-from tests.state_test_helpers import reduce_state
+from tests.support.state import reduce_state
 from zivo.models import (
     ActionsConfig,
     AppConfig,

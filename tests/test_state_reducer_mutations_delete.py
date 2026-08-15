@@ -1,6 +1,6 @@
 from dataclasses import replace
 
-from tests.test_state_reducer import _reduce_state
+from tests.support.state import reduce_state as _reduce_state
 from zivo.models import DeleteRequest
 from zivo.state import (
     DeleteConfirmationState,

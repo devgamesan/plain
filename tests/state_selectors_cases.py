@@ -7,7 +7,7 @@ from stat import S_IFREG
 import pytest
 
 import zivo.state.selectors as selectors_module
-from tests.state_test_helpers import entry, pane, reduce_state
+from tests.support.state import entry, pane, reduce_state
 from zivo.models import (
     ActionsConfig,
     AppConfig,

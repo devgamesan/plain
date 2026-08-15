@@ -1,111 +1,37 @@
+"""Test State Reducer Palette Grep Search tests."""
+
 # ruff: noqa: F821
 
-from dataclasses import replace
-
-import pytest
-
-from tests.support.state import reduce_state
-from zivo.models import (
-    ExternalLaunchRequest,
-)
-from zivo.state import (
+from tests.support.reducer_palette_search import (
+    BeginCommandPalette,
+    BeginGrepSearch,
+    CancelCommandPalette,
     CommandPaletteState,
     DirectoryEntryState,
-    FileSearchResultState,
+    ExternalLaunchRequest,
+    GrepSearchCompleted,
+    GrepSearchFailed,
     GrepSearchPaletteState,
     GrepSearchResultState,
+    GrepSearchResultsUpdated,
     LoadBrowserSnapshotEffect,
     LoadChildPaneSnapshotEffect,
-    NotificationState,
+    OpenGrepResultInEditor,
+    OpenGrepResultInGuiEditor,
     PaneState,
     RunDirectorySizeEffect,
     RunExternalLaunchEffect,
-    RunFileSearchEffect,
     RunGrepSearchEffect,
-    build_initial_app_state,
-    reduce_app_state,
-)
-from zivo.state.actions import (
-    BeginCommandPalette,
-    BeginFileSearch,
-    BeginGrepSearch,
-    CancelCommandPalette,
-    FileSearchCompleted,
-    FileSearchFailed,
-    FileSearchResultsUpdated,
-    GrepSearchCompleted,
-    GrepSearchFailed,
-    GrepSearchResultsUpdated,
-    OpenFindResultInEditor,
-    OpenFindResultInGuiEditor,
-    OpenGrepResultInEditor,
-    OpenGrepResultInGuiEditor,
-    OpenSearchWorkspace,
     SetCommandPaletteQuery,
-    SetFileSearchField,
-    SetFileSearchTarget,
     SetGrepSearchField,
-    SetGrepSearchScope,
     SubmitCommandPalette,
+    _reduce_state,
+    build_initial_app_state,
+    pytest,
+    reduce_app_state,
+    replace,
 )
 
-
-def _reduce_state(state, action):
-    return reduce_state(state, action)
-
-
-def _viewport_test_entries(
-    path: str,
-    count: int,
-    *,
-    hidden_indexes: frozenset[int] = frozenset(),
-) -> tuple[DirectoryEntryState, ...]:
-    return tuple(
-        DirectoryEntryState(
-            f"{path}/item_{index:02d}",
-            f"item_{index:02d}",
-            "file",
-            hidden=index in hidden_indexes,
-        )
-        for index in range(count)
-    )
-
-
-def test_open_find_result_in_editor_emits_external_launch_effect() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    state = replace(
-        state,
-        command_palette=replace(
-            state.command_palette,
-            query="readme",
-            file_search=replace(
-                state.command_palette.file_search,
-                results=(
-                    FileSearchResultState(
-                        path="/home/tadashi/develop/zivo/README.md",
-                        display_path="README.md",
-                    ),
-                ),
-            ),
-            cursor_index=0,
-        ),
-    )
-
-    result = reduce_app_state(state, OpenFindResultInEditor())
-
-    assert result.state.ui_mode == "PALETTE"
-    assert result.state.next_request_id == 2
-    assert result.state.command_palette == state.command_palette
-    assert result.effects == (
-        RunExternalLaunchEffect(
-            request_id=1,
-            request=ExternalLaunchRequest(
-                kind="open_editor",
-                path="/home/tadashi/develop/zivo/README.md",
-                line_number=None,
-            ),
-        ),
-    )
 
 def test_open_grep_result_in_editor_keeps_palette_state() -> None:
     state = _reduce_state(build_initial_app_state(), BeginGrepSearch())
@@ -149,40 +75,6 @@ def test_open_grep_result_in_editor_keeps_palette_state() -> None:
         ),
     )
 
-
-def test_open_find_result_in_gui_editor_emits_external_launch_effect() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    state = replace(
-        state,
-        command_palette=replace(
-            state.command_palette,
-            query="readme",
-            file_search=replace(
-                state.command_palette.file_search,
-                results=(
-                    FileSearchResultState(
-                        path="/home/tadashi/develop/zivo/README.md",
-                        display_path="README.md",
-                    ),
-                ),
-            ),
-            cursor_index=0,
-        ),
-    )
-
-    result = reduce_app_state(state, OpenFindResultInGuiEditor())
-
-    assert result.effects == (
-        RunExternalLaunchEffect(
-            request_id=1,
-            request=ExternalLaunchRequest(
-                kind="open_gui_editor",
-                path="/home/tadashi/develop/zivo/README.md",
-            ),
-        ),
-    )
-
-
 def test_open_grep_result_in_gui_editor_uses_line_and_column() -> None:
     state = _reduce_state(build_initial_app_state(), BeginGrepSearch())
     state = replace(
@@ -220,19 +112,11 @@ def test_open_grep_result_in_gui_editor_uses_line_and_column() -> None:
         ),
     )
 
-
-def test_begin_file_search_enters_find_file_mode() -> None:
-    next_state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-
-    assert next_state.ui_mode == "PALETTE"
-    assert next_state.command_palette == CommandPaletteState(source="file_search")
-
 def test_begin_grep_search_enters_grep_mode() -> None:
     next_state = _reduce_state(build_initial_app_state(), BeginGrepSearch())
 
     assert next_state.ui_mode == "PALETTE"
     assert next_state.command_palette == CommandPaletteState(source="grep_search")
-
 
 def test_begin_grep_search_uses_current_directory_for_a_focused_file() -> None:
     path = "/home/tadashi/develop/zivo/README.md"
@@ -250,7 +134,6 @@ def test_begin_grep_search_uses_current_directory_for_a_focused_file() -> None:
     assert next_state.command_palette.grep_search.scope == "current_directory"
     assert next_state.command_palette.grep_search.target_paths == ()
 
-
 def test_begin_grep_search_uses_current_directory_for_a_focused_directory() -> None:
     path = "/home/tadashi/develop/zivo/docs"
     state = replace(
@@ -266,7 +149,6 @@ def test_begin_grep_search_uses_current_directory_for_a_focused_directory() -> N
 
     assert next_state.command_palette.grep_search.scope == "current_directory"
     assert next_state.command_palette.grep_search.target_paths == ()
-
 
 def test_begin_grep_search_uses_selected_entries_for_explicit_selection() -> None:
     path = "/home/tadashi/develop/zivo/README.md"
@@ -284,7 +166,6 @@ def test_begin_grep_search_uses_selected_entries_for_explicit_selection() -> Non
 
     assert next_state.command_palette.grep_search.scope == "selected_entries"
     assert next_state.command_palette.grep_search.target_paths == (path,)
-
 
 def test_begin_grep_search_uses_mixed_selected_entries() -> None:
     file_path = "/home/tadashi/develop/zivo/README.md"
@@ -307,7 +188,6 @@ def test_begin_grep_search_uses_mixed_selected_entries() -> None:
     assert next_state.command_palette.grep_search.scope == "selected_entries"
     assert next_state.command_palette.grep_search.target_paths == (file_path, directory_path)
 
-
 def test_begin_grep_search_uses_selected_entries_for_directory_only_selection() -> None:
     directory_path = "/home/tadashi/develop/zivo/docs"
     state = replace(
@@ -325,90 +205,6 @@ def test_begin_grep_search_uses_selected_entries_for_directory_only_selection() 
     assert next_state.command_palette.grep_search.scope == "selected_entries"
     assert next_state.command_palette.grep_search.target_paths == (directory_path,)
 
-
-def test_selected_entries_scope_keeps_matches_under_selected_directories() -> None:
-    directory_path = "/home/tadashi/develop/zivo/docs"
-    state = _reduce_state(
-        build_initial_app_state(),
-        BeginGrepSearch(scope="selected_entries", target_paths=(directory_path,)),
-    )
-    state = replace(state, pending_grep_search_request_id=1)
-
-    result = reduce_app_state(
-        state,
-        GrepSearchCompleted(
-            query="todo",
-            request_id=1,
-            results=(
-                GrepSearchResultState(
-                    path=f"{directory_path}/guide.md",
-                    display_path="docs/guide.md",
-                    line_number=1,
-                    line_text="TODO: keep",
-                ),
-                GrepSearchResultState(
-                    path="/home/tadashi/develop/zivo/README.md",
-                    display_path="README.md",
-                    line_number=1,
-                    line_text="TODO: exclude",
-                ),
-            ),
-        ),
-    )
-
-    assert [item.path for item in result.state.command_palette.grep_search.results] == [
-        f"{directory_path}/guide.md"
-    ]
-
-
-def test_selected_entries_scope_passes_target_paths_to_search_effect() -> None:
-    file_path = "/home/tadashi/develop/zivo/README.md"
-    directory_path = "/home/tadashi/develop/zivo/docs"
-    state = replace(
-        build_initial_app_state(),
-        current_pane=PaneState(
-            directory_path="/home/tadashi/develop/zivo",
-            entries=(
-                DirectoryEntryState(file_path, "README.md", "file"),
-                DirectoryEntryState(directory_path, "docs", "dir"),
-            ),
-            selected_paths=frozenset({file_path, directory_path}),
-        ),
-    )
-    state = _reduce_state(state, BeginGrepSearch(scope="selected_entries"))
-
-    result = reduce_app_state(state, SetCommandPaletteQuery("todo"))
-
-    assert result.effects == (
-        RunGrepSearchEffect(
-            request_id=1,
-            root_path="/home/tadashi/develop/zivo",
-            query="todo",
-            show_hidden=False,
-            target_paths=(file_path, directory_path),
-        ),
-    )
-
-
-def test_search_workspace_scope_is_rejected_outside_a_workspace() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginGrepSearch())
-
-    result = reduce_app_state(state, SetGrepSearchScope(scope="search_workspace"))
-
-    assert result.state.command_palette.grep_search.scope == "current_directory"
-    assert result.state.notification is not None
-    assert "Search Workspace" in result.state.notification.message
-
-def test_submit_command_palette_begins_file_search() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
-    state = _reduce_state(state, SetCommandPaletteQuery("find files"))
-
-    result = reduce_app_state(state, SubmitCommandPalette())
-
-    assert result.state.ui_mode == "PALETTE"
-    assert result.state.command_palette is not None
-    assert result.state.command_palette.source == "file_search"
-
 def test_submit_command_palette_begins_grep_search() -> None:
     state = _reduce_state(build_initial_app_state(), BeginCommandPalette())
     state = _reduce_state(state, SetCommandPaletteQuery("search contents"))
@@ -418,126 +214,6 @@ def test_submit_command_palette_begins_grep_search() -> None:
     assert result.state.ui_mode == "PALETTE"
     assert result.state.command_palette is not None
     assert result.state.command_palette.source == "grep_search"
-
-def test_set_command_palette_query_starts_file_search_effect() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-
-    result = reduce_app_state(state, SetCommandPaletteQuery("read"))
-
-    assert result.state.command_palette is not None
-    assert result.state.command_palette.source == "file_search"
-    assert result.state.command_palette.query == "read"
-    assert result.state.pending_file_search_request_id == 1
-    assert result.effects == (
-        RunFileSearchEffect(
-            request_id=1,
-            root_path="/home/tadashi/develop/zivo",
-            query="read",
-            show_hidden=False,
-        ),
-    )
-
-
-def test_set_file_search_extension_field_starts_filtered_effect() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    state = _reduce_state(state, SetCommandPaletteQuery("read"))
-
-    result = reduce_app_state(
-        state,
-        SetFileSearchField(field="include", value="py, .JS"),
-    )
-
-    assert result.state.command_palette is not None
-    assert result.state.command_palette.file_search.include_extensions == "py, .JS"
-    assert result.effects == (
-        RunFileSearchEffect(
-            request_id=2,
-            root_path="/home/tadashi/develop/zivo",
-            query="read",
-            show_hidden=False,
-            include_extensions=("*.py", "*.js"),
-        ),
-    )
-
-
-def test_file_search_extension_filter_allows_empty_keyword() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-
-    result = reduce_app_state(
-        state,
-        SetFileSearchField(field="include", value="py"),
-    )
-
-    assert result.state.command_palette is not None
-    assert result.state.command_palette.query == ""
-    assert result.effects == (
-        RunFileSearchEffect(
-            request_id=1,
-            root_path="/home/tadashi/develop/zivo",
-            query="",
-            show_hidden=False,
-            include_extensions=("*.py",),
-        ),
-    )
-
-
-def test_file_search_extension_conflict_keeps_input_and_reports_error() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    state = _reduce_state(state, SetFileSearchField(field="include", value="py"))
-
-    result = reduce_app_state(
-        state,
-        SetFileSearchField(field="exclude", value=".PY"),
-    )
-
-    assert result.state.command_palette is not None
-    assert result.state.command_palette.file_search.exclude_extensions == ".PY"
-    assert result.state.command_palette.file_search.results == ()
-    assert result.state.command_palette.file_search.error_message == (
-        "Extensions cannot be included and excluded at the same time: py"
-    )
-    assert result.effects == ()
-
-
-def test_file_search_extension_filter_rejects_directory_target() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    state = _reduce_state(state, SetFileSearchField(field="include", value="py"))
-
-    result = reduce_app_state(state, SetFileSearchTarget(target="directories"))
-
-    assert result.state.command_palette is not None
-    assert result.state.command_palette.file_search.target == "directories"
-    assert result.state.command_palette.file_search.include_extensions == "py"
-    assert result.state.command_palette.file_search.error_message == (
-        "Extension filters require Target=files or all; clear the filters or change Target"
-    )
-    assert result.effects == ()
-
-
-def test_open_file_search_workspace_keeps_extension_filter_identity() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    state = _reduce_state(state, SetFileSearchField(field="include", value="py, js"))
-    state = replace(
-        state,
-        command_palette=replace(
-            state.command_palette,
-            file_search=replace(
-                state.command_palette.file_search,
-                results=(
-                    FileSearchResultState(
-                        path="/home/tadashi/develop/zivo/main.py",
-                        display_path="main.py",
-                    ),
-                ),
-            ),
-        ),
-    )
-
-    result = reduce_app_state(state, OpenSearchWorkspace())
-
-    assert len(result.state.search_workspaces) == 1
-    workspace_path = next(iter(result.state.search_workspaces))
-    assert "include=%2A.py%2C%2A.js" in workspace_path
 
 def test_set_command_palette_query_starts_grep_search_effect() -> None:
     state = _reduce_state(build_initial_app_state(), BeginGrepSearch())
@@ -737,286 +413,6 @@ def test_set_grep_search_field_clears_results_when_keyword_becomes_empty() -> No
     assert result.state.pending_child_pane_request_id is None
     assert result.effects == ()
 
-def test_set_command_palette_query_reuses_completed_file_search_results_for_prefix_extension(
-    ) -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    state = replace(
-        state,
-        command_palette=replace(
-            state.command_palette,
-            query="read",
-            file_search=replace(
-                state.command_palette.file_search,
-                results=(
-                    FileSearchResultState(
-                        path="/home/tadashi/develop/zivo/README.md",
-                        display_path="README.md",
-                    ),
-                    FileSearchResultState(
-                        path="/home/tadashi/develop/zivo/docs/readings.txt",
-                        display_path="docs/readings.txt",
-                    ),
-                ),
-                cache_query="read",
-                cache_results=(
-                    FileSearchResultState(
-                        path="/home/tadashi/develop/zivo/README.md",
-                        display_path="README.md",
-                    ),
-                    FileSearchResultState(
-                        path="/home/tadashi/develop/zivo/docs/readings.txt",
-                        display_path="docs/readings.txt",
-                    ),
-                ),
-                cache_root_path="/home/tadashi/develop/zivo",
-                cache_show_hidden=False,
-                cache_target="all",
-            ),
-        ),
-        pending_file_search_request_id=4,
-        next_request_id=5,
-    )
-
-    result = reduce_app_state(state, SetCommandPaletteQuery("readm"))
-
-    assert result.effects == (
-        LoadChildPaneSnapshotEffect(
-            request_id=5,
-            current_path="/home/tadashi/develop/zivo",
-            cursor_path="/home/tadashi/develop/zivo/README.md",
-        ),
-    )
-    assert result.state.pending_file_search_request_id is None
-    assert result.state.pending_child_pane_request_id == 5
-    assert result.state.command_palette is not None
-    assert result.state.command_palette.file_search.results == (
-        FileSearchResultState(
-            path="/home/tadashi/develop/zivo/README.md",
-            display_path="README.md",
-        ),
-    )
-    assert result.state.next_request_id == 6
-
-def test_set_command_palette_query_runs_new_search_when_query_is_not_prefix_extension() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    state = replace(
-        state,
-        command_palette=replace(
-            state.command_palette,
-            query="read",
-            file_search=replace(
-                state.command_palette.file_search,
-                results=(
-                    FileSearchResultState(
-                        path="/home/tadashi/develop/zivo/README.md",
-                        display_path="README.md",
-                    ),
-                ),
-                cache_query="read",
-                cache_results=(
-                    FileSearchResultState(
-                        path="/home/tadashi/develop/zivo/README.md",
-                        display_path="README.md",
-                    ),
-                ),
-                cache_root_path="/home/tadashi/develop/zivo",
-                cache_show_hidden=False,
-            ),
-        ),
-        next_request_id=4,
-    )
-
-    result = reduce_app_state(state, SetCommandPaletteQuery("rea"))
-
-    assert result.state.pending_file_search_request_id == 4
-    assert result.effects == (
-        RunFileSearchEffect(
-            request_id=4,
-            root_path="/home/tadashi/develop/zivo",
-            query="rea",
-            show_hidden=False,
-        ),
-    )
-
-def test_set_command_palette_query_runs_new_search_for_regex_queries() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    state = replace(
-        state,
-        command_palette=replace(
-            state.command_palette,
-            query="read",
-            file_search=replace(
-                state.command_palette.file_search,
-                cache_query="read",
-                cache_results=(
-                    FileSearchResultState(
-                        path="/home/tadashi/develop/zivo/README.md",
-                        display_path="README.md",
-                    ),
-                ),
-                cache_root_path="/home/tadashi/develop/zivo",
-                cache_show_hidden=False,
-            ),
-        ),
-        next_request_id=4,
-    )
-
-    result = reduce_app_state(state, SetCommandPaletteQuery(r"re:^README\.md$"))
-
-    assert result.state.pending_file_search_request_id == 4
-    assert result.effects == (
-        RunFileSearchEffect(
-            request_id=4,
-            root_path="/home/tadashi/develop/zivo",
-            query=r"re:^README\.md$",
-            show_hidden=False,
-        ),
-    )
-
-def test_file_search_completed_updates_palette_results() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    search_state = replace(
-        state,
-        command_palette=replace(state.command_palette, query="read"),
-        pending_file_search_request_id=4,
-    )
-
-    next_state = _reduce_state(
-        search_state,
-        FileSearchCompleted(
-            request_id=4,
-            query="read",
-            results=(
-                FileSearchResultState(
-                    path="/home/tadashi/develop/zivo/README.md",
-                    display_path="README.md",
-                ),
-            ),
-        ),
-    )
-
-    assert next_state.command_palette is not None
-    assert next_state.command_palette.file_search.results == (
-        FileSearchResultState(
-            path="/home/tadashi/develop/zivo/README.md",
-            display_path="README.md",
-        ),
-    )
-    assert next_state.command_palette.file_search.cache_query == "read"
-    assert next_state.command_palette.file_search.cache_root_path == "/home/tadashi/develop/zivo"
-    assert next_state.command_palette.file_search.cache_show_hidden is False
-    assert next_state.pending_file_search_request_id is None
-
-
-def test_file_search_partial_results_are_applied_and_keep_request_pending() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    state = _reduce_state(state, SetCommandPaletteQuery("read"))
-
-    result = reduce_app_state(
-        state,
-        FileSearchResultsUpdated(
-            request_id=1,
-            query="read",
-            results=(
-                FileSearchResultState(
-                    path="/home/tadashi/develop/zivo/README.md",
-                    display_path="README.md",
-                ),
-            ),
-        ),
-    )
-
-    assert result.state.command_palette.file_search.results[0].display_path == "README.md"
-    assert result.state.pending_file_search_request_id == 1
-    assert result.state.command_palette.file_search.results_truncated is False
-
-
-def test_file_search_streaming_results_keep_first_result_selected_without_navigation() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    state = _reduce_state(state, SetCommandPaletteQuery("read"))
-    state = _reduce_state(
-        state,
-        FileSearchResultsUpdated(
-            request_id=1,
-            query="read",
-            results=(FileSearchResultState(path="/tmp/b.txt", display_path="b.txt"),),
-        ),
-    )
-
-    result = reduce_app_state(
-        state,
-        FileSearchResultsUpdated(
-            request_id=1,
-            query="read",
-            results=(FileSearchResultState(path="/tmp/a.txt", display_path="a.txt"),),
-        ),
-    )
-
-    assert [item.display_path for item in result.state.command_palette.file_search.results] == [
-        "a.txt",
-        "b.txt",
-    ]
-    assert result.state.command_palette.cursor_index == 0
-
-
-def test_file_search_partial_results_preserve_selected_path_when_sorted_order_changes() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    state = replace(
-        state,
-        command_palette=replace(
-            state.command_palette,
-            query="read",
-            cursor_index=0,
-            file_search=replace(
-                state.command_palette.file_search,
-                results=(
-                    FileSearchResultState(path="/tmp/b.txt", display_path="b.txt"),
-                ),
-            ),
-            cursor_navigation_active=True,
-        ),
-        pending_file_search_request_id=1,
-    )
-
-    result = reduce_app_state(
-        state,
-        FileSearchResultsUpdated(
-            request_id=1,
-            query="read",
-            results=(FileSearchResultState(path="/tmp/a.txt", display_path="a.txt"),),
-        ),
-    )
-
-    assert [item.display_path for item in result.state.command_palette.file_search.results] == [
-        "a.txt",
-        "b.txt",
-    ]
-    assert result.state.command_palette.cursor_index == 1
-
-
-def test_file_search_truncation_is_visible_and_not_cached() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    state = replace(
-        state,
-        command_palette=replace(state.command_palette, query="read"),
-        pending_file_search_request_id=1,
-    )
-
-    next_state = _reduce_state(
-        state,
-        FileSearchCompleted(
-            request_id=1,
-            query="read",
-            results=(FileSearchResultState(path="/tmp/README.md", display_path="README.md"),),
-            truncated=True,
-        ),
-    )
-
-    assert next_state.command_palette.file_search.results_truncated is True
-    assert next_state.command_palette.file_search.cache_query == ""
-    assert next_state.command_palette.file_search.cache_results == ()
-
-
 def test_grep_search_partial_results_are_applied_while_search_is_pending() -> None:
     state = _reduce_state(build_initial_app_state(), BeginGrepSearch())
     state = _reduce_state(state, SetCommandPaletteQuery("todo"))
@@ -1039,7 +435,6 @@ def test_grep_search_partial_results_are_applied_while_search_is_pending() -> No
 
     assert result.state.command_palette.grep_search.results[0].display_path == "README.md"
     assert result.state.pending_grep_search_request_id == 1
-
 
 def test_grep_search_streaming_results_keep_first_result_selected_without_navigation() -> None:
     state = _reduce_state(build_initial_app_state(), BeginGrepSearch())
@@ -1082,7 +477,6 @@ def test_grep_search_streaming_results_keep_first_result_selected_without_naviga
     ]
     assert result.state.command_palette.cursor_index == 0
 
-
 def test_grep_search_partial_results_filter_selected_scope() -> None:
     selected = "/tmp/docs"
     state = _reduce_state(
@@ -1120,131 +514,6 @@ def test_grep_search_partial_results_filter_selected_scope() -> None:
     assert [item.path for item in result.state.command_palette.grep_search.results] == [
         f"{selected}/guide.md"
     ]
-
-def test_file_search_completed_does_not_cache_regex_queries() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    search_state = replace(
-        state,
-        command_palette=replace(state.command_palette, query=r"re:^README\.md$"),
-        pending_file_search_request_id=4,
-    )
-
-    next_state = _reduce_state(
-        search_state,
-        FileSearchCompleted(
-            request_id=4,
-            query=r"re:^README\.md$",
-            results=(
-                FileSearchResultState(
-                    path="/home/tadashi/develop/zivo/README.md",
-                    display_path="README.md",
-                ),
-            ),
-        ),
-    )
-
-    assert next_state.command_palette is not None
-    assert next_state.command_palette.file_search.results == (
-        FileSearchResultState(
-            path="/home/tadashi/develop/zivo/README.md",
-            display_path="README.md",
-        ),
-    )
-    assert next_state.command_palette.file_search.cache_query == ""
-    assert next_state.command_palette.file_search.cache_results == ()
-
-def test_file_search_failed_sets_inline_error_for_invalid_regex() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    search_state = replace(
-        state,
-        command_palette=replace(
-            state.command_palette,
-            query="re:[",
-            file_search=replace(
-                state.command_palette.file_search,
-                results=(
-                    FileSearchResultState(
-                        path="/home/tadashi/develop/zivo/README.md",
-                        display_path="README.md",
-                    ),
-                ),
-            ),
-        ),
-        pending_file_search_request_id=4,
-    )
-
-    next_state = _reduce_state(
-        search_state,
-        FileSearchFailed(
-            request_id=4,
-            query="re:[",
-            message="Invalid regex: unterminated character set",
-            invalid_query=True,
-        ),
-    )
-
-    assert next_state.command_palette is not None
-    assert next_state.command_palette.file_search.results == ()
-    assert (
-        next_state.command_palette.file_search.error_message
-        == "Invalid regex: unterminated character set"
-    )
-    assert next_state.notification is None
-    assert next_state.pending_file_search_request_id is None
-
-def test_submit_command_palette_uses_inline_error_message_when_present() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    state = replace(
-        state,
-        command_palette=replace(
-            state.command_palette,
-            query="re:[",
-            file_search=replace(
-                state.command_palette.file_search,
-                error_message="Invalid regex: unterminated character set",
-            ),
-        ),
-    )
-
-    next_state = _reduce_state(state, SubmitCommandPalette())
-
-    assert next_state.notification == NotificationState(
-        level="warning",
-        message="Invalid regex: unterminated character set",
-    )
-
-def test_submit_command_palette_file_search_result_requests_snapshot() -> None:
-    state = _reduce_state(build_initial_app_state(), BeginFileSearch())
-    state = replace(
-        state,
-        command_palette=replace(
-            state.command_palette,
-            query="read",
-            file_search=replace(
-                state.command_palette.file_search,
-                results=(
-                    FileSearchResultState(
-                        path="/home/tadashi/develop/zivo/docs/README.md",
-                        display_path="docs/README.md",
-                    ),
-                ),
-            ),
-            cursor_index=0,
-        ),
-    )
-
-    result = reduce_app_state(state, SubmitCommandPalette())
-
-    assert result.state.ui_mode == "BUSY"
-    assert result.state.command_palette is None
-    assert result.effects == (
-        LoadBrowserSnapshotEffect(
-            request_id=1,
-            path="/home/tadashi/develop/zivo/docs",
-            cursor_path="/home/tadashi/develop/zivo/docs/README.md",
-            blocking=True,
-        ),
-    )
 
 def test_grep_search_completed_updates_palette_results() -> None:
     state = _reduce_state(build_initial_app_state(), BeginGrepSearch())
@@ -1467,8 +736,6 @@ def test_cancel_grep_command_palette_restores_current_cursor_preview() -> None:
         ),
     )
 
-
-
 @pytest.mark.skip(reason="Superseded by the shared content-search scope tests")
 def test_begin_selected_files_grep_with_multiple_selection() -> None:
     """Test opening selected-files-grep with multiple files selected."""
@@ -1492,7 +759,6 @@ def test_begin_selected_files_grep_with_multiple_selection() -> None:
     assert state.command_palette.sfg.keyword == ""
     assert state.command_palette.sfg.results == ()
 
-
 @pytest.mark.skip(reason="Superseded by the shared content-search scope tests")
 def test_begin_selected_files_grep_with_single_file() -> None:
     """Test opening selected-files-grep with a single file selected."""
@@ -1508,7 +774,6 @@ def test_begin_selected_files_grep_with_single_file() -> None:
     assert state.command_palette.source == "selected_files_grep"
     assert state.command_palette.sfg.target_paths == ("/home/tadashi/develop/zivo/README.md",)
 
-
 @pytest.mark.skip(reason="Superseded by the shared content-search scope tests")
 def test_begin_selected_files_grep_with_empty_selection() -> None:
     """Test opening selected-files-grep with no files selected."""
@@ -1521,7 +786,6 @@ def test_begin_selected_files_grep_with_empty_selection() -> None:
     assert state.command_palette is not None
     assert state.command_palette.source == "selected_files_grep"
     assert state.command_palette.sfg.target_paths == ()
-
 
 @pytest.mark.skip(reason="Superseded by the shared content-search scope tests")
 def test_sfg_keyword_triggers_search() -> None:
@@ -1558,7 +822,6 @@ def test_sfg_keyword_triggers_search() -> None:
     assert isinstance(effect, RunGrepSearchEffect)
     assert effect.query == "test"
     assert effect.root_path == state.current_path
-
 
 @pytest.mark.skip(reason="Superseded by the shared content-search scope tests")
 def test_sfg_empty_keyword_clears_results() -> None:
@@ -1597,7 +860,6 @@ def test_sfg_empty_keyword_clears_results() -> None:
     assert result.state.command_palette.sfg.keyword == ""
     assert result.state.command_palette.sfg.results == ()
     assert result.state.pending_grep_search_request_id is None
-
 
 @pytest.mark.skip(reason="Superseded by the shared content-search scope tests")
 def test_sfg_filters_results_by_target_paths() -> None:
@@ -1658,7 +920,6 @@ def test_sfg_filters_results_by_target_paths() -> None:
     # other.py should be filtered out as it's not in target_paths
     assert len(result.state.command_palette.sfg.results) == 2
 
-
 @pytest.mark.skip(reason="Superseded by the shared content-search scope tests")
 def test_sfg_grep_search_failed_with_invalid_query() -> None:
     """Test that invalid query shows error message."""
@@ -1683,7 +944,6 @@ def test_sfg_grep_search_failed_with_invalid_query() -> None:
     assert result.state.command_palette.sfg.error_message == "Invalid regex pattern"
     assert result.state.command_palette.sfg.results == ()
 
-
 @pytest.mark.skip(reason="Superseded by the shared content-search scope tests")
 def test_sfg_cycle_field_is_noop() -> None:
     """Test that cycling fields is a no-op since only keyword field exists."""
@@ -1698,7 +958,6 @@ def test_sfg_cycle_field_is_noop() -> None:
     assert result.state.command_palette is not None
     assert result.state.command_palette.sfg.active_field == "keyword"
     assert result.state == state  # No changes expected
-
 
 def test_grep_filename_filter_with_invalid_regex_single_backslash() -> None:
     """Test that single backslash in regex mode shows error and clears results."""
@@ -1730,7 +989,6 @@ def test_grep_filename_filter_with_invalid_regex_single_backslash() -> None:
     assert "Invalid regex pattern" in result.state.command_palette.grep_search.error_message
     assert result.state.command_palette.grep_search.results == ()
 
-
 def test_grep_filename_filter_with_invalid_regex_unclosed_char_class() -> None:
     """Test that invalid regex (unclosed character class) shows error and clears results."""
     state = _reduce_state(build_initial_app_state(), BeginGrepSearch())
@@ -1760,7 +1018,6 @@ def test_grep_filename_filter_with_invalid_regex_unclosed_char_class() -> None:
     assert result.state.command_palette.grep_search.error_message is not None
     assert "Invalid regex pattern" in result.state.command_palette.grep_search.error_message
     assert result.state.command_palette.grep_search.results == ()
-
 
 def test_grep_filename_filter_with_valid_regex_backslash() -> None:
     """Test that valid regex with backslash works correctly."""
@@ -1797,7 +1054,6 @@ def test_grep_filename_filter_with_valid_regex_backslash() -> None:
     assert result.state.command_palette.grep_search.error_message is None
     assert len(result.state.command_palette.grep_search.results) == 1
     assert result.state.command_palette.grep_search.results[0].display_path == "file.py"
-
 
 def test_grep_filename_filter_with_non_regex_backslash() -> None:
     """Test that backslash in non-regex mode works correctly."""

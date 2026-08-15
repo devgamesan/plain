@@ -1,0 +1,558 @@
+"""Test Services Browser Snapshot Core tests."""
+
+from tests.support.browser_snapshot import (
+    BrowserSnapshot,
+    DirectoryEntryState,
+    FakeBrowserSnapshotLoader,
+    FilePreviewState,
+    LiveBrowserSnapshotLoader,
+    PaneState,
+    Path,
+    StubDocumentPreviewLoader,
+    StubFilesystemAdapter,
+    StubImagePreviewLoader,
+    _build_stub_filesystem,
+    _resolve_cursor_path,
+    pytest,
+)
+
+
+def test_live_browser_snapshot_loader_builds_three_pane_snapshot(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    docs = project / "docs"
+    docs.mkdir()
+    (docs / "spec.md").write_text("spec\n", encoding="utf-8")
+    (project / "README.md").write_text("readme\n", encoding="utf-8")
+    (tmp_path / "sibling").mkdir()
+
+    loader = LiveBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot(str(project))
+
+    assert snapshot.current_path == str(project)
+    assert [entry.name for entry in snapshot.parent_pane.entries] == ["project", "sibling"]
+    assert [entry.name for entry in snapshot.current_pane.entries] == ["docs", "README.md"]
+    assert snapshot.current_pane.cursor_path == str(docs)
+    assert snapshot.child_pane.directory_path == str(docs)
+    assert [entry.name for entry in snapshot.child_pane.entries] == ["spec.md"]
+
+def test_live_browser_snapshot_loader_uses_lightweight_side_pane_listings(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    docs = project / "docs"
+    docs.mkdir()
+    filesystem = _build_stub_filesystem(str(project), str(tmp_path), str(docs))
+    loader = LiveBrowserSnapshotLoader(filesystem=filesystem)
+
+    loader.load_browser_snapshot(str(project), cursor_path=str(docs))
+
+    assert filesystem.list_directory_summary_calls == [str(tmp_path), str(docs)]
+
+def test_live_browser_snapshot_loader_uses_cursor_path_for_child_pane(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    docs = project / "docs"
+    docs.mkdir()
+    src = project / "src"
+    src.mkdir()
+    (src / "main.py").write_text("print('zivo')\n", encoding="utf-8")
+
+    loader = LiveBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(src))
+
+    assert snapshot.current_pane.cursor_path == str(src)
+    assert snapshot.child_pane.directory_path == str(src)
+    assert [entry.name for entry in snapshot.child_pane.entries] == ["main.py"]
+
+def test_live_browser_snapshot_loader_returns_empty_child_pane_for_file_cursor(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    readme = project / "README.md"
+    readme.write_text("plain\n", encoding="utf-8")
+
+    loader = LiveBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(readme))
+
+    assert snapshot.current_pane.cursor_path == str(readme)
+    assert snapshot.child_pane.mode == "preview"
+    assert snapshot.child_pane.preview_path == str(readme)
+    assert snapshot.child_pane.preview_content == "plain\n"
+    assert snapshot.child_pane.preview_truncated is False
+
+@pytest.mark.parametrize(
+    ("filename", "content"),
+    [
+        ("app.log", "log line\n"),
+        ("settings.conf", "key=value\n"),
+        (".env", "DEBUG=true\n"),
+        (".gitignore", "*.pyc\n"),
+        ("component.vue", "<template></template>\n"),
+        ("build.dockerfile", "FROM python:3.12\n"),
+    ],
+)
+def test_live_browser_snapshot_loader_previews_added_text_targets(
+    tmp_path,
+    filename: str,
+    content: str,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    target = project / filename
+    target.write_text(content, encoding="utf-8")
+
+    loader = LiveBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(target))
+
+    assert snapshot.current_pane.cursor_path == str(target)
+    assert snapshot.child_pane.mode == "preview"
+    assert snapshot.child_pane.preview_path == str(target)
+    assert snapshot.child_pane.preview_content == content
+    assert snapshot.child_pane.preview_truncated is False
+
+def test_live_browser_snapshot_loader_returns_empty_child_pane_for_binary_file_cursor(
+    tmp_path,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    binary = project / "archive.bin"
+    binary.write_bytes(b"\x00\x01\x02\x03")
+
+    loader = LiveBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(binary))
+
+    assert snapshot.current_pane.cursor_path == str(binary)
+    assert snapshot.child_pane.directory_path == str(project)
+    assert snapshot.child_pane.entries == ()
+    assert snapshot.child_pane.mode == "preview"
+    assert snapshot.child_pane.preview_path == str(binary)
+    assert snapshot.child_pane.preview_content is None
+    assert snapshot.child_pane.preview_message == "Preview unavailable for this file type"
+
+def test_live_browser_snapshot_loader_uses_document_preview_for_supported_documents(
+    tmp_path,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    report = project / "report.docx"
+    report.write_bytes(b"placeholder")
+    preview_loader = StubDocumentPreviewLoader(
+        previews_by_path={
+            str(report): FilePreviewState.with_content("# Report\n\nConverted\n", False),
+        }
+    )
+    loader = LiveBrowserSnapshotLoader(document_preview_loader=preview_loader)
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(report))
+
+    assert snapshot.child_pane.mode == "preview"
+    assert snapshot.child_pane.preview_path == str(report)
+    assert snapshot.child_pane.preview_content == "# Report\n\nConverted\n"
+    assert preview_loader.calls == [f"{report}:{64 * 1024}"]
+
+def test_live_browser_snapshot_loader_skips_image_preview_when_disabled(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    image = project / "preview.png"
+    image.write_bytes(b"png")
+    preview_loader = StubImagePreviewLoader(
+        previews_by_path={
+            str(image): FilePreviewState.with_content("@@\n", False, content_kind="image"),
+        }
+    )
+    loader = LiveBrowserSnapshotLoader(image_preview_loader=preview_loader)
+
+    pane = loader.load_child_pane_snapshot(
+        str(project),
+        str(image),
+        enable_image_preview=False,
+    )
+
+    assert pane.mode == "preview"
+    assert pane.preview_reason == "disabled"
+    assert pane.preview_metadata is not None
+    assert pane.preview_metadata.display_name == "preview.png"
+    assert pane.entries == ()
+    assert preview_loader.calls == []
+
+def test_live_browser_snapshot_loader_skips_office_preview_when_disabled(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    report = project / "report.docx"
+    report.write_bytes(b"placeholder")
+    preview_loader = StubDocumentPreviewLoader(
+        previews_by_path={
+            str(report): FilePreviewState.with_content("# Report\n\nConverted\n", False),
+        }
+    )
+    loader = LiveBrowserSnapshotLoader(document_preview_loader=preview_loader)
+
+    pane = loader.load_child_pane_snapshot(
+        str(project),
+        str(report),
+        enable_office_preview=False,
+    )
+
+    assert pane.mode == "preview"
+    assert pane.preview_reason == "disabled"
+    assert pane.entries == ()
+    assert preview_loader.calls == []
+
+def test_live_browser_snapshot_loader_caches_document_previews(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    report = project / "slides.pptx"
+    report.write_bytes(b"placeholder")
+    preview_loader = StubDocumentPreviewLoader(
+        previews_by_path={
+            str(report): FilePreviewState.with_content("Slide 1\n", False),
+        }
+    )
+    loader = LiveBrowserSnapshotLoader(document_preview_loader=preview_loader)
+
+    first = loader.load_child_pane_snapshot(str(project), str(report))
+    second = loader.load_child_pane_snapshot(str(project), str(report))
+
+    assert first == second
+    assert preview_loader.calls == [f"{report}:{64 * 1024}"]
+
+def test_live_browser_snapshot_loader_detects_png_signature_without_extension(
+    tmp_path, monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "zivo.services.terminal_detection.supports_kitty_graphics", lambda: False
+    )
+    monkeypatch.setattr(
+        "zivo.services.previews.core.supports_kitty_graphics", lambda: False
+    )
+    project = tmp_path / "project"
+    project.mkdir()
+    image = project / "preview.bin"
+    image.write_bytes(b"\x89PNG\r\n\x1a\nrest")
+    preview_loader = StubImagePreviewLoader(
+        previews_by_path={
+            str(image): FilePreviewState.with_content(
+                "\x1b[31m@@\x1b[0m\n",
+                False,
+                content_kind="image",
+            ),
+        }
+    )
+    loader = LiveBrowserSnapshotLoader(image_preview_loader=preview_loader)
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(image))
+
+    assert snapshot.child_pane.mode == "preview"
+    assert snapshot.child_pane.preview_path == str(image)
+    assert snapshot.child_pane.preview_content == "\x1b[31m@@\x1b[0m\n"
+    assert snapshot.child_pane.preview_kind == "image"
+    assert preview_loader.calls == [f"{image}:80:symbols"]
+
+def test_live_browser_snapshot_loader_marks_permission_denied_preview_candidate(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    readme = project / "README.md"
+    readme.write_text("secret\n", encoding="utf-8")
+
+    original_open = Path.open
+
+    def _blocked_open(self: Path, *args, **kwargs):
+        if self == readme:
+            raise PermissionError("blocked")
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", _blocked_open)
+    loader = LiveBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(readme))
+
+    assert snapshot.child_pane.mode == "preview"
+    assert snapshot.child_pane.preview_path == str(readme)
+    assert snapshot.child_pane.preview_content is None
+    assert snapshot.child_pane.preview_message == "Preview unavailable: permission denied"
+
+def test_live_browser_snapshot_loader_truncates_large_text_preview(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    readme = project / "README.md"
+    readme.write_text("a" * (64 * 1024 + 10), encoding="utf-8")
+
+    loader = LiveBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(readme))
+
+    assert snapshot.child_pane.mode == "preview"
+    assert snapshot.child_pane.preview_path == str(readme)
+    assert snapshot.child_pane.preview_truncated is True
+    assert snapshot.child_pane.preview_content == "a" * (64 * 1024)
+
+def test_live_browser_snapshot_loader_uses_configured_preview_limit(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    readme = project / "README.md"
+    readme.write_text("a" * (128 * 1024), encoding="utf-8")
+
+    loader = LiveBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot(str(project), cursor_path=str(readme))
+    custom_pane = loader.load_child_pane_snapshot(
+        str(project),
+        str(readme),
+        preview_max_bytes=128 * 1024,
+    )
+
+    assert snapshot.child_pane.preview_truncated is True
+    assert len(snapshot.child_pane.preview_content or "") == 64 * 1024
+    assert custom_pane.preview_truncated is False
+    assert len(custom_pane.preview_content or "") == 128 * 1024
+
+def test_live_browser_snapshot_loader_caches_text_preview_reads(tmp_path, monkeypatch) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    readme = project / "README.md"
+    readme.write_text("cached preview\n", encoding="utf-8")
+
+    original_open = Path.open
+    open_calls: list[Path] = []
+
+    def _tracking_open(self: Path, *args, **kwargs):
+        if self == readme and args and args[0] == "rb":
+            open_calls.append(self)
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", _tracking_open)
+    loader = LiveBrowserSnapshotLoader()
+
+    first = loader.load_child_pane_snapshot(str(project), str(readme))
+    second = loader.load_child_pane_snapshot(str(project), str(readme))
+
+    assert first == second
+    assert open_calls == [readme]
+
+def test_live_browser_snapshot_loader_invalidates_preview_cache_when_file_changes(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    readme = project / "README.md"
+    readme.write_text("version one\n", encoding="utf-8")
+
+    original_open = Path.open
+    open_calls: list[Path] = []
+
+    def _tracking_open(self: Path, *args, **kwargs):
+        if self == readme and args and args[0] == "rb":
+            open_calls.append(self)
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", _tracking_open)
+    loader = LiveBrowserSnapshotLoader()
+
+    first = loader.load_child_pane_snapshot(str(project), str(readme))
+    readme.write_text("version two updated\n", encoding="utf-8")
+    second = loader.load_child_pane_snapshot(str(project), str(readme))
+
+    assert first.preview_content == "version one\n"
+    assert second.preview_content == "version two updated\n"
+    assert open_calls == [readme, readme]
+
+def test_live_browser_snapshot_loader_returns_empty_parent_pane_for_root_path() -> None:
+    filesystem = StubFilesystemAdapter(
+        entries_by_path={
+            "/": (
+                DirectoryEntryState("/README", "README", "file"),
+                DirectoryEntryState("/tmp", "tmp", "dir"),
+            )
+        }
+    )
+    loader = LiveBrowserSnapshotLoader(filesystem=filesystem)
+
+    snapshot = loader.load_browser_snapshot("/", cursor_path="/README")
+
+    assert snapshot.current_path == "/"
+    assert snapshot.parent_pane.directory_path == "/"
+    assert snapshot.parent_pane.entries == ()
+    assert snapshot.parent_pane.cursor_path is None
+    assert snapshot.current_pane.entries == filesystem.entries_by_path["/"]
+    assert filesystem.list_directory_calls == ["/"]
+
+def test_live_browser_snapshot_loader_normalizes_not_found_error() -> None:
+    loader = LiveBrowserSnapshotLoader(
+        filesystem=StubFilesystemAdapter(errors_by_path={"/missing": FileNotFoundError("nope")})
+    )
+
+    with pytest.raises(OSError, match="Not found: /missing"):
+        loader.load_browser_snapshot("/missing")
+
+def test_live_browser_snapshot_loader_normalizes_permission_error() -> None:
+    loader = LiveBrowserSnapshotLoader(
+        filesystem=StubFilesystemAdapter(errors_by_path={"/secret": PermissionError("blocked")})
+    )
+
+    with pytest.raises(OSError, match="Permission denied: /secret"):
+        loader.load_browser_snapshot("/secret")
+
+def test_live_browser_snapshot_loader_reuses_directory_listings_across_snapshot_requests(
+    tmp_path,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    docs = project / "docs"
+    docs.mkdir()
+    (docs / "spec.md").write_text("spec\n", encoding="utf-8")
+
+    filesystem = _build_stub_filesystem(str(project), str(tmp_path), str(docs))
+    loader = LiveBrowserSnapshotLoader(filesystem=filesystem)
+
+    first = loader.load_browser_snapshot(str(project), cursor_path=str(docs))
+    second = loader.load_browser_snapshot(str(project), cursor_path=str(docs))
+
+    assert first == second
+    assert filesystem.list_directory_calls == [str(project), str(tmp_path), str(docs)]
+
+def test_live_browser_snapshot_loader_reuses_cached_child_directory_snapshot(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    docs = project / "docs"
+    docs.mkdir()
+    (docs / "spec.md").write_text("spec\n", encoding="utf-8")
+
+    filesystem = _build_stub_filesystem(str(project), str(tmp_path), str(docs))
+    loader = LiveBrowserSnapshotLoader(filesystem=filesystem)
+
+    loader.load_browser_snapshot(str(project), cursor_path=str(docs))
+    loader.load_child_pane_snapshot(str(project), str(docs))
+
+    assert filesystem.list_directory_calls == [str(project), str(tmp_path), str(docs)]
+
+def test_live_browser_snapshot_loader_invalidates_selected_directory_cache_entry(tmp_path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    docs = project / "docs"
+    docs.mkdir()
+    (docs / "spec.md").write_text("spec\n", encoding="utf-8")
+
+    filesystem = _build_stub_filesystem(str(project), str(tmp_path), str(docs))
+    loader = LiveBrowserSnapshotLoader(filesystem=filesystem)
+
+    loader.load_browser_snapshot(str(project), cursor_path=str(docs))
+    loader.invalidate_directory_listing_cache((str(project),))
+    loader.load_browser_snapshot(str(project), cursor_path=str(docs))
+
+    assert filesystem.list_directory_calls == [
+        str(project),
+        str(tmp_path),
+        str(docs),
+        str(project),
+    ]
+
+def test_resolve_cursor_path_returns_cursor_path_when_found() -> None:
+    entries = (
+        DirectoryEntryState("/a/.hidden", ".hidden", "file", hidden=True),
+        DirectoryEntryState("/a/visible", "visible", "file"),
+    )
+    result = _resolve_cursor_path(entries, "/a/visible")
+    assert result == "/a/visible"
+
+def test_resolve_cursor_path_returns_none_when_entries_empty() -> None:
+    result = _resolve_cursor_path((), None)
+    assert result is None
+
+def test_resolve_cursor_path_skips_hidden_when_show_hidden_false() -> None:
+    entries = (
+        DirectoryEntryState("/a/.hidden", ".hidden", "dir", hidden=True),
+        DirectoryEntryState("/a/.config", ".config", "dir", hidden=True),
+        DirectoryEntryState("/a/data", "data", "dir"),
+        DirectoryEntryState("/a/src", "src", "dir"),
+    )
+    result = _resolve_cursor_path(entries, None, show_hidden=False)
+    assert result == "/a/data"
+
+def test_resolve_cursor_path_returns_first_entry_when_all_hidden() -> None:
+    entries = (
+        DirectoryEntryState("/a/.hidden", ".hidden", "dir", hidden=True),
+        DirectoryEntryState("/a/.config", ".config", "dir", hidden=True),
+    )
+    result = _resolve_cursor_path(entries, None, show_hidden=False)
+    assert result == "/a/.hidden"
+
+def test_resolve_cursor_path_does_not_skip_hidden_when_show_hidden_true() -> None:
+    entries = (
+        DirectoryEntryState("/a/.hidden", ".hidden", "dir", hidden=True),
+        DirectoryEntryState("/a/.config", ".config", "dir", hidden=True),
+        DirectoryEntryState("/a/data", "data", "dir"),
+    )
+    result = _resolve_cursor_path(entries, None, show_hidden=True)
+    assert result == "/a/.hidden"
+
+def test_resolve_cursor_path_returns_first_entry_when_cursor_missing() -> None:
+    entries = (
+        DirectoryEntryState("/a/src", "src", "dir"),
+        DirectoryEntryState("/a/docs", "docs", "dir"),
+    )
+    result = _resolve_cursor_path(entries, "/a/missing", show_hidden=False)
+    assert result == "/a/src"
+
+def test_resolve_cursor_path_skips_hidden_by_default() -> None:
+    entries = (
+        DirectoryEntryState("/a/.hidden", ".hidden", "dir", hidden=True),
+        DirectoryEntryState("/a/visible", "visible", "dir"),
+    )
+    result = _resolve_cursor_path(entries, None)
+    assert result == "/a/visible"
+
+def test_fake_browser_snapshot_loader_prefers_requested_cursor_path() -> None:
+    path = "/tmp/zivo"
+    docs = f"{path}/docs"
+    src = f"{path}/src"
+    snapshot = BrowserSnapshot(
+        current_path=path,
+        parent_pane=PaneState(directory_path="/tmp", entries=()),
+        current_pane=PaneState(
+            directory_path=path,
+            entries=(
+                DirectoryEntryState(docs, "docs", "dir"),
+                DirectoryEntryState(src, "src", "dir"),
+            ),
+            cursor_path=docs,
+        ),
+        child_pane=PaneState(directory_path=docs, entries=()),
+    )
+    loader = FakeBrowserSnapshotLoader(
+        snapshots={path: snapshot},
+        child_panes={(path, src): PaneState(directory_path=src, entries=())},
+    )
+
+    resolved = loader.load_browser_snapshot(path, cursor_path=src)
+
+    assert resolved.current_pane.cursor_path == src
+    assert resolved.child_pane.directory_path == src
+
+def test_fake_browser_snapshot_loader_records_invalidated_directory_listing_paths() -> None:
+    loader = FakeBrowserSnapshotLoader()
+
+    loader.invalidate_directory_listing_cache(("/tmp/project", "/tmp/project/docs"))
+
+    assert loader.invalidated_directory_listing_paths == [
+        (
+            str(Path("/tmp/project").resolve()),
+            str(Path("/tmp/project/docs").resolve()),
+        ),
+    ]
+
+def test_fake_browser_snapshot_loader_returns_empty_parent_pane_for_root_path() -> None:
+    loader = FakeBrowserSnapshotLoader()
+
+    snapshot = loader.load_browser_snapshot("/")
+
+    assert snapshot.current_path == "/"
+    assert snapshot.parent_pane.directory_path == "/"
+    assert snapshot.parent_pane.entries == ()
